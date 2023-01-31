@@ -1,4 +1,7 @@
 import { createRef, useEffect } from 'react';
+import { isContext } from 'vm';
+import { ImageBound, calculateBounds } from '../../utils/geometry';
+
 import styles from './RemoteDisplayComponent.module.css';
 
 interface RemoteDisplayComponentProps {}
@@ -7,25 +10,17 @@ const RemoteDisplayComponent = () => {
   const imgURI: string = 'https://www.dndbeyond.com/attachments/5/762/map-gnomegarde-pc.jpg';
   const fowRef = createRef<HTMLCanvasElement>();
   const mapRef = createRef<HTMLDivElement>();
-  let image: HTMLOrSVGImageElement | null = null;
+  let image: HTMLImageElement | null = null;
 
   const imgLoaded = () => {
     if (!image) {
+      // TODO SIGNAL ERROR
       console.error(`Image is invalid`);
       return;
     }
+
     const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
     const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0)
-
-    // const imageWide = img.width >= img.height;
-    // const canvasWide = width >= height;
-
-    // if (imageWide !== canvasWide) {
-    //   img.style.height = `${width}px`;
-    //   img.style.width = `${height}px`;
-    //   img.style.transform = 'rotate(90deg)';
-    //   img.style.zIndex = "-1";
-    // }
 
     console.log(`Image  is ${image.width} x ${image.height}`);
     console.log(`Window is ${width} x ${height}`);
@@ -37,14 +32,27 @@ const RemoteDisplayComponent = () => {
       return;
     }
     const ctx = canvas.getContext('2d');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
     if (!ctx) {
       // TODO SIGNAL ERROR
       console.error(`Unable to get canvas context`);
       return;
     }
+
+    let bounds = calculateBounds(canvas.width, canvas.height, image.width, image.height);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(image, 10, 10, 90, 90)
     ctx.fillStyle = "#FF0000";
+    ctx.save();
+    ctx.translate(canvas.width/2, canvas.height/2);
+    if (bounds.rotate) {
+      ctx.rotate(90 * Math.PI/180);
+    }
+    ctx.drawImage(image, -bounds.width/2, -bounds.height/2, bounds.width, bounds.height);
+    ctx.restore();
     ctx.fillRect(0,0,150,75);
   }
 
@@ -61,7 +69,7 @@ const RemoteDisplayComponent = () => {
         console.log('Image already loaded');
         return;
       }
-      image = this as HTMLOrSVGImageElement;
+      image = this as HTMLImageElement;
       imgLoaded();
     }
     img.onerror = function() { imgFailed(); }
