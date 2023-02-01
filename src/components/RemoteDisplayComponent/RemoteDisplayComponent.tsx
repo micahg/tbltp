@@ -7,10 +7,44 @@ import styles from './RemoteDisplayComponent.module.css';
 interface RemoteDisplayComponentProps {}
 
 const RemoteDisplayComponent = () => {
-  const imgURI: string = 'https://www.dndbeyond.com/attachments/5/762/map-gnomegarde-pc.jpg';
+  // const imgURI: string = 'https://www.dndbeyond.com/attachments/5/762/map-gnomegarde-pc.jpg';
+  const imgURI: string = 'map-gnomegarde-pc.jpg';
   const fowRef = createRef<HTMLCanvasElement>();
   const mapRef = createRef<HTMLDivElement>();
   let image: HTMLImageElement | null = null;
+  let down: boolean = false;
+  let mouseStartX: number = 0;
+  let mouseStartY: number = 0;
+  let mouseEndX: number = 0;
+  let mouseEndY: number = 0;
+  let baseData: ImageData | null;
+
+  const mouseDown = (event: MouseEvent) => {
+    console.log(`Mouse down (${event.x}, ${event.y})`);
+    mouseStartX = event.x;
+    mouseStartY = event.y;
+    down = true;
+  }
+
+  const mouseUp = (event: MouseEvent) => {
+    down = false;
+    mouseEndX = event.x;
+    mouseEndY = event.y;
+  }
+  
+  const mouseMove = (event: MouseEvent) => {
+    if (!down) return;
+    if (event.x == mouseEndX && event.y == mouseEndY) return;
+    mouseEndX = event.x;
+    mouseEndY = event.y;
+    const canvas = fowRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!ctx) return;
+    if (!baseData) return;
+    ctx.putImageData(baseData, 0, 0);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+    ctx.fillRect(mouseStartX,mouseStartY,mouseEndX-mouseStartX,mouseEndY-mouseStartY);
+  }
 
   const imgLoaded = () => {
     if (!image) {
@@ -45,7 +79,6 @@ const RemoteDisplayComponent = () => {
 
     let bounds = calculateBounds(canvas.width, canvas.height, image.width, image.height);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#FF0000";
     ctx.save();
     ctx.translate(canvas.width/2, canvas.height/2);
     if (bounds.rotate) {
@@ -53,7 +86,13 @@ const RemoteDisplayComponent = () => {
     }
     ctx.drawImage(image, -bounds.width/2, -bounds.height/2, bounds.width, bounds.height);
     ctx.restore();
-    ctx.fillRect(0,0,150,75);
+
+    baseData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    canvas.addEventListener('mousedown', mouseDown);
+    canvas.addEventListener('mousemove', mouseMove);
+    canvas.addEventListener('mouseup', mouseUp);
+
+    ctx.save();
   }
 
   const imgFailed = () => {
