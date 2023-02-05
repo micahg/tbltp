@@ -43,6 +43,11 @@
   color: black;
 }
 
+.ControlsContainer button[disabled]:hover {
+  background-color: gray;
+  color: black;
+}
+
 .ControlsContainer button:hover {
   background-color: lightgray;
   color: black;
@@ -51,9 +56,4 @@
 .ControlsContainer button:active {
   background-color: whitesmoke;
   color: black;
-}
-
-.ContentContainer button:disabled {
-  background-color: white;
-  color: gray;
 }

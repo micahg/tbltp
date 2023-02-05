@@ -55,8 +55,12 @@ export function setupOverlayCanvas(background: HTMLCanvasElement, overlay: HTMLC
   return Promise.resolve();
 }
 
-export function obscureOverlay(overlayCtx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
-  console.log(`${x}, ${y}, ${width}, ${height}`)
+export function obscureOverlay(this: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
+  if (baseData === null) return;
+  this.putImageData(baseData, 0, 0);
+  this.fillStyle = "rgba(255, 0, 0, 1)";
+  this.fillRect(x1,y1,x2-x1,y2-y1);
+  baseData = this.getImageData(0, 0, this.canvas.width, this.canvas.height);
 }
 
 /**
@@ -84,6 +88,6 @@ export function storeOverlay(this: CanvasRenderingContext2D) {
 export function selectOverlay(this: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
   if (baseData === null) return;
   this.putImageData(baseData, 0, 0);
-  this.fillStyle = "rgba(0, 0, 0, 0.25)";
+  this.fillStyle = "rgba(255, 255, 255, 0.25)";
   this.fillRect(x1,y1,x2-x1,y2-y1);
 }

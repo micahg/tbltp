@@ -10,6 +10,7 @@ export class MouseStateMachine implements StateMachine {
   endY: number = 0;
   startCallback: (() => void) | null = null;
   moveCallback: ((x1: number, y1: number, x2: number, y2: number) => void) | null = null;
+  selectedCallback: ((x1: number, y1: number, x2: number, y2: number) => void) | null = null;
 
   constructor() {
     this.current = 'wait';
@@ -49,8 +50,9 @@ export class MouseStateMachine implements StateMachine {
   }
 
   doComplete(args: any[]) {
-    let evt: MouseEvent = args[0];
-    console.log(`doComplete: (${this.startX},${this.startY}) => (${this.endX}, ${this.endY})`)
+    if (this.selectedCallback && this.startX !== this.endX && this.startY !== this.endY) {
+      this.selectedCallback(this.startX, this.startY, this.endX, this.endY);
+    }
     this.startX = -1;
     this.startY = -1;
     this.endX = -1;
@@ -59,4 +61,5 @@ export class MouseStateMachine implements StateMachine {
 
   public setMoveCallback(cb: (x1: number, y1: number, x2: number, y2: number) => void) { this.moveCallback = cb; }
   public setStartCallback(cb: () => void) { this.startCallback = cb; }
+  public setSelectedCallback(cb: (x1: number, y1: number, x2: number, y2: number) => void) { this.selectedCallback = cb; }
 }

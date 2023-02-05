@@ -44,6 +44,21 @@ const ContentEditor = () => {
 
     sm.setMoveCallback(selectOverlay.bind(overlayCtx));
     sm.setStartCallback(storeOverlay.bind(overlayCtx));
+    sm.setSelectedCallback((x1, y1, x2, y2) => {
+      if (obscureButtonRef.current) {
+        obscureButtonRef.current.onclick = function() {
+          obscureOverlay.bind(overlayCtx)(x1, y1, x2, y2);
+          if (obscureButtonRef.current) {
+            obscureButtonRef.current.onclick = null;
+            obscureButtonRef.current.disabled = true;
+          }
+        }
+        obscureButtonRef.current.disabled = false;
+      } else {
+        // TODO SIGNAL ERROR
+        console.error('Unable to get ')
+      }
+    });
 
     const obscureButton = obscureButtonRef.current;
     if (!obscureButton) {
@@ -59,7 +74,6 @@ const ContentEditor = () => {
         overlayCnvs.addEventListener('mousedown', (evt: MouseEvent) => sm.transition('down', evt));
         overlayCnvs.addEventListener('mouseup', (evt: MouseEvent) => sm.transition('up', evt));
         overlayCnvs.addEventListener('mousemove', (evt: MouseEvent) => sm.transition('move', evt));
-
       })
       .catch(err => {
         // TODO SIGNAL ERROR
