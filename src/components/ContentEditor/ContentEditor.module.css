@@ -1,0 +1,59 @@
+.ContentEditor {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.ContentContainer {
+  position: absolute;
+  margin-bottom: 4em;
+}
+
+.ContentCanvas {
+  z-index: 1;
+  top: 0;
+  left: 0;
+  position: absolute;
+}
+
+.OverlayCanvas {
+  z-index: 2;
+  cursor: pointer;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.ControlsContainer {
+  display: flex;
+  flex-direction: row;
+  justify-content: right;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  z-index: 1;
+}
+
+.ControlsContainer button {
+  border-radius: 12px;
+  margin: 0.5em;
+  padding: 0.5em;
+  transition-duration: 0.4s;
+  background-color: gray;
+  color: black;
+}
+
+.ControlsContainer button:hover {
+  background-color: lightgray;
+  color: black;
+}
+
+.ControlsContainer button:active {
+  background-color: whitesmoke;
+  color: black;
+}
+
+.ContentContainer button:disabled {
+  background-color: white;
+  color: gray;
+}

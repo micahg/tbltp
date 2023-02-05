@@ -20,7 +20,8 @@
               "${workspaceRoot}/node_modules/.bin/jest",
               "--runInBand",
               "--",
-              "geometry.test.ts"
+              "geometry.test.ts",
+              "mousestatemachine.test.ts"
             ],
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen"
