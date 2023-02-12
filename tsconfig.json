@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "sourceMap": true,
+  },
+  "exclude": [
+    "./test/"
+  ]
+}
