@@ -105,3 +105,6 @@ dist
 
 # Typescript Output
 server.js
+
+# Asset Upload
+public

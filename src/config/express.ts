@@ -6,7 +6,8 @@ import * as express from "express";
 import * as bodyParser from "body-parser";
 import * as multer from "multer";
 import { Server } from 'http';
-import { updateAsset } from "../routes/asset";
+import { getAsset, updateAsset } from "../routes/asset";
+import { ASSET_UPDATED_SIG, PATH_ASSET } from "../utils/constants";
 
 /**
  * Create the express middleware.
@@ -17,7 +18,7 @@ export function create(): express.Express {
 
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({extended: true}));
-
+  app.use(express.static('public'));
   // app.use((req, res, next) => {
   //   if (req.method == "OPTIONS") {
   //     next();
@@ -54,13 +55,16 @@ export function create(): express.Express {
   let upload:multer.Multer = multer({dest: destdir});
 
   // TODO this could probably be something like /updates
-  app.get('/', (req, res) => res.status(200).send('hey there\n'));
-  app.put('/asset', upload.single('image'), updateAsset);
+  // app.get('/', (req, res) => res.status(200).send('hey there\n'));
+  app.put(PATH_ASSET, upload.single('image'), updateAsset);
+  // TODO MICAH maybe instead, send the new image back over the websocket?
+  // app.get(PATH_ASSET, (req, res) => res.status(200).send('image go here'));
+  // app.get(PATH_ASSET, getAsset);
 
   return app;
 }
 
-export function listen(app: express.Express):  Server {
+export function listen(app: express.Express): Server {
   return app.listen(3000, () => {
     log.info(`Listening on port 3000`);
   });
