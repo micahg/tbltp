@@ -1,13 +1,13 @@
 import { createRef, useEffect } from 'react';
+import { useDispatch } from 'react-redux';
 import { IMG_URI, loadImage, obscureOverlay, renderImage, setupOverlayCanvas, selectOverlay, storeOverlay} from '../../utils/drawing';
-import { transitionStateMachine, StateMachine } from '../../utils/statemachine';
 import { MouseStateMachine } from '../../utils/mousestatemachine';
 import styles from './ContentEditor.module.css';
 
 interface ContentEditorProps {}
 
 const ContentEditor = () => {
-
+  const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
   const obscureButtonRef = createRef<HTMLButtonElement>();
@@ -52,6 +52,13 @@ const ContentEditor = () => {
             obscureButtonRef.current.onclick = null;
             obscureButtonRef.current.disabled = true;
           }
+          overlayCanvasRef.current?.toBlob((blob: Blob | null) => {
+            if (!blob) {
+              // TODO SIGNAL ERROR
+              return;
+            }
+            dispatch({type: 'content/overlay', payload: blob})
+          }, 'image/png', 1);
         }
         obscureButtonRef.current.disabled = false;
       } else {

@@ -4,10 +4,12 @@ import RemoteDisplayComponent from '../RemoteDisplayComponent/RemoteDisplayCompo
 import ContentEditor from '../ContentEditor/ContentEditor';
 
 function App() {
+  let query = new URLSearchParams(document.location.search);
+  let view = query.get('view');
   return (
     <div className="App">
-      {/* <RemoteDisplayComponent/> */}
-      <ContentEditor/>
+      {view !== 'edit' && <RemoteDisplayComponent/>}
+      {view === 'edit' && <ContentEditor/>}
     </div>
   );
 }

@@ -3,13 +3,30 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './components/App/App';
 import reportWebVitals from './reportWebVitals';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import { AppReducer } from './reducers/AppReducer';
+import { EnvironmentMiddleware } from './middleware/EnvironmentMiddleware';
+import { ContentMiddleware } from './middleware/ContentMiddleware';
+
+const store = configureStore({
+  reducer: AppReducer,
+  middleware: [
+    EnvironmentMiddleware,
+    ContentMiddleware,
+  ],
+});
+
+store.dispatch({type: 'environment/config', payload: undefined});
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
   <React.StrictMode>
-    <App />
+    <Provider store={store}>
+      <App />
+    </Provider>
   </React.StrictMode>
 );
 

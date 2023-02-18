@@ -10,14 +10,35 @@ let baseData: ImageData | null = null;
  * @returns a promise that resolves to an HTMLImageElement
  */
 export function loadImage(uri: string): Promise<HTMLImageElement> {
+  const img = new Image();
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.id = 'mapImage'
     img.onload = function() { resolve(this as HTMLImageElement); }
     img.onerror = function() { reject('Image load failed'); }
     img.src = uri;
   });
 }
+/*export function loadImage(data: Blob): Promise<HTMLImageElement>;
+export function loadImage(data: string | Blob): Promise<HTMLImageElement> {
+  const img = new Image();
+  if (typeof data ==='string') {
+    return new Promise((resolve, reject) => {
+      img.onload = function() { resolve(this as HTMLImageElement); }
+      img.onerror = function() { reject('Image load failed'); }
+      img.src = data;
+    });
+  } else {
+    return new Promise((resolve, reject) => {
+      img.onload = function() {
+        resolve(this as HTMLImageElement);
+      }
+      img.onerror = function() {
+        reject('Image load failed');
+      }
+      img.src = URL.createObjectURL(data);
+      console.log(`MICAH SIGH`);
+    });
+  }
+}*/
 
 export function renderImage(image: HTMLImageElement, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): Promise<void> {
 
