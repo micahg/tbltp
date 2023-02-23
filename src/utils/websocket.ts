@@ -1,21 +1,27 @@
 import { Server } from 'http';
 import { Express } from 'express';
-import { WebSocket } from 'ws';
+import { EventEmitter, WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
 import { ASSET_UPDATED_SIG } from './constants';
 
 import { log } from "./logger";
 
+export interface LayerUpdate {
+  layer: string,
+  path: string,
+}
+
 export function startWSServer(nodeServer: Server, app: Express) {
   log.info('starting websocket server');
   let wss = new WebSocketServer({server: nodeServer});
+  let emitter = app as EventEmitter;
 
-  app.on(ASSET_UPDATED_SIG, (fileName) => {
-    console.log(`Filename is ${fileName}`);
+  emitter.on(ASSET_UPDATED_SIG, (update: LayerUpdate) => {
     wss.clients.forEach((sock:WebSocket) => {
       let msg = {
         'method': ASSET_UPDATED_SIG,
-        'overlay': 'overlay.png',
+        'layer': update.layer, 
+        'path': update.path,
       }
       console.log(`Sending ${JSON.stringify(msg)}`)
       sock.send(JSON.stringify(msg));
