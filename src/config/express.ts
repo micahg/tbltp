@@ -6,7 +6,7 @@ import * as express from "express";
 import * as bodyParser from "body-parser";
 import * as multer from "multer";
 import { Server } from 'http';
-import { getAsset, updateAsset } from "../routes/asset";
+import { updateAsset } from "../routes/asset";
 import { ASSET_UPDATED_SIG, PATH_ASSET } from "../utils/constants";
 
 /**
