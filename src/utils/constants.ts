@@ -7,5 +7,9 @@ export const ASSET_UPDATED = "asset_updated";
 export const PATH_ASSET = '/asset';
 
 export const VALID_LAYERS = ['overlay', 'background'];
-export const VALID_MIME = ['image/png', 'image/jpeg'];
+export const VALID_CONTENT_TYPES = ['image/png', 'image/jpeg'];
+export const   CONTENT_TYPE_EXTS = ['png',       'jpg'];
 export const DEST_FOLDER = 'public';
+
+export const ERR_INVALID_URL = "Invalid URL in request... nice try";
+export const ERR_HTTPS_ONLY = "Please use HTTPS source for content";

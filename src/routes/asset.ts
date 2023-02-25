@@ -1,10 +1,13 @@
-import { cp, fstat, rm, stat } from 'node:fs';
+import { cp, rm } from 'node:fs';
+
+import { IncomingMessage } from 'node:http';
+import { get } from "node:https";
+import { createWriteStream } from 'node:fs';
 
 import { Request, Response } from "express";
 
 import { log } from "../utils/logger";
-import path = require('node:path');
-import { ASSET_UPDATED_SIG, DEST_FOLDER, VALID_LAYERS, VALID_MIME } from '../utils/constants';
+import { ASSET_UPDATED_SIG, CONTENT_TYPE_EXTS, DEST_FOLDER, ERR_HTTPS_ONLY, ERR_INVALID_URL, VALID_CONTENT_TYPES, VALID_LAYERS } from '../utils/constants';
 import { LayerUpdate } from '../utils/websocket';
 
 /*export function getAsset(req: Request, res: Response, next: any) {
@@ -24,31 +27,74 @@ import { LayerUpdate } from '../utils/websocket';
   });
 }*/
 
+/**
+ * Figure out the destination exension based on mime type
+ * @param contentType the content/mime type
+ * @returns null if the mime is invalid, otherwise, the extension to use for the mime
+ */
+function getContentTypeExtension(contentType: string) {
+  if (!VALID_CONTENT_TYPES.includes(contentType)) return null;
+  return CONTENT_TYPE_EXTS[VALID_CONTENT_TYPES.indexOf(contentType)];
+}
 
-export function updateAsset(req: Request, res: Response, next: any) {
-  if (!req.file) {
-    log.error('No file in layer update request.');
-    return res.sendStatus(406);
+function updateAssetFromLink(layer: string, req: Request, res: Response) {
+  let source: URL;
+  
+  try {
+    source = new URL(req.body.image);
+  } catch (err) {
+    log.error(`Invalid URL in body`);
+    return res.status(400).send(ERR_INVALID_URL);
   }
 
-  if (!('layer' in req.body)) {
-    log.error(`Unspecified layer in asset update request!`);
+  // we probalby could do both... but does it matter?!
+  if (source.protocol !== 'https:') {
+    log.error(`Uh... we don't support http - use HTTPs`);
+    return res.status(400).send(ERR_HTTPS_ONLY);
+  }
+
+  get(source, (response: IncomingMessage) => {
+    const { statusCode, headers} = response;
+    if (statusCode !==200) {
+      log.error(`Unable to download ${layer} from ${source}: status was ${statusCode}`);
+      return res.sendStatus(500);
+    }
+
+    if (!('content-type' in headers)) {
+      log.error(`Unable to infer content type for ${source} from headers: ${headers}`);
+      return res.sendStatus(500);
+    }
+
+    let ext = getContentTypeExtension(headers['content-type']);
+    if (!ext) {
+      log.error(`Invalid mime type: ${headers['content-type']}`);
+      return res.sendStatus(400);
+    }
+
+    let dest = `${DEST_FOLDER}/${layer}.${ext}`
+    let update: LayerUpdate = {layer: layer, path: `${layer}.${ext}`};
+    response.pipe(createWriteStream(dest)
+      .on('finish', () => {
+        res.app.emit(ASSET_UPDATED_SIG, update);
+        return res.json(update);
+      })
+      .on('error', () => {
+        log.error(`Error while writing to destination ${dest}`);
+        return res.sendStatus(500);
+      })
+    );
+  }).on('error', () => {
+    log.error(`Unable to fetch from URL ${source}`);
+    return res.sendStatus(500);
+  });
+}
+
+function updateAssetFromUpload(layer: string, req: Request, res: Response) {
+  let ext = getContentTypeExtension(req.file.mimetype);
+  if (!ext) {
+    log.error(`Invalid mime type: ${req.file.mimetype}`);
     return res.sendStatus(400);
   }
-
-  let layer: string = req.body.layer.toLowerCase();
-  if (!VALID_LAYERS.includes(layer)) {
-    log.error(`Invalid layer name in asset update request: {layer}`);
-    return res.sendStatus(400);
-  }
-
-  let mime: string = req.file.mimetype;
-  if (!VALID_MIME.includes(mime)) {
-    log.error(`Invalid mime type: ${mime}`);
-    return res.sendStatus(400);
-  }
-
-  let ext: string = mime.split('/')[1];
   let src = req.file.path;
   let dest = `${DEST_FOLDER}/${layer}.${ext}`
   cp(src, dest, {force: true, preserveTimestamps: true}, err => {
@@ -69,4 +115,29 @@ export function updateAsset(req: Request, res: Response, next: any) {
       return res.json(update)
     })
   });
+}
+
+export function updateAsset(req: Request, res: Response, next: any) {
+
+  if (!('layer' in req.body)) {
+    log.error(`Unspecified layer in asset update request!`);
+    return res.sendStatus(400);
+  }
+
+  let layer: string = req.body.layer.toLowerCase();
+  if (!VALID_LAYERS.includes(layer)) {
+    log.error(`Invalid layer name in asset update request: {layer}`);
+    return res.sendStatus(400);
+  }
+
+  // if there is an image upload, handle it
+  if (req.file) return updateAssetFromUpload(layer, req, res);
+
+  // if there is an image, but its not in file format, assume its a link
+  if ('image' in req.body) return updateAssetFromLink(layer, req, res);
+
+  // we don't know how to do anything else....
+  log.error('No file or link in layer update request.');
+  return res.sendStatus(406);
+
 }

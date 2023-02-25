@@ -16,6 +16,7 @@ Node.js server implementation that
 
 ```
 curl -v -X PUT http://localhost:3000/asset -F "layer=background" -F "image=@image.png"
+curl -v -X PUT http://localhost:3000/asset -F "layer=background" -F "image=https://media.dndbeyond.com/compendium-images/lmop/M14LHJMMQhUuZ46S/map-1.1-Cragmaw-Hideout-player.jpg"
 ```
 
 Where image is actually located at ./image.png
