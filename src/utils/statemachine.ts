@@ -21,9 +21,14 @@ export function transitionStateMachine(sm: StateMachine, input: string, ...args:
     }
 
     sm.current = sm.states[sm.current][input];
+
     if (sm.current in sm.actions && args) {
       sm.actions[sm.current].bind(sm)(args);
     }
 
     return true;
+}
+
+export function setCallback(sm: StateMachine, state: string, cb: (args: any[]) => void) {
+  sm.actions[state] = cb;
 }
