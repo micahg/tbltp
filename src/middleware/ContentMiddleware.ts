@@ -12,7 +12,7 @@ function isFile(payload: URL | File): payload is File {
   return (payload as File).lastModified !== undefined;
 }
 
-function sendFile(storeAPI: MiddlewareAPI, blob: Blob, layer: string): Promise<AxiosResponse> {
+function sendFile(storeAPI: MiddlewareAPI, blob: File | URL, layer: string): Promise<AxiosResponse> {
   return new Promise((resolve, reject) => {
 
     let state: AppReducerState = storeAPI.getState();
@@ -22,9 +22,11 @@ function sendFile(storeAPI: MiddlewareAPI, blob: Blob, layer: string): Promise<A
   
     let url: string = `${state.environment.api}/asset`;
     let formData = new FormData();
+    let contentType: string = isFile(blob) ? blob.type : 'multipart/form-data';
+    let content: Blob | string = isFile(blob) ? blob as Blob : blob.toString();
     formData.append('layer', layer);
-    formData.append('image', blob);
-    axios.put(url, formData, { headers: { 'Content-Type': blob.type }}).then(value => resolve(value))
+    formData.append('image', content);
+    axios.put(url, formData, { headers: { 'Content-Type': contentType }}).then(value => resolve(value))
       .catch(err => reject(err));
   });
 }
@@ -33,18 +35,11 @@ export const ContentMiddleware: Middleware = storeAPI => next => action=> {
   switch (action.type) {
     case 'content/background':
       let load: URL | File = action.payload;
-      if (isURL(load)) {
-        console.log('URL');
-      } else if (isFile(load)) {
-        sendFile(storeAPI, action.payload, 'background').then((value) => {
-          let ts: number = (new Date()).getTime();
-          action.payload = `${value.data.path}?${ts}`;
-          return next(action);
-        }).catch(err => console.error(`Unable to update overlay: ${JSON.stringify(err)}`));
-      } else {
-        console.error('Incompatible payload for content/background middleware');
-        return;
-      }
+      sendFile(storeAPI, action.payload, 'background').then((value) => {
+        let ts: number = (new Date()).getTime();
+        action.payload = `${value.data.path}?${ts}`;
+        return next(action);
+      }).catch(err => console.error(`Unable to update overlay: ${JSON.stringify(err)}`));
       return;
     case 'content/overlay':
       sendFile(storeAPI, action.payload, 'overlay').then((value) => {

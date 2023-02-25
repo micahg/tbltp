@@ -8,8 +8,9 @@ function App() {
   let view = query.get('view');
   return (
     <div className="App">
-      {view !== 'edit' && <RemoteDisplayComponent/>}
-      {view === 'edit' && <ContentEditor/>}
+      <ContentEditor/>
+      {/* {view !== 'edit' && <RemoteDisplayComponent/>}
+      {view === 'edit' && <ContentEditor/>} */}
     </div>
   );
 }
