@@ -1,34 +1,38 @@
 import { createRef, useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
-import { loadImage, renderImage, setupOverlayCanvas } from '../../utils/drawing';
+import { getCanvas, loadImage, renderImage, setupOverlayCanvas } from '../../utils/drawing';
 
 import styles from './RemoteDisplayComponent.module.css';
 
 interface RemoteDisplayComponentProps {}
 
 const RemoteDisplayComponent = () => {
-  const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
-  const [overlayURI, setOverlayURI] = useState<string|null>(null);
   const apiUrl: string | undefined = useSelector((state: AppReducerState) => state.environment.api);
 
   useEffect(() => {
-    const overlayCnvs = overlayCanvasRef.current;
-    if (!overlayCnvs) {
+
+    const overlay = getCanvas(overlayCanvasRef, true);
+    if (!overlay) {
       // TODO SIGNAL ERROR
-      console.error(`Unable to get overlay canvas ref`)
+      console.error('Unable to get overlay canvas')
       return;
     }
 
-    const overlayCtx = overlayCnvs.getContext('2d', {alpha: true})
-    if (!overlayCtx) {
+    const content = getCanvas(contentCanvasRef);
+    if (!content) {
       // TODO SIGNAL ERROR
-      console.error('Unable to get overlay canvas context')
-      return;
+      console.error('Unable to get overlay canvas')
+      return;      
     }
+    const overlayCnvs = overlay.cnvs;
+    const overlayCtx = overlay.ctx;
+    const contentCnvs = content.cnvs;
+    const contentCtx = content.ctx;
 
+    // TODO FIX THIS FIRST YIKES
     let url = `ws://localhost:3000/`;
     let ws = new WebSocket(url);
     ws.onopen = (event: Event) => {
@@ -51,10 +55,20 @@ const RemoteDisplayComponent = () => {
         return;
       }
 
-      if ('overlay' in js && apiUrl) {
-        let ts: number = new Date().getTime();
-        loadImage(`${apiUrl}/${js.overlay}?${ts}`).then((img: HTMLImageElement) => {
+      let ts: number = new Date().getTime();
+      if ('overlay' in js.state && apiUrl) {
+        let asset: string = js.state.overlay;
+        loadImage(`${apiUrl}/${asset}?${ts}`).then((img: HTMLImageElement) => {
           renderImage(img, overlayCnvs, overlayCtx);
+        }).catch(err => {
+          console.error(err);
+        });
+      }
+
+      if ('background' in js.state && apiUrl) {
+        let asset: string = js.state.background;
+        loadImage(`${apiUrl}/${asset}?${ts}`).then((img: HTMLImageElement) => {
+          renderImage(img, contentCnvs, contentCtx);
         }).catch(err => {
           console.error(err);
         });
@@ -64,7 +78,6 @@ const RemoteDisplayComponent = () => {
 
   return (
     <div className={styles.map}>
-      Hey Bud!
       <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>Sorry, your browser does not support canvas.</canvas>
       <canvas className={styles.OverlayCanvas} ref={overlayCanvasRef}/>
     </div>

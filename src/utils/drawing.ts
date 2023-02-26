@@ -122,3 +122,20 @@ export function clearOverlaySelection(this: CanvasRenderingContext2D) {
   if (baseData === null) return;
   this.putImageData(baseData, 0, 0);
 }
+
+export function getCanvas(ref: React.RefObject<HTMLCanvasElement>, alpha: boolean = false): null | { cnvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D} {
+  const cnvs = ref.current;
+  if (!cnvs) {
+    // TODO SIGNAL ERROR
+    console.error(`Unable to get content canvas ref`);
+    return null;
+  }
+
+  const ctx = cnvs.getContext('2d', { alpha: alpha });
+  if (!ctx) {
+    // TODO SIGNAL ERROR
+    console.error(`Unable to get content canvas context`);
+    return null;
+  }
+  return { cnvs: cnvs, ctx: ctx };
+}

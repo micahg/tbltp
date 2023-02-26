@@ -21,6 +21,7 @@ const ContentEditor = () => {
   const [link, setLink] = useState<string>('');
   const background = useSelector((state: AppReducerState) => state.content.background);
   const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
+  const pushTime = useSelector((state: AppReducerState) => state.content.pushTime);
 
   const getContent = () => {
     const cnvs = contentCanvasRef.current;
@@ -107,6 +108,7 @@ const ContentEditor = () => {
     const content = getContent();
     const overlay = getOverlay();
     if (!content || !overlay) return;
+    // TODO come back use destructuring assiment... this is lame
     const contentCnvs = content[0] as HTMLCanvasElement;
     const overlayCnvs = overlay[0] as HTMLCanvasElement;
     const contentCtx = content[1] as CanvasRenderingContext2D;
@@ -119,6 +121,7 @@ const ContentEditor = () => {
       setCanLink(false);
       setCanObscure(false);
     });
+    
     setCallback(sm, 'record', () => {
       setShowMenu(false)
       setCanObscure(true);
@@ -140,6 +143,7 @@ const ContentEditor = () => {
     })
     sm.setMoveCallback(selectOverlay.bind(overlayCtx));
     sm.setStartCallback(storeOverlay.bind(overlayCtx));
+    setCallback(sm, 'push', () => dispatch({type: 'content/push'}));
 
     overlayCnvs.addEventListener('mousedown', (evt: MouseEvent) => sm.transition('down', evt));
     overlayCnvs.addEventListener('mouseup', (evt: MouseEvent) => sm.transition('up', evt));
@@ -165,6 +169,9 @@ const ContentEditor = () => {
         console.log(`Unable to load image: ${JSON.stringify(err)}`);
       });
   }, [apiUrl, background])
+
+  // make sure we end the push state when we get a successful push time update
+  useEffect(() => sm.transition('done'), [pushTime])
 
   return (
     <div className={styles.ContentEditor}
@@ -195,6 +202,8 @@ const ContentEditor = () => {
         <button disabled={!canObscure} onClick={() => {
           sm.transition('obscure')
         }}>Obscure</button>
+        <button disabled={!canObscure}>Reveal</button>
+        <button onClick={() => sm.transition('push')}>Update</button>
       </div>
     </div>
   );

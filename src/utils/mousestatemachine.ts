@@ -18,6 +18,10 @@ export class MouseStateMachine implements StateMachine {
       'wait': { // waiting to start recording
         'down': 'record_mouse',
         'background': 'background_select',
+        'push': 'push',
+      },
+      'push': {
+        'done': 'wait',
       },
       'record_mouse': { // recording movement
         'move': 'record_mouse',
