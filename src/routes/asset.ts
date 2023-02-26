@@ -7,8 +7,13 @@ import { createWriteStream } from 'node:fs';
 import { Request, Response } from "express";
 
 import { log } from "../utils/logger";
-import { ASSET_UPDATED_SIG, CONTENT_TYPE_EXTS, DEST_FOLDER, ERR_HTTPS_ONLY, ERR_INVALID_URL, VALID_CONTENT_TYPES, VALID_LAYERS } from '../utils/constants';
-import { LayerUpdate } from '../utils/websocket';
+import { CONTENT_TYPE_EXTS, DEST_FOLDER, ERR_HTTPS_ONLY, ERR_INVALID_URL, VALID_CONTENT_TYPES, VALID_LAYERS } from '../utils/constants';
+import { updateTableState } from '../utils/tablestate';
+
+export interface LayerUpdate {
+  layer: string,
+  path: string,
+}
 
 /*export function getAsset(req: Request, res: Response, next: any) {
   stat(DEST, (err, stats) => {
@@ -71,11 +76,12 @@ function updateAssetFromLink(layer: string, req: Request, res: Response) {
       return res.sendStatus(400);
     }
 
-    let dest = `${DEST_FOLDER}/${layer}.${ext}`
-    let update: LayerUpdate = {layer: layer, path: `${layer}.${ext}`};
+    let fileName = `${layer}.${ext}`;
+    let dest = `${DEST_FOLDER}/${fileName}`
+    let update: LayerUpdate = {layer: layer, path: fileName};
     response.pipe(createWriteStream(dest)
       .on('finish', () => {
-        res.app.emit(ASSET_UPDATED_SIG, update);
+        updateTableState(layer, fileName);
         return res.json(update);
       })
       .on('error', () => {
@@ -96,24 +102,24 @@ function updateAssetFromUpload(layer: string, req: Request, res: Response) {
     return res.sendStatus(400);
   }
   let src = req.file.path;
-  let dest = `${DEST_FOLDER}/${layer}.${ext}`
+  let fileName = `${layer}.${ext}`
+  let dest = `${DEST_FOLDER}/${fileName}`
   cp(src, dest, {force: true, preserveTimestamps: true}, err => {
     if (err) {
       log.error(`Unable to copy ${src} to ${dest}`);
       return res.sendStatus(500);
     }
 
-    // redo dest for public consumption (eg: just layer.ext prefix)
-    log.info(`Updated ${layer} ${dest}`);
-    let update: LayerUpdate = {layer: layer, path: `${layer}.${ext}`};
-    res.app.emit(ASSET_UPDATED_SIG, update);
+    log.info(`Updated ${fileName}`);
+    let update: LayerUpdate = {layer: layer, path: fileName};
+    updateTableState(layer, fileName);
 
     rm(src, {force: true}, err => {
       if (err) {
         log.error(`Unable to delete ${src}`);
       }
-      return res.json(update)
-    })
+      return res.json(update);
+    });
   });
 }
 

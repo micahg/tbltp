@@ -2,26 +2,21 @@ import { Server } from 'http';
 import { Express } from 'express';
 import { EventEmitter, WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
-import { ASSET_UPDATED_SIG } from './constants';
+import { ASSETS_UPDATED_SIG } from './constants';
 
 import { log } from "./logger";
-
-export interface LayerUpdate {
-  layer: string,
-  path: string,
-}
+import { TableState } from './tablestate';
 
 export function startWSServer(nodeServer: Server, app: Express) {
   log.info('starting websocket server');
   let wss = new WebSocketServer({server: nodeServer});
   let emitter = app as EventEmitter;
 
-  emitter.on(ASSET_UPDATED_SIG, (update: LayerUpdate) => {
+  emitter.on(ASSETS_UPDATED_SIG, (update: TableState) => {
     wss.clients.forEach((sock:WebSocket) => {
       let msg = {
-        'method': ASSET_UPDATED_SIG,
-        'layer': update.layer, 
-        'path': update.path,
+        'method': ASSETS_UPDATED_SIG,
+        'state': update,
       }
       console.log(`Sending ${JSON.stringify(msg)}`)
       sock.send(JSON.stringify(msg));

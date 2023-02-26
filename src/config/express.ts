@@ -7,7 +7,8 @@ import * as bodyParser from "body-parser";
 import * as multer from "multer";
 import { Server } from 'http';
 import { updateAsset } from "../routes/asset";
-import { ASSET_UPDATED_SIG, PATH_ASSET } from "../utils/constants";
+import { ASSETS_UPDATED_SIG, PATH_ASSET, STATE_ASSET } from "../utils/constants";
+import { updateState } from "../routes/state";
 
 /**
  * Create the express middleware.
@@ -54,12 +55,8 @@ export function create(): express.Express {
   let destdir: string = os.tmpdir();
   let upload:multer.Multer = multer({dest: destdir});
 
-  // TODO this could probably be something like /updates
-  // app.get('/', (req, res) => res.status(200).send('hey there\n'));
   app.put(PATH_ASSET, upload.single('image'), updateAsset);
-  // TODO MICAH maybe instead, send the new image back over the websocket?
-  // app.get(PATH_ASSET, (req, res) => res.status(200).send('image go here'));
-  // app.get(PATH_ASSET, getAsset);
+  app.put(STATE_ASSET, updateState);
 
   return app;
 }
