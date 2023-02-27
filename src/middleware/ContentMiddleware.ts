@@ -49,6 +49,22 @@ export const ContentMiddleware: Middleware = storeAPI => next => action=> {
         next(action);
       });
       break;
+    case 'content/pull': {
+      let state: AppReducerState = storeAPI.getState();
+      if (!state.environment.api) {
+        // TODO MICAH display error
+        console.error(`Unable to get API from state`);
+        return;
+      }
+
+      let url: string = `${state.environment.api}/state`;
+      axios.get(url).then((value) => next({...action, payload: value.data}))
+        .catch(err => {
+          // TODO MICAH display error
+          console.error(`Unable to get state: ${JSON.stringify(err)}`);
+        });
+    }
+    break;
     case 'content/background':
       let load: URL | Blob = action.payload;
       sendFile(storeAPI, action.payload, 'background').then((value) => {

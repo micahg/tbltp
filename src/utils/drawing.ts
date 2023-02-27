@@ -16,6 +16,16 @@ export function loadImage(uri: string): Promise<HTMLImageElement> {
     img.onload = function() { resolve(this as HTMLImageElement); }
     img.onerror = function() { reject('Image load failed'); }
     img.src = uri;
+    // TODO MICAH get rid of this. This is a hack to stop an exception:
+    //
+    //    The canvas has been tainted by cross-origin data.
+    //
+    // from happening when we (later) call getImageData on the overlay BUT have
+    // loaded the overlay with an existing image from localhost:3000. The problem
+    // originates from the fact that our frontend in dev is on localhost:4200 and
+    // I don't think cross-origin is setup properly for static data on the nose
+    // server
+    img.crossOrigin = 'Anonymous';
   });
 }
 /*export function loadImage(data: Blob): Promise<HTMLImageElement>;
@@ -46,7 +56,6 @@ export function renderImage(image: HTMLImageElement, canvas: HTMLCanvasElement, 
   const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
   const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - CONTROLS_HEIGHT;
 
-
   canvas.width = width;
   canvas.height = height;
   canvas.style.width = `${width}px`;
@@ -65,6 +74,10 @@ export function renderImage(image: HTMLImageElement, canvas: HTMLCanvasElement, 
   ctx.restore();
 
   return Promise.resolve();
+}
+
+export function initOverlay() {
+  overlayInitialized = true;
 }
 
 export function setupOverlayCanvas(background: HTMLCanvasElement, overlay: HTMLCanvasElement, overlayCtx: CanvasRenderingContext2D): Promise<void> {
@@ -125,17 +138,8 @@ export function clearOverlaySelection(this: CanvasRenderingContext2D) {
 
 export function getCanvas(ref: React.RefObject<HTMLCanvasElement>, alpha: boolean = false): null | { cnvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D} {
   const cnvs = ref.current;
-  if (!cnvs) {
-    // TODO SIGNAL ERROR
-    console.error(`Unable to get content canvas ref`);
-    return null;
-  }
-
+  if (!cnvs) return null;
   const ctx = cnvs.getContext('2d', { alpha: alpha });
-  if (!ctx) {
-    // TODO SIGNAL ERROR
-    console.error(`Unable to get content canvas context`);
-    return null;
-  }
+  if (!ctx) return null;
   return { cnvs: cnvs, ctx: ctx };
 }
