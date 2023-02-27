@@ -7,3 +7,7 @@ export function updateState(req: Request, res: Response, next: any) {
   res.app.emit(ASSETS_UPDATED_SIG, state);
   return res.json(state);
 }
+
+export function getState(req: Request, res: Response, next: any) {
+  return res.json(getTableState());
+}

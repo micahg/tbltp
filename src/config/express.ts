@@ -7,8 +7,8 @@ import * as bodyParser from "body-parser";
 import * as multer from "multer";
 import { Server } from 'http';
 import { updateAsset } from "../routes/asset";
-import { ASSETS_UPDATED_SIG, PATH_ASSET, STATE_ASSET } from "../utils/constants";
-import { updateState } from "../routes/state";
+import { PATH_ASSET, STATE_ASSET } from "../utils/constants";
+import { getState, updateState } from "../routes/state";
 
 /**
  * Create the express middleware.
@@ -56,6 +56,7 @@ export function create(): express.Express {
   let upload:multer.Multer = multer({dest: destdir});
 
   app.put(PATH_ASSET, upload.single('image'), updateAsset);
+  app.get(STATE_ASSET, getState);
   app.put(STATE_ASSET, updateState);
 
   return app;

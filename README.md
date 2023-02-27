@@ -12,7 +12,16 @@ Node.js server implementation that
 * Multer for image upload
 * ws for websocket communication (status updates to the tabletop client)
 
-## Testing Upload
+## Future Work
+
+* Firebase Auth
+* Stateful game (multiple maps and overlays saved)
+* DM content vs Table content (eg: DM versions of images with annotations)
+* Notes
+  * To track NPCs, prior events, etc and tie them to a place
+* Beyond Integration?
+
+## Testing
 
 ```
 curl -v -X PUT http://localhost:3000/asset -F "layer=background" -F "image=@image.png"
