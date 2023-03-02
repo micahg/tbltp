@@ -5,7 +5,12 @@ import { WebSocketServer } from 'ws';
 import { ASSETS_UPDATED_SIG } from './constants';
 
 import { log } from "./logger";
-import { TableState } from './tablestate';
+import { getTableState, TableState } from './tablestate';
+
+interface WSStateMessage {
+  method?: string,
+  state?: TableState,
+}
 
 export function startWSServer(nodeServer: Server, app: Express) {
   log.info('starting websocket server');
@@ -14,7 +19,7 @@ export function startWSServer(nodeServer: Server, app: Express) {
 
   emitter.on(ASSETS_UPDATED_SIG, (update: TableState) => {
     wss.clients.forEach((sock:WebSocket) => {
-      let msg = {
+      let msg: WSStateMessage = {
         'method': ASSETS_UPDATED_SIG,
         'state': update,
       }
@@ -25,15 +30,19 @@ export function startWSServer(nodeServer: Server, app: Express) {
 
   wss.on('connection', (sock: WebSocket, req) => {
     log.info(`Websocket connection established ${req.socket.remoteAddress}`);
-    let msgJS = {
-      'method': 'connection',
-      'overlay': 'overlay.png',
+    let state: TableState = getTableState();
+    // don't send a partial display without overlay by accident
+    if (state.overlay === null) {
+      state = null;
     }
-    sock.send(JSON.stringify(msgJS));
+    let msg: WSStateMessage = {
+      'method': 'connection',
+      'state': state,
+    }
+    sock.send(JSON.stringify(msg));
     sock.on('message', (buf) => {
       let data = buf.toString();
       log.info(`Received "${data}"`);
-      sock.send('hey yourself');
     });
   });
   return wss;
