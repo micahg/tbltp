@@ -25,7 +25,7 @@ export function loadImage(uri: string): Promise<HTMLImageElement> {
     // originates from the fact that our frontend in dev is on localhost:4200 and
     // I don't think cross-origin is setup properly for static data on the nose
     // server
-    img.crossOrigin = 'Anonymous';
+    // img.crossOrigin = 'Anonymous';
   });
 }
 /*export function loadImage(data: Blob): Promise<HTMLImageElement>;

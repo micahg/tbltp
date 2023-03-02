@@ -55,8 +55,17 @@ const RemoteDisplayComponent = () => {
         return;
       }
 
+      // ignore null state -- happens when server has no useful state loaded yet
+      if (js.state === null) return;
+
+      // if we don't have an API URL we'll never get WS messages... seems impossible
+      if (apiUrl === null) {
+        console.error('THE IMPOSSIBLE HAS HAPPENED -- WS MESSAGE WITH NO API SERVER WHAT');
+        return;
+      }
+
       let ts: number = new Date().getTime();
-      if ('overlay' in js.state && apiUrl) {
+      if ('overlay' in js.state && js.state.overlay) {
         let asset: string = js.state.overlay;
         loadImage(`${apiUrl}/${asset}?${ts}`).then((img: HTMLImageElement) => {
           renderImage(img, overlayCnvs, overlayCtx);
@@ -65,7 +74,7 @@ const RemoteDisplayComponent = () => {
         });
       }
 
-      if ('background' in js.state && apiUrl) {
+      if ('background' in js.state && js.state.background) {
         let asset: string = js.state.background;
         loadImage(`${apiUrl}/${asset}?${ts}`).then((img: HTMLImageElement) => {
           renderImage(img, contentCnvs, contentCtx);
