@@ -19,7 +19,7 @@ export function create(): express.Express {
 
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({extended: true}));
-  app.use(express.static('public'));
+
   // app.use((req, res, next) => {
   //   if (req.method == "OPTIONS") {
   //     next();
@@ -51,6 +51,8 @@ export function create(): express.Express {
     res.header("Access-Control-Allow-Methods", "POST, PUT, PATCH, GET, OPTIONS, DELETE");
     next();
   });
+
+  app.use(express.static('public'));
 
   let destdir: string = os.tmpdir();
   let upload:multer.Multer = multer({dest: destdir});
