@@ -14,9 +14,9 @@ export function loadImage(uri: string): Promise<HTMLImageElement> {
   const img = new Image();
   return new Promise((resolve, reject) => {
     img.onload = function() { resolve(this as HTMLImageElement); }
-    img.onerror = function() { reject('Image load failed'); }
-    img.src = uri;
-    // TODO MICAH get rid of this. This is a hack to stop an exception:
+    img.onerror = function(error) { reject(error); }
+    // Anonymous only works if the server cors are setup... Setting it avoids the
+    // error:
     //
     //    The canvas has been tainted by cross-origin data.
     //
@@ -25,7 +25,8 @@ export function loadImage(uri: string): Promise<HTMLImageElement> {
     // originates from the fact that our frontend in dev is on localhost:4200 and
     // I don't think cross-origin is setup properly for static data on the nose
     // server
-    // img.crossOrigin = 'Anonymous';
+    img.crossOrigin = 'Anonymous';
+    img.src = uri;
   });
 }
 /*export function loadImage(data: Blob): Promise<HTMLImageElement>;
@@ -101,6 +102,14 @@ export function obscureOverlay(this: CanvasRenderingContext2D, x1: number, y1: n
   this.fillRect(x1,y1,x2-x1,y2-y1);
   baseData = this.getImageData(0, 0, this.canvas.width, this.canvas.height);
 }
+
+export function revealOverlay(this: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) {
+  if (baseData === null) return;
+  this.putImageData(baseData, 0, 0);
+  this.clearRect(x1,y1,x2-x1,y2-y1);
+  baseData = this.getImageData(0, 0, this.canvas.width, this.canvas.height);
+}
+
 
 /**
  * Store off the default overlay image data. When using this method, you must

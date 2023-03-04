@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 import { createRef, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
-import { IMG_URI, loadImage, obscureOverlay, renderImage, setupOverlayCanvas, selectOverlay, storeOverlay, clearOverlaySelection, getCanvas, initOverlay} from '../../utils/drawing';
+import { IMG_URI, loadImage, obscureOverlay, renderImage, setupOverlayCanvas, selectOverlay, storeOverlay, clearOverlaySelection, getCanvas, initOverlay, revealOverlay} from '../../utils/drawing';
 import { MouseStateMachine } from '../../utils/mousestatemachine';
 import { setCallback } from '../../utils/statemachine';
 import styles from './ContentEditor.module.css';
@@ -31,6 +31,21 @@ const ContentEditor = () => {
     let { cnvs, ctx } = overlayStuff;
 
     obscureOverlay.bind(ctx)(x1, y1, x2, y2);
+    overlayCanvasRef.current?.toBlob((blob: Blob | null) => {
+      if (!blob) {
+        // TODO SIGNAL ERROR
+        return;
+      }
+      dispatch({type: 'content/overlay', payload: blob})
+    }, 'image/png', 1);
+  }
+
+  const reveal = (x1: number, y1: number, x2: number, y2: number) => {
+    let overlayStuff = getCanvas(overlayCanvasRef, true);
+    if (!overlayStuff) return;
+    let { cnvs, ctx } = overlayStuff;
+
+    revealOverlay.bind(ctx)(x1, y1, x2, y2);
     overlayCanvasRef.current?.toBlob((blob: Blob | null) => {
       if (!blob) {
         // TODO SIGNAL ERROR
@@ -107,7 +122,11 @@ const ContentEditor = () => {
     setCallback(sm, 'obscure', () => {
       obscure(sm.x1(), sm.y1(), sm.x2(), sm.y2());
       sm.transition('wait');
-    })
+    });
+    setCallback(sm, 'reveal', () => {
+      reveal(sm.x1(), sm.y1(), sm.x2(), sm.y2());
+      sm.transition('wait');
+    });
     sm.setMoveCallback(selectOverlay.bind(overlayCtx));
     sm.setStartCallback(storeOverlay.bind(overlayCtx));
     setCallback(sm, 'push', () => dispatch({type: 'content/push'}));
@@ -203,7 +222,9 @@ const ContentEditor = () => {
         <button disabled={!canObscure} onClick={() => {
           sm.transition('obscure')
         }}>Obscure</button>
-        <button disabled={!canObscure}>Reveal</button>
+        <button disabled={!canObscure} onClick={() => {
+          sm.transition('reveal');
+        }}>Reveal</button>
         <button onClick={() => sm.transition('push')}>Update</button>
       </div>
     </div>

@@ -32,9 +32,13 @@ export class MouseStateMachine implements StateMachine {
       'complete': { // done recording - box selected
         'down': 'record_mouse',
         'obscure': 'obscure',
+        'reveal': 'reveal',
         'background': 'background_select',
       },
       'obscure': {
+        'wait': 'wait',
+      },
+      'reveal': {
         'wait': 'wait',
       },
       'background_select': {
