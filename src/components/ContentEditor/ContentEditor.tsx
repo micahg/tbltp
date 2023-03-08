@@ -1,21 +1,19 @@
-import { render } from '@testing-library/react';
 import { createRef, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
-import { IMG_URI, loadImage, obscureOverlay, renderImage, setupOverlayCanvas, selectOverlay, storeOverlay, clearOverlaySelection, getCanvas, initOverlay, revealOverlay} from '../../utils/drawing';
+import { loadImage, obscureOverlay, renderImage, setupOverlayCanvas, selectOverlay, storeOverlay, clearOverlaySelection, getCanvas, initOverlay, revealOverlay} from '../../utils/drawing';
 import { MouseStateMachine } from '../../utils/mousestatemachine';
 import { setCallback } from '../../utils/statemachine';
 import styles from './ContentEditor.module.css';
 
 const sm = new MouseStateMachine();
 
-interface ContentEditorProps {}
-
 const ContentEditor = () => {
   const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
   
+  const [backgroundLoaded, setBackgroundLoaded] = useState<boolean>(false);
   const [showMenu, setShowMenu] = useState<boolean>(false);
   const [canObscure, setCanObscure] = useState<boolean>(false);
   const [canLink, setCanLink] = useState<boolean>(false);
@@ -25,12 +23,22 @@ const ContentEditor = () => {
   const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
   const pushTime = useSelector((state: AppReducerState) => state.content.pushTime);
 
+  const updateBackground = (data: URL | File) => {
+      // send without payload to wipe overlay
+      dispatch({type: 'content/overlay'});
+
+      // update our internal state to indicate we have no background... yet
+      setBackgroundLoaded(false);
+
+      // send the new background
+      dispatch({type: 'content/background', payload: data});
+  }
+
   const obscure = (x1: number, y1: number, x2: number, y2: number) => {
     let overlayStuff = getCanvas(overlayCanvasRef, true);
     if (!overlayStuff) return;
-    let { cnvs, ctx } = overlayStuff;
 
-    obscureOverlay.bind(ctx)(x1, y1, x2, y2);
+    obscureOverlay.bind(overlayStuff.ctx)(x1, y1, x2, y2);
     overlayCanvasRef.current?.toBlob((blob: Blob | null) => {
       if (!blob) {
         // TODO SIGNAL ERROR
@@ -43,9 +51,8 @@ const ContentEditor = () => {
   const reveal = (x1: number, y1: number, x2: number, y2: number) => {
     let overlayStuff = getCanvas(overlayCanvasRef, true);
     if (!overlayStuff) return;
-    let { cnvs, ctx } = overlayStuff;
 
-    revealOverlay.bind(ctx)(x1, y1, x2, y2);
+    revealOverlay.bind(overlayStuff.ctx)(x1, y1, x2, y2);
     overlayCanvasRef.current?.toBlob((blob: Blob | null) => {
       if (!blob) {
         // TODO SIGNAL ERROR
@@ -56,7 +63,7 @@ const ContentEditor = () => {
   }
 
   const keyPress = (key: string) => {
-    if (key.toLowerCase() == 'enter') {
+    if (key.toLowerCase() === 'enter') {
       let url: URL | null= null;
       try {
         url = new URL(link);
@@ -70,9 +77,9 @@ const ContentEditor = () => {
         alert('Something went wrong!');
         return;
       }
-      dispatch({type: 'content/background', payload: url});
+      updateBackground(url);
       sm.transition('done');
-    } else if (key.toLowerCase() == 'escape') {
+    } else if (key.toLowerCase() === 'escape') {
       sm.transition('done');
     }
   }
@@ -83,7 +90,7 @@ const ContentEditor = () => {
     input.multiple = false;
     input.onchange = () => {
       if (!input.files) return sm.transition('done');
-      dispatch({type: 'content/background', payload: input.files[0]})
+      updateBackground(input.files[0]);
       sm.transition('done');
     }
     input.click();
@@ -159,24 +166,29 @@ const ContentEditor = () => {
     const overlayCtx = overlayStuff.ctx;  
     let bgImg = `${apiUrl}/${background}`;
     loadImage(bgImg)
-      .then(img =>renderImage(img, contentCnvs, contentCtx))
-      .then(() => setupOverlayCanvas(contentCnvs, overlayCnvs, overlayCtx))
+      .then(img =>renderImage(img, contentCnvs, contentCtx, true))
+      .then(bounds => {
+        setBackgroundLoaded(true);
+        setupOverlayCanvas(bounds, overlayCnvs, overlayCtx)
+      })
       .catch(err => {
         // TODO SIGNAL ERROR
         console.log(`Unable to load image: ${JSON.stringify(err)}`);
       });
-  }, [apiUrl, background])
+  }, [apiUrl, background, contentCanvasRef, overlayCanvasRef])
 
   // make sure we end the push state when we get a successful push time update
   useEffect(() => sm.transition('done'), [pushTime])
 
   // force render of current state as soon as we have an API to talk to
   useEffect(() => {
-    if (!apiUrl) return;
+    if (!apiUrl || !dispatch) return;
     dispatch({type: 'content/pull'}); // TODO why th does this need braces?
-  }, [apiUrl]);
+  }, [apiUrl, dispatch]);
 
   useEffect(() => {
+    // if the background isn't loaded yet, no point rendering the overlay
+    if (!backgroundLoaded) return;
     // if the overlay is a string, then load it. This should only be the case on init
     if (!overlay) return;
     if ((overlay as Blob).type !== undefined) return;
@@ -191,13 +203,13 @@ const ContentEditor = () => {
       .then(img => renderImage(img, overlayCnvs, overlayCtx))
       .then(() => initOverlay())
       .catch(err => console.error(err));
-  }, [overlay])
+  }, [apiUrl, overlayCanvasRef, overlay, backgroundLoaded])
 
   return (
     <div className={styles.ContentEditor}
       data-testid="ContentEditor"
       onFocus={() =>{
-        if (sm.current == 'background_upload') {
+        if (sm.current === 'background_upload') {
           sm.transition('done')
         }
       }}

@@ -1,6 +1,5 @@
-import { calculateBounds } from "./geometry";
+import { calculateBounds, ImageBound } from "./geometry";
 
-export const IMG_URI: string = 'map-gnomegarde-pc.jpg';
 export const CONTROLS_HEIGHT = 46;
 let baseData: ImageData | null = null;
 let overlayInitialized: boolean = false;
@@ -52,15 +51,17 @@ export function loadImage(data: string | Blob): Promise<HTMLImageElement> {
   }
 }*/
 
-export function renderImage(image: HTMLImageElement, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): Promise<void> {
+export function renderImage(image: HTMLImageElement, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, resizeCanvas: boolean = false): Promise<ImageBound> {
 
-  const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
-  const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - CONTROLS_HEIGHT;
+  if (resizeCanvas) {
+    const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
+    const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - CONTROLS_HEIGHT;
 
-  canvas.width = width;
-  canvas.height = height;
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
+    canvas.width = width;
+    canvas.height = height;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+  }
 
   if (!ctx) return Promise.reject(`Unable to get canvas context`);
 
@@ -74,22 +75,26 @@ export function renderImage(image: HTMLImageElement, canvas: HTMLCanvasElement, 
   ctx.drawImage(image, -bounds.width/2, -bounds.height/2, bounds.width, bounds.height);
   ctx.restore();
 
-  return Promise.resolve();
+  return Promise.resolve(bounds);
 }
 
 export function initOverlay() {
   overlayInitialized = true;
 }
 
-export function setupOverlayCanvas(background: HTMLCanvasElement, overlay: HTMLCanvasElement, overlayCtx: CanvasRenderingContext2D): Promise<void> {
+export function setupOverlayCanvas(bounds: ImageBound, overlay: HTMLCanvasElement, overlayCtx: CanvasRenderingContext2D): Promise<void> {
   // avoid rerender after initialization
   if (overlayInitialized) {
     return Promise.resolve();
   }
-  overlay.width = background.width;
-  overlay.height = background.height;
-  overlay.style.width = `${background.width}px`;
-  overlay.style.height = `${background.height}px`;
+
+  overlay.width = bounds.width;
+  overlay.height = bounds.height;
+  overlay.style.width = `${bounds.width}px`;
+  overlay.style.height = `${bounds.height}px`;
+  overlay.style.top = `${bounds.top}px`;
+  overlay.style.left = `${bounds.left}px`;
+
   overlayCtx.save();
   overlayInitialized = true;
   return Promise.resolve();

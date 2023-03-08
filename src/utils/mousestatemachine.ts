@@ -58,7 +58,7 @@ export class MouseStateMachine implements StateMachine {
   }
 
   transition(input: string, ...args: any[]): void {
-    if (this.current == 'complete' && input == 'down') this.resetCoordinates();
+    if (this.current === 'complete' && input === 'down') this.resetCoordinates();
     transitionStateMachine(this, input, args[0]);
   }
 
@@ -69,12 +69,12 @@ export class MouseStateMachine implements StateMachine {
     // deal with recording mouse events
     let evt: MouseEvent = args[0];
     if (this.startX < 0) {
-      this.startX = evt.x;
-      this.startY = evt.y;
+      this.startX = evt.offsetX;
+      this.startY = evt.offsetY;
       if (this.startCallback) this.startCallback();
     } else {
-      this.endY = evt.y;
-      this.endX = evt.x;
+      this.endY = evt.offsetY;
+      this.endX = evt.offsetX;
       if (this.moveCallback) this.moveCallback(this.startX, this.startY, this.endX, this.endY)
     }
   }

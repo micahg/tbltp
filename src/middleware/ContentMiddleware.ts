@@ -1,8 +1,6 @@
-import { Middleware, MiddlewareAPI, StateFromReducersMapObject } from 'redux';
+import { Middleware, MiddlewareAPI } from 'redux';
 import axios, { AxiosResponse } from 'axios';
-import { blob } from 'stream/consumers';
 import { AppReducerState } from '../reducers/AppReducer';
-import { rejects } from 'assert';
 
 function isBlob(payload: URL | Blob): payload is File {
   return (payload as Blob).type !== undefined;
@@ -66,7 +64,6 @@ export const ContentMiddleware: Middleware = storeAPI => next => action=> {
     }
     break;
     case 'content/background':
-      let load: URL | Blob = action.payload;
       sendFile(storeAPI, action.payload, 'background').then((value) => {
         let ts: number = (new Date()).getTime();
         action.payload = `${value.data.path}?${ts}`;
@@ -74,6 +71,10 @@ export const ContentMiddleware: Middleware = storeAPI => next => action=> {
       }).catch(err => console.error(`Unable to update overlay: ${JSON.stringify(err)}`));
       break;
     case 'content/overlay':
+      // undefined means we're wiping the canvas... probably a new background
+      if (action.payload === undefined) return next(action);
+
+      // if we have an overlay payload then send it
       sendFile(storeAPI, action.payload, 'overlay').then((value) => {
         console.log(`I did send ${JSON.stringify(value)}`);
         return next(action);
