@@ -6,6 +6,7 @@ export const ASSET_UPDATED = "asset_updated";
 
 export const PATH_ASSET = '/asset';
 export const STATE_ASSET = '/state';
+export const VIEWPORT_ASSET = '/viewport';
 
 export const VALID_LAYERS = ['overlay', 'background'];
 export const VALID_CONTENT_TYPES = ['image/png', 'image/jpeg'];

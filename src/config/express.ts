@@ -7,8 +7,9 @@ import * as bodyParser from "body-parser";
 import * as multer from "multer";
 import { Server } from 'http';
 import { updateAsset } from "../routes/asset";
-import { PATH_ASSET, STATE_ASSET } from "../utils/constants";
+import { PATH_ASSET, STATE_ASSET, VIEWPORT_ASSET } from "../utils/constants";
 import { getState, updateState } from "../routes/state";
+import { setViewPort } from "../routes/viewport";
 
 /**
  * Create the express middleware.
@@ -60,6 +61,7 @@ export function create(): express.Express {
   app.put(PATH_ASSET, upload.single('image'), updateAsset);
   app.get(STATE_ASSET, getState);
   app.put(STATE_ASSET, updateState);
+  app.put(VIEWPORT_ASSET, setViewPort);
 
   return app;
 }
