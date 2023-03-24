@@ -1,9 +1,30 @@
-import { calculateBounds, ImageBound } from "./geometry";
+import { calculateBounds, ImageBound, Rect } from "./geometry";
 
 export const CONTROLS_HEIGHT = 46;
 let baseData: ImageData | null = null;
 let overlayInitialized: boolean = false;
 
+export function getRect(x1: number, y1: number, x2: number, y2: number): Rect {
+  let x: number;
+  let y: number;
+  let w: number;
+  let h: number;
+  if (x1 > x2) {
+    x = x2;
+    w = x1-x2;
+  } else {
+    x = x1;
+    w = x2 - x1;
+  }
+  if (y1 > y2) {
+    y = y2;
+    h = y1 - y2;
+  } else {
+    y = y1;
+    h = y2 - y1;
+  }
+  return { x: x, y: y, width: w, height: h};
+}
 /**
  * Load an image.
  * @param uri the URI of the image to load
@@ -51,28 +72,35 @@ export function loadImage(data: string | Blob): Promise<HTMLImageElement> {
   }
 }*/
 
-export function renderImage(image: HTMLImageElement, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, resizeCanvas: boolean = false): Promise<ImageBound> {
+export function renderImage(image: HTMLImageElement, ctx: CanvasRenderingContext2D,
+  resizeCanvas: boolean = false, withControls: boolean = true,
+  viewport: Rect | null = null): Promise<ImageBound> {
 
   if (resizeCanvas) {
     const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
-    const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - CONTROLS_HEIGHT;
-
-    canvas.width = width;
-    canvas.height = height;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - (withControls ? CONTROLS_HEIGHT : 0);
+    ctx.canvas.width = width;
+    ctx.canvas.height = height;
+    ctx.canvas.style.width = `${width}px`;
+    ctx.canvas.style.height = `${height}px`;
   }
 
   if (!ctx) return Promise.reject(`Unable to get canvas context`);
 
-  let bounds = calculateBounds(canvas.width, canvas.height, image.width, image.height);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  let bounds = calculateBounds(ctx.canvas.width, ctx.canvas.height, image.width, image.height);
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   ctx.save();
-  ctx.translate(canvas.width/2, canvas.height/2);
+  ctx.translate(ctx.canvas.width/2, ctx.canvas.height/2);
   if (bounds.rotate) {
     ctx.rotate(90 * Math.PI/180);
   }
-  ctx.drawImage(image, -bounds.width/2, -bounds.height/2, bounds.width, bounds.height);
+  if (viewport != null) {
+    ctx.drawImage(image,
+      viewport.x, viewport.y, viewport.width, viewport.height,
+      -bounds.width/2, -bounds.height/2, bounds.width, bounds.height);  
+  } else {
+    ctx.drawImage(image, -bounds.width/2, -bounds.height/2, bounds.width, bounds.height);
+  }
   ctx.restore();
 
   return Promise.resolve(bounds);
@@ -82,20 +110,20 @@ export function initOverlay() {
   overlayInitialized = true;
 }
 
-export function setupOverlayCanvas(bounds: ImageBound, overlay: HTMLCanvasElement, overlayCtx: CanvasRenderingContext2D): Promise<void> {
+export function setupOverlayCanvas(bounds: ImageBound, ctx: CanvasRenderingContext2D): Promise<void> {
   // avoid rerender after initialization
   if (overlayInitialized) {
     return Promise.resolve();
   }
 
-  overlay.width = bounds.width;
-  overlay.height = bounds.height;
-  overlay.style.width = `${bounds.width}px`;
-  overlay.style.height = `${bounds.height}px`;
-  overlay.style.top = `${bounds.top}px`;
-  overlay.style.left = `${bounds.left}px`;
+  ctx.canvas.width = bounds.width;
+  ctx.canvas.height = bounds.height;
+  ctx.canvas.style.width = `${bounds.width}px`;
+  ctx.canvas.style.height = `${bounds.height}px`;
+  ctx.canvas.style.top = `${bounds.top}px`;
+  ctx.canvas.style.left = `${bounds.left}px`;
 
-  overlayCtx.save();
+  ctx.save();
   overlayInitialized = true;
   return Promise.resolve();
 }
@@ -148,12 +176,4 @@ export function selectOverlay(this: CanvasRenderingContext2D, x1: number, y1: nu
 export function clearOverlaySelection(this: CanvasRenderingContext2D) {
   if (baseData === null) return;
   this.putImageData(baseData, 0, 0);
-}
-
-export function getCanvas(ref: React.RefObject<HTMLCanvasElement>, alpha: boolean = false): null | { cnvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D} {
-  const cnvs = ref.current;
-  if (!cnvs) return null;
-  const ctx = cnvs.getContext('2d', { alpha: alpha });
-  if (!ctx) return null;
-  return { cnvs: cnvs, ctx: ctx };
 }

@@ -19,6 +19,7 @@ export class MouseStateMachine implements StateMachine {
         'down': 'record_mouse',
         'background': 'background_select',
         'push': 'push',
+        'zoomOut': 'zoomOut',
       },
       'push': {
         'done': 'wait',
@@ -33,12 +34,20 @@ export class MouseStateMachine implements StateMachine {
         'down': 'record_mouse',
         'obscure': 'obscure',
         'reveal': 'reveal',
+        'zoomIn': 'zoomIn',
         'background': 'background_select',
+        'wait': 'wait',
       },
       'obscure': {
         'wait': 'wait',
       },
       'reveal': {
+        'wait': 'wait',
+      },
+      'zoomIn': {
+        'wait': 'wait',
+      },
+      'zoomOut': {
         'wait': 'wait',
       },
       'background_select': {

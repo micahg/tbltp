@@ -1,3 +1,12 @@
+import { getRect } from "./drawing";
+
+export interface Rect {
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+};
+
 export interface ImageBound {
   left: number;
   top: number;
@@ -28,7 +37,38 @@ export function calculateBounds(canvasWidth: number, canvasHeight: number, image
     result.rotate = true;
   }
 
-    
-    result.rotate = rotate;
-    return result;
+  result.rotate = rotate;
+  return result;
+}
+
+export function scaleSelection(selection: Rect, viewport: Rect, width: number, height: number) {
+  let v_w = viewport.width - viewport.x;
+  let v_h = viewport.height - viewport.y;
+  let h_scale = width/v_w;
+  let v_scale = height/v_h;
+  let res: Rect = {
+    x: selection.x * h_scale, y: selection.y * v_scale,
+    width: selection.width * h_scale, height: selection.height * v_scale,
+  };
+  return res;
+}
+
+export function fillToAspect(selection: Rect | null, width: number, height: number) {
+  if (!selection) return getRect(0, 0, width, height);
+  if (selection.x === 0 && selection.y === 0 && selection.width === width && selection.height === height) {
+    return getRect(0, 0, width, height);
+  }
+
+  let selR = selection.width / selection.height;
+  let scrR = width/height;
+
+  if (selR >= scrR) {
+    let newHeight = selection.width / scrR;
+    let newY = selection.y + ((selection.height - newHeight)/2)
+    return {x: selection.x, y: newY, width: selection.width, height: newHeight};
+  }
+
+  let newWidth = scrR * selection.height;
+  let newX = selection.x + ((selection.width - newWidth)/2);
+  return {x: newX, y: selection.y, width: newWidth, height: selection.height}
 }

@@ -1,7 +1,8 @@
 import { createRef, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
-import { loadImage, obscureOverlay, renderImage, setupOverlayCanvas, selectOverlay, storeOverlay, clearOverlaySelection, getCanvas, initOverlay, revealOverlay} from '../../utils/drawing';
+import { loadImage, obscureOverlay, renderImage, setupOverlayCanvas, selectOverlay, storeOverlay, clearOverlaySelection, initOverlay, revealOverlay, getRect} from '../../utils/drawing';
+import { scaleSelection } from '../../utils/geometry';
 import { MouseStateMachine } from '../../utils/mousestatemachine';
 import { setCallback } from '../../utils/statemachine';
 import styles from './ContentEditor.module.css';
@@ -13,15 +14,20 @@ const ContentEditor = () => {
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
   
+  const [contentCtx, setContentCtx] = useState<CanvasRenderingContext2D|null>(null);
+  const [overlayCtx, setOverlayCtx] = useState<CanvasRenderingContext2D|null>(null);
   const [backgroundLoaded, setBackgroundLoaded] = useState<boolean>(false);
   const [showMenu, setShowMenu] = useState<boolean>(false);
   const [canObscure, setCanObscure] = useState<boolean>(false);
   const [canLink, setCanLink] = useState<boolean>(false);
   const [link, setLink] = useState<string>('');
+  const [backgroundSize, setBackgroundSize] = useState<number[]|null>(null);
+  const [zoomedIn, setZoomedIn] = useState<boolean>(false);
   const background = useSelector((state: AppReducerState) => state.content.background);
   const overlay = useSelector((state: AppReducerState) => state.content.overlay);
   const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
   const pushTime = useSelector((state: AppReducerState) => state.content.pushTime);
+  const viewport = useSelector((state: AppReducerState) => state.content.viewport);
 
   const updateBackground = (data: URL | File) => {
       // send without payload to wipe overlay
@@ -35,10 +41,8 @@ const ContentEditor = () => {
   }
 
   const obscure = (x1: number, y1: number, x2: number, y2: number) => {
-    let overlayStuff = getCanvas(overlayCanvasRef, true);
-    if (!overlayStuff) return;
-
-    obscureOverlay.bind(overlayStuff.ctx)(x1, y1, x2, y2);
+    if (!overlayCtx) return;
+    obscureOverlay.bind(overlayCtx)(x1, y1, x2, y2);
     overlayCanvasRef.current?.toBlob((blob: Blob | null) => {
       if (!blob) {
         // TODO SIGNAL ERROR
@@ -49,10 +53,8 @@ const ContentEditor = () => {
   }
 
   const reveal = (x1: number, y1: number, x2: number, y2: number) => {
-    let overlayStuff = getCanvas(overlayCanvasRef, true);
-    if (!overlayStuff) return;
-
-    revealOverlay.bind(overlayStuff.ctx)(x1, y1, x2, y2);
+    if (!overlayCtx) return;
+    revealOverlay.bind(overlayCtx)(x1, y1, x2, y2);
     overlayCanvasRef.current?.toBlob((blob: Blob | null) => {
       if (!blob) {
         // TODO SIGNAL ERROR
@@ -96,12 +98,52 @@ const ContentEditor = () => {
     input.click();
   }
 
+  const zoomIn = (x1: number, y1: number, x2: number, y2: number) => {
+    if (!backgroundSize) return;
+    if (!overlayCtx) return;
+    if (!overlayCtx.canvas) return;
+    let sel = getRect(x1, y1, x2, y2);
+    // the viewport (vp) in this case is not relative to the background image
+    // size, but the size of the canvas upon which it is painted
+    let vp = getRect(0,0, overlayCtx.canvas.width, overlayCtx.canvas.height);
+    let [w, h] = backgroundSize;
+    let payload = scaleSelection(sel, vp, w, h);
+    dispatch({type: 'content/zoom', payload: payload});
+    sm.transition('wait');
+  }
+
+  const zoomOut = () => {
+    if (!backgroundSize) return;
+    dispatch({type: 'content/zoom', payload: getRect(0, 0, backgroundSize[0], backgroundSize[1])});
+  }
+
+  // if we don't have a canvas OR have already set context, then bail
   useEffect(() => {
-    const overlayStuff = getCanvas(overlayCanvasRef, true);
-    if (!overlayStuff) return;
-    // TODO come back use destructuring assiment... this is lame
-    const overlayCnvs = overlayStuff.cnvs;
-    const overlayCtx = overlayStuff.ctx;
+    if (!contentCanvasRef.current || contentCtx != null) return;
+    setContentCtx(contentCanvasRef.current.getContext('2d', { alpha: false }));
+  }, [contentCanvasRef, contentCtx]);
+
+  useEffect(() => {
+    if (!overlayCanvasRef.current || overlayCtx != null) return;
+    setOverlayCtx(overlayCanvasRef.current.getContext('2d', { alpha: true }));
+  }, [overlayCanvasRef, overlayCtx]);
+
+  useEffect(() => {
+    if (!viewport) return;
+    if (!backgroundSize) return;
+    let v = viewport;
+    let [w, h] = backgroundSize;
+    let zoomedOut: boolean = (v.x === 0 && v.y === 0 && w === v.width && h === v.height);
+    // if zoomed out and in then state changed.... think about it man...
+    if (zoomedOut !== zoomedIn) return;
+    setZoomedIn(!zoomedOut);
+    sm.transition('wait');
+  }, [viewport, backgroundSize, zoomedIn]);
+
+
+  useEffect(() => {
+    if (!overlayCanvasRef.current) return;
+    if (!overlayCtx) return;
 
     setCallback(sm, 'wait', () => {
       sm.resetCoordinates();
@@ -109,6 +151,7 @@ const ContentEditor = () => {
       setShowMenu(false);
       setCanLink(false);
       setCanObscure(false);
+      clearOverlaySelection.bind(overlayCtx)();
     });
     
     setCallback(sm, 'record', () => {
@@ -127,6 +170,7 @@ const ContentEditor = () => {
     });
     setCallback(sm, 'background_upload', selectFile);
     setCallback(sm, 'obscure', () => {
+      // console.log(`Obscuring ${sm.x1()}, ${sm.y1()}, ${sm.x2()}, ${sm.y2()}`);
       obscure(sm.x1(), sm.y1(), sm.x2(), sm.y2());
       sm.transition('wait');
     });
@@ -134,15 +178,29 @@ const ContentEditor = () => {
       reveal(sm.x1(), sm.y1(), sm.x2(), sm.y2());
       sm.transition('wait');
     });
+    setCallback(sm, 'zoomIn', () => {
+      // console.log(`Zooming ${sm.x1()}, ${sm.y1()}, ${sm.x2()}, ${sm.y2()}`);
+      zoomIn(sm.x1(), sm.y1(), sm.x2(), sm.y2())
+    });
+    setCallback(sm, 'zoomOut', () => zoomOut());
+    setCallback(sm, 'complete', () => {
+      // console.log(`${sm.x1()}, ${sm.x2()}, ${sm.y1()}, ${sm.y2()}`)
+      // so if we measure the coordinates to be the same OR the end
+      // coordinates, x2 or y2, are less than 0 (no end recorded)
+      // just transition back to the start
+      if ((sm.x1() === sm.x2() && sm.y1() === sm.y2()) || sm.x2() < 0 || sm.y2() < 0) {
+        sm.transition('wait');
+      }
+    });
     sm.setMoveCallback(selectOverlay.bind(overlayCtx));
     sm.setStartCallback(storeOverlay.bind(overlayCtx));
     setCallback(sm, 'push', () => dispatch({type: 'content/push'}));
 
-    overlayCnvs.addEventListener('mousedown', (evt: MouseEvent) => {
+    overlayCanvasRef.current.addEventListener('mousedown', (evt: MouseEvent) => {
       sm.transition('down', evt)
     });
-    overlayCnvs.addEventListener('mouseup', (evt: MouseEvent) => sm.transition('up', evt));
-    overlayCnvs.addEventListener('mousemove', (evt: MouseEvent) => sm.transition('move', evt));
+    overlayCanvasRef.current.addEventListener('mouseup', (evt: MouseEvent) => sm.transition('up', evt));
+    overlayCanvasRef.current.addEventListener('mousemove', (evt: MouseEvent) => sm.transition('move', evt));
   });
 
   /**
@@ -155,27 +213,24 @@ const ContentEditor = () => {
    * before we get the background and we can't really sequence these events.
    */
   useEffect(() => {
-    if (!apiUrl || !background) return;
-    const content = getCanvas(contentCanvasRef)
-    const overlayStuff = getCanvas(overlayCanvasRef, true);
-    if (!content || !overlayStuff) return;
-    // TODO come back use destructuring assiment... this is lame
-    const contentCnvs = content.cnvs;
-    const overlayCnvs = overlayStuff.cnvs;
-    const contentCtx = content.ctx;
-    const overlayCtx = overlayStuff.ctx;  
+    if (!apiUrl || !background || !contentCtx || !overlayCtx) return;
     let bgImg = `${apiUrl}/${background}`;
     loadImage(bgImg)
-      .then(img =>renderImage(img, contentCnvs, contentCtx, true))
+      .then(img => {
+        setBackgroundSize([img.width, img.height]);
+        dispatch({type: 'content/zoom', payload: getRect(0, 0, img.width, img.height)})
+        return img;
+      })
+      .then(img => renderImage(img, contentCtx, true))
       .then(bounds => {
         setBackgroundLoaded(true);
-        setupOverlayCanvas(bounds, overlayCnvs, overlayCtx)
+        setupOverlayCanvas(bounds, overlayCtx);
       })
       .catch(err => {
         // TODO SIGNAL ERROR
         console.log(`Unable to load image: ${JSON.stringify(err)}`);
       });
-  }, [apiUrl, background, contentCanvasRef, overlayCanvasRef])
+  }, [apiUrl, background, contentCtx, overlayCtx, dispatch])
 
   // make sure we end the push state when we get a successful push time update
   useEffect(() => sm.transition('done'), [pushTime])
@@ -192,18 +247,14 @@ const ContentEditor = () => {
     // if the overlay is a string, then load it. This should only be the case on init
     if (!overlay) return;
     if ((overlay as Blob).type !== undefined) return;
-    const overlayStuff = getCanvas(overlayCanvasRef, true);
-    if (!overlayStuff) return;
-    // TODO come back use destructuring assiment... this is lame
-    const overlayCnvs = overlayStuff.cnvs;
-    const overlayCtx = overlayStuff.ctx;
+    if (!overlayCtx) return;
 
     let overlayImg: string = overlay as string;
     loadImage(`${apiUrl}/${overlayImg}?`)
-      .then(img => renderImage(img, overlayCnvs, overlayCtx))
+      .then(img => renderImage(img, overlayCtx))
       .then(() => initOverlay())
       .catch(err => console.error(err));
-  }, [apiUrl, overlayCanvasRef, overlay, backgroundLoaded])
+  }, [apiUrl, overlay, backgroundLoaded, overlayCtx])
 
   return (
     <div className={styles.ContentEditor}
@@ -230,13 +281,10 @@ const ContentEditor = () => {
           onKeyUp={(e) => keyPress(e.key)}>
         </input>
         <button onClick={() => sm.transition('background')}>Background</button>
-        <button>Pan and Zoom</button>
-        <button disabled={!canObscure} onClick={() => {
-          sm.transition('obscure')
-        }}>Obscure</button>
-        <button disabled={!canObscure} onClick={() => {
-          sm.transition('reveal');
-        }}>Reveal</button>
+        <button hidden={zoomedIn} disabled={!canObscure} onClick={() => sm.transition('zoomIn')}>Zoom In</button>
+        <button hidden={!zoomedIn} onClick={() => sm.transition('zoomOut')}>Zoom Out</button>
+        <button disabled={!canObscure} onClick={() => sm.transition('obscure')}>Obscure</button>
+        <button disabled={!canObscure} onClick={() => sm.transition('reveal')}>Reveal</button>
         <button onClick={() => sm.transition('push')}>Update</button>
       </div>
     </div>
