@@ -1,8 +1,9 @@
 {
-  "name": "nttsrv",
-  "version": "0.0.1",
+  "name": "@micahg/nttsrv",
+  "version": "0.0.3",
   "description": "Network Tabletop Server",
   "main": "server.js",
+  "files": [],
   "scripts": {
     "dev": "webpack --watch --progress --config webpack.dev.js",
     "build": "webpack --progress --config webpack.prod.js",
@@ -12,6 +13,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/micahg/nttsrv.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/@micahg"
   },
   "author": "Micah Galizia",
   "license": "MIT",

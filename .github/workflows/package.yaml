@@ -1,0 +1,66 @@
+name: Publish package to GitHub Packages
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3 
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-artifact@v3
+        with:
+          name: serverjs
+          path: server.js
+  # package:
+  #   needs: [build]  
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     # Setup .npmrc file to publish to GitHub Packages
+  #     - uses: actions/setup-node@v3
+  #       with:
+  #         node-version: '18.x'
+  #         registry-url: 'https://npm.pkg.github.com'
+  #         # Defaults to the user or organization that owns the workflow file
+  #         scope: '@micahg'
+  #     - uses: actions/download-artifact@v3
+  #       with:
+  #         name: serverjs
+  #     - run: npm pack
+  #     - uses: actions/upload-artifact@v3
+  #       with:
+  #         name: server-tgz
+  #         path: micahg-nttsrv-*tgz
+  publish:
+    needs: [build]  
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+      # Setup .npmrc file to publish to GitHub Packages
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          registry-url: 'https://npm.pkg.github.com'
+          # Defaults to the user or organization that owns the workflow file
+          scope: '@micahg'
+      - uses: actions/download-artifact@v3
+        with:
+          name: serverjs
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
