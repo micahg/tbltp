@@ -110,7 +110,7 @@ const RemoteDisplayComponent = () => {
         }).catch(err => console.error(`Error loading background image: ${JSON.stringify(err)}`))
 
     }
-  }, [contentCtx, overlayCtx]);
+  }, [apiUrl, contentCtx, overlayCtx]);
 
   return (
     <div className={styles.map}>

@@ -2,7 +2,6 @@ import { Middleware, MiddlewareAPI } from 'redux';
 import axios, { AxiosResponse } from 'axios';
 import { AppReducerState } from '../reducers/AppReducer';
 import { Rect } from '../utils/geometry';
-import { json } from 'stream/consumers';
 
 function isBlob(payload: URL | Blob): payload is File {
   return (payload as Blob).type !== undefined;

@@ -2,7 +2,7 @@ import { Middleware } from 'redux';
 import axios from 'axios';
 
 export const EnvironmentMiddleware: Middleware = storeAPI => next => action => {
-    if (action.type == 'environment/config') {
+    if (action.type === 'environment/config') {
         console.log(`Requesting config`);
         axios.get('/env.json').then(data => {
             action.payload = data;

@@ -1,7 +1,10 @@
 {
-  "name": "ntt",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@micahg/ntt",
+  "version": "0.0.1",
+  "files": [ "build" ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/@micahg"
+  },
   "dependencies": {
     "@reduxjs/toolkit": "^1.9.2",
     "@testing-library/jest-dom": "^5.16.5",
