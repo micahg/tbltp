@@ -2,7 +2,7 @@ import { createRef, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
 import { loadImage, obscureOverlay, renderImage, setupOverlayCanvas, selectOverlay, storeOverlay, clearOverlaySelection, initOverlay, revealOverlay, getRect} from '../../utils/drawing';
-import { scaleSelection } from '../../utils/geometry';
+import { rotateRect, scaleSelection } from '../../utils/geometry';
 import { MouseStateMachine } from '../../utils/mousestatemachine';
 import { setCallback } from '../../utils/statemachine';
 import styles from './ContentEditor.module.css';
@@ -107,6 +107,13 @@ const ContentEditor = () => {
     // size, but the size of the canvas upon which it is painted
     let vp = getRect(0,0, overlayCtx.canvas.width, overlayCtx.canvas.height);
     let [w, h] = backgroundSize;
+
+    // rotate the selection
+    // TODO this doesn't need rotation in portrait
+    if (w < h) {
+      sel = rotateRect(-90, sel, vp.width, vp.height);
+      vp = getRect(0,0, overlayCtx.canvas.height, overlayCtx.canvas.width);
+    }
     let payload = scaleSelection(sel, vp, w, h);
     dispatch({type: 'content/zoom', payload: payload});
     sm.transition('wait');

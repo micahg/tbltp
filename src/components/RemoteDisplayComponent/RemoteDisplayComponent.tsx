@@ -2,7 +2,7 @@ import { createRef, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
 import { loadImage, renderImage } from '../../utils/drawing';
-import { Rect, fillToAspect } from '../../utils/geometry';
+import { Rect, calculateBounds, fillToAspect, rotate } from '../../utils/geometry';
 
 import styles from './RemoteDisplayComponent.module.css';
 
@@ -31,9 +31,7 @@ const RemoteDisplayComponent = () => {
     let url = `ws://localhost:3000/`;
     let ws = new WebSocket(url);
     ws.onopen = (event: Event) => {
-      console.log(`MICAH got open event ${JSON.stringify(event)}`);
-      ws.send('hello');
-      return "";
+      console.log(`Got open event ${JSON.stringify(event)}`);
     };
 
     ws.onerror = function(ev: Event) {
@@ -89,26 +87,50 @@ const RemoteDisplayComponent = () => {
        * overlay, then the background. If there is no overlay then just draw
        * background with expanded selection if there is one.
        */
-      loadImage(backgroundUri)
-        .then(bgImg => {
-          let bgVP = fillToAspect(viewport, bgImg.width, bgImg.height);
-          if (overlayUri) {
-            loadImage(overlayUri).then(ovrImg => {
-              // need to scale the selection down to the canvas size of the overlay
-              // which (typically) considerably smaller than the background image
-              let scale = bgImg.width/ovrImg.width;
-              let olVP = {x: viewport.x/scale, y: viewport.y/scale, width: viewport.width/scale, height: viewport.height/scale};
-              olVP = fillToAspect(olVP, ovrImg.width, ovrImg.height);
-              renderImage(ovrImg, overlayCtx, true, false, olVP)
-                .then(() => renderImage(bgImg, contentCtx, true, false, bgVP))
-                .catch(err => console.error(`Error rendering background or overlay image: ${JSON.stringify(err)}`));
-            }).catch(err => console.error(`Error loading overlay iamge ${overlayUri}: ${JSON.stringify(err)}`));
-          } else {
-            renderImage(bgImg, contentCtx, true, false, viewport)
-              .catch(err => console.error(`Error rendering background imager: ${JSON.stringify(err)}`));
-          }
-        }).catch(err => console.error(`Error loading background image: ${JSON.stringify(err)}`))
+      loadImage(backgroundUri).then(bgImg => {
+        let bgVP = fillToAspect(viewport, bgImg.width, bgImg.height);
+        if (overlayUri) {
+          loadImage(overlayUri).then(ovrImg => {
+            /* REALLY IMPORTANT - base overlay on the BG Viewport as it can shift the
+             * image. If the zoomed selection is so small that we render negative space
+             * (eg beyond the bordres) the viewport shifts to render from the border */
+            
+            // start assuming no rotation (the easy case)
 
+            // TODO detect portrait - ALL OF THIS CODE assumes editor/overlay are landsacpe
+            let rot: boolean = bgVP.width < bgVP.height;
+            let [x, y, w, h] = [0, 0, 0, 0]
+            if (bgVP.width < bgVP.height) {
+              [x, y] = rotate(90, bgVP.x, bgVP.y, bgImg.width,
+                              bgImg.height);
+              let [x2, y2] = rotate(90, bgVP.x + bgVP.width, bgVP.y + bgVP.height,
+                                    bgImg.width, bgImg.height);
+              [x, x2] = [Math.min(x, x2), Math.max(x, x2)];
+              [y, y2] = [Math.min(y, y2), Math.max(y, y2)];
+              w = x2 - x;
+              h = y2 - y;
+              let scale = ovrImg.width/bgImg.height;
+              x *= scale;
+              y *= scale;
+              w *= scale;
+              h *= scale;
+            } else {
+              let scale = bgImg.width/ovrImg.width;
+              x = bgVP.x / scale;
+              y = bgVP.y / scale;
+              w = bgVP.width / scale;
+              h = bgVP.height / scale;
+            }
+            let olVP = {x: x, y: y, width: w, height: h};
+            renderImage(ovrImg, overlayCtx, true, false, olVP)
+              .then(() => renderImage(bgImg, contentCtx, true, false, bgVP))
+              .catch(err => console.error(`Error rendering background or overlay image: ${JSON.stringify(err)}`));
+          }).catch(err => console.error(`Error loading overlay iamge ${overlayUri}: ${JSON.stringify(err)}`));
+        } else {
+          renderImage(bgImg, contentCtx, true, false, bgVP)
+            .catch(err => console.error(`Error rendering background imager: ${JSON.stringify(err)}`));
+        }
+      }).catch(err => console.error(`Error loading background image: ${JSON.stringify(err)}`))
     }
   }, [apiUrl, contentCtx, overlayCtx]);
 

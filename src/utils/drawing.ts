@@ -76,6 +76,8 @@ export function renderImage(image: HTMLImageElement, ctx: CanvasRenderingContext
   resizeCanvas: boolean = false, withControls: boolean = true,
   viewport: Rect | null = null): Promise<ImageBound> {
 
+  if (!ctx) return Promise.reject(`Unable to get canvas context`);
+
   if (resizeCanvas) {
     const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
     const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - (withControls ? CONTROLS_HEIGHT : 0);
@@ -84,8 +86,6 @@ export function renderImage(image: HTMLImageElement, ctx: CanvasRenderingContext
     ctx.canvas.style.width = `${width}px`;
     ctx.canvas.style.height = `${height}px`;
   }
-
-  if (!ctx) return Promise.reject(`Unable to get canvas context`);
 
   let bounds = calculateBounds(ctx.canvas.width, ctx.canvas.height, image.width, image.height);
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -116,10 +116,13 @@ export function setupOverlayCanvas(bounds: ImageBound, ctx: CanvasRenderingConte
     return Promise.resolve();
   }
 
-  ctx.canvas.width = bounds.width;
-  ctx.canvas.height = bounds.height;
-  ctx.canvas.style.width = `${bounds.width}px`;
-  ctx.canvas.style.height = `${bounds.height}px`;
+  let width = bounds.rotate ? bounds.height : bounds.width;
+  let height = bounds.rotate ? bounds.width : bounds.height;
+
+  ctx.canvas.width = width;
+  ctx.canvas.height = height;
+  ctx.canvas.style.width = `${width}px`;
+  ctx.canvas.style.height = `${height}px`;
   ctx.canvas.style.top = `${bounds.top}px`;
   ctx.canvas.style.left = `${bounds.left}px`;
 
