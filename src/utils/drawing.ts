@@ -2,7 +2,6 @@ import { calculateBounds, ImageBound, Rect } from "./geometry";
 
 export const CONTROLS_HEIGHT = 46;
 let baseData: ImageData | null = null;
-let overlayInitialized: boolean = false;
 
 export function getRect(x1: number, y1: number, x2: number, y2: number): Rect {
   let x: number;
@@ -106,16 +105,7 @@ export function renderImage(image: HTMLImageElement, ctx: CanvasRenderingContext
   return Promise.resolve(bounds);
 }
 
-export function initOverlay() {
-  overlayInitialized = true;
-}
-
 export function setupOverlayCanvas(bounds: ImageBound, ctx: CanvasRenderingContext2D): Promise<void> {
-  // avoid rerender after initialization
-  if (overlayInitialized) {
-    return Promise.resolve();
-  }
-
   let width = bounds.rotate ? bounds.height : bounds.width;
   let height = bounds.rotate ? bounds.width : bounds.height;
 
@@ -125,9 +115,7 @@ export function setupOverlayCanvas(bounds: ImageBound, ctx: CanvasRenderingConte
   ctx.canvas.style.height = `${height}px`;
   ctx.canvas.style.top = `${bounds.top}px`;
   ctx.canvas.style.left = `${bounds.left}px`;
-
-  ctx.save();
-  overlayInitialized = true;
+  clearOverlay(ctx);
   return Promise.resolve();
 }
 
@@ -174,6 +162,12 @@ export function selectOverlay(this: CanvasRenderingContext2D, x1: number, y1: nu
   this.putImageData(baseData, 0, 0);
   this.fillStyle = "rgba(255, 255, 255, 0.25)";
   this.fillRect(x1,y1,x2-x1,y2-y1);
+}
+
+export function clearOverlay(ctx: CanvasRenderingContext2D) {
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.save();
+  baseData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
 }
 
 export function clearOverlaySelection(this: CanvasRenderingContext2D) {

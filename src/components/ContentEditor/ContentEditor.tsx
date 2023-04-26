@@ -1,7 +1,7 @@
 import { createRef, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
-import { loadImage, obscureOverlay, renderImage, setupOverlayCanvas, selectOverlay, storeOverlay, clearOverlaySelection, initOverlay, revealOverlay, getRect} from '../../utils/drawing';
+import { loadImage, obscureOverlay, renderImage, setupOverlayCanvas, selectOverlay, storeOverlay, clearOverlaySelection, revealOverlay, getRect, clearOverlay} from '../../utils/drawing';
 import { rotateRect, scaleSelection } from '../../utils/geometry';
 import { MouseStateMachine } from '../../utils/mousestatemachine';
 import { setCallback } from '../../utils/statemachine';
@@ -40,9 +40,7 @@ const ContentEditor = () => {
       dispatch({type: 'content/background', payload: data});
   }
 
-  const obscure = (x1: number, y1: number, x2: number, y2: number) => {
-    if (!overlayCtx) return;
-    obscureOverlay.bind(overlayCtx)(x1, y1, x2, y2);
+  const updateOverlay = () => {
     overlayCanvasRef.current?.toBlob((blob: Blob | null) => {
       if (!blob) {
         // TODO SIGNAL ERROR
@@ -52,16 +50,16 @@ const ContentEditor = () => {
     }, 'image/png', 1);
   }
 
+  const obscure = (x1: number, y1: number, x2: number, y2: number) => {
+    if (!overlayCtx) return;
+    obscureOverlay.bind(overlayCtx)(x1, y1, x2, y2);
+    updateOverlay();
+  }
+
   const reveal = (x1: number, y1: number, x2: number, y2: number) => {
     if (!overlayCtx) return;
     revealOverlay.bind(overlayCtx)(x1, y1, x2, y2);
-    overlayCanvasRef.current?.toBlob((blob: Blob | null) => {
-      if (!blob) {
-        // TODO SIGNAL ERROR
-        return;
-      }
-      dispatch({type: 'content/overlay', payload: blob})
-    }, 'image/png', 1);
+    updateOverlay();
   }
 
   const keyPress = (key: string) => {
@@ -202,6 +200,11 @@ const ContentEditor = () => {
     sm.setMoveCallback(selectOverlay.bind(overlayCtx));
     sm.setStartCallback(storeOverlay.bind(overlayCtx));
     setCallback(sm, 'push', () => dispatch({type: 'content/push'}));
+    setCallback(sm, 'clear', () => {
+      clearOverlay(overlayCtx);
+      updateOverlay();
+      sm.transition('done');
+    })
 
     overlayCanvasRef.current.addEventListener('mousedown', (evt: MouseEvent) => {
       sm.transition('down', evt)
@@ -259,7 +262,6 @@ const ContentEditor = () => {
     let overlayImg: string = overlay as string;
     loadImage(`${apiUrl}/${overlayImg}?`)
       .then(img => renderImage(img, overlayCtx))
-      .then(() => initOverlay())
       .catch(err => console.error(err));
   }, [apiUrl, overlay, backgroundLoaded, overlayCtx])
 
@@ -281,6 +283,11 @@ const ContentEditor = () => {
         <button onClick={() => sm.transition('link')}>Link</button>
       </div>}
       <div className={styles.ControlsContainer}>
+        <button hidden={zoomedIn} disabled={!canObscure} onClick={() => sm.transition('zoomIn')}>Zoom In</button>
+        <button hidden={!zoomedIn} onClick={() => sm.transition('zoomOut')}>Zoom Out</button>
+        <button disabled={!canObscure} onClick={() => sm.transition('obscure')}>Obscure</button>
+        <button disabled={!canObscure} onClick={() => sm.transition('reveal')}>Reveal</button>
+        <button disabled={canObscure} onClick={() => sm.transition('clear')}>Clear</button>
         <input
           value={link}
           disabled={!canLink}
@@ -288,10 +295,6 @@ const ContentEditor = () => {
           onKeyUp={(e) => keyPress(e.key)}>
         </input>
         <button onClick={() => sm.transition('background')}>Background</button>
-        <button hidden={zoomedIn} disabled={!canObscure} onClick={() => sm.transition('zoomIn')}>Zoom In</button>
-        <button hidden={!zoomedIn} onClick={() => sm.transition('zoomOut')}>Zoom Out</button>
-        <button disabled={!canObscure} onClick={() => sm.transition('obscure')}>Obscure</button>
-        <button disabled={!canObscure} onClick={() => sm.transition('reveal')}>Reveal</button>
         <button onClick={() => sm.transition('push')}>Update</button>
       </div>
     </div>

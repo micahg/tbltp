@@ -20,6 +20,7 @@ export class MouseStateMachine implements StateMachine {
         'background': 'background_select',
         'push': 'push',
         'zoomOut': 'zoomOut',
+        'clear': 'clear',
       },
       'push': {
         'done': 'wait',
@@ -60,6 +61,9 @@ export class MouseStateMachine implements StateMachine {
         'done': 'wait',
       },
       'background_upload': {
+        'done': 'wait',
+      },
+      'clear': {
         'done': 'wait',
       }
     };
