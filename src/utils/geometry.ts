@@ -1,4 +1,3 @@
-import { text } from "stream/consumers";
 import { getRect } from "./drawing";
 
 export interface Rect {

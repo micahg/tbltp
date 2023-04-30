@@ -2,7 +2,7 @@ import { createRef, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
 import { loadImage, renderImage } from '../../utils/drawing';
-import { Rect, calculateBounds, fillToAspect, rotate } from '../../utils/geometry';
+import { Rect, fillToAspect, rotate } from '../../utils/geometry';
 
 import styles from './RemoteDisplayComponent.module.css';
 
@@ -98,7 +98,6 @@ const RemoteDisplayComponent = () => {
             // start assuming no rotation (the easy case)
 
             // TODO detect portrait - ALL OF THIS CODE assumes editor/overlay are landsacpe
-            let rot: boolean = bgVP.width < bgVP.height;
             let [x, y, w, h] = [0, 0, 0, 0]
             if (bgVP.width < bgVP.height) {
               [x, y] = rotate(90, bgVP.x, bgVP.y, bgImg.width,
