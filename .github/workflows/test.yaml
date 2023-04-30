@@ -1,4 +1,4 @@
-name: Publish NTT UI to GitHub Packages
+name: Test and Build
 on:
   push:
     branches-ignore:
