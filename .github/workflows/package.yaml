@@ -22,7 +22,7 @@ jobs:
           name: ntttgz
           path: micahg-ntt-*.tgz
   publish:
-    needs: [build]  
+    needs: [package]  
     runs-on: ubuntu-latest
     permissions:
       contents: read
