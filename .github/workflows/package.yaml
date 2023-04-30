@@ -51,5 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: |
+          git config --global user.name "${{ env.GITHUB_ACTOR }}"
+          git config --global user.email "${{ env.GITHUB_ACTOR }}@steakholdermeating.com"
           npm version patch
           git push
