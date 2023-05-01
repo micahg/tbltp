@@ -1,4 +1,4 @@
-name: Publish NTT UI to GitHub Packages
+name: Release
 on:
   push:
     branches:
@@ -15,10 +15,10 @@ jobs:
         with:
           node-version: '18.x'
       - run: |
-        npm ci
-        npm run build
-        npm pack
-        VERSION=$(node -p "require('./package.json').version")
+          npm ci
+          npm run build
+          npm pack
+          VERSION=$(node -p "require('./package.json').version")
       - uses: actions/upload-artifact@v3
         with:
           name: ntttgz
