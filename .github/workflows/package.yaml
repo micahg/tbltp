@@ -22,7 +22,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: ntttgz
-          path: micahg-ntt-$VERSION.tgz
+          path: micahg-ntt-${{ env.VERSION }}.tgz
   publish:
     needs: [package]  
     runs-on: ubuntu-latest
