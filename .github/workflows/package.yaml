@@ -53,4 +53,8 @@ jobs:
           git config --global user.name "$GITHUB_ACTOR"
           git config --global user.email "$GITHUB_ACTOR@github.com"
           npm version patch
-          git push
+          VERSION=$(node -p "require('./package.json').version")
+          BRANCH="release/$VERSION"
+          echo "Checking out $BRANCH"
+          git checkout -b "$BRANCH"
+          git push --set-upstream origin "$BRANCH"

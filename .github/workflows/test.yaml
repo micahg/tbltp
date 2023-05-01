@@ -4,7 +4,23 @@ on:
     branches-ignore:
       - main
 jobs:
+  # bump:
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: write
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - run: |
+  #         git config --global user.name "$GITHUB_ACTOR"
+  #         git config --global user.email "$GITHUB_ACTOR@github.com"
+  #         npm version patch
+  #         VERSION=$(node -p "require('./package.json').version")
+  #         BRANCH="release/$VERSION"
+  #         echo "Checking out $BRANCH"
+  #         git checkout -b "$BRANCH"
+  #         git push --set-upstream origin "$BRANCH"
   build:
+    # needs: [bump]
     runs-on: ubuntu-latest
     permissions:
       contents: read
