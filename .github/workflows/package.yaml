@@ -28,6 +28,9 @@ jobs:
           npm ci
           npm run build
           PACKAGE=$(npm pack)
+          echo "package envvar is $PACKAGE"
+          echo "package_file=$PACKAGE"
+          echo "package_file=$PACKAGE" >> "$GITHUB_ENV"
           echo "package_file=$PACKAGE" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v3
         with:
@@ -53,7 +56,8 @@ jobs:
           name: ntttgz
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGE_FILE: ${{needs.get_package.outputs.package_file}}
+          PACKAGE_VERSION: ${{needs.package.outputs.package_version}}
+          PACKAGE_FILE: ${{needs.package.outputs.package_file}}
         run: |
           echo "This is alway so painful"
           echo "Package file is $PACKAGE_FILE"
