@@ -17,14 +17,36 @@ jobs:
   #         VERSION=$(node -p "require('./package.json').version")
   #         BRANCH="release/$VERSION"
   #         echo "Checking out $BRANCH"
-  #         git checkout -b "$BRANCH"
-  #         git push --set-upstream origin "$BRANCH"
+  #         echo git checkout -b "$BRANCH"
+  #         echo git push --set-upstream origin "$BRANCH"
+  # set-version:
+  #   # needs: [bump]
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     package_version: ${{ steps.get_version.outputs.package_version }}
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - id: get_version
+  #       run: |
+  #         VERSION=$(node -p "require('./package.json').version")
+  #         echo "package_version=$VERSION"
+  #         echo "package_version=$VERSION" >> "$GITHUB_OUTPUT"
+  # print_version:
+  #   needs: set-version
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - env:
+  #         pkg_ver: ${{needs.set-version.outputs.package_version}}
+  #       run: echo "Package version is $pkg_ver"
   build:
     # needs: [bump]
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v3 
       - uses: actions/setup-node@v3
