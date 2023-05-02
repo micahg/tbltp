@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       package_version: ${{ steps.get_version.outputs.package_version }}
+      package_file: ${{ steps.get_package.outputs.package_file }}
     permissions:
       contents: read
       packages: write
@@ -22,10 +23,12 @@ jobs:
           echo "package_version=$VERSION"
           echo "package_version=$VERSION" >> "$GITHUB_ENV"
           echo "package_version=$VERSION" >> "$GITHUB_OUTPUT"
-      - run: |
+      - id: get_package
+        run: |
           npm ci
           npm run build
-          npm pack
+          PACKAGE=$(npm pack)
+          echo "package_file=$PACKAGE" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v3
         with:
           name: ntttgz
@@ -48,12 +51,14 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: ntttgz
-      - run: |
-          echo "This is alway so painful"
-          ls -l
-          npm publish
-        env:
+      - env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_FILE: ${{needs.get_package.outputs.package_file}}
+        run: |
+          echo "This is alway so painful"
+          echo "Package file is $PACKAGE_FILE"
+          ls -l
+          npm publish "./$PACKAGE_FILE"
   version:
     needs: [publish]
     runs-on: ubuntu-latest
