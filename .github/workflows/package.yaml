@@ -48,7 +48,10 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: ntttgz
-      - run: npm publish
+      - run: |
+          echo "This is alway so painful"
+          ls -l
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   version:
