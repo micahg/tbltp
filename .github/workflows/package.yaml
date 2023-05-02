@@ -56,13 +56,8 @@ jobs:
           name: ntttgz
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGE_VERSION: ${{needs.package.outputs.package_version}}
           PACKAGE_FILE: ${{needs.package.outputs.package_file}}
-        run: |
-          echo "This is alway so painful"
-          echo "Package file is $PACKAGE_FILE"
-          ls -l
-          npm publish "./$PACKAGE_FILE"
+        run: npm publish "./$PACKAGE_FILE"
   version:
     needs: [publish]
     runs-on: ubuntu-latest

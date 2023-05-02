@@ -43,15 +43,13 @@ jobs:
   #         pkg_ver: ${{needs.set-version.outputs.package_version}}
   #       run: echo "Package version is $pkg_ver"
   build:
-    # needs: [bump]
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - run: echo "time savings"
-      # - uses: actions/checkout@v3 
-      # - uses: actions/setup-node@v3
-      #   with:
-      #     node-version: '18.x'
-      # - run: npm ci
-      # - run: npm run build
+      - uses: actions/checkout@v3 
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      - run: npm ci
+      - run: npm run build
