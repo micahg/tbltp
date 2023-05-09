@@ -12,6 +12,14 @@
             "webRoot": "${workspaceFolder}",
         },
         {
+            "name": "compile",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [ "start" ]
+        },
+        {
             "name": "Debug Jest Tests",
             "type": "node",
             "request": "launch",

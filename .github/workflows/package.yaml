@@ -57,6 +57,8 @@ jobs:
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PACKAGE_FILE: ${{needs.package.outputs.package_file}}
+        # Using the package file explicitly prevents NPM from rebuilding
+        # the tgz without any contents
         run: npm publish "./$PACKAGE_FILE"
   version:
     needs: [publish]
