@@ -10,6 +10,7 @@ const RemoteDisplayComponent = () => {
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
   const apiUrl: string | undefined = useSelector((state: AppReducerState) => state.environment.api);
+  const wsUrl: string | undefined = useSelector((state: AppReducerState) => state.environment.ws);
   const [contentCtx, setContentCtx] = useState<CanvasRenderingContext2D|null>(null);
   const [overlayCtx, setOverlayCtx] = useState<CanvasRenderingContext2D|null>(null);
 
@@ -26,10 +27,12 @@ const RemoteDisplayComponent = () => {
   useEffect(() => {
     if (!overlayCtx) return;
     if (!contentCtx) return;
+    if (!wsUrl) {
+      console.error('THE OTHER IMPOSSIBLE HAS HAPPENED -- WS MESSAGE WITH NO WS URL WHAT');
+      return;
+    }
 
-    // TODO FIX THIS FIRST YIKES
-    let url = `ws://localhost:3000/`;
-    let ws = new WebSocket(url);
+    let ws = new WebSocket(wsUrl);
     ws.onopen = (event: Event) => {
       console.log(`Got open event ${JSON.stringify(event)}`);
     };
@@ -131,7 +134,7 @@ const RemoteDisplayComponent = () => {
         }
       }).catch(err => console.error(`Error loading background image: ${JSON.stringify(err)}`))
     }
-  }, [apiUrl, contentCtx, overlayCtx]);
+  }, [apiUrl, wsUrl, contentCtx, overlayCtx]);
 
   return (
     <div className={styles.map}>
