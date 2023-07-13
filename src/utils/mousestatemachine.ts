@@ -21,6 +21,7 @@ export class MouseStateMachine implements StateMachine {
         'push': 'push',
         'zoomOut': 'zoomOut',
         'clear': 'clear',
+        'opacity': 'opacity_select',
       },
       'push': {
         'done': 'wait',
@@ -55,7 +56,6 @@ export class MouseStateMachine implements StateMachine {
         'link': 'background_link',
         'upload': 'background_upload',
         'down': 'record_mouse',
-        'cancel': 'wait',
       },
       'background_link': {
         'done': 'wait',
@@ -65,7 +65,28 @@ export class MouseStateMachine implements StateMachine {
       },
       'clear': {
         'done': 'wait',
-      }
+      },
+      'opacity_select': {
+        'display': 'opacity_display',
+        'render': 'opacity_render',
+        'down': 'record_mouse',
+      },
+      'opacity_display': {
+        'down': 'record_mouse',
+        'change': 'update_display_opacity',
+      },
+      'update_display_opacity': {
+        'down': 'record_mouse',
+        'change': 'update_display_opacity',
+      },
+      'opacity_render': {
+        'down': 'record_mouse',
+        'change': 'update_render_opacity',
+      },
+      'update_render_opacity': {
+        'down': 'record_mouse',
+        'change': 'update_render_opacity',
+      },
     };
     setCallback(this, 'record_mouse', this.doRecord);
   }
