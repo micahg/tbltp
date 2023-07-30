@@ -32,6 +32,16 @@ const RemoteDisplayComponent = () => {
       return;
     }
 
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request("screen").then(() => {
+        console.log(`Got wake lock!`);
+      }).catch(() => {
+        console.error(`Unable to get wakelock`);
+      });
+    } else {
+      console.log('WakeLock unavailable');
+    }
+
     let ws = new WebSocket(wsUrl);
     ws.onopen = (event: Event) => {
       console.log(`Got open event ${JSON.stringify(event)}`);
