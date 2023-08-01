@@ -1,13 +1,22 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import App from './components/App/App';
 import reportWebVitals from './reportWebVitals';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import { AppReducer } from './reducers/AppReducer';
 import { EnvironmentMiddleware } from './middleware/EnvironmentMiddleware';
 import { ContentMiddleware } from './middleware/ContentMiddleware';
+import LandingComponent from './components/LandingComponent/LandingComponent.lazy';
+import RemoteDisplayComponent from './components/RemoteDisplayComponent/RemoteDisplayComponent.lazy';
+import ContentEditor from './components/ContentEditor/ContentEditor.lazy';
+import { RouterProvider, createBrowserRouter } from 'react-router-dom';
+
+let routes: Object[] = [];
+routes.push({path: '/',        element: <LandingComponent/>,    errorElement: null})
+routes.push({path: '/display', element: <RemoteDisplayComponent/>,    errorElement: null})
+routes.push({path: '/edit',  element: <ContentEditor />, errorElement: null });
+const router = createBrowserRouter(routes);
 
 const store = configureStore({
   reducer: AppReducer,
@@ -25,7 +34,7 @@ const root = ReactDOM.createRoot(
 root.render(
   <React.StrictMode>
     <Provider store={store}>
-      <App />
+      <RouterProvider router={router} />
     </Provider>
   </React.StrictMode>
 );
