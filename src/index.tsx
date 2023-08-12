@@ -9,13 +9,14 @@ import { EnvironmentMiddleware } from './middleware/EnvironmentMiddleware';
 import { ContentMiddleware } from './middleware/ContentMiddleware';
 import LandingComponent from './components/LandingComponent/LandingComponent.lazy';
 import RemoteDisplayComponent from './components/RemoteDisplayComponent/RemoteDisplayComponent.lazy';
-import ContentEditor from './components/ContentEditor/ContentEditor.lazy';
+import GameMasterComponent from './components/GameMasterComponent/GameMasterComponent.lazy';
+// import ContentEditor from './components/ContentEditor/ContentEditor.lazy';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 
 let routes: Object[] = [];
 routes.push({path: '/',        element: <LandingComponent/>,    errorElement: null})
 routes.push({path: '/display', element: <RemoteDisplayComponent/>,    errorElement: null})
-routes.push({path: '/edit',  element: <ContentEditor />, errorElement: null });
+routes.push({path: '/edit',  element: <GameMasterComponent />, errorElement: null });
 const router = createBrowserRouter(routes);
 
 const store = configureStore({

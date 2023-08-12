@@ -1,33 +1,50 @@
-import { createRef, useEffect, useState } from 'react';
+import React, { RefObject, createRef, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
-import { loadImage, obscureOverlay, renderImage, setupOverlayCanvas,
+import { loadImage, obscureOverlay, setupOverlayCanvas,
          selectOverlay, storeOverlay, clearOverlaySelection, revealOverlay,
          getRect, clearOverlay, setOverlayOpacity,
-         setOverlayColour } from '../../utils/drawing';
+         setOverlayColour, 
+         renderImageInContainer} from '../../utils/drawing';
 import { rotateRect, scaleSelection } from '../../utils/geometry';
 import { MouseStateMachine } from '../../utils/mousestatemachine';
 import { setCallback } from '../../utils/statemachine';
 import styles from './ContentEditor.module.css';
+import { Opacity, ZoomIn, ZoomOut, LayersClear, Sync, FileUpload, Palette, VisibilityOff, Visibility } from '@mui/icons-material';
+import { GameMasterAction } from '../GameMasterActionComponent/GameMasterActionComponent';
+import { Box, Menu, MenuItem, Popover, Slider } from '@mui/material';
 
 const sm = new MouseStateMachine();
 
-const ContentEditor = () => {
+interface ContentEditorProps {
+  populateToolbar?: (actions: GameMasterAction[]) => void;
+  redrawToolbar?: () => void;
+}
+
+// hack around rerendering -- keep one object in state and update properties
+// so that the object itself remains unchanged.
+interface InternalState {
+  color: RefObject<HTMLInputElement>;
+  obscure: boolean;
+  zoom: boolean;
+}
+
+const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => {
   const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
+  const colorInputRef = createRef<HTMLInputElement>();
   
+  const [internalState, ] = useState<InternalState>({zoom: false, obscure: false, color: createRef()});
   const [contentCtx, setContentCtx] = useState<CanvasRenderingContext2D|null>(null);
   const [overlayCtx, setOverlayCtx] = useState<CanvasRenderingContext2D|null>(null);
   const [backgroundLoaded, setBackgroundLoaded] = useState<boolean>(false);
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
   const [showOpacitySlider, setShowOpacitySlider] = useState<boolean>(false);
-  const [canObscure, setCanObscure] = useState<boolean>(false);
-  const [canLink, setCanLink] = useState<boolean>(false);
-  const [link, setLink] = useState<string>('');
   const [backgroundSize, setBackgroundSize] = useState<number[]|null>(null);
-  const [zoomedIn, setZoomedIn] = useState<boolean>(false);
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+
   const background = useSelector((state: AppReducerState) => state.content.background);
   const overlay = useSelector((state: AppReducerState) => state.content.overlay);
   const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
@@ -55,6 +72,12 @@ const ContentEditor = () => {
     }, 'image/png', 1);
   }
 
+  const updateObscure = (value: boolean) => {
+    if (internalState.obscure !== value && redrawToolbar) {
+      internalState.obscure = value;
+      redrawToolbar();
+    }
+  }
   const obscure = (x1: number, y1: number, x2: number, y2: number) => {
     if (!overlayCtx) return;
     obscureOverlay.bind(overlayCtx)(x1, y1, x2, y2);
@@ -65,28 +88,6 @@ const ContentEditor = () => {
     if (!overlayCtx) return;
     revealOverlay.bind(overlayCtx)(x1, y1, x2, y2);
     updateOverlay();
-  }
-
-  const keyPress = (key: string) => {
-    if (key.toLowerCase() === 'enter') {
-      let url: URL | null= null;
-      try {
-        url = new URL(link);
-      } catch (err) {
-        // TODO MATERIAL use snackbar
-        alert('Invalid URL!')
-        return;
-      }
-
-      if (!url) {
-        alert('Something went wrong!');
-        return;
-      }
-      updateBackground(url);
-      sm.transition('done');
-    } else if (key.toLowerCase() === 'escape') {
-      sm.transition('done');
-    }
   }
 
   const selectFile = () => {
@@ -127,6 +128,61 @@ const ContentEditor = () => {
     dispatch({type: 'content/zoom', payload: getRect(0, 0, backgroundSize[0], backgroundSize[1])});
   }
 
+  const gmSelectColor = () => {
+    if (!internalState.color.current) return;
+    const ref = internalState.color.current;
+    ref.focus();
+    ref.click();
+  }
+
+  const gmSelectOpacityMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+    sm.transition('opacity')
+  }
+
+  /**
+   * Handle opacity menu selection.
+   * @param option "display" or "render"
+   */
+  const gmSelectOpacityOption = (option: string) => {
+    setShowOpacityMenu(false);
+    sm.transition(option);
+  }
+
+  const gmSetOpacity = (event: Event, newValue: number | number[]) => sm.transition('change', newValue as number);
+
+  const gmCloseOpacitySlider = () => {
+    setShowOpacitySlider(false);
+    setAnchorEl(null);
+    sm.transition('wait');
+  }
+
+  useEffect(() => {
+    if (!internalState) return;
+    internalState.color = colorInputRef
+  }, [internalState, colorInputRef]);
+
+  /**
+   * Populate the toolbar with our actions. Empty deps insures this only gets
+   * called once on load.
+   */
+  useEffect(() => {
+    if (!populateToolbar) return;
+
+    const actions: GameMasterAction[] = [
+      { icon: Sync,          tooltip: "Sync Remote Display",       hidden: () => false,               disabled: () => false,                  callback: () => sm.transition('push') },
+      { icon: FileUpload,    tooltip: "Upload or Link Background", hidden: () => false,               disabled: () => false,                  callback: selectFile },
+      { icon: Palette,       tooltip: "Color Palette",             hidden: () => false,               disabled: () => false,                  callback: gmSelectColor },
+      { icon: LayersClear,   tooltip: "Clear Overlay",             hidden: () => false,               disabled: () => internalState.obscure,  callback: () => sm.transition('clear')},
+      { icon: VisibilityOff, tooltip: "Obscure",                   hidden: () => false,               disabled: () => !internalState.obscure, callback: () => sm.transition('obscure')},
+      { icon: Visibility,    tooltip: "Reveal",                    hidden: () => false,               disabled: () => !internalState.obscure, callback: () => sm.transition('reveal')},
+      { icon: ZoomIn,        tooltip: "Zoom In",                   hidden: () => internalState.zoom,  disabled: () => !internalState.obscure, callback: () => sm.transition('zoomIn')},
+      { icon: ZoomOut,       tooltip: "Zoom Out",                  hidden: () => !internalState.zoom, disabled: () => false,                  callback: () => sm.transition('zoomOut')},
+      { icon: Opacity,       tooltip: "Opacity",                   hidden: () => false,               disabled: () => internalState.obscure,  callback: (evt) => gmSelectOpacityMenu(evt)}
+    ];
+    populateToolbar(actions);
+  }, []);// eslint-disable-line react-hooks/exhaustive-deps
+
   // if we don't have a canvas OR have already set context, then bail
   useEffect(() => {
     if (!contentCanvasRef.current || contentCtx != null) return;
@@ -141,14 +197,19 @@ const ContentEditor = () => {
   useEffect(() => {
     if (!viewport) return;
     if (!backgroundSize) return;
+    if (!redrawToolbar) return;
     let v = viewport;
     let [w, h] = backgroundSize;
     let zoomedOut: boolean = (v.x === 0 && v.y === 0 && w === v.width && h === v.height);
     // if zoomed out and in then state changed.... think about it man...
-    if (zoomedOut !== zoomedIn) return;
-    setZoomedIn(!zoomedOut);
+    // if (zoomedOut !== zoomedIn) return;
+    // setZoomedIn(!zoomedOut);
+    if (zoomedOut !== internalState.zoom) return;
+    internalState.zoom = !zoomedOut;
+    redrawToolbar();
+
     sm.transition('wait');
-  }, [viewport, backgroundSize, zoomedIn]);
+  }, [viewport, backgroundSize, internalState, redrawToolbar]);
 
 
   useEffect(() => {
@@ -157,28 +218,25 @@ const ContentEditor = () => {
 
     setCallback(sm, 'wait', () => {
       sm.resetCoordinates();
-      setLink('');
       setShowBackgroundMenu(false);
       setShowOpacityMenu(false);
-      setCanLink(false);
-      setCanObscure(false);
+      updateObscure(false);
       clearOverlaySelection.bind(overlayCtx)();
     });
-    
+
     setCallback(sm, 'record', () => {
       setShowBackgroundMenu(false)
       setShowOpacityMenu(false);
-      setCanObscure(true);
+      updateObscure(true);
       setShowOpacitySlider(false);
     });
     setCallback(sm, 'background_select', () => {
       clearOverlaySelection.bind(overlayCtx)();
       sm.resetCoordinates();
-      setCanObscure(false);
+      updateObscure(false);
       setShowBackgroundMenu(true);
     });
     setCallback(sm, 'background_link', () => {
-      setCanLink(true);
       setShowBackgroundMenu(false);
     });
     setCallback(sm, 'background_upload', selectFile);
@@ -208,7 +266,8 @@ const ContentEditor = () => {
     setCallback(sm, 'opacity_select', () => {
       clearOverlaySelection.bind(overlayCtx)();
       sm.resetCoordinates();
-      setCanObscure(false);
+      // setCanObscure(false);
+      updateObscure(false);
       setShowOpacityMenu(true);
     });
     setCallback(sm, 'opacity_display', () => {
@@ -261,7 +320,8 @@ const ContentEditor = () => {
         dispatch({type: 'content/zoom', payload: getRect(0, 0, img.width, img.height)})
         return img;
       })
-      .then(img => renderImage(img, contentCtx, true))
+      // MICAH fix render image to use the container height and width
+      .then(img => renderImageInContainer(img, contentCtx, true))
       .then(bounds => {
         setBackgroundLoaded(true);
         setupOverlayCanvas(bounds, overlayCtx);
@@ -291,7 +351,7 @@ const ContentEditor = () => {
 
     let overlayImg: string = overlay as string;
     loadImage(`${apiUrl}/${overlayImg}?`)
-      .then(img => renderImage(img, overlayCtx))
+      .then(img => renderImageInContainer(img, overlayCtx))
       .catch(err => console.error(err));
   }, [apiUrl, overlay, backgroundLoaded, overlayCtx])
 
@@ -304,41 +364,35 @@ const ContentEditor = () => {
         }
       }}
     >
-      <div className={styles.ContentContainer} data-testid="RemoteDisplayComponent">
-        <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>Sorry, your browser does not support canvas.</canvas>
-        <canvas className={styles.OverlayCanvas} ref={overlayCanvasRef}/>
-      </div>
+      <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>Sorry, your browser does not support canvas.</canvas>
+      <canvas className={styles.OverlayCanvas} ref={overlayCanvasRef}/>
+      <input ref={colorInputRef} type='color' defaultValue='#ff0000' onChange={(evt) => setOverlayColour(evt.target.value)}/>
       {showBackgroundMenu && <div className={`${styles.Menu} ${styles.BackgroundMenu}`}>
         <button onClick={() => sm.transition('upload')}>Upload</button>
         <button onClick={() => sm.transition('link')}>Link</button>
       </div>}
-      {showOpacityMenu && <div className={`${styles.Menu} ${styles.OpacityMenu}`}>
-        <button onClick={() => sm.transition('display')}>Display Opacity</button>
-        <button onClick={() => sm.transition('render')}>Render Opacity</button>
-      </div>}
-      {showOpacitySlider && <div className={styles.OpacitySlider}>
-        <input type="range" min="0" max="1" defaultValue="1" step="0.01"
-          onChange={(evt) => sm.transition('change', evt.target.value)}>
-        </input>
-      </div>}
-      <div className={styles.ControlsContainer}>
-        <input type='color' defaultValue='#ff0000' onChange={(evt) => setOverlayColour(evt.target.value)}/>
-        <button disabled={canObscure} onClick={() => sm.transition('opacity')}>Opacity</button>
-        <button hidden={zoomedIn} disabled={!canObscure} onClick={() => sm.transition('zoomIn')}>Zoom In</button>
-        <button hidden={!zoomedIn} onClick={() => sm.transition('zoomOut')}>Zoom Out</button>
-        <button disabled={!canObscure} onClick={() => sm.transition('obscure')}>Obscure</button>
-        <button disabled={!canObscure} onClick={() => sm.transition('reveal')}>Reveal</button>
-        <button disabled={canObscure} onClick={() => sm.transition('clear')}>Clear</button>
-        <input
-          type="text"
-          value={link}
-          disabled={!canLink}
-          onChange={(e) => setLink(e.target.value)}
-          onKeyUp={(e) => keyPress(e.key)}>
-        </input>
-        <button onClick={() => sm.transition('background')}>Background</button>
-        <button onClick={() => sm.transition('push')}>Update</button>
-      </div>
+      <Menu open={showOpacityMenu} anchorEl={anchorEl}>
+        <MenuItem onClick={() => gmSelectOpacityOption('display')}>Display Opacity</MenuItem>
+        <MenuItem onClick={() => gmSelectOpacityOption('render')}>Render Opacity</MenuItem>
+      </Menu>
+      <Popover
+        anchorEl={anchorEl}
+        open={showOpacitySlider}
+        onClose={gmCloseOpacitySlider}
+        anchorOrigin={{vertical: 'bottom', horizontal: 'center'}}
+      >
+        <Box sx={{width: "10em", mt: "3em", mb: "1em", mx: "2em"}}>
+          <Slider
+            min={0}
+            max={1}
+            step={0.01}
+            defaultValue={1}
+            aria-label="Default"
+            valueLabelDisplay="auto"
+            onChange={gmSetOpacity}
+          />
+        </Box>
+      </Popover>
     </div>
   );
 }

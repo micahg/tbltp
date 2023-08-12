@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { ReactElement } from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/extend-expect';
 import ContentEditor from './ContentEditor';
 
 describe('<ContentEditor />', () => {
   test('it should mount', () => {
-    render(<ContentEditor />);
+    render(<ContentEditor/>);
     
     const contentEditor = screen.getByTestId('ContentEditor');
 

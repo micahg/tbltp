@@ -28,16 +28,16 @@ const LandingComponent = (props: LandingComponentProps) => {
 
 
   return (
-    <Box sx={{height: '100vh', width: '100%', padding: '1em'}}>
+    <Box sx={{padding: '1em'}}>
       <Typography variant="h4" gutterBottom>Network Table Top</Typography>
-      <Paper sx={{padding: '1em', margin: '1em 0'}}>
+      <Paper sx={{padding: '1em', margin: '1em 0'}} elevation={6}>
         <Typography variant="h5" gutterBottom>Disclaimer</Typography>
         <p>Network Table Top is not responsible for anything. Close immeditaly or use at your own risk.</p>
       </Paper>
-      <Paper sx={{padding: '1em', margin: '1em 0'}}>
+      <Paper sx={{padding: '1em', margin: '1em 0'}} elevation={6}>
         <Typography variant="h5" gutterBottom>Redirecting to remote display {countDown}</Typography>
         <p>For convenience we will redirect to the remote <a href="/display">display</a> mode shortly!</p>
-        <p>Click <a href="/edit">here</a> to use the editor instead.</p>
+        <p>If you are running a session, you can use the <a href="/edit">editor</a> instead.</p>
       </Paper>
     </Box>
   );

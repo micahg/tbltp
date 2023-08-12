@@ -1,7 +1,7 @@
 import { createRef, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
-import { loadImage, renderImage } from '../../utils/drawing';
+import { loadImage, renderImageFullScreen } from '../../utils/drawing';
 import { Rect, fillToAspect, rotate } from '../../utils/geometry';
 
 import styles from './RemoteDisplayComponent.module.css';
@@ -134,12 +134,12 @@ const RemoteDisplayComponent = () => {
               h = bgVP.height / scale;
             }
             let olVP = {x: x, y: y, width: w, height: h};
-            renderImage(ovrImg, overlayCtx, true, false, olVP)
-              .then(() => renderImage(bgImg, contentCtx, true, false, bgVP))
+            renderImageFullScreen(ovrImg, overlayCtx, olVP)
+              .then(() => renderImageFullScreen(bgImg, contentCtx, bgVP))
               .catch(err => console.error(`Error rendering background or overlay image: ${JSON.stringify(err)}`));
           }).catch(err => console.error(`Error loading overlay iamge ${overlayUri}: ${JSON.stringify(err)}`));
         } else {
-          renderImage(bgImg, contentCtx, true, false, bgVP)
+          renderImageFullScreen(bgImg, contentCtx, bgVP)
             .catch(err => console.error(`Error rendering background imager: ${JSON.stringify(err)}`));
         }
       }).catch(err => console.error(`Error loading background image: ${JSON.stringify(err)}`))

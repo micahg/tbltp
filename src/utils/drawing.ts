@@ -75,20 +75,46 @@ export function loadImage(data: string | Blob): Promise<HTMLImageElement> {
   }
 }*/
 
-export function renderImage(image: HTMLImageElement, ctx: CanvasRenderingContext2D,
-  resizeCanvas: boolean = false, withControls: boolean = true,
-  viewport: Rect | null = null): Promise<ImageBound> {
-
+export function renderImageInContainer(image: HTMLImageElement, ctx: CanvasRenderingContext2D,
+  resizeCanvas: boolean = false) {
   if (!ctx) return Promise.reject(`Unable to get canvas context`);
 
   if (resizeCanvas) {
-    const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
-    const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - (withControls ? CONTROLS_HEIGHT : 0);
-    ctx.canvas.width = width;
-    ctx.canvas.height = height;
-    ctx.canvas.style.width = `${width}px`;
-    ctx.canvas.style.height = `${height}px`;
+    const windowWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    const padding = 48; // 2 * 24 vertically and horizontally
+    const vOffset = (windowWidth < 600) ? 48: 64 + padding; // App Bar changes based on window width
+    const hOffset = padding;
+    const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) - hOffset;
+    const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - vOffset;
+    // TODO stop calcualting bounds twice
+    const adjusted = calculateBounds(width, height, image.width, image.height);
+    ctx.canvas.width = adjusted.rotate ? adjusted.height : adjusted.width;
+    ctx.canvas.height = adjusted.rotate ? adjusted.width : adjusted.height;
+    ctx.canvas.style.width = `${ctx.canvas.width}px`;
+    ctx.canvas.style.height = `${ctx.canvas.height}px`;
   }
+
+  return renderImage(image, ctx);
+}
+
+export function renderImageFullScreen(image: HTMLImageElement, ctx: CanvasRenderingContext2D,
+  viewport: Rect | null = null) {
+  if (!ctx) return Promise.reject(`Unable to get canvas context`);
+
+  const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
+  const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+  ctx.canvas.width = width;
+  ctx.canvas.height = height;
+  ctx.canvas.style.width = `${width}px`;
+  ctx.canvas.style.height = `${height}px`;
+
+  return renderImage(image, ctx, viewport);
+}
+
+function renderImage(image: HTMLImageElement, ctx: CanvasRenderingContext2D,
+  viewport: Rect | null = null): Promise<ImageBound> {
+
+  if (!ctx) return Promise.reject(`Unable to get canvas context`);
 
   let bounds = calculateBounds(ctx.canvas.width, ctx.canvas.height, image.width, image.height);
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
