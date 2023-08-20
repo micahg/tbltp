@@ -4,8 +4,9 @@ export const ASSETS_UPDATED_SIG = "event_updated";
 
 export const ASSET_UPDATED = "asset_updated";
 
-export const PATH_ASSET = '/asset';
-export const STATE_ASSET = '/state';
+export const NO_AUTH_ASSET  = '/noauth';
+export const PATH_ASSET     = '/asset';
+export const STATE_ASSET    = '/state';
 export const VIEWPORT_ASSET = '/viewport';
 
 export const VALID_LAYERS = ['overlay', 'background'];

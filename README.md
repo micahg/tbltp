@@ -12,6 +12,15 @@ Node.js server implementation that
 * Multer for image upload
 * ws for websocket communication (status updates to the tabletop client)
 
+## Disabling Authentication
+
+For the server, run with the `DISABLE_AUTH` environment variable set to `true`.
+This will:
+
+1. Stop the server from checking the `Authorization` header.
+1. Signal to the client through the `/noauth` endpoint that authentication is
+not required.
+
 ## Future Work
 
 * Firebase Auth
