@@ -12,6 +12,12 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v3
+      - id: preflight
+        name: Preflight checks
+        run: |
+          ls -l /usr/local/bin
+          which helm
+          which kubectl
       - id: kubectldl
         name: Download kubectl
         run: |
