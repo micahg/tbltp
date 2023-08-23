@@ -13,22 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - id: preflight
-        name: Preflight checks
+        name: Preflight Checks
         run: |
           ls -l /usr/local/bin
           which helm
           which kubectl
-      - id: kubectldl
-        name: Download kubectl
+      - id: kubeconfig
+        name: Kubectl Config
+        with:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
-          echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
-      - id: helmdl
-        name: Download helm
-        run: |
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-      - id: display
-        name: Display spoils
-        run: |
-          ls -lt
+          if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
+          echo $KUBE_CONFIG | base64 -d > ~/.kube/config
+          sha512sum ~/.kube/config
