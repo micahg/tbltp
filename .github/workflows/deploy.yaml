@@ -28,4 +28,7 @@ jobs:
           echo $KUBE_CONFIG | base64 -d > ~/.kube/config
           sha512sum ~/.kube/config
           wc -l ~/.kube/config
-
+      - id: kubectltest
+        name: Kubectl Test
+        run: |
+          kubectl get namespaces
