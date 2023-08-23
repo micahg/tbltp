@@ -20,9 +20,11 @@ jobs:
           which kubectl
       - id: kubeconfig
         name: Kubectl Config
-        with:
+        env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
           if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
           echo $KUBE_CONFIG | base64 -d > ~/.kube/config
           sha512sum ~/.kube/config
+          wc -l ~/.kube/config
+
