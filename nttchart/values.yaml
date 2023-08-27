@@ -1,8 +1,8 @@
 namespace: ntt
 uiAppName: ntt-ui
 uiAppReplicas: 1
-uiImageVers: 0.0.18
-uiImagePath: registry.gitlab.com/micahgalizia/jefftrees-ui
+uiImageVers: 0.0.19
+uiImagePath: ghcr.io/micahg/ntt
 uiImageSecret: gitlab-ntt-ui
 
 apiAppName: ntt-api

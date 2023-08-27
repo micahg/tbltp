@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - testdownloads
 jobs:
   development:
     runs-on: ubuntu-latest
@@ -32,3 +31,7 @@ jobs:
         name: Kubectl Test
         run: |
           kubectl get namespaces
+      - id: helm
+        name: Helm Upgrade
+        run: |
+          helm upgrade --install -f nttchart/values.yaml -f nttchart/values-dev.yaml ntt-infra nttchart
