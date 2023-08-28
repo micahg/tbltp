@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppBar, AppBarProps, Box, CssBaseline, Divider, Drawer, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, styled, useTheme } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import InboxIcon from '@mui/icons-material/MoveToInbox';
 import MailIcon from '@mui/icons-material/Mail';
+import LogoutIcon from '@mui/icons-material/Logout';
 import ContentEditor from '../ContentEditor/ContentEditor';
 import GameMasterActionComponent, { GameMasterAction } from '../GameMasterActionComponent/GameMasterActionComponent';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppReducerState } from '../../reducers/AppReducer';
 
 interface GameMasterComponentProps {}
 
@@ -63,9 +66,11 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 
 const GameMasterComponent = (props: GameMasterComponentProps) => {
   const theme = useTheme();
+  const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [actions, setActions] = useState<GameMasterAction[]>([]);
   const [doot, setDoot] = useState<number>(0);
+  const auth = useSelector((state: AppReducerState) => state.environment.auth);
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -75,9 +80,18 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
     setOpen(false);
   };
 
-  const handlePopulateToolbar = (actions: GameMasterAction[]) => setActions(actions);
+  const handleLogout = () => dispatch({type: 'environment/logout'});
+
+  const handlePopulateToolbar = (newActions: GameMasterAction[]) => setActions(newActions);
 
   const handleRedrawToolbar = () => setDoot(doot + 1);
+
+  useEffect(() => {
+    if (!dispatch) return;
+
+    // undefined implies we haven't attempted auth yet, so we must attempt it
+    if (auth === undefined) dispatch({type: 'environment/authenticate'});
+  }, [dispatch, auth])
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -142,6 +156,17 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
               </ListItemButton>
             </ListItem>
           ))}
+        </List>
+        <Divider />
+        <List>
+          <ListItem key="Log Out" disablePadding onClick={handleLogout}>
+            <ListItemButton>
+              <ListItemIcon>
+                <LogoutIcon/>
+              </ListItemIcon>
+              <ListItemText primary="Log Out"/>
+            </ListItemButton>
+          </ListItem>
         </List>
       </Drawer>
       <Main open={open}>

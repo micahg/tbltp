@@ -10,7 +10,6 @@ import { ContentMiddleware } from './middleware/ContentMiddleware';
 import LandingComponent from './components/LandingComponent/LandingComponent.lazy';
 import RemoteDisplayComponent from './components/RemoteDisplayComponent/RemoteDisplayComponent.lazy';
 import GameMasterComponent from './components/GameMasterComponent/GameMasterComponent.lazy';
-// import ContentEditor from './components/ContentEditor/ContentEditor.lazy';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 
 let routes: Object[] = [];

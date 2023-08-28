@@ -10,6 +10,7 @@
             "name": "Launch against localhost",
             "url": "http://localhost:4200",
             "webRoot": "${workspaceFolder}",
+            "userDataDir": false
         },
         {
             "name": "compile",

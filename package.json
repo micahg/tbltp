@@ -1,6 +1,6 @@
 {
   "name": "@micahg/ntt",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "files": [
     "build"
   ],
@@ -8,6 +8,7 @@
     "registry": "https://npm.pkg.github.com/@micahg"
   },
   "dependencies": {
+    "@auth0/auth0-spa-js": "^2.1.1",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.14.1",

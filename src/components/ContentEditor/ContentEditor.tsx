@@ -45,6 +45,17 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
   const [backgroundSize, setBackgroundSize] = useState<number[]|null>(null);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
+  /**
+   * THIS GUY RIGHT HERE IS REALLY IMPORTANT. Because we use a callback to render
+   * this components actions to another components toolbar, we will get rerendered
+   * more thatn we want.
+   *
+   * To avoid rerendering we start with this flag false until we've triggered and
+   * ensure any relevant useEffect calls depend on its truth.
+   */
+  const [toolbarPopulated, setToolbarPopulated] = React.useState<boolean>(false);
+
+  const auth = useSelector((state: AppReducerState) => state.environment.auth);
   const background = useSelector((state: AppReducerState) => state.content.background);
   const overlay = useSelector((state: AppReducerState) => state.content.overlay);
   const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
@@ -158,9 +169,9 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
   }
 
   useEffect(() => {
-    if (!internalState) return;
+    if (!internalState || !toolbarPopulated) return;
     internalState.color = colorInputRef
-  }, [internalState, colorInputRef]);
+  }, [internalState, colorInputRef, toolbarPopulated]);
 
   /**
    * Populate the toolbar with our actions. Empty deps insures this only gets
@@ -181,6 +192,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
       { icon: Opacity,       tooltip: "Opacity",                   hidden: () => false,               disabled: () => internalState.obscure,  callback: (evt) => gmSelectOpacityMenu(evt)}
     ];
     populateToolbar(actions);
+    setToolbarPopulated(true);
   }, []);// eslint-disable-line react-hooks/exhaustive-deps
 
   // if we don't have a canvas OR have already set context, then bail
@@ -336,10 +348,16 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
   useEffect(() => sm.transition('done'), [pushTime])
 
   // force render of current state as soon as we have an API to talk to
+  // but not before we have loaded the toolbar (otherwise we just get
+  // rendered and do it again)
   useEffect(() => {
-    if (!apiUrl || !dispatch) return;
-    dispatch({type: 'content/pull'}); // TODO why th does this need braces?
-  }, [apiUrl, dispatch]);
+    // bail if we haven't attempted authorization
+    if (auth === undefined) return;
+
+    // otherwise wait until we have populated the toolbar before we get our state
+    if (!apiUrl || !dispatch || !toolbarPopulated) return;
+    dispatch({type: 'content/pull'});
+  }, [apiUrl, dispatch, toolbarPopulated, auth]);
 
   useEffect(() => {
     // if the background isn't loaded yet, no point rendering the overlay

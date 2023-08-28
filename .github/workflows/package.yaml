@@ -3,8 +3,11 @@ on:
   push:
     branches:
       - main
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 jobs:
-  package:
+  build:
     runs-on: ubuntu-latest
     outputs:
       package_version: ${{ steps.get_version.outputs.package_version }}
@@ -37,7 +40,7 @@ jobs:
           name: ntttgz
           path: micahg-ntt-${{ env.package_version }}.tgz
   publish:
-    needs: [package]  
+    needs: [build]  
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -60,8 +63,53 @@ jobs:
         # Using the package file explicitly prevents NPM from rebuilding
         # the tgz without any contents
         run: npm publish "./$PACKAGE_FILE"
+  package:
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v3
+      - name: Docker registry login
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download TGZ
+        uses: actions/download-artifact@v3
+        with:
+          name: ntttgz
+      - name: Exract Package
+        env:
+          PACKAGE_FILE: ${{needs.build.outputs.package_file}}
+        run: |
+          ls -lt
+          tar xvf "./$PACKAGE_FILE"
+          ls -lt package/build
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        env:
+          IMAGE_VERSION: ${{needs.build.outputs.package_version}}
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          labels: |
+            org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ env.IMAGE_VERSION }}
+      - name: Docker Build and Push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
   version:
-    needs: [publish]
+    needs: [publish, package]
     runs-on: ubuntu-latest
     permissions:
       contents: write

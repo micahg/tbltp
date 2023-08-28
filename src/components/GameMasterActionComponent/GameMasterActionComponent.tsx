@@ -20,9 +20,11 @@ const GameMasterActionComponent = ({actions}: GameMasterActionComponentProps) =>
         actions?.map((action, idx) => {
           return (
             !action.hidden() && <Tooltip key={idx} title={action.tooltip}>
-              <IconButton onClick={action.callback} disabled={action.disabled()}>
-                {createElement(action.icon)}
-              </IconButton>
+              <span>{/* avoid tooltip complaining about disabled */}
+                <IconButton onClick={action.callback} disabled={action.disabled()}>
+                  {createElement(action.icon)}
+                </IconButton>
+              </span>
             </Tooltip>
           )
         })
