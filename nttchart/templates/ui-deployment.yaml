@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.uiAppName }}-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.uiAppName }}
+spec:
+  replicas: {{ .Values.uiAppReplicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.uiAppName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.uiAppName }}
+    spec:
+      containers:
+      - name: {{ .Values.uiAppName }}
+        image: {{ .Values.uiImagePath }}:{{ .Values.uiImageVers }}
+        ports:
+        - containerPort: 80
+        env:
+        - name: API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: api.url
+        - name: AUTH_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: auth.domain
+        - name: CLIENT_ID
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: auth.client
+        - name: AUDIENCE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: auth.audience
+        - name: REDIRECT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: auth.redirect
+      imagePullSecrets:
+      - name: {{ .Values.uiImageSecret }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.uiAppName }}-service
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: {{ .Values.uiAppName }}
+  ports:
+    - protocol: TCP
+      port: 80

@@ -1,0 +1,9 @@
+apiDomain: "api.ntt.steakholdermeating.com"
+uiDomain: "ntt.steakholdermeating.com"
+webDomain: "www.ntt.steakholdermeating.com"
+issuerDomain: "nttdev.us.auth0.com"
+clientId: blFghGfwUHOlKwDZzOELBFmxOTkxCeQr
+installLoadBalancer: true
+mongoStorageClass: microk8s-hostpath
+mongoStorageClassSize: 1Gi
+certIssuer: letsencrypt-staging

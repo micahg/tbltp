@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.uiAppName }}-ingress
+  namespace: {{ .Values.namespace }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.certIssuer }}
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/from-to-www-redirect: "true"
+spec:
+  {{- if ne .Values.installLoadBalancer true }}
+  ingressClassName: "nginx"
+  {{- end }}
+  tls:
+  - hosts:
+    - {{ .Values.uiDomain }}
+    - {{ .Values.webDomain }}
+    secretName: {{ .Values.uiAppName }}-tls
+  - hosts:
+    - {{ .Values.apiDomain }}
+    secretName: {{ .Values.apiAppName }}-tls
+  rules:
+  - host: {{ .Values.apiDomain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.apiAppName }}-service
+            port:
+              number: 80

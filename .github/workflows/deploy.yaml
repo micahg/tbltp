@@ -1,0 +1,37 @@
+name: Deploy
+on:
+  push:
+    branches:
+      - main
+jobs:
+  development:
+    runs-on: ubuntu-latest
+    environment: Dev
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+      - id: preflight
+        name: Preflight Checks
+        run: |
+          ls -l /usr/local/bin
+          which helm
+          which kubectl
+      - id: kubeconfig
+        name: Kubectl Config
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
+          echo $KUBE_CONFIG | base64 -d > ~/.kube/config
+          sha512sum ~/.kube/config
+          wc -l ~/.kube/config
+      - id: kubectltest
+        name: Kubectl Test
+        run: |
+          kubectl get namespaces
+      - id: helm
+        name: Helm Upgrade
+        run: |
+          helm upgrade --install -f nttchart/values.yaml -f nttchart/values-dev.yaml ntt-infra nttchart
