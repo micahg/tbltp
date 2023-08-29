@@ -1,5 +1,11 @@
 # nttinfra
 
+## Physical Infra
+
+Expecting to coexist with EZQS infra for now. *For example* - you wont find the
+certificate issuers here because they live in the ezqs chart (if at all).
+
+
 ## Helm
 
 Testing:

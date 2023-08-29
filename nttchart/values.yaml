@@ -1,7 +1,7 @@
 namespace: ntt
 uiAppName: ntt-ui
 uiAppReplicas: 1
-uiImageVers: 0.0.19
+uiImageVers: 0.0.20
 uiImagePath: ghcr.io/micahg/ntt
 uiImageSecret: gitlab-ntt-ui
 
@@ -14,3 +14,5 @@ mongoName: "mongo"
 mongoImagePath: mongo
 mongoImageVers: 7.0.0
 mongoPort: 27017
+
+certIssuer: letsencrypt-staging
