@@ -1,5 +1,9 @@
 # nttinfra
 
+## Physical Infra
+
+Expecting to coexist with EZQS infra for now.
+
 ## Helm
 
 Testing:
