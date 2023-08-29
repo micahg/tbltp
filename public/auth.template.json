@@ -1,6 +1,6 @@
 {
     "domain": "${AUTH_DOMAIN}",
-    "clientId": "${CLIENT_ID|",
+    "clientId": "${CLIENT_ID}",
     "authorizationParams": {
         "audience": "${AUDIENCE_URL}",
         "redirect_uri": "${REDIRECT_URL}"
