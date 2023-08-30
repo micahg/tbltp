@@ -20,6 +20,12 @@ spec:
         image: {{ .Values.apiImagePath }}:{{ .Values.apiImageVers }}
         ports:
         - containerPort: 3000
+        env:
+        - name: AUDIENCE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: auth.audience
 ---
 apiVersion: v1
 kind: Service
