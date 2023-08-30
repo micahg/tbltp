@@ -26,6 +26,11 @@ spec:
             configMapKeyRef:
               name: env-config
               key: api.url
+        - name: WS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: ws.url
         - name: AUTH_DOMAIN
           valueFrom:
             configMapKeyRef:
