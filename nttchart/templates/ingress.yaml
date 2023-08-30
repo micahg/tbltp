@@ -21,6 +21,16 @@ spec:
     - {{ .Values.apiDomain }}
     secretName: {{ .Values.apiAppName }}-tls
   rules:
+  - host: {{ .Values.uiDomain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.uiAppName }}-service
+            port:
+              number: 80
   - host: {{ .Values.apiDomain }}
     http:
       paths:
