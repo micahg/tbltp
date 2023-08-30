@@ -23,13 +23,13 @@ export function create(): express.Express {
 
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({extended: true}));
-
+  
   const noauth: boolean = process.env.DISABLE_AUTH === "true";
   const jwtCheck = noauth ? (_rq: any, _rs: any, next: express.NextFunction) => {
     log.warn("authentication diabled");
     next();
   } : auth({
-    audience: 'http://localhost:3000/',
+    audience: process.env.AUDIENCE_URL || 'http://localhost:3000/',
     issuerBaseURL: 'https://nttdev.us.auth0.com/',
     tokenSigningAlg: 'RS256'
   });
