@@ -8,6 +8,7 @@ metadata:
     acme.cert-manager.io/http01-edit-in-place: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/from-to-www-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: {{ .Values.maxBodySize }}
 spec:
   {{- if ne .Values.installLoadBalancer true }}
   ingressClassName: "nginx"
