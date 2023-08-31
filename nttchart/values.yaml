@@ -16,3 +16,4 @@ mongoImageVers: 7.0.0
 mongoPort: 27017
 
 certIssuer: letsencrypt-staging
+maxBodySize: 8m
