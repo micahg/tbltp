@@ -24,13 +24,16 @@ export function create(): express.Express {
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({extended: true}));
   
-  const noauth: boolean = process.env.DISABLE_AUTH === "true";
+  const noauth: boolean = process.env.DISABLE_AUTH.toLowerCase() === "true";
+  const aud: string = process.env.AUDIENCE_URL || 'http://localhost:3000/';
+  const iss: string = process.env.ISSUER_URL ||  'https://nttdev.us.auth0.com/';
+  
   const jwtCheck = noauth ? (_rq: any, _rs: any, next: express.NextFunction) => {
     log.warn("authentication diabled");
     next();
   } : auth({
-    audience: process.env.AUDIENCE_URL || 'http://localhost:3000/',
-    issuerBaseURL: 'https://nttdev.us.auth0.com/',
+    audience: aud,
+    issuerBaseURL: iss,
     tokenSigningAlg: 'RS256'
   });
 

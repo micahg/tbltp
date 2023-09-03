@@ -7,6 +7,7 @@ import { log } from "./utils/logger";
 import * as expressConfig from "./config/express";
 import { startWSServer } from './utils/websocket';
 import { STARTUP_CHECK_SIG, STARTUP_DONE_SIG } from './utils/constants';
+import { getOAuthPublicKey } from './utils/auth';
 
 
 
@@ -21,9 +22,15 @@ const serverPromise = new Promise<Server>((resolve, reject) => {
 
     // presumably the dir was created and we don't need to check for it.
     let srvr: Server = expressConfig.listen(app);
-    let wss = startWSServer(srvr, app);
-    app.emit(STARTUP_DONE_SIG);
-    resolve(srvr);
+    getOAuthPublicKey().then(pem => {
+      log.info('Retrieved OAuth PEM');
+      let wss = startWSServer(srvr, app, pem);
+      app.emit(STARTUP_DONE_SIG);
+      resolve(srvr);
+    }).catch(err => {
+      log.error(`Unable to getOAuthPublicKey: ${JSON.stringify(err)}`);
+      process.exit(1);
+    })
   });
 });
 

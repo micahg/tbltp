@@ -25,7 +25,9 @@
       "runtimeArgs": [ "start" ],
       "outputCapture": "std",
       "env": {
-        "DISABLE_AUTH": "false"
+        "DISABLE_AUTH": "false",
+        // "AUDIENCE_URL": "asdf.com",
+        //"ISSUER_URL": "https://nttdev.us.auth0.com"
       }
     },
     {
