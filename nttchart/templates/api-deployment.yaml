@@ -26,6 +26,11 @@ spec:
             configMapKeyRef:
               name: env-config
               key: auth.audience
+        - name: ISSUER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: issuer.url
 ---
 apiVersion: v1
 kind: Service
