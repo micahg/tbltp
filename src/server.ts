@@ -1,6 +1,5 @@
-import { fstat, mkdir } from 'node:fs';
+import { mkdir } from 'node:fs';
 import { Server } from 'http';
-import { WebSocketServer } from 'ws';
 
 import { log } from "./utils/logger";
 

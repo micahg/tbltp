@@ -24,7 +24,7 @@ export function create(): express.Express {
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({extended: true}));
   
-  const noauth: boolean = process.env.DISABLE_AUTH.toLowerCase() === "true";
+  const noauth: boolean = process.env.DISABLE_AUTH?.toLowerCase() === "true";
   const aud: string = process.env.AUDIENCE_URL || 'http://localhost:3000/';
   const iss: string = process.env.ISSUER_URL ||  'https://nttdev.us.auth0.com/';
   

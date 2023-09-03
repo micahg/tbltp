@@ -3,7 +3,7 @@ import { promises, resolveAny } from 'dns';
 import * as https from 'https';
 
 export function getOAuthPublicKey(): Promise<string> {
-  if (process.env.DISABLE_AUTH.toLowerCase() === "true") {
+  if (process.env.DISABLE_AUTH?.toLowerCase() === "true") {
     return Promise.resolve(null);
   }
 

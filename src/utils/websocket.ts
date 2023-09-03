@@ -14,7 +14,7 @@ interface WSStateMessage {
   state?: TableState,
 }
 
-const AUTH_REQURIED: boolean = process.env.DISABLE_AUTH.toLowerCase() !== "true";
+const AUTH_REQURIED: boolean = process.env.DISABLE_AUTH?.toLowerCase() !== "true";
 
 export function startWSServer(nodeServer: Server, app: Express, pem: string) {
   log.info('starting websocket server');
