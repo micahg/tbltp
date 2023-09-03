@@ -21,7 +21,7 @@ export interface AuthState {
  * @param next 
  * @returns 
  */
-export function getAuthConfig(store: MiddlewareAPI<Dispatch<AnyAction>>, next: Dispatch<AnyAction>): Promise<any> {
+export function getAuthConfig(store: MiddlewareAPI<Dispatch<AnyAction>>): Promise<any> {
   return new Promise((resolve, reject) => {
 
     // ensure we have an authorization state
@@ -106,5 +106,32 @@ export function getToken(state: AppReducerState, headers?: any): Promise<any> {
         resolve(headers);
       })
       .catch(err => reject(err));
+  });
+}
+
+export function getDeviceCode(data: any) {
+  return new Promise((resolve, reject) => {
+    const params: URLSearchParams = new URLSearchParams({
+      'client_id': data.clientId,
+      'audience': data.authorizationParams.audience,
+    });
+    axios.post(`https://${data.domain}/oauth/device/code`, params)
+      .then(resp => resolve({...resp.data, domain: data.domain, client_id: data.clientId}))
+      .catch(err => reject(err));
+  });
+}
+
+export function pollDeviceCode(store: MiddlewareAPI<Dispatch<AnyAction>>) {
+  return new Promise((resolve, reject) => {
+    const deviceCode = store.getState().environment.deviceCode;
+    const params = new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+      device_code: deviceCode.device_code,
+      client_id: deviceCode.client_id,
+    });
+    const url: string = `https://${deviceCode.domain}/oauth/token`;
+    axios.post(url, params)
+      .then(resp => resolve(resp.data))
+      .catch(err => err.response.status === 403 ? resolve({}) : reject(err));
   });
 }

@@ -5,12 +5,16 @@ import { loadImage, renderImageFullScreen } from '../../utils/drawing';
 import { Rect, fillToAspect, rotate } from '../../utils/geometry';
 
 import styles from './RemoteDisplayComponent.module.css';
+import { useNavigate } from 'react-router-dom';
 
 const RemoteDisplayComponent = () => {
+  const navigate = useNavigate();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
   const apiUrl: string | undefined = useSelector((state: AppReducerState) => state.environment.api);
   const wsUrl: string | undefined = useSelector((state: AppReducerState) => state.environment.ws);
+  const authorized: boolean | undefined = useSelector((state: AppReducerState) => state.environment.auth);
+  const token: string | undefined = useSelector((state: AppReducerState) => state.environment.deviceCodeToken);
   const [contentCtx, setContentCtx] = useState<CanvasRenderingContext2D|null>(null);
   const [overlayCtx, setOverlayCtx] = useState<CanvasRenderingContext2D|null>(null);
 
@@ -25,8 +29,16 @@ const RemoteDisplayComponent = () => {
   }, [overlayCanvasRef, overlayCtx]);
 
   useEffect(() => {
+    if (!authorized) {
+      navigate(`/device`);
+    }
+  }, [navigate, authorized])
+
+  useEffect(() => {
     if (!overlayCtx) return;
     if (!contentCtx) return;
+    if (!authorized) return; // the other useEffect should go redirect us to get auth
+    if (!token) return;
     if (!wsUrl) {
       console.error('THE OTHER IMPOSSIBLE HAS HAPPENED -- WS MESSAGE WITH NO WS URL WHAT');
       return;
@@ -42,10 +54,15 @@ const RemoteDisplayComponent = () => {
       console.log('WakeLock unavailable');
     }
 
-    let ws = new WebSocket(wsUrl);
+    const fullUrl = `${wsUrl}?bearer=${token}`;
+    const ws = new WebSocket(fullUrl);
     ws.onopen = (event: Event) => {
       console.log(`Got open event ${JSON.stringify(event)}`);
     };
+
+    ws.onclose = (event: Event) => {
+      console.log(`Got closed event: ${JSON.stringify(event)}`);
+    }
 
     ws.onerror = function(ev: Event) {
       console.error(`MICAH got error ${JSON.stringify(ev)}`);
@@ -93,7 +110,7 @@ const RemoteDisplayComponent = () => {
       }
 
       /**
-       * I hate this so much... if someone every does contribute to this
+       * I hate this so much... if someone ever does contribute to this
        * project and your js game is better than mine, see if you can make this
        * less isane. The point is to calculate the expanded the selection to
        * fill the screen (based on the aspect ratio of the map) then draw the
@@ -144,7 +161,7 @@ const RemoteDisplayComponent = () => {
         }
       }).catch(err => console.error(`Error loading background image: ${JSON.stringify(err)}`))
     }
-  }, [apiUrl, wsUrl, contentCtx, overlayCtx]);
+  }, [apiUrl, wsUrl, authorized, token, contentCtx, overlayCtx]);
 
   return (
     <div className={styles.map}>

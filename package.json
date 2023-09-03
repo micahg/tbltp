@@ -1,6 +1,6 @@
 {
   "name": "@micahg/ntt",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "files": [
     "build"
   ],
@@ -22,6 +22,7 @@
     "@types/react": "^18.2.18",
     "@types/react-dom": "^18.2.7",
     "axios": "^1.4.0",
+    "qrcode": "^1.5.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-redux": "^8.1.2",
@@ -59,6 +60,7 @@
     "@babel/preset-env": "^7.22.9",
     "@babel/preset-typescript": "^7.22.5",
     "@types/dom-screen-wake-lock": "^1.0.1",
+    "@types/qrcode": "^1.5.2",
     "babel-jest": "^29.6.2"
   }
 }

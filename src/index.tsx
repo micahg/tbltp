@@ -10,12 +10,14 @@ import { ContentMiddleware } from './middleware/ContentMiddleware';
 import LandingComponent from './components/LandingComponent/LandingComponent.lazy';
 import RemoteDisplayComponent from './components/RemoteDisplayComponent/RemoteDisplayComponent.lazy';
 import GameMasterComponent from './components/GameMasterComponent/GameMasterComponent.lazy';
+import DeviceCodeComponent from './components/DeviceCodeComponent/DeviceCodeComponent.lazy';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 
 let routes: Object[] = [];
-routes.push({path: '/',        element: <LandingComponent/>,    errorElement: null})
-routes.push({path: '/display', element: <RemoteDisplayComponent/>,    errorElement: null})
-routes.push({path: '/edit',  element: <GameMasterComponent />, errorElement: null });
+routes.push({path: '/',        element: <LandingComponent/>,    errorElement: null});
+routes.push({path: '/display', element: <RemoteDisplayComponent/>,    errorElement: null});
+routes.push({path: '/edit',    element: <GameMasterComponent />, errorElement: null });
+routes.push({path: '/device',  element: <DeviceCodeComponent/>, errorElement: null});
 const router = createBrowserRouter(routes);
 
 const store = configureStore({

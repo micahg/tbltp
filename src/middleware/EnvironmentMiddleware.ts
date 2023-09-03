@@ -1,4 +1,4 @@
-import { AuthState, getAuthClient, getAuthConfig, getAuthState } from '../utils/auth';
+import { AuthState, getAuthClient, getAuthConfig, getAuthState, getDeviceCode, pollDeviceCode } from '../utils/auth';
 import { Middleware } from 'redux';
 import axios from 'axios';
 
@@ -31,7 +31,7 @@ export const EnvironmentMiddleware: Middleware = storeAPI => next => action => {
   } else if (action.type === 'environment/authenticate') {
       // OI DO NOT CHANGE THIS - getToken *silently* gets the token, which includes
       // refreshing when old ones expire
-    getAuthConfig(storeAPI, next)
+    getAuthConfig(storeAPI)
       .then(data => getAuthClient(data))
       .then(client => getAuthState(client))
       .then(state => next({type: action.type, payload: state}))
@@ -45,11 +45,20 @@ export const EnvironmentMiddleware: Middleware = storeAPI => next => action => {
         return next(action);
       });
   } else if (action.type === 'environment/logout') {
-    getAuthConfig(storeAPI, next)
+    getAuthConfig(storeAPI)
       .then(data => getAuthClient(data))
       .then(client => client.logout())
       .then(() => console.log('Successfully logged out'))
       .catch(err => console.error(`UNABLE TO LOG OUT: ${JSON.stringify(err)}`));
+  } else if (action.type === 'environment/devicecode') {
+    getAuthConfig(storeAPI)
+      .then(data => getDeviceCode(data))
+      .then(value => next({'type': action.type, 'payload': value}))
+      .catch(err => console.error(`Device Code Authentication Failed: ${JSON.stringify(err)}`))
+  } else if (action.type === 'environment/devicecodepoll') {
+    pollDeviceCode(storeAPI)
+      .then(data => next({type: action.type, payload: data}))
+      .catch(err => console.error(`Device code fetch failed: ${JSON.stringify(err)}`));
   } else {
     return next(action);
   }

@@ -43,7 +43,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
   const [showOpacitySlider, setShowOpacitySlider] = useState<boolean>(false);
   const [backgroundSize, setBackgroundSize] = useState<number[]|null>(null);
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   /**
    * THIS GUY RIGHT HERE IS REALLY IMPORTANT. Because we use a callback to render
@@ -53,7 +53,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
    * To avoid rerendering we start with this flag false until we've triggered and
    * ensure any relevant useEffect calls depend on its truth.
    */
-  const [toolbarPopulated, setToolbarPopulated] = React.useState<boolean>(false);
+  const [toolbarPopulated, setToolbarPopulated] = useState<boolean>(false);
 
   const auth = useSelector((state: AppReducerState) => state.environment.auth);
   const background = useSelector((state: AppReducerState) => state.content.background);

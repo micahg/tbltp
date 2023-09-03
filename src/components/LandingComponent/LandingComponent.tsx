@@ -22,7 +22,7 @@ const LandingComponent = (props: LandingComponentProps) => {
   // navigate away on timeout
   useEffect(() => {
     if (countDown < 0) {
-      navigate(`display`);
+      navigate(`/display`);
     }
   }, [navigate, countDown]);
 
