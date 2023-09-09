@@ -3,6 +3,7 @@ import * as os from "os";
 import { log } from "../utils/logger";
 
 import * as express from "express";
+import { Express, NextFunction } from "express";
 import * as bodyParser from "body-parser";
 import * as multer from "multer";
 import { Server } from 'http';
@@ -18,7 +19,7 @@ import { auth } from "express-oauth2-jwt-bearer";
  * Create the express middleware.
  * @returns an express app.
  */
-export function create(): express.Express {
+export function create(): Express {
   let app = express();
 
   app.use(bodyParser.json());
@@ -28,13 +29,14 @@ export function create(): express.Express {
   const aud: string = process.env.AUDIENCE_URL || 'http://localhost:3000/';
   const iss: string = process.env.ISSUER_URL ||  'https://nttdev.us.auth0.com/';
   
-  const jwtCheck = noauth ? (_rq: any, _rs: any, next: express.NextFunction) => {
-    log.warn("authentication diabled");
-    next();
-  } : auth({
-    audience: aud,
-    issuerBaseURL: iss,
-    tokenSigningAlg: 'RS256'
+  if (noauth) {
+    log.warn("Authenticaiton disabled");
+  }
+
+  const jwtCheck = noauth ? (_rq: any, _rs: any, next: NextFunction) => next() : auth({
+      audience: aud,
+      issuerBaseURL: iss,
+      tokenSigningAlg: 'RS256'
   });
 
   // TODO FIX environment specific cors headers
