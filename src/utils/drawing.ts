@@ -36,7 +36,12 @@ export function getRect(x1: number, y1: number, x2: number, y2: number): Rect {
 export function loadImage(uri: string): Promise<HTMLImageElement> {
   const img = new Image();
   return new Promise((resolve, reject) => {
-    img.onload = function() { resolve(this as HTMLImageElement); }
+    img.onload = function() {
+      // just to mess with stuff silk (amazon browser) will resize us here,
+      // to 1.599905190803508 smaller, screwing up our viewports. Its
+      // probably a ram constraint...
+      resolve(this as HTMLImageElement);
+    }
     img.onerror = function(error) { reject(error); }
     // Anonymous only works if the server cors are setup... Setting it avoids the
     // error:
@@ -101,8 +106,18 @@ export function renderImageFullScreen(image: HTMLImageElement, ctx: CanvasRender
   viewport: Rect | null = null) {
   if (!ctx) return Promise.reject(`Unable to get canvas context`);
 
-  const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
-  const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+  /**
+   * Something to remember: the offsetWidth/offsetHeight is used by amazon silk.
+   * On silk the client is 960*480 but the offset is 960*540. The actual
+   * available screen is indeed 960*540 BUT you only get it by scrolling the
+   * screen down
+   */
+  const width = Math.max(document.documentElement.clientWidth || 0,
+                         document.documentElement.offsetWidth || 0,
+                         window.innerWidth || 0)
+  const height = Math.max(document.documentElement.clientHeight || 0,
+                          document.documentElement.offsetHeight || 0,
+                          window.innerHeight || 0);
   ctx.canvas.width = width;
   ctx.canvas.height = height;
   ctx.canvas.style.width = `${width}px`;

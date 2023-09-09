@@ -86,14 +86,23 @@ export function scaleSelection(selection: Rect, viewport: Rect, width: number, h
   return res;
 }
 
-export function fillToAspect(selection: Rect | null, width: number, height: number) {
+export function fillToAspect(selection: Rect | null, bg: Rect, width: number, height: number) {
   if (!selection) return getRect(0, 0, width, height);
-  if (selection.x === 0 && selection.y === 0 && selection.width === width && selection.height === height) {
+
+  // We need to remember that some browsers (Amazon Silk on a firestick) MAY
+  // shrink your image without telling you (probably due to ram constraints on
+  // big images). In such situations (all situations consequently) we need to
+  // consider the original size at the editor (which is passed in bg)
+  if (selection.x === 0 && selection.y === 0 && selection.width === bg.width && selection.height === bg.height) {
     return getRect(0, 0, width, height);
   }
 
   let selR = selection.width / selection.height;
   let scrR = width/height;
+
+  // calculate coefficient for browser-resized images
+  const silkScale = (bg.width !== width) ? width / bg.width : 1;
+
 
   // if the selection ratio is greater than the screen ratio it implies
   // aspect ratio of the selection is wider than the aspect ratio of the
@@ -105,8 +114,11 @@ export function fillToAspect(selection: Rect | null, width: number, height: numb
     // these bits ensure we render from the edge rather than show black
     if (newY < 0) newY = 0;
     if (newY + newHeight > height) newY = height - newHeight;
+    if (silkScale === 1)
+      return {x: selection.x, y: newY, width: selection.width, height: newHeight};
 
-    return {x: selection.x, y: newY, width: selection.width, height: newHeight};
+    return {x: selection.x * silkScale, y: newY * silkScale,
+            width: selection.width * silkScale, height: newHeight * silkScale};
   }
 
   // conversly, if the selection ratio is less than the screen ratio, it implies
@@ -119,5 +131,8 @@ export function fillToAspect(selection: Rect | null, width: number, height: numb
   if (newX < 0) newX = 0;
   if (newX + newWidth > width) newX = width - newWidth;
 
-  return {x: newX, y: selection.y, width: newWidth, height: selection.height}
+  if (silkScale === 1)
+    return {x: newX, y: selection.y, width: newWidth, height: selection.height}
+  return {x: newX * silkScale, y: selection.y * silkScale,
+          width: newWidth * silkScale, height: selection.height * silkScale}
 }

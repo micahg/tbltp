@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Paper, Typography  } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link} from 'react-router-dom';
 
 interface LandingComponentProps {}
 
@@ -36,8 +36,8 @@ const LandingComponent = (props: LandingComponentProps) => {
       </Paper>
       <Paper sx={{padding: '1em', margin: '1em 0'}} elevation={6}>
         <Typography variant="h5" gutterBottom>Redirecting to remote display {countDown}</Typography>
-        <p>For convenience we will redirect to the remote <a href="/display">display</a> mode shortly!</p>
-        <p>If you are running a session, you can use the <a href="/edit">editor</a> instead.</p>
+        <p>For convenience we will redirect to the remote <Link to='/display'>display</Link> mode shortly!</p>
+        <p>If you are running a session, you can use the <Link to="/edit">editor</Link> instead.</p>
       </Paper>
     </Box>
   );

@@ -7,17 +7,43 @@
         {
             "type": "chrome",
             "request": "launch",
-            "name": "Launch against localhost",
+            "name": "Run (Chrome)",
             "url": "http://localhost:4200",
             "webRoot": "${workspaceFolder}",
             "userDataDir": false
         },
         {
-            "name": "compile",
+            "type": "chrome",
+            "request": "launch",
+            "name": "Run Public IP (Chrome)",
+            "url": "http://192.168.1.255:4200",
+            "webRoot": "${workspaceFolder}",
+            "userDataDir": false
+        },
+        {
+            "name": "Dev Server",
             "type": "node",
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "runtimeExecutable": "npm",
+            "env": {
+                "HOST": "localhost",
+                "PORT": "4200",
+                "BROWSER": "none"
+            },
+            "runtimeArgs": [ "start" ]
+        },
+        {
+            "name": "Dev Server (Public IP)",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "npm",
+            "env": {
+                "HOST": "192.168.1.255",
+                "BROWSER": "none",
+                "PORT": "4200",
+            },
             "runtimeArgs": [ "start" ]
         },
         {

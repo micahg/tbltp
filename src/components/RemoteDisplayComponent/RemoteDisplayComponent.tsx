@@ -14,6 +14,7 @@ const RemoteDisplayComponent = () => {
   const apiUrl: string | undefined = useSelector((state: AppReducerState) => state.environment.api);
   const wsUrl: string | undefined = useSelector((state: AppReducerState) => state.environment.ws);
   const authorized: boolean | undefined = useSelector((state: AppReducerState) => state.environment.auth);
+  const noauth: boolean = useSelector((state: AppReducerState) => state.environment.noauth);
   const token: string | undefined = useSelector((state: AppReducerState) => state.environment.deviceCodeToken);
   const [contentCtx, setContentCtx] = useState<CanvasRenderingContext2D|null>(null);
   const [overlayCtx, setOverlayCtx] = useState<CanvasRenderingContext2D|null>(null);
@@ -29,16 +30,16 @@ const RemoteDisplayComponent = () => {
   }, [overlayCanvasRef, overlayCtx]);
 
   useEffect(() => {
-    if (!authorized) {
+    if (!noauth && !authorized) {
       navigate(`/device`);
     }
-  }, [navigate, authorized])
+  }, [navigate, authorized, noauth])
 
   useEffect(() => {
     if (!overlayCtx) return;
     if (!contentCtx) return;
-    if (!authorized) return; // the other useEffect should go redirect us to get auth
-    if (!token) return;
+    if (!authorized && !noauth) return; // the other useEffect should go redirect us to get auth
+    if (!token && !noauth) return;
     if (!wsUrl) {
       console.error('THE OTHER IMPOSSIBLE HAS HAPPENED -- WS MESSAGE WITH NO WS URL WHAT');
       return;
@@ -54,7 +55,7 @@ const RemoteDisplayComponent = () => {
       console.log('WakeLock unavailable');
     }
 
-    const fullUrl = `${wsUrl}?bearer=${token}`;
+    const fullUrl = noauth ? `${wsUrl}` : `${wsUrl}?bearer=${token}`;
     const ws = new WebSocket(fullUrl);
     ws.onopen = (event: Event) => {
       console.log(`Got open event ${JSON.stringify(event)}`);
@@ -93,6 +94,12 @@ const RemoteDisplayComponent = () => {
       }
       let viewport: Rect = js.state.viewport;
 
+      if (!js.state.backgroundSize) {
+        console.error('Unable to render without background size');
+        return;
+      }
+      let bgSize: Rect = js.state.backgroundSize;
+
       let ts: number = new Date().getTime();
       let overlayUri: string | null = null;
       if ('overlay' in js.state && js.state.overlay) {
@@ -118,7 +125,7 @@ const RemoteDisplayComponent = () => {
        * background with expanded selection if there is one.
        */
       loadImage(backgroundUri).then(bgImg => {
-        let bgVP = fillToAspect(viewport, bgImg.width, bgImg.height);
+        let bgVP = fillToAspect(viewport, bgSize, bgImg.width, bgImg.height);
         if (overlayUri) {
           loadImage(overlayUri).then(ovrImg => {
             /* REALLY IMPORTANT - base overlay on the BG Viewport as it can shift the
@@ -161,7 +168,7 @@ const RemoteDisplayComponent = () => {
         }
       }).catch(err => console.error(`Error loading background image: ${JSON.stringify(err)}`))
     }
-  }, [apiUrl, wsUrl, authorized, token, contentCtx, overlayCtx]);
+  }, [apiUrl, wsUrl, authorized, noauth, token, contentCtx, overlayCtx]);
 
   return (
     <div className={styles.map}>

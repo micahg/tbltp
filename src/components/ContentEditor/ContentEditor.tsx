@@ -129,14 +129,15 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
       sel = rotateRect(-90, sel, vp.width, vp.height);
       vp = getRect(0,0, overlayCtx.canvas.height, overlayCtx.canvas.width);
     }
-    let payload = scaleSelection(sel, vp, w, h);
-    dispatch({type: 'content/zoom', payload: payload});
+    let selection = scaleSelection(sel, vp, w, h);
+    dispatch({type: 'content/zoom', payload: {'viewport': selection}});
     sm.transition('wait');
   }
 
   const zoomOut = () => {
     if (!backgroundSize) return;
-    dispatch({type: 'content/zoom', payload: getRect(0, 0, backgroundSize[0], backgroundSize[1])});
+    let imgRect = getRect(0, 0, backgroundSize[0], backgroundSize[1]);
+    dispatch({type: 'content/zoom', payload: {'backgroundSize': imgRect, 'viewport': imgRect}});
   }
 
   const gmSelectColor = () => {
@@ -329,7 +330,8 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
     loadImage(bgImg)
       .then(img => {
         setBackgroundSize([img.width, img.height]);
-        dispatch({type: 'content/zoom', payload: getRect(0, 0, img.width, img.height)})
+        let imgRect = getRect(0, 0, img.width, img.height);
+        dispatch({type: 'content/zoom', payload: {'backgroundSize': imgRect, 'viewport': imgRect}});    
         return img;
       })
       // MICAH fix render image to use the container height and width
