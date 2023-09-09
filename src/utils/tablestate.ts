@@ -13,6 +13,7 @@ export interface TableState {
   overlay?: string;
   background?: string;
   viewport: Rect;
+  backgroundSize?: Rect;
 }
 
 
@@ -20,12 +21,14 @@ const state: TableState = {
   overlay: null,
   background: null,
   viewport: null,
+  backgroundSize: null,
 }
 
 export function updateTableState(layer: string, asset: string | Rect): void {
-  if      (layer === 'background') state.background = asset as string;
-  else if (layer === 'overlay')    state.overlay = asset as string;
-  else if (layer === 'viewport')   state.viewport = asset as Rect;
+  if      (layer === 'background')      state.background = asset as string;
+  else if (layer === 'overlay')         state.overlay = asset as string;
+  else if (layer === 'viewport')        state.viewport = asset as Rect;
+  else if (layer === 'background_size') state.backgroundSize = asset as Rect;
 }
 
 export function getTableState(): TableState { return state; }

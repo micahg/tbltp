@@ -8,8 +8,6 @@ import { startWSServer } from './utils/websocket';
 import { STARTUP_CHECK_SIG, STARTUP_DONE_SIG } from './utils/constants';
 import { getOAuthPublicKey } from './utils/auth';
 
-
-
 log.info(`System starting in ${process.env.NODE_ENV}`);
 
 let app = expressConfig.create();

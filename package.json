@@ -1,6 +1,6 @@
 {
   "name": "@micahg/nttsrv",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Network Tabletop Server",
   "main": "server.js",
   "files": [],
@@ -29,8 +29,8 @@
     "@types/node": "^18.13.0",
     "@types/ws": "^8.5.4",
     "ts-loader": "^9.4.2",
-    "webpack": "^5.75.0",
-    "webpack-cli": "^5.0.1"
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4"
   },
   "dependencies": {
     "body-parser": "^1.20.1",
