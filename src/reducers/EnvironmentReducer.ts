@@ -40,7 +40,7 @@ export const EnvironmentReducer = (state = initialState, action: PayloadAction) 
     case 'environment/authconfig': {
       if (action.payload === null || action.payload === undefined) return state;
       const authState: AuthState = (action.payload as unknown) as AuthState;
-      return {...state, client: authState.client, noauth: authState.noauth};
+      return {...state, client: authState.client, auth: authState.auth, noauth: authState.noauth};
     }
     case 'environment/authenticate': {
       if (action.payload === null || action.payload === undefined) return state;

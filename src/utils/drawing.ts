@@ -131,7 +131,9 @@ function renderImage(image: HTMLImageElement, ctx: CanvasRenderingContext2D,
 
   if (!ctx) return Promise.reject(`Unable to get canvas context`);
 
-  let bounds = calculateBounds(ctx.canvas.width, ctx.canvas.height, image.width, image.height);
+  // if we're zoomed we should use viewport width and height (not image)
+  const [width, height] = viewport ? [viewport.width, viewport.height] : [image.width, image.height];
+  const bounds = calculateBounds(ctx.canvas.width, ctx.canvas.height, width, height);
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   ctx.save();
   ctx.translate(ctx.canvas.width/2, ctx.canvas.height/2);

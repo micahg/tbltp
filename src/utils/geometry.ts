@@ -86,23 +86,37 @@ export function scaleSelection(selection: Rect, viewport: Rect, width: number, h
   return res;
 }
 
-export function fillToAspect(selection: Rect | null, bg: Rect, width: number, height: number) {
+/**
+ * Pay attention!!! This method should decide how much of the background image
+ * to render, considering the following things zoom of the table and that the
+ * image may be reduced in size by the browser.
+ * 
+ * @param selection the selection (rectangle) over the background.
+ * @param tableBGRect the background size according to the table state.
+ * @param width the actual background width
+ * @param height the actual background height
+ * @param zoomed the result of checking seledction and tableBGRect with isZoomed
+ * @returns 
+ */
+export function fillToAspect(selection: Rect | null, tableBGRect: Rect, width: number, height: number) {
   if (!selection) return getRect(0, 0, width, height);
-
+  
   // We need to remember that some browsers (Amazon Silk on a firestick) MAY
   // shrink your image without telling you (probably due to ram constraints on
   // big images). In such situations (all situations consequently) we need to
   // consider the original size at the editor (which is passed in bg)
-  if (selection.x === 0 && selection.y === 0 && selection.width === bg.width && selection.height === bg.height) {
+  if (selection.x === 0 && selection.y === 0 && selection.width === tableBGRect.width && selection.height === tableBGRect.height) {
     return getRect(0, 0, width, height);
   }
 
-  let selR = selection.width / selection.height;
-  let scrR = width/height;
+  const screenWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+  const screenHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+  
+  let selR = selection.width / selection.height
+  let scrR = (width > height) ? screenWidth/screenHeight : screenHeight/screenWidth;
 
   // calculate coefficient for browser-resized images
-  const silkScale = (bg.width !== width) ? width / bg.width : 1;
-
+  const silkScale = (tableBGRect.width !== width) ? width / tableBGRect.width : 1;
 
   // if the selection ratio is greater than the screen ratio it implies
   // aspect ratio of the selection is wider than the aspect ratio of the

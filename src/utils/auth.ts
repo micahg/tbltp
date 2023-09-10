@@ -25,7 +25,7 @@ export function getAuthConfig(store: MiddlewareAPI<Dispatch<AnyAction>>): Promis
   return new Promise((resolve, reject) => {
 
     // ensure we have an authorization state
-        const auth = store.getState().auth;
+    const auth = store.getState().auth;
     if (auth !== undefined) return resolve(auth);
 
     // get the client auth.json and hte server noauth setting. If the server is
@@ -35,7 +35,6 @@ export function getAuthConfig(store: MiddlewareAPI<Dispatch<AnyAction>>): Promis
     Promise.all([axios.get("/auth.json"), axios.get(noauthUrl)]).then(([auth, noauth]) => {
       // combine the auth config into a single state
       const data = auth.data;
-      // if (noauth.data.noauth) return reject("noauth");
       data.noauth = noauth.data.noauth;
       data.auth = false;
       return resolve(data);
