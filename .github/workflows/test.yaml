@@ -1,0 +1,17 @@
+name: Test
+on:
+  push:
+    branches-ignore:
+      - main
+jobs:
+  poke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v3 
+      - name: Check For YQ
+        id: checkyq
+        run: |
+          echo $PATH
+          which yq
