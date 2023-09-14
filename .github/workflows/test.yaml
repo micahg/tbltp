@@ -10,14 +10,18 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v3 
-      - name: Check For YQ
+      - id: kubeconfig
+        name: Kubectl Config
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
+          echo $KUBE_CONFIG | base64 -d > ~/.kube/config
+          sha512sum ~/.kube/config
+          wc -l ~/.kube/config
+      - name: Helm Debug Dry Run
         id: checkyq
         run: |
-          export OLD_VERSION=`yq .version nttchart/Chart.yaml`
-          export NEW_VERSION=`echo "import os;vbits=os.environ.get('OLD_VERSION').rsplit('.');print('.'.join([*vbits[0:-1], str(int(vbits[-1])+1)]))" | python3`
-          echo "Migrating chart from $OLD_VERSION to $NEW_VERSION"
-          yq -i '.version = strenv(NEW_VERSION)' nttchart/Chart.yaml
-          yq .version nttchart/Chart.yaml
           source .github/sharedenv.sh
           echo "$HELM_ARGS"
           helm upgrade --dry-run --debug $HELM_ARGS
