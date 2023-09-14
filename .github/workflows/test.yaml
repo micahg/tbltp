@@ -18,3 +18,5 @@ jobs:
           echo "Migrating chart from $OLD_VERSION to $NEW_VERSION"
           yq -i '.version = strenv(NEW_VERSION)' nttchart/Chart.yaml
           yq .version nttchart/Chart.yaml
+          source .github/sharedenv.sh
+          echo "$HELM_ARGS"          
