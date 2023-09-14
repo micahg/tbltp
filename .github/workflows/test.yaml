@@ -21,4 +21,5 @@ jobs:
           which python
           export OLD_VERSION=`yq .version nttchart/Chart.yaml`
           export NEW_VERSION=`echo "import os;vbits=os.environ.get('OLD_VERSION').rsplit('.');print('.'.join([*vbits[0:-1], str(int(vbits[-1])+1)]))" | python3`
-          echo $OLD_VERSION => $NEW_VERSION
+          echo $OLD_VERSION
+          echo $NEW_VERSION
