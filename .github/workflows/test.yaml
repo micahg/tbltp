@@ -15,12 +15,8 @@ jobs:
         #echo "version='1.2.3';vbits=version.rsplit('.');print('.'.join([*vbits[0:-1], str(int(vbits[-1])+1)]))" | python3
         #echo "import os;vbits=os.environ.get('OLD_VERSION').rsplit('.');print('.'.join([*vbits[0:-1], str(int(vbits[-1])+1)]))" | OLD_VERSION=1.2.3 python3
         run: |
-          echo $PATH
-          which yq
-          which python3
-          which python
           export OLD_VERSION=`yq .version nttchart/Chart.yaml`
           export NEW_VERSION=`echo "import os;vbits=os.environ.get('OLD_VERSION').rsplit('.');print('.'.join([*vbits[0:-1], str(int(vbits[-1])+1)]))" | python3`
           echo "Migrating chart from $OLD_VERSION to $NEW_VERSION"
-          yq -i .version =  $NEW_VERSION nttchart/Chart.yaml
+          yq -i '.version = strenv(NEW_VERSION)' nttchart/Chart.yaml
           yq .version nttchart/Chart.yaml
