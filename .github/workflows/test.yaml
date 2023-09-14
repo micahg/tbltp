@@ -12,6 +12,11 @@ jobs:
       - uses: actions/checkout@v3 
       - name: Check For YQ
         id: checkyq
+        #echo "version='1.2.3';vbits=version.rsplit('.');print('.'.join([*vbits[0:-1], str(int(vbits[-1])+1)]))" | python3
+        #echo "import os;vbits=os.environ.get('OLD_VERSION').rsplit('.');print('.'.join([*vbits[0:-1], str(int(vbits[-1])+1)]))" | OLD_VERSION=1.2.3 python3
         run: |
           echo $PATH
+          export OLD_VERSION=`yq .version nttchart/Chart.yaml`
           which yq
+          which python3
+          which python
