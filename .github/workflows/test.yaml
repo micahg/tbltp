@@ -19,4 +19,5 @@ jobs:
           yq -i '.version = strenv(NEW_VERSION)' nttchart/Chart.yaml
           yq .version nttchart/Chart.yaml
           source .github/sharedenv.sh
-          echo "$HELM_ARGS"          
+          echo "$HELM_ARGS"
+          helm upgrade --dry-run --debug $HELM_ARGS
