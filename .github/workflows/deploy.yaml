@@ -28,11 +28,11 @@ jobs:
           if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
           echo $KUBE_CONFIG | base64 -d > ~/.kube/config
           chmod go-rwx ~/.kube/config
-      - id: kubectltest
-        name: Kubectl Test
-        run: |
-          sha512sum ~/.kube/config
-          kubectl get namespaces
+      # - id: kubectltest
+      #   name: Kubectl Test
+      #   run: |
+      #     sha512sum ~/.kube/config
+      #     kubectl get namespaces
       - id: helm
         name: Helm Upgrade
         run: |

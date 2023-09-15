@@ -20,10 +20,14 @@ jobs:
           sha512sum ~/.kube/config
           wc -l ~/.kube/config
           chmod go-rwx ~/.kube/config
+      - id: kubectltest
+        name: Kubectl Test
+        run: |
+          sha512sum ~/.kube/config
+          kubectl get namespaces
       - name: Test Kubectl
         id: testkube
         run: |
-          kubectl config get-contexts
           kubectl get namespaces
       - name: Helm Debug Dry Run
         id: checkyq
