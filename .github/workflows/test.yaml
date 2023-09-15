@@ -25,10 +25,6 @@ jobs:
         name: Cluster Info
         run: |
           kubectl cluster-info
-      - name: Test Kubectl
-        id: testkube
-        run: |
-          kubectl get namespaces
       - name: Helm Debug Dry Run
         id: checkyq
         run: |
