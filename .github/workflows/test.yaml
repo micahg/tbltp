@@ -24,15 +24,7 @@ jobs:
       - id: clusterinfo
         name: Cluster Info
         run: |
-          sha512sum ~/.kube/config
-          wc -l ~/.kube/config
-          grep server ~/.kube/config
-          kubectl cluster-info dump
-      - id: kubectltest
-        name: Kubectl Test
-        run: |
-          sha512sum ~/.kube/config
-          kubectl get namespaces
+          kubectl cluster-info
       - name: Test Kubectl
         id: testkube
         run: |
