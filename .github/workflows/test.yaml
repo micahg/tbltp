@@ -1,0 +1,38 @@
+name: Test
+on:
+  push:
+    branches-ignore:
+      - main
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v3 
+      - id: kubeconfig
+        name: Kubectl Config
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
+          echo $KUBE_CONFIG | base64 -d > ~/.kube/config
+          sha512sum ~/.kube/config
+          wc -l ~/.kube/config
+          chmod go-rwx ~/.kube/config
+      - id: kubectltest
+        name: Kubectl Test
+        run: |
+          sha512sum ~/.kube/config
+          kubectl get namespaces
+      - name: Test Kubectl
+        id: testkube
+        run: |
+          kubectl get namespaces
+      - name: Helm Debug Dry Run
+        id: checkyq
+        run: |
+          source .github/sharedenv.sh
+          echo "$HELM_ARGS"
+          echo helm upgrade --dry-run --debug $HELM_ARGS
+          helm upgrade --dry-run --debug $HELM_ARGS

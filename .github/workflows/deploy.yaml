@@ -22,16 +22,37 @@ jobs:
         name: Kubectl Config
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        #  sha512sum ~/.kube/config
+        #  wc -l ~/.kube/config
         run: |
           if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
           echo $KUBE_CONFIG | base64 -d > ~/.kube/config
-          sha512sum ~/.kube/config
-          wc -l ~/.kube/config
-      - id: kubectltest
-        name: Kubectl Test
-        run: |
-          kubectl get namespaces
+          chmod go-rwx ~/.kube/config
+      # - id: kubectltest
+      #   name: Kubectl Test
+      #   run: |
+      #     sha512sum ~/.kube/config
+      #     kubectl get namespaces
       - id: helm
         name: Helm Upgrade
         run: |
           helm upgrade --install -f nttchart/values.yaml -f nttchart/values-dev.yaml ntt-infra nttchart
+  version:
+    needs: [development]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          git config --global user.name "$GITHUB_ACTOR"
+          git config --global user.email "$GITHUB_ACTOR@github.com"
+          export OLD_VERSION=`yq .version nttchart/Chart.yaml`
+          export NEW_VERSION=`echo "import os;vbits=os.environ.get('OLD_VERSION').rsplit('.');print('.'.join([*vbits[0:-1], str(int(vbits[-1])+1)]))" | python3`
+          echo "Migrating chart from $OLD_VERSION to $NEW_VERSION"
+          yq -i '.version = strenv(NEW_VERSION)' nttchart/Chart.yaml
+          export BRANCH="release/$NEW_VERSION"
+          echo "Checking out $BRANCH"
+          git checkout -b "$BRANCH"
+          git commit -m "Create chart version $BRANCH" nttchart/Chart.yaml
+          git push --set-upstream origin "$BRANCH"

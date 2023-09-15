@@ -10,7 +10,7 @@ certificate issuers here because they live in the ezqs chart (if at all).
 
 Testing:
 
-```helm upgrade --install --dry-run --debug -f nttchart/values.yaml -f nttchart/values-dev.yaml ntt-infra nttchart```
+```helm upgrade --dry-run --debug --install -f nttchart/values.yaml -f nttchart/values-dev.yaml ntt-infra nttchart```
 
 Rollback:
 

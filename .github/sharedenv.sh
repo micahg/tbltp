@@ -1,0 +1,1 @@
+HELM_ARGS='--install -f nttchart/values.yaml -f nttchart/values-dev.yaml ntt-infra nttchart'
