@@ -23,6 +23,7 @@ jobs:
       - id: clusterinfo
         name: Cluster Info
         run: |
+          grep server ~/.kube/config
           kubectl cluster-info dump
       - id: kubectltest
         name: Kubectl Test
