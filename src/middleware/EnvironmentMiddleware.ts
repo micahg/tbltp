@@ -28,16 +28,17 @@ export const EnvironmentMiddleware: Middleware = storeAPI => next => action => {
     })
     .then(() => getAuthConfig(storeAPI))
     .then(data => next({type: 'environment/authconfig', payload: data}))
+    .then(() => getAuthClient(storeAPI))
+    .then(client => next({type: 'environment/authclient', payload: client}))
     .catch(reason => {
       // TODO trigger an error
       console.error(`FAILED TO ENV CONFIG FETCH ${JSON.stringify(reason)}`)
     });
   } else if (action.type === 'environment/authenticate') {
-      // OI DO NOT CHANGE THIS - getToken *silently* gets the token, which includes
-      // refreshing when old ones expire
-    getAuthConfig(storeAPI)
-      .then(data => getAuthClient(data))
-      .then(client => getAuthState(client))
+    if (storeAPI.getState().environment.authStarted) return next(action);
+    next({type: 'environment/authstarted', payload: true});
+
+    getAuthState(storeAPI.getState().environment.authClient)
       .then(state => next({type: action.type, payload: state}))
       .catch(err => {
         if (err === "noauth") {
@@ -49,12 +50,14 @@ export const EnvironmentMiddleware: Middleware = storeAPI => next => action => {
         return next(action);
       });
   } else if (action.type === 'environment/logout') {
-    getAuthConfig(storeAPI)
-      .then(data => getAuthClient(data))
+    getAuthClient(storeAPI)
       .then(client => client.logout())
       .then(() => console.log('Successfully logged out'))
       .catch(err => console.error(`UNABLE TO LOG OUT: ${JSON.stringify(err)}`));
   } else if (action.type === 'environment/devicecode') {
+    if (storeAPI.getState().environment.authStarted) return next(action);
+    next({type: 'environment/authstarted', payload: true});
+
     getAuthConfig(storeAPI)
       .then(data => getDeviceCode(data))
       .then(value => next({'type': action.type, 'payload': value}))

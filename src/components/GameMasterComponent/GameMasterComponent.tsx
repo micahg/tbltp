@@ -71,6 +71,7 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
   const [actions, setActions] = useState<GameMasterAction[]>([]);
   const [doot, setDoot] = useState<number>(0);
   const auth = useSelector((state: AppReducerState) => state.environment.auth);
+  const noauth = useSelector((state: AppReducerState) => state.environment.noauth);
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -88,10 +89,10 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
 
   useEffect(() => {
     if (!dispatch) return;
-
-    // undefined implies we haven't attempted auth yet, so we must attempt it
-    if (auth === undefined) dispatch({type: 'environment/authenticate'});
-  }, [dispatch, auth])
+    if (noauth) return;
+    if (auth) return;
+    dispatch({type: 'environment/authenticate'});
+  }, [dispatch, noauth, auth])
 
   return (
     <Box sx={{ display: 'flex' }}>

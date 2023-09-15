@@ -56,6 +56,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
   const [toolbarPopulated, setToolbarPopulated] = useState<boolean>(false);
 
   const auth = useSelector((state: AppReducerState) => state.environment.auth);
+  const noauth = useSelector((state: AppReducerState) => state.environment.noauth);
   const background = useSelector((state: AppReducerState) => state.content.background);
   const overlay = useSelector((state: AppReducerState) => state.content.overlay);
   const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
@@ -355,11 +356,12 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
   useEffect(() => {
     // bail if we haven't attempted authorization
     if (auth === undefined) return;
+    if (auth === false && noauth === false) return;
 
     // otherwise wait until we have populated the toolbar before we get our state
     if (!apiUrl || !dispatch || !toolbarPopulated) return;
     dispatch({type: 'content/pull'});
-  }, [apiUrl, dispatch, toolbarPopulated, auth]);
+  }, [apiUrl, dispatch, toolbarPopulated, auth, noauth]);
 
   useEffect(() => {
     // if the background isn't loaded yet, no point rendering the overlay

@@ -5,14 +5,20 @@ import { Auth0Client } from "@auth0/auth0-spa-js";
 export type EnvironmentReducerState = {
   readonly api: string | undefined;
   readonly ws: string | undefined;
-  readonly client: Auth0Client | undefined
-  /**
-   * undefined => do not know yet - auth not attempted
-   * false => auth failed
-   * true => auth succeeded
-   */
-  readonly auth: boolean | undefined;
   readonly noauth: boolean; // is authorization disabled
+  /**
+   * Indicates if auth was attempted. This is here because of react strict mode
+   * that renders things twice to mess with your life and elicit your errors.
+   */
+  readonly authStarted: boolean;
+  /**
+   * undefined => do not know yet - haven't hit server, auth not attmepted
+   * false => not authorized
+   * true => auth succeeded
+  */
+  readonly auth?: boolean;
+  readonly authClient?: Auth0Client;
+  readonly authConfig?: any;
   readonly deviceCode?: any;
   readonly deviceCodeToken?: string;
 };
@@ -20,9 +26,8 @@ export type EnvironmentReducerState = {
 const initialState: EnvironmentReducerState = {
   api: undefined,
   ws: undefined,
-  client: undefined,
-  auth: undefined,
-  noauth: false
+  noauth: false,
+  authStarted: false,
 }
 
 export const EnvironmentReducer = (state = initialState, action: PayloadAction) => {
@@ -37,15 +42,26 @@ export const EnvironmentReducer = (state = initialState, action: PayloadAction) 
 			}
 			return state;
 		}
+    case 'environment/authstarted': {
+      if (action.payload === null || action.payload === undefined) return state;
+      const started: boolean = (action.payload as unknown) as boolean;
+      return { ...state, authStarted: started};
+    }
     case 'environment/authconfig': {
       if (action.payload === null || action.payload === undefined) return state;
       const authState: AuthState = (action.payload as unknown) as AuthState;
-      return {...state, client: authState.client, auth: authState.auth, noauth: authState.noauth};
+
+      return {...state, auth: authState.auth, noauth: authState.noauth, authConfig: authState.config};
     }
     case 'environment/authenticate': {
       if (action.payload === null || action.payload === undefined) return state;
       const authState: AuthState = (action.payload as unknown) as AuthState;
-      return {...state, auth: authState.auth, client: authState.client, noauth: authState.noauth};
+      return {...state, auth: authState.auth, noauth: authState.noauth};
+    }
+    case 'environment/authclient': {
+      if (action.payload === null || action.payload === undefined) return state;
+      const client: Auth0Client = (action.payload as unknown) as Auth0Client;
+      return { ...state, authClient: client};
     }
     case 'environment/devicecode': {
       return {...state, deviceCode: action.payload};

@@ -13,10 +13,13 @@ export interface AuthState {
   auth: boolean;
   // flag indicating if authorization explicitly disabled
   noauth?: boolean;
+  config?: any;
 }
 
 /**
- * Step 1 - get your authentication configuraiton
+ * Step 1 - get your authentication configuraiton. Remember, its up to the 
+ * middleware to set this. If you come back here hopefully you read this and
+ * aren't tempted (again) to try to set the state from here.
  * @param store 
  * @param next 
  * @returns 
@@ -25,8 +28,8 @@ export function getAuthConfig(store: MiddlewareAPI<Dispatch<AnyAction>>): Promis
   return new Promise((resolve, reject) => {
 
     // ensure we have an authorization state
-    const auth = store.getState().auth;
-    if (auth !== undefined) return resolve(auth);
+    const authConfig = store.getState().environment.authConfig;
+    if (authConfig !== undefined) return resolve(authConfig);
 
     // get the client auth.json and hte server noauth setting. If the server is
     // running in auth disabled mode, /noauth will return {"noauth": true}
@@ -34,9 +37,11 @@ export function getAuthConfig(store: MiddlewareAPI<Dispatch<AnyAction>>): Promis
     const noauthUrl = `${store.getState().environment.api}/noauth`;
     Promise.all([axios.get("/auth.json"), axios.get(noauthUrl)]).then(([auth, noauth]) => {
       // combine the auth config into a single state
-      const data = auth.data;
-      data.noauth = noauth.data.noauth;
-      data.auth = false;
+      const data: AuthState = {
+        auth: false,
+        noauth: noauth.data.noauth,
+        config: auth.data,
+      };
       return resolve(data);
     }).catch(err => reject(err));
   });
@@ -47,10 +52,13 @@ export function getAuthConfig(store: MiddlewareAPI<Dispatch<AnyAction>>): Promis
  * @param data 
  * @returns 
  */
-export function getAuthClient(data: any): Promise<Auth0Client> {
+export function getAuthClient(store: MiddlewareAPI<Dispatch<AnyAction>>): Promise<Auth0Client> {
+  const env = store.getState().environment;
+  if (env.authClient) return Promise.resolve(env.authClient);
+
   return new Promise((resolve, reject) => {
-    if (data.noauth) reject('noauth');
-    createAuth0Client(data).then(client => resolve(client))
+    // if (data.noauth) reject('noauth');
+    createAuth0Client(env.authConfig).then(client => resolve(client))
       .catch(reason => reject(reason));
   })
 }
@@ -77,7 +85,7 @@ export function getAuthState(client: Auth0Client): Promise<AuthState> {
       // force redirect to log in
       const options = {authorizationParams: {redirect_uri: window.location.href}};
       return client.loginWithRedirect(options).then(() => resolve({client: client, auth: false}))
-        .catch(reason => reject(reason));
+      .catch(reason => reject(reason));
     });
   });
 }
@@ -95,7 +103,7 @@ export function getToken(state: AppReducerState, headers?: any): Promise<any> {
     return Promise.resolve(headers);
   }
 
-  const client = state.environment.client;
+  const client = state.environment.authClient;
   
   if (!client) return Promise.reject('No auth0 client');
 

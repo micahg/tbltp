@@ -73,10 +73,9 @@ const DeviceCodeComponent = (props: DeviceCodeComponentProps) => {
     // double the left to ensure we have a semi-centered qr if the width is less than height
     const width = window.innerWidth - (2*rect.left);
     const size = Math.floor(Math.min(width, height));
-    
 
     QRCode.toCanvas(canvas, deviceCodeFullUrl, {errorCorrectionLevel: 'H', width: size}, err => {
-      console.error(`Unable to render QR code: ${JSON.stringify(err)}`);
+      if (err) console.error(`Unable to render QR code: ${JSON.stringify(err)}`);
     });
 
   }, [deviceCodeFullUrl, qrCanvasRef]);
