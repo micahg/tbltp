@@ -17,12 +17,14 @@ jobs:
         run: |
           if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
           echo $KUBE_CONFIG | base64 -d > ~/.kube/config
+          chmod go-rwx ~/.kube/config
           sha512sum ~/.kube/config
           wc -l ~/.kube/config
-          chmod go-rwx ~/.kube/config
       - id: clusterinfo
         name: Cluster Info
         run: |
+          sha512sum ~/.kube/config
+          wc -l ~/.kube/config
           grep server ~/.kube/config
           kubectl cluster-info dump
       - id: kubectltest
