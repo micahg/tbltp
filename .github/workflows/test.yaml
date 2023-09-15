@@ -4,7 +4,7 @@ on:
     branches-ignore:
       - main
 jobs:
-  poke:
+  validate:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -20,6 +20,11 @@ jobs:
           sha512sum ~/.kube/config
           wc -l ~/.kube/config
           chmod go-rwx ~/.kube/config
+      - name: Test Kubectl
+        id: testkube
+        run: |
+          kubectl config get-contexts
+          kubectl get namespaces
       - name: Helm Debug Dry Run
         id: checkyq
         run: |
