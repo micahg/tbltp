@@ -22,11 +22,12 @@ jobs:
         name: Kubectl Config
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        #  sha512sum ~/.kube/config
+        #  wc -l ~/.kube/config
         run: |
           if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
           echo $KUBE_CONFIG | base64 -d > ~/.kube/config
-          sha512sum ~/.kube/config
-          wc -l ~/.kube/config
+          chmod go-rwx ~/.kube/config
       - id: kubectltest
         name: Kubectl Test
         run: |

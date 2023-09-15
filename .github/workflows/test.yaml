@@ -19,9 +19,11 @@ jobs:
           echo $KUBE_CONFIG | base64 -d > ~/.kube/config
           sha512sum ~/.kube/config
           wc -l ~/.kube/config
+          chmod go-rwx ~/.kube/config
       - name: Helm Debug Dry Run
         id: checkyq
         run: |
           source .github/sharedenv.sh
           echo "$HELM_ARGS"
+          echo helm upgrade --dry-run --debug $HELM_ARGS
           helm upgrade --dry-run --debug $HELM_ARGS
