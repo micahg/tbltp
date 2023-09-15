@@ -31,6 +31,7 @@ jobs:
       - id: kubectltest
         name: Kubectl Test
         run: |
+          sha512sum ~/.kube/config
           kubectl get namespaces
       - id: helm
         name: Helm Upgrade
