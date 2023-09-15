@@ -6,6 +6,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    environment: Dev
     permissions:
       contents: read
     steps:
@@ -17,18 +18,13 @@ jobs:
         run: |
           if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
           echo $KUBE_CONFIG | base64 -d > ~/.kube/config
+          chmod go-rwx ~/.kube/config
           sha512sum ~/.kube/config
           wc -l ~/.kube/config
-          chmod go-rwx ~/.kube/config
-      - id: kubectltest
-        name: Kubectl Test
+      - id: clusterinfo
+        name: Cluster Info
         run: |
-          sha512sum ~/.kube/config
-          kubectl get namespaces
-      - name: Test Kubectl
-        id: testkube
-        run: |
-          kubectl get namespaces
+          kubectl cluster-info
       - name: Helm Debug Dry Run
         id: checkyq
         run: |

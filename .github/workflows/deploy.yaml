@@ -22,17 +22,14 @@ jobs:
         name: Kubectl Config
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-        #  sha512sum ~/.kube/config
-        #  wc -l ~/.kube/config
         run: |
           if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
           echo $KUBE_CONFIG | base64 -d > ~/.kube/config
           chmod go-rwx ~/.kube/config
-      # - id: kubectltest
-      #   name: Kubectl Test
-      #   run: |
-      #     sha512sum ~/.kube/config
-      #     kubectl get namespaces
+      - id: clusterinfo
+        name: Cluster Info
+        run: |
+          kubetl cluster-info
       - id: helm
         name: Helm Upgrade
         run: |
