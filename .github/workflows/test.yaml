@@ -23,7 +23,7 @@ jobs:
       - id: clusterinfo
         name: Cluster Info
         run: |
-          kubectl cluster-info
+          kubectl cluster-info dump
       - id: kubectltest
         name: Kubectl Test
         run: |
