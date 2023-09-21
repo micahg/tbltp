@@ -72,6 +72,7 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
   const [doot, setDoot] = useState<number>(0);
   const auth = useSelector((state: AppReducerState) => state.environment.auth);
   const noauth = useSelector((state: AppReducerState) => state.environment.noauth);
+  const authClient = useSelector((state: AppReducerState) => state.environment.authClient);
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -89,10 +90,11 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
 
   useEffect(() => {
     if (!dispatch) return;
+    if (!authClient) return;
     if (noauth) return;
     if (auth) return;
     dispatch({type: 'environment/authenticate'});
-  }, [dispatch, noauth, auth])
+  }, [dispatch, noauth, auth, authClient])
 
   return (
     <Box sx={{ display: 'flex' }}>
