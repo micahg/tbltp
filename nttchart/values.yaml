@@ -1,7 +1,7 @@
 namespace: ntt
 uiAppName: ntt-ui
 uiAppReplicas: 1
-uiImageVers: 0.0.26
+uiImageVers: 0.0.27
 uiImagePath: ghcr.io/micahg/ntt
 uiImageSecret: gitlab-ntt-ui
 
