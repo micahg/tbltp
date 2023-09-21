@@ -57,28 +57,6 @@ export function loadImage(uri: string): Promise<HTMLImageElement> {
     img.src = uri;
   });
 }
-/*export function loadImage(data: Blob): Promise<HTMLImageElement>;
-export function loadImage(data: string | Blob): Promise<HTMLImageElement> {
-  const img = new Image();
-  if (typeof data ==='string') {
-    return new Promise((resolve, reject) => {
-      img.onload = function() { resolve(this as HTMLImageElement); }
-      img.onerror = function() { reject('Image load failed'); }
-      img.src = data;
-    });
-  } else {
-    return new Promise((resolve, reject) => {
-      img.onload = function() {
-        resolve(this as HTMLImageElement);
-      }
-      img.onerror = function() {
-        reject('Image load failed');
-      }
-      img.src = URL.createObjectURL(data);
-      console.log(`MICAH SIGH`);
-    });
-  }
-}*/
 
 export function renderImageInContainer(image: HTMLImageElement, ctx: CanvasRenderingContext2D,
   resizeCanvas: boolean = false) {
@@ -192,7 +170,9 @@ export function revealOverlay(this: CanvasRenderingContext2D, x1: number, y1: nu
 
 /**
  * Store off the default overlay image data. When using this method, you must
- * bind the context to it because "this" is expected to be a 2D context.
+ * bind the context to it because "this" is expected to be a 2D context. Note
+ * that unless the base data was originally set to null, we wont update to
+ * prevent blowing up overlay data after its been updated.
  * 
  * @param this the overlay canvas context from which to store the image data.
  */
@@ -201,6 +181,16 @@ export function storeOverlay(this: CanvasRenderingContext2D) {
   baseData = this.getImageData(0, 0, this.canvas.width, this.canvas.height);
 }
 
+/**
+ * Use the current overlay data as base data. This works (or is supposed to
+ * work) in tandem with storeOverlay. Its used in the case where we start with
+ * overlay data and we don't want to keep the blank overlay data that would
+ * have been set when the canvas is initialized... in theory
+ * @param ctx 
+ */
+export function setOverlayAsBaseData(ctx: CanvasRenderingContext2D) {
+  baseData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+}
 
 /**
  * Render a selection on a canvas context. When using this method, you must

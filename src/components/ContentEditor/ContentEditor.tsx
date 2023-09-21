@@ -5,7 +5,8 @@ import { loadImage, obscureOverlay, setupOverlayCanvas,
          selectOverlay, storeOverlay, clearOverlaySelection, revealOverlay,
          getRect, clearOverlay, setOverlayOpacity,
          setOverlayColour, 
-         renderImageInContainer} from '../../utils/drawing';
+         renderImageInContainer,
+         setOverlayAsBaseData} from '../../utils/drawing';
 import { rotateRect, scaleSelection } from '../../utils/geometry';
 import { MouseStateMachine } from '../../utils/mousestatemachine';
 import { setCallback } from '../../utils/statemachine';
@@ -64,14 +65,14 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
   const viewport = useSelector((state: AppReducerState) => state.content.viewport);
 
   const updateBackground = (data: URL | File) => {
-      // send without payload to wipe overlay
-      dispatch({type: 'content/overlay'});
+    // send without payload to wipe overlay
+    dispatch({type: 'content/overlay'});
 
-      // update our internal state to indicate we have no background... yet
-      setBackgroundLoaded(false);
+    // update our internal state to indicate we have no background... yet
+    setBackgroundLoaded(false);
 
-      // send the new background
-      dispatch({type: 'content/background', payload: data});
+    // send the new background
+    dispatch({type: 'content/background', payload: data});
   }
 
   const updateOverlay = () => {
@@ -374,6 +375,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
     let overlayImg: string = overlay as string;
     loadImage(`${apiUrl}/${overlayImg}?`)
       .then(img => renderImageInContainer(img, overlayCtx))
+      .then(() => setOverlayAsBaseData(overlayCtx))
       .catch(err => console.error(err));
   }, [apiUrl, overlay, backgroundLoaded, overlayCtx])
 
