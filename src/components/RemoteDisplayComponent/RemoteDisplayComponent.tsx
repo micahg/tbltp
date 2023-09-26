@@ -125,6 +125,18 @@ const RemoteDisplayComponent = () => {
     }).catch(err => console.error(`Error loading background image: ${JSON.stringify(err)}`));
   }, []);
 
+  /**
+   * Get the wakelock -- don't worry about forcing release.
+   * Its automatic when tabbed out or switched.
+   */
+  const doFocus = () => {
+    navigator.wakeLock.request('screen').then((sentinal) => {
+      sentinal.addEventListener('release', () => console.log('wakelock released'));
+      console.log(`Got wake lock!`);
+    }).catch(err => console.error(`Unable to get wakelock: ${JSON.stringify(err)}`));
+  }
+
+
   useEffect(() => {
     if (!contentCanvasRef.current || contentCtx != null) return;
     setContentCtx(contentCanvasRef.current.getContext('2d', { alpha: false }));
@@ -134,6 +146,19 @@ const RemoteDisplayComponent = () => {
     if (!overlayCanvasRef.current || overlayCtx != null) return;
     setOverlayCtx(overlayCanvasRef.current.getContext('2d', { alpha: true }));
   }, [overlayCanvasRef, overlayCtx]);
+
+  /**
+   * Things learned the ... difficult way ... we do not need to really cleanup
+   * the wakelock - when the tab is switched out or closed it gets released.
+   * This is so on chrome anyway. For this reason, we don't have a blur event
+   * since the WakeLockSentinel would be null having already been released.
+   */
+  useEffect(() => {
+    if ('wakeLock' in navigator) {
+      window.addEventListener('focus', doFocus);
+      return () => window.removeEventListener('focus', doFocus);
+    }
+  }, []);// eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * First settle our authentication situation. Either confirm we are running
