@@ -1,14 +1,18 @@
 import { createRef, useCallback, useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
 import { loadImage, renderImageFullScreen } from '../../utils/drawing';
 import { Rect, fillToAspect, rotate } from '../../utils/geometry';
+import Alert from '@mui/material/Alert';
+import Stack from '@mui/material/Stack';
 
 import styles from './RemoteDisplayComponent.module.css';
 import { useNavigate } from 'react-router-dom';
+import { Box } from '@mui/material';
 
 const RemoteDisplayComponent = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
   const apiUrl: string | undefined = useSelector((state: AppReducerState) => state.environment.api);
@@ -20,6 +24,8 @@ const RemoteDisplayComponent = () => {
   const [overlayCtx, setOverlayCtx] = useState<CanvasRenderingContext2D|null>(null);
   const [connected, setConnected] = useState<boolean|undefined>();
   const [tableData, setTableData] = useState<any>();
+  const [authTimer, setAuthTimer] = useState<NodeJS.Timer>();
+  const [wsTimer, setWSTimer] = useState<NodeJS.Timer>();
 
   /**
    * Process a websocket message with table data
@@ -155,6 +161,9 @@ const RemoteDisplayComponent = () => {
    */
   useEffect(() => {
     if ('wakeLock' in navigator) {
+      // on silk the focus event never fires so doFocus anyway - so you have
+      // two wakelocks -- what could go wrong!?
+      doFocus();
       window.addEventListener('focus', doFocus);
       return () => window.removeEventListener('focus', doFocus);
     }
@@ -166,15 +175,25 @@ const RemoteDisplayComponent = () => {
    * trigger connection with the server.
    */
   useEffect(() => {
-    // don't punt until we have successfully hit the server
-    if (authorized === undefined) return navigate(`/connectionerror`);
+    // if we are in an undetermined authorized state it means we couldn't
+    // connect to the API to get ANY auth config so start an interval to 
+    // retry
+    if (authorized === undefined) {
+      const timer = setInterval(() => dispatch({type: 'environment/config', payload: undefined}), 5000);
+      setAuthTimer(timer);
+      return () => clearInterval(timer); // this is how you avoid the two-timer fuckery with strict mode
+    }
+
+    // if we've passed rendering once and have a timer we can stop it now that
+    // we have authentication configuration
+    if (authTimer) clearInterval(authTimer);
 
     // if authorization is ON and we are not authorized, redirect
     if (!noauth && !authorized) return navigate(`/device`);
 
     // having authorized for the first time, start the connection loop
     setConnected(false);
-  }, [authorized, noauth, navigate])
+  }, [authorized, noauth, navigate, authTimer, dispatch])
 
   /**
    * When authentication is sorted, figure out connectivity
@@ -183,26 +202,30 @@ const RemoteDisplayComponent = () => {
     if (connected === undefined) return;
     if (connected) return;
 
-    let timer: NodeJS.Timer;
-
-    const scheduleConnection = (cause: string) => {
-      console.log(`Connection ${cause}`);
-      if (timer === undefined) {
-        setConnected(undefined);
-        console.log(`Setting retry timer (${cause})...`);
-        timer = setInterval(() => setConnected(false), 1000);
-        console.log(`Timer set to ${timer}`);
-      }
+    const scheduleConnection = () => {
+      console.log(`Connection closed`);
+      setConnected(undefined);
+      const timer = setTimeout(() => setConnected(false), 1000);
+      setWSTimer(timer);
     }
 
     const fullUrl = noauth ? `${wsUrl}` : `${wsUrl}?bearer=${token}`;
     let ws = new WebSocket(fullUrl);
-    console.log('Attempting connection');
-    ws.onclose = (event: Event) => scheduleConnection('closed');
-    ws.onerror = (event: Event) => scheduleConnection('error');
+    console.log('Attempting websocket connection');
     ws.onmessage = (event: MessageEvent) => processWSMessage(event.data);
-    ws.onopen = (event: Event) => console.log('Connection established');
-  }, [apiUrl, contentCtx, overlayCtx, connected, noauth, token, wsUrl])
+    ws.onclose = (event: Event) => scheduleConnection();
+    ws.onerror = (event: Event) => ws.close();
+    ws.onopen = (event: Event) => {
+      if (wsTimer) {
+        clearTimeout(wsTimer);
+        setWSTimer(undefined);
+      }
+      if (!connected) setConnected(true);
+      console.log('Websocket connection established')
+    }
+
+    return () => { if (wsTimer) clearTimeout(wsTimer); }
+  }, [apiUrl, contentCtx, overlayCtx, connected, noauth, token, wsUrl, wsTimer])
 
   /**
    * With all necessary components and some table data, trigger drawing
@@ -219,6 +242,20 @@ const RemoteDisplayComponent = () => {
 
   return (
     <div className={styles.map}>
+      <Stack>
+        <Box sx={{zIndex: 3, padding: '1em'}}>
+          { (authorized === undefined) &&
+            <Alert severity='error'>
+              Unable to get authentication configuration... reattempting...
+            </Alert>
+          }
+          { (authorized !== undefined) && !connected && 
+            <Alert severity='error'>
+                Unable to connect... reattempting...
+            </Alert>
+          }
+        </Box>
+      </Stack>
       <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>Sorry, your browser does not support canvas.</canvas>
       <canvas className={styles.OverlayCanvas} ref={overlayCanvasRef}/>
     </div>
