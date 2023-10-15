@@ -6,4 +6,4 @@ clientId: blFghGfwUHOlKwDZzOELBFmxOTkxCeQr
 installLoadBalancer: true
 mongoStorageClass: microk8s-hostpath
 mongoStorageClassSize: 1Gi
-certIssuer: letsencrypt-prod
+certIssuer: letsencrypt-staging

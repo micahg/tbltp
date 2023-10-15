@@ -25,6 +25,10 @@ jobs:
         name: Cluster Info
         run: |
           kubectl cluster-info
+      - name: Test Connectivity
+        id: checkconn
+        run: |
+          kubectl get pods -A
       - name: Helm Debug Dry Run
         id: checkyq
         run: |
