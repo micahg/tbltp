@@ -9,6 +9,6 @@ data:
   auth.audience: https://{{ .Values.apiDomain }}
   api.url: https://{{ .Values.apiDomain }}
   ws.url: wss://{{ .Values.apiDomain }}
-  mongo.url: mongodb://{{ .Values.mongoName }}-service:{{ .Values.mongoPort }}
+  mongo.url: mongodb://{{ .Values.mongoName }}-service:{{ .Values.mongoPort }}/{{ .Values.mongoDB }}
   issuer.url: https://{{ .Values.issuerDomain }}
   auth.redirect: https://{{ .Values.uiDomain }}/edit
