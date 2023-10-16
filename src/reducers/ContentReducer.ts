@@ -1,25 +1,35 @@
 import { PayloadAction } from "@reduxjs/toolkit";
 import { Rect } from "../utils/geometry";
 
-// TODO THIS IS COPIED ..> FIND A BETTER WAY
-interface TableState {
-  overlay?: string;
-  background?: string;
+// copied from api
+export interface Scene {
+  _id?: string,
+  user: string;
+  description: string;
+  overlayContent?: string;
+  userContent?: string;
+  tableContent?: string;
   viewport?: Rect;
+  backgroundSize?: Rect;
+}
+
+// copied from the api
+interface TableTop {
+  _id: string;
+  user: string;
+  scene?: string;
 }
 
 export type ContentReducerState = {
-  readonly overlay: string | Blob | undefined;
-  readonly background: string | undefined;
-  readonly viewport: Rect | undefined;
   readonly pushTime: number | undefined;
+  readonly currentScene?: Scene;
+  readonly scenes: Scene[];
 };
 
 const initialState: ContentReducerState = {
-  overlay: undefined,
-  background: undefined,
   pushTime: undefined,
-  viewport: undefined,
+  currentScene: undefined,
+  scenes: [],
 }
 
 export const ContentReducer = (state = initialState, action: PayloadAction) => {
@@ -27,14 +37,25 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     case 'content/push':
       return { ...state, pushTime: action.payload };
     case 'content/pull':
-      let tableState: TableState = (action.payload as unknown) as TableState;
-      return {...state, background: tableState.background, overlay: tableState.overlay}
-    case 'content/overlay':
-      return {...state, overlay: action.payload };
-    case 'content/background':
-      return {...state, background: action.payload};
+      const table: TableTop = (action.payload as unknown) as TableTop;
+      const tableSceneIdx = state.scenes.findIndex(s => s._id === table.scene);
+      if (tableSceneIdx < 0) {
+        console.error(`Unable to find scene ${table.scene} in ${JSON.stringify(state.scenes)}`);
+        return state;
+      }
+      return  {...state, currentScene: state.scenes[tableSceneIdx]}
     case 'content/zoom':
-      return {...state, viewport: action.payload };
+      return {...state, scene: ((action.payload as unknown) as Scene) };
+    case 'content/scenes':
+      const scenes: Scene[] = (action.payload as unknown) as Scene[];
+      // TODO DONT SET DEFUALT
+      return {...state, scenes: scenes, currentScene: scenes[0]};
+    case 'content/scene':
+      const scene: Scene = (action.payload as unknown) as Scene;
+      const idx = state.scenes.findIndex(s => s._id === scene._id);
+      const newScenes = state.scenes;
+      newScenes.splice(idx, 1, scene);
+      return {...state, scenes: newScenes, currentScene: scene};
     default:
       return state;
     }

@@ -91,8 +91,12 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
   useEffect(() => {
     if (!dispatch) return;
     if (!authClient) return;
-    if (noauth) return;
-    if (auth) return;
+    if (noauth || auth) {
+      dispatch({type: 'content/scenes'});
+      return;
+    }
+    // if (noauth) return;
+    // if (auth) return;
     dispatch({type: 'environment/authenticate'});
   }, [dispatch, noauth, auth, authClient])
 

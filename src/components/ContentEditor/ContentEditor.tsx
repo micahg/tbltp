@@ -58,11 +58,11 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
 
   const auth = useSelector((state: AppReducerState) => state.environment.auth);
   const noauth = useSelector((state: AppReducerState) => state.environment.noauth);
-  const background = useSelector((state: AppReducerState) => state.content.background);
-  const overlay = useSelector((state: AppReducerState) => state.content.overlay);
+  const background = useSelector((state: AppReducerState) => state.content.currentScene?.tableContent);
+  const overlay = useSelector((state: AppReducerState) => state.content.currentScene?.overlayContent);
   const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
   const pushTime = useSelector((state: AppReducerState) => state.content.pushTime);
-  const viewport = useSelector((state: AppReducerState) => state.content.viewport);
+  const viewport = useSelector((state: AppReducerState) => state.content.currentScene?.viewport);
 
   const updateBackground = (data: URL | File) => {
     // send without payload to wipe overlay
@@ -132,7 +132,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
       vp = getRect(0,0, overlayCtx.canvas.height, overlayCtx.canvas.width);
     }
     let selection = scaleSelection(sel, vp, w, h);
-    dispatch({type: 'content/zoom', payload: {'viewport': selection}});
+        dispatch({type: 'content/zoom', payload: {'viewport': selection}});
     sm.transition('wait');
   }
 
@@ -214,7 +214,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
     if (!backgroundSize) return;
     if (!redrawToolbar) return;
     let v = viewport;
-    let [w, h] = backgroundSize;
+        let [w, h] = backgroundSize;
     let zoomedOut: boolean = (v.x === 0 && v.y === 0 && w === v.width && h === v.height);
     // if zoomed out and in then state changed.... think about it man...
     // if (zoomedOut !== zoomedIn) return;
@@ -369,7 +369,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
     if (!backgroundLoaded) return;
     // if the overlay is a string, then load it. This should only be the case on init
     if (!overlay) return;
-    if ((overlay as Blob).type !== undefined) return;
+    if (((overlay as unknown) as Blob).type !== undefined) return;
     if (!overlayCtx) return;
 
     let overlayImg: string = overlay as string;
