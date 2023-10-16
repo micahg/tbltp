@@ -37,8 +37,18 @@
       "runtimeArgs": [
         "--inspect-brk",
         "${workspaceRoot}/node_modules/.bin/jest",
-        "--runInBand"
+        "--runInBand",
+        "--testTimeout",
+        "60000",
+        "--detectOpenHandles",
+        "--coverage",
+        // "--",
+        // "websocket.test.ts"
       ],
+      "env": {
+        "MONGOMS_VERSION": "7.0.0",
+        "MONGOMS_DOWNLOAD_URL": "https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2204-7.0.0.tgz",
+      },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     }
