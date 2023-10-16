@@ -1,0 +1,117 @@
+# https://stackoverflow.com/questions/69635928/allow-egress-from-a-kubernetes-pod-to-only-specific-fqdn-dns-with-azure-cni-netw
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: {{ .Values.uiAppName }}-allow-inbound-web-only
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.uiAppName }}
+  policyTypes:
+  - Egress
+  - Ingress
+  egress: []
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          tier: ingress
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: {{ .Values.mongoName }}-allow-inbound-api-only
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.mongoName }}
+  policyTypes:
+  - Egress
+  - Ingress
+  egress: []
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: {{ .Values.apiAppName }}
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: {{ .Values.apiAppName }}-allow-inbound-web-only
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.apiAppName }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          tier: ingress
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: {{ .Values.apiAppName }}-dns
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.apiAppName }}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: {{ .Values.apiAppName }}-mongo 
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.apiAppName }}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: {{ .Values.mongoName }}
+    ports:
+    - protocol: TCP
+      port: 27017
+---
+# This one needs to add outbound support for https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com
+# right now you can only use ip address range restrictions so this might not be possible
+kind: CiliumNetworkPolicy
+apiVersion: cilium.io/v2
+metadata:
+  name: {{ .Values.apiAppName }}-auth0
+  namespace: {{ .Values.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ .Values.apiAppName }}
+  egress:
+  - toFQDNs:
+    - matchName: {{ .Values.issuerDomain }}
+    toPorts:
+      - ports:
+        - protocol: TCP
+          port: 443
