@@ -39,6 +39,9 @@ const RemoteDisplayComponent = () => {
       js.tsLocal = Date.now();
       if (js.method === 'error') {
         if (js.info === 'NO_SCENE') setServerInfo('No scene information. Please ask your GM to set a background and send and update');
+        else if (js.info === 'INVALID_TOKEN') setServerInfo('Invalid token refresh and login');
+        else if (js.info === 'INVALID_USER') setServerInfo('Invalid user - please ask your GM to sign in');
+        else if (js.info) setServerInfo(`Please contact support - Unkown error: ${js.info}`);
       } else {
         setServerInfo(undefined);
         setTableData(js);
