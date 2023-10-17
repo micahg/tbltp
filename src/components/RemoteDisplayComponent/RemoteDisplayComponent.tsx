@@ -26,6 +26,7 @@ const RemoteDisplayComponent = () => {
   const [tableData, setTableData] = useState<any>();
   const [authTimer, setAuthTimer] = useState<NodeJS.Timer>();
   const [wsTimer, setWSTimer] = useState<NodeJS.Timer>();
+  const [serverInfo, setServerInfo] = useState<string>();
 
   /**
    * Process a websocket message with table data
@@ -36,7 +37,12 @@ const RemoteDisplayComponent = () => {
     try {
       const js = JSON.parse(data);
       js.tsLocal = Date.now();
-      setTableData(js);
+      if (js.method === 'error') {
+        if (js.info === 'NO_SCENE') setServerInfo('No scene information. Please ask your GM to set a background and send and update');
+      } else {
+        setServerInfo(undefined);
+        setTableData(js);
+      }
     } catch(e) {
       console.error(`Unable to parse WS message - ${JSON.stringify(e)}: ${JSON.stringify(data)}`);
       return;
@@ -249,9 +255,14 @@ const RemoteDisplayComponent = () => {
               Unable to get authentication configuration... reattempting...
             </Alert>
           }
-          { (authorized !== undefined) && !connected && 
+          { (authorized !== undefined) && (serverInfo === undefined) && !connected && 
             <Alert severity='error'>
-                Unable to connect... reattempting...
+              Unable to connect... reattempting...
+            </Alert>
+          }
+          { (authorized !== undefined) && (serverInfo !== undefined) && 
+            <Alert severity='error'>
+             {serverInfo}
             </Alert>
           }
         </Box>
