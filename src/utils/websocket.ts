@@ -3,7 +3,7 @@ import { Express } from 'express';
 import { EventEmitter, WebSocket, WebSocketServer } from 'ws';
 import { verify } from 'jsonwebtoken';
 
-import { ASSETS_UPDATED_SIG } from './constants';
+import { ASSETS_UPDATED_SIG, WS_INVALID_TOKEN, WS_INVALID_USER, WS_NO_SCENE } from './constants';
 
 import { log } from "./logger";
 import { TableState } from './tablestate';
@@ -26,6 +26,12 @@ const SOCKET_SESSIONS: Map<string, WebSocket> = new Map();
 let PEM: string;
 
 
+function closeSocketWithError(sock: WebSocket, msg: string, err: string) {
+  log.error(`Closing websocket due to error: ${msg}`);
+  if (err) sock.send(JSON.stringify({ method: 'error', info: err }));
+  sock.close();
+}
+
 function getVerifiedToken(token: string) {
   if (!AUTH_REQURIED) return { sub: getFakeUser() };
   return verify(token, PEM, { audience: AUD, issuerBaseURL: ISS, tokenSigningAlg: 'RS256' });
@@ -41,19 +47,20 @@ function verifyConnection(sock: WebSocket, req: IncomingMessage) {
     if (!token) throw new Error('Token not present');
     jwt = getVerifiedToken(token);
   } catch (err) {
+    let msg: string;
     if (Object.prototype.hasOwnProperty.call(err, 'message')) {
-      log.error(`WS token fail: ${err.message} (${JSON.stringify(err)})`);
+      msg = `WS token fail: ${err.message} (${JSON.stringify(err)})`;
     } else {
-      log.error(`WS token fail: ${err}`);
+      msg = `WS token fail: ${err}`
     }
-    sock.close();
+    closeSocketWithError(sock, msg, WS_INVALID_TOKEN);
     return;
   }
 
   getUserByID(jwt.sub)
     .then(user => {
       // close socket for invalid users
-      if (!user) throw new Error('invalid user');
+      if (!user) throw new Error('invalid user', { cause: WS_INVALID_USER });
       const userID: string = user._id.toString();
       if (SOCKET_SESSIONS.has(userID)) {
         log.info(`New connection - closing old WS for user ${userID}`);
@@ -61,15 +68,15 @@ function verifyConnection(sock: WebSocket, req: IncomingMessage) {
         SOCKET_SESSIONS.delete(userID);
       }
       SOCKET_SESSIONS.set(userID, sock);
-      sock.on('close', () => SOCKET_SESSIONS.delete(userID));
+      sock.on('close', () => {
+        SOCKET_SESSIONS.delete(userID);
+        log.info(`Total websocket connections ${SOCKET_SESSIONS.size}`);
+      });
       return user;
     })
     .then(user => getOrCreateTableTop(user))
     .then(table => {
-      if (!table.scene) {
-        sock.send(JSON.stringify({ method: 'error',info: 'NO_SCENE' }));
-        throw new Error('User has no scene set');
-      }
+      if (!table.scene) throw new Error('User has no scene set', {cause: WS_NO_SCENE});
       return getSceneById(table.scene.toString(), table.user.toString())
     })
     .then(scene => {
@@ -86,11 +93,9 @@ function verifyConnection(sock: WebSocket, req: IncomingMessage) {
       sock.send(JSON.stringify(msg));
     })
     .catch(err => {
-      // TODO MICAH MAYBE SEND THE CLIENT A REASON FOR THE FORCEFUL SHUTDOWN SO THE CLIENT CAN DISPLAY IT?
-      // IF YOU DO, MAYBE USE THE CAUSE PROPERTY OF Error AND YOU CAN SEND THAT
       const msg = (Object.prototype.hasOwnProperty.call(err, 'message')) ? err.message : JSON.stringify(err);
-      log.error(`Closing websocket due to error: ${msg}`);
-      sock.close();
+      const reason = (Object.prototype.hasOwnProperty.call(err, 'cause')) ? err.cause : null;
+      closeSocketWithError(sock, msg, reason);
     })
   
   sock.on('message', (buf) => {
@@ -100,7 +105,7 @@ function verifyConnection(sock: WebSocket, req: IncomingMessage) {
 }
 
 export function startWSServer(nodeServer: Server, app: Express, pem: string): WebSocketServer {
-  log.info('starting websocket server');
+  log.info('Starting websocket server');
   PEM = pem;
   const wss = new WebSocketServer({server: nodeServer});
   const emitter = app as EventEmitter;
@@ -124,6 +129,7 @@ export function startWSServer(nodeServer: Server, app: Express, pem: string): We
   });
 
   wss.on('connection', verifyConnection);
+  log.info('Websocket server started');
   return wss;
 }
 

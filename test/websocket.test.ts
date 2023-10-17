@@ -49,9 +49,7 @@ describe("scene", () => {
   it("Should close without data for an unknown user", (done) => {
     const client = new WebSocketClient();
     client.on('connect', conn => {
-      conn.on('message', msg => {
-        throw new Error(`Received data when we should have closed: ${JSON.stringify(msg)}`);
-      });
+      conn.on('message', msg => expect(msg.utf8Data).toBe('{"method":"error","info":"INVALID_USER"}'));
       conn.on('close', () => done());
       conn.on('error', () => {
         throw new Error('Socket error when it should have closed');

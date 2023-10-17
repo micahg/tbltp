@@ -16,3 +16,8 @@ export const   CONTENT_TYPE_EXTS = ['png',       'jpg'];
 export const DEST_FOLDER = 'public';
 
 export const OBJECT_ID_LEN = 24;
+
+// websocket errors
+export const WS_NO_SCENE = 'NO_SCENE';
+export const WS_INVALID_TOKEN = 'INVALID_TOKEN';
+export const WS_INVALID_USER = 'INVALID_USER';
