@@ -14,6 +14,7 @@ mongoName: "mongo"
 mongoImagePath: mongo
 mongoImageVers: 7.0.0
 mongoPort: 27017
+mongoDB: ntt
 
 certIssuer: letsencrypt-staging
 maxBodySize: 8m
