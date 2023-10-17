@@ -9,7 +9,7 @@ export function getTableTopByUser(user: IUser): Promise<ITableTop> {
 }
 
 export function setTableTopByScene(tableId: string, sceneId: string) {
-  return TableTop.findOneAndUpdate({_id: tableId}, {scene: sceneId});
+  return TableTop.findOneAndUpdate({_id: tableId}, {scene: sceneId}, {new: true});
 }
 
 export function getOrCreateTableTop(user: IUser): Promise<ITableTop> {

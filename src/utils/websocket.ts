@@ -15,6 +15,7 @@ import { getSceneById } from './scene';
 
 interface WSStateMessage {
   method?: string,
+  info?: string,
   state?: TableState,
 }
 
@@ -65,7 +66,10 @@ function verifyConnection(sock: WebSocket, req: IncomingMessage) {
     })
     .then(user => getOrCreateTableTop(user))
     .then(table => {
-      if (!table.scene) throw new Error('User has no scene set');
+      if (!table.scene) {
+        sock.send(JSON.stringify({ method: 'error',info: 'NO_SCENE' }));
+        throw new Error('User has no scene set');
+      }
       return getSceneById(table.scene.toString(), table.user.toString())
     })
     .then(scene => {

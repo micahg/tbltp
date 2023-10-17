@@ -94,7 +94,7 @@ export function create(): Express {
     
     // generic in-app exception handling
     if (err.cause) {
-      log.error(`${req.method} failed`, {status: err.cause, err: err.message});
+      log.error(`${req.method} ${req.path} failed`, {status: err.cause, err: err.message});
       return res.sendStatus(err.cause);
     }
     log.error(`Unexpected Error: ${err.message}`);
