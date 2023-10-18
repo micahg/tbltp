@@ -18,6 +18,9 @@ spec:
       containers:
       - name: {{ .Values.apiAppName }}
         image: {{ .Values.apiImagePath }}:{{ .Values.apiImageVers }}
+        volumeMounts:
+          - mountPath: /usr/src/app/public
+            name: api-volume
         ports:
         - containerPort: 3000
         env:
@@ -36,6 +39,16 @@ spec:
             configMapKeyRef:
               name: env-config
               key: mongo.url
+  volumeClaimTemplates:
+    - metadata:
+        name: api-volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.apiStorageClassSize }}
+        storageClassName: {{ .Values.apiStorageClass }}
 ---
 apiVersion: v1
 kind: Service
