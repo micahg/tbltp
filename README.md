@@ -21,6 +21,7 @@ not required.
 
 # Future Work
 
+* S3/R2 storage (get rid of persistant volume)
 * Stateful game (multiple maps and overlays saved)
 * DM content vs Table content (eg: DM versions of images with annotations)
 * Notes
