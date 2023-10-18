@@ -7,7 +7,7 @@ uiImageSecret: gitlab-ntt-ui
 
 apiAppName: ntt-api
 apiAppReplicas: 1
-apiImageVers: 0.0.14
+apiImageVers: 0.0.15
 apiImagePath: ghcr.io/micahg/nttsrv
 
 mongoName: "mongo"
