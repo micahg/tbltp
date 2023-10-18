@@ -15,6 +15,10 @@ spec:
       labels:
         app: {{ .Values.apiAppName }}
     spec:
+      volumes:
+        - name: api-volume
+          persistentVolumeClaim:
+            claimName: api-pvc
       containers:
       - name: {{ .Values.apiAppName }}
         image: {{ .Values.apiImagePath }}:{{ .Values.apiImageVers }}
@@ -39,16 +43,19 @@ spec:
             configMapKeyRef:
               name: env-config
               key: mongo.url
-  volumeClaimTemplates:
-    - metadata:
-        name: api-volume
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: {{ .Values.apiStorageClassSize }}
-        storageClassName: {{ .Values.apiStorageClass }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: api-pvc
+  namespace: ntt
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: {{ .Values.apiStorageClass }}
 ---
 apiVersion: v1
 kind: Service
