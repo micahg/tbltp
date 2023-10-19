@@ -3,14 +3,23 @@ import { Box, Paper, Typography  } from '@mui/material';
 import { useNavigate, Link} from 'react-router-dom';
 
 interface LandingComponentProps {}
+let interval: NodeJS.Timer;
+const activityListener = () => {
+  clearInterval(interval);
+  window.removeEventListener('mousemove', activityListener);
+}
 
 const LandingComponent = (props: LandingComponentProps) => {
   const [countDown, setCountDown] = useState<number>(5);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // start counting down every second
-    const interval = setInterval(() => setCountDown(countDown - 1), 1000);
+    // start counting down every second unless someone "jiggles" (suggesting
+    // that we're not on a headless display)
+    interval = setInterval(() => setCountDown(countDown - 1), 1000);
+    window.addEventListener('mousemove', activityListener);
+    window.addEventListener('mousedown', activityListener);
+    window.addEventListener('keydown', activityListener);
 
     // we have to clear the interval or else every time we change it, we create
     // another interval on redraw. This return is called when the component
@@ -35,9 +44,9 @@ const LandingComponent = (props: LandingComponentProps) => {
         <p>Network Table Top is not responsible for anything. Close immeditaly or use at your own risk.</p>
       </Paper>
       <Paper sx={{padding: '1em', margin: '1em 0'}} elevation={6}>
-        <Typography variant="h5" gutterBottom>Redirecting to remote display {countDown}</Typography>
-        <p>For convenience we will redirect to the remote <Link to='/display'>display</Link> mode shortly!</p>
-        <p>If you are running a session, you can use the <Link to="/edit">editor</Link> instead.</p>
+        <Typography variant="h5" gutterBottom>Redirecting to Table-Top Display {countDown}</Typography>
+        <p>For convenience on inputless devices, we will start the <b>Table-Top</b> <Link to='/display'>display</Link> unless you move your mouse or press a key.</p>
+        <p>If you are running a session as a <b>Game Master</b>, you can control the table-top display using the <Link to="/edit">editor</Link>.</p>
       </Paper>
     </Box>
   );
