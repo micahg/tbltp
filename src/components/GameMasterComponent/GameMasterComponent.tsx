@@ -207,7 +207,7 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
             </ListItemButton>
           </ListItem>
         </List>
-        <Divider />
+        {/* <Divider />
         <List>
           {scenes.map((scene, index) => (
             <ListItem key={index}>
@@ -227,10 +227,7 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
             </ListItem>
           ))}
         </List>
-        <Divider />
-        <List>
-
-        </List>
+        <Divider /> */}
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
