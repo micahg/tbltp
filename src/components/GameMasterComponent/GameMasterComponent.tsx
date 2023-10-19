@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react';
-import { AppBar, AppBarProps, Box, CssBaseline, Divider, Drawer, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, styled, useTheme } from '@mui/material';
+import { AppBar, AppBarProps, Box, Collapse, CssBaseline, Divider, Drawer, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ListSubheader, Toolbar, Typography, styled, useTheme } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import InboxIcon from '@mui/icons-material/MoveToInbox';
+import PhotoIcon from '@mui/icons-material/Photo';
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 import MailIcon from '@mui/icons-material/Mail';
 import LogoutIcon from '@mui/icons-material/Logout';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
 import ContentEditor from '../ContentEditor/ContentEditor';
 import GameMasterActionComponent, { GameMasterAction } from '../GameMasterActionComponent/GameMasterActionComponent';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
+import { ExpandLess, ExpandMore } from '@mui/icons-material';
 
 interface GameMasterComponentProps {}
 
@@ -67,12 +72,14 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 const GameMasterComponent = (props: GameMasterComponentProps) => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<boolean>(false);
+  const [scenesOpen, setScenesOpen] = useState<boolean>(false);
   const [actions, setActions] = useState<GameMasterAction[]>([]);
   const [doot, setDoot] = useState<number>(0);
   const auth = useSelector((state: AppReducerState) => state.environment.auth);
   const noauth = useSelector((state: AppReducerState) => state.environment.noauth);
   const authClient = useSelector((state: AppReducerState) => state.environment.authClient);
+  const scenes = useSelector((state: AppReducerState) => state.content.scenes);
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -87,6 +94,8 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
   const handlePopulateToolbar = (newActions: GameMasterAction[]) => setActions(newActions);
 
   const handleRedrawToolbar = () => setDoot(doot + 1);
+
+  const scenesClick = () => setScenesOpen(!scenesOpen);
 
   useEffect(() => {
     if (!dispatch) return;
@@ -140,19 +149,73 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
         </DrawerHeader>
         <Divider />
         <List>
-          {['Inbox', 'Starred', 'Send email', 'Drafts'].map((text, index) => (
-            <ListItem key={text} disablePadding>
+        <ListItem key="Campaigns" disablePadding>
+            <ListItemButton>
+              <ListItemIcon>
+                <PhotoLibraryIcon/>
+              </ListItemIcon>
+              <ListItemText primary="Campaigns"/>
+            </ListItemButton>
+          </ListItem>
+          <ListItem key="Scenes" disablePadding onClick={scenesClick}>
+            <ListItemButton>
+              <ListItemIcon>
+                <PhotoIcon/>
+              </ListItemIcon>
+              <ListItemText primary="Scenes"/>
+              {scenesOpen ? <ExpandLess/> : <ExpandMore />}
+            </ListItemButton>
+          </ListItem>
+          <Collapse in={scenesOpen} timeout="auto" unmountOnExit>
+            <ListSubheader>
               <ListItemButton>
                 <ListItemIcon>
-                  {index % 2 === 0 ? <InboxIcon /> : <MailIcon />}
+                  <AddIcon/>
                 </ListItemIcon>
-                <ListItemText primary={text} />
+                <ListItemText primary="Create Scene"/>
               </ListItemButton>
-            </ListItem>
-          ))}
+            </ListSubheader>
+            {scenes.map((scene, index) => (
+              <ListItem key={index} secondaryAction={
+                <IconButton edge="end" aria-label="delete">
+                  <DeleteIcon />
+                </IconButton>
+                }>
+                <ListItemButton>
+                  <ListItemText primary={scene.description} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+            {['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'].map((value, index) => (
+              <ListItem key={index} secondaryAction={
+                <IconButton edge="end" aria-label="delete">
+                  <DeleteIcon />
+                </IconButton>
+                }>
+                <ListItemButton>
+                  <ListItemText primary={value} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </Collapse>
+          <ListItem key="Log Out" disablePadding onClick={handleLogout}>
+            <ListItemButton>
+              <ListItemIcon>
+                <LogoutIcon/>
+              </ListItemIcon>
+              <ListItemText primary="Log Out"/>
+            </ListItemButton>
+          </ListItem>
         </List>
         <Divider />
         <List>
+          {scenes.map((scene, index) => (
+            <ListItem key={index}>
+              <ListItemButton>
+                <ListItemText primary={scene.description} />
+              </ListItemButton>
+            </ListItem>
+          ))}
           {['All mail', 'Trash', 'Spam'].map((text, index) => (
             <ListItem key={text} disablePadding>
               <ListItemButton>
@@ -166,14 +229,7 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
         </List>
         <Divider />
         <List>
-          <ListItem key="Log Out" disablePadding onClick={handleLogout}>
-            <ListItemButton>
-              <ListItemIcon>
-                <LogoutIcon/>
-              </ListItemIcon>
-              <ListItemText primary="Log Out"/>
-            </ListItemButton>
-          </ListItem>
+
         </List>
       </Drawer>
       <Main open={open}>
