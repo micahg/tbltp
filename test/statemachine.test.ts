@@ -1,4 +1,4 @@
-import { transitionStateMachine } from './statemachine';
+import { transitionStateMachine } from '../src/utils/statemachine';
 
 describe('State Machine', () => {
   // it('Should handle a perfect fit', () => {

@@ -1,4 +1,4 @@
-import { calculateBounds, ImageBound, Rect } from "./geometry";
+import { calculateBounds, getWidthAndHeight, ImageBound, Rect } from "./geometry";
 
 export const CONTROLS_HEIGHT = 46;
 let baseData: ImageData | null = null;
@@ -63,12 +63,12 @@ export function renderImageInContainer(image: HTMLImageElement, ctx: CanvasRende
   if (!ctx) return Promise.reject(`Unable to get canvas context`);
 
   if (resizeCanvas) {
-    const windowWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    const [windowWidth, windowHeight] = getWidthAndHeight();
     const padding = 48; // 2 * 24 vertically and horizontally
     const vOffset = (windowWidth < 600) ? 48: 64 + padding; // App Bar changes based on window width
     const hOffset = padding;
-    const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) - hOffset;
-    const height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) - vOffset;
+    const width = windowWidth - hOffset;
+    const height = windowHeight - vOffset;
     // TODO stop calcualting bounds twice
     const adjusted = calculateBounds(width, height, image.width, image.height);
     ctx.canvas.width = adjusted.rotate ? adjusted.height : adjusted.width;
@@ -90,12 +90,7 @@ export function renderImageFullScreen(image: HTMLImageElement, ctx: CanvasRender
    * available screen is indeed 960*540 BUT you only get it by scrolling the
    * screen down
    */
-  const width = Math.max(document.documentElement.clientWidth || 0,
-                         document.documentElement.offsetWidth || 0,
-                         window.innerWidth || 0)
-  const height = Math.max(document.documentElement.clientHeight || 0,
-                          document.documentElement.offsetHeight || 0,
-                          window.innerHeight || 0);
+  const [width, height] = getWidthAndHeight();
   ctx.canvas.width = width;
   ctx.canvas.height = height;
   ctx.canvas.style.width = `${width}px`;

@@ -42,7 +42,7 @@ jobs:
   #     - env:
   #         pkg_ver: ${{needs.set-version.outputs.package_version}}
   #       run: echo "Package version is $pkg_ver"
-  build:
+  test:
     runs-on: ubuntu-latest
     permissions:
       contents: read

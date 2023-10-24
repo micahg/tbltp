@@ -15,6 +15,22 @@ export interface ImageBound {
   rotate: boolean;
 }
 
+/**
+ * Get the screen width and height, taking into consideration the offsets.
+ * @returns an array of two numbers: width & height.
+ */
+export function getWidthAndHeight(): number[] {
+  const width = Math.max(document.documentElement.clientWidth || 0,
+    document.documentElement.offsetWidth || 0,
+    window.innerWidth || 0)
+  const height = Math.max(document.documentElement.clientHeight || 0,
+     document.documentElement.offsetHeight || 0,
+     window.innerHeight || 0);
+
+  return [width, height]
+}
+
+
 export function calculateBounds(canvasWidth: number, canvasHeight: number, imageWidth: number, imageHeight: number) {
   let result:ImageBound = {left: 0, top: 0, height: 0, width: 0, rotate: false};
   let wideImage: boolean = imageWidth >= imageHeight;
@@ -109,25 +125,28 @@ export function fillToAspect(selection: Rect | null, tableBGRect: Rect, width: n
     return getRect(0, 0, width, height);
   }
 
-  const screenWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-  const screenHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+  const [screenWidth, screenHeight] = getWidthAndHeight();
   
   let selR = selection.width / selection.height
-  let scrR = (width > height) ? screenWidth/screenHeight : screenHeight/screenWidth;
+  let scrR = (tableBGRect.width > tableBGRect.height) ? screenWidth/screenHeight : screenHeight/screenWidth;
 
   // calculate coefficient for browser-resized images
-  const silkScale = (tableBGRect.width !== width) ? width / tableBGRect.width : 1;
+  // const silkScale2 = (tableBGRect.width !== width) ? width / tableBGRect.width : 1;
+  // the formula above (silkScale2) is what the scaling match should be, however, I
+  // think due to a browser bug the silkScale below is what works. FWIW, the bug was
+  // filed here: https://bugs.chromium.org/p/chromium/issues/detail?id=1494756
+  const silkScale =  (width  * width)/(tableBGRect.width * tableBGRect.width);
 
   // if the selection ratio is greater than the screen ratio it implies
   // aspect ratio of the selection is wider than the aspect ratio of the
   // screen, so the height can be scaled up to match the screen/image ratio
   if (selR >= scrR) {
     let newHeight = selection.width / scrR;
-    let newY = selection.y + ((selection.height - newHeight)/2)
+    let newY = selection.y -((newHeight - selection.height)/2);
 
     // these bits ensure we render from the edge rather than show black
     if (newY < 0) newY = 0;
-    if (newY + newHeight > height) newY = height - newHeight;
+    if (newY + newHeight > tableBGRect.height) newY = tableBGRect.height - newHeight;
     if (silkScale === 1)
       return {x: selection.x, y: newY, width: selection.width, height: newHeight};
 
@@ -139,11 +158,11 @@ export function fillToAspect(selection: Rect | null, tableBGRect: Rect, width: n
   // that the aspect ratio of the selection is less than the aspect ratio of the
   // screen, so the width can be scaled up to match the screen/image ratio
   let newWidth = scrR * selection.height;
-  let newX = selection.x + ((selection.width - newWidth)/2);
+  let newX = selection.x - ((newWidth - selection.width)/2);
 
   // these bits ensure we render from the edge rather than show black
   if (newX < 0) newX = 0;
-  if (newX + newWidth > width) newX = width - newWidth;
+  if (newX + newWidth > tableBGRect.width) newX = tableBGRect.width - newWidth;
 
   if (silkScale === 1)
     return {x: newX, y: selection.y, width: newWidth, height: selection.height}
