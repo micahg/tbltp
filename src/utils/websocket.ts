@@ -34,6 +34,7 @@ function closeSocketWithError(sock: WebSocket, msg: string, err: string) {
 
 function getVerifiedToken(token: string) {
   if (!AUTH_REQURIED) return { sub: getFakeUser() };
+  if (!token) throw new Error('Token not present');
   return verify(token, PEM, { audience: AUD, issuerBaseURL: ISS, tokenSigningAlg: 'RS256' });
 }
 
@@ -44,7 +45,6 @@ function verifyConnection(sock: WebSocket, req: IncomingMessage) {
   try {
     const parsed = new URL(req.url, `http://${req.headers.host}`);
     const token = parsed.searchParams.get('bearer');
-    if (!token) throw new Error('Token not present');
     jwt = getVerifiedToken(token);
   } catch (err) {
     let msg: string;
