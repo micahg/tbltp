@@ -96,6 +96,11 @@ const RemoteDisplayComponent = () => {
      * background with expanded selection if there is one.
      */
     loadImage(backgroundUri).then(bgImg => {
+      // the untainted one is not dealing with the silkScale (more on that in geometry.ts)
+      // since we can safely assume (for now) that the overlay isn't downscaled due to
+      // memory constraints, then we can get our ratios using the intended background size
+      // instead of the actual
+      const bgVPnoTaint = fillToAspect(viewport, tableBGSize, tableBGSize.width, tableBGSize.height);
       const bgVP = fillToAspect(viewport, tableBGSize, bgImg.width, bgImg.height);
       if (overlayUri) {
         loadImage(overlayUri).then(ovrImg => {
@@ -108,25 +113,24 @@ const RemoteDisplayComponent = () => {
           // TODO detect portrait - ALL OF THIS CODE assumes editor/overlay are landsacpe
           let [x, y, w, h] = [0, 0, 0, 0]
           if (bgImg.width < bgImg.height) {
-            [x, y] = rotate(90, bgVP.x, bgVP.y, bgImg.width,
-                            bgImg.height);
-            let [x2, y2] = rotate(90, bgVP.x + bgVP.width, bgVP.y + bgVP.height,
-                                  bgImg.width, bgImg.height);
+            [x, y] = rotate(90, bgVPnoTaint.x, bgVPnoTaint.y, tableBGSize.width, tableBGSize.height);
+            let [x2, y2] = rotate(90, bgVPnoTaint.x + bgVPnoTaint.width, bgVPnoTaint.y + bgVPnoTaint.height,
+                                  tableBGSize.width, tableBGSize.height);
             [x, x2] = [Math.min(x, x2), Math.max(x, x2)];
             [y, y2] = [Math.min(y, y2), Math.max(y, y2)];
             w = x2 - x;
             h = y2 - y;
-            let scale = ovrImg.width/bgImg.height;
+            let scale = ovrImg.width/tableBGSize.height;
             x *= scale;
             y *= scale;
             w *= scale;
             h *= scale;
           } else {
-            let scale = bgImg.width/ovrImg.width;
-            x = bgVP.x / scale;
-            y = bgVP.y / scale;
-            w = bgVP.width / scale;
-            h = bgVP.height / scale;
+            let scale = tableBGSize.width/ovrImg.width;
+            x = bgVPnoTaint.x / scale;
+            y = bgVPnoTaint.y / scale;
+            w = bgVPnoTaint.width / scale;
+            h = bgVPnoTaint.height / scale;
           }
           let olVP = {x: x, y: y, width: w, height: h};
           renderImageFullScreen(ovrImg, overlay, olVP)

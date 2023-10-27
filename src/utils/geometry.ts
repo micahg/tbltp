@@ -131,11 +131,11 @@ export function fillToAspect(selection: Rect | null, tableBGRect: Rect, width: n
   let scrR = (tableBGRect.width > tableBGRect.height) ? screenWidth/screenHeight : screenHeight/screenWidth;
 
   // calculate coefficient for browser-resized images
-  // const silkScale2 = (tableBGRect.width !== width) ? width / tableBGRect.width : 1;
-  // the formula above (silkScale2) is what the scaling match should be, however, I
-  // think due to a browser bug the silkScale below is what works. FWIW, the bug was
-  // filed here: https://bugs.chromium.org/p/chromium/issues/detail?id=1494756
-  const silkScale =  (width  * width)/(tableBGRect.width * tableBGRect.width);
+  // We shouldn't need to square (**2) the scaling value; however, I
+  // think due to a browser bug, squaring silkScale below is what works.
+  // FWIW, the bug was filed here:
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=1494756
+  const silkScale = (width/tableBGRect.width)**2;
 
   // if the selection ratio is greater than the screen ratio it implies
   // aspect ratio of the selection is wider than the aspect ratio of the
