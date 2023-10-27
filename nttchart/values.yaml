@@ -1,13 +1,13 @@
 namespace: ntt
 uiAppName: ntt-ui
 uiAppReplicas: 1
-uiImageVers: 0.0.33
+uiImageVers: 0.0.34
 uiImagePath: ghcr.io/micahg/ntt
 uiImageSecret: gitlab-ntt-ui
 
 apiAppName: ntt-api
 apiAppReplicas: 1
-apiImageVers: 0.0.16
+apiImageVers: 0.0.17
 apiImagePath: ghcr.io/micahg/nttsrv
 
 mongoName: "mongo"
