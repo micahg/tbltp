@@ -1,4 +1,3 @@
-import { log } from "../utils/logger";
 import { Schema, model } from 'mongoose';
 import { Rect } from "../utils/tablestate";
 
@@ -12,18 +11,24 @@ interface IScene {
   user: Schema.Types.ObjectId;
   description: string;
   overlayContent?: string;
-  userContent?: string;
-  tableContent?: string;
+  overlayContentRev?: number;
+  detailContent?: string;
+  detailContentRev?: number;
+  playerContent?: string;
+  playerContentRev?: number;
   viewport?: Rect;
   backgroundSize?: Rect;
 }
 
 const SceneSchema = new Schema<IScene>({
-  user:            { type: Schema.Types.ObjectId, required: true,  index: true },
-  description:     { type: String,                required: true  },
-  overlayContent:  { type: String,                required: false },
-  userContent:     { type: String,                required: false },
-  tableContent:    { type: String,                required: false },
+  user:              { type: Schema.Types.ObjectId, required: true, index: true },
+  description:       { type: String,                required: true  },
+  overlayContent:    { type: String,                required: false },
+  overlayContentRev: { type: Number,                required: false },
+  detailContent:     { type: String,                required: false },
+  detailContentRev:  { type: Number,                required: false },
+  playerContent:     { type: String,                required: false },
+  playerContentRev:  { type: Number,                required: false },
   viewport:        { type: {
       x: Number,
       y: Number,

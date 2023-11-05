@@ -82,7 +82,7 @@ function verifyConnection(sock: WebSocket, req: IncomingMessage) {
     .then(scene => {
       const state: TableState = {
         overlay: scene.overlayContent,
-        background: scene.tableContent,
+        background: scene.playerContent,
         viewport: scene.viewport,
         backgroundSize: scene.backgroundSize,
       };
@@ -115,7 +115,7 @@ export function startWSServer(nodeServer: Server, app: Express, pem: string): We
     if (!SOCKET_SESSIONS.has(userID)) return;
     const tableState: TableState = {
       overlay: update.overlayContent,
-      background: update.tableContent,
+      background: update.playerContent,
       viewport: update.viewport,
       backgroundSize: update.backgroundSize,
     }

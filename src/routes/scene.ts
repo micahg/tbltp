@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { getUser, getOrCreateUser, userExistsOr401 } from "../utils/user";
-import { getOrCreateScenes, getSceneById, setSceneOverlayContent, setSceneTableContent, setSceneUserContent, setSceneViewport } from "../utils/scene";
+import { createUserScene, deleteUserScene, getOrCreateScenes, getSceneById, setSceneOverlayContent, setSceneTableContent, setSceneUserContent, setSceneViewport } from "../utils/scene";
 import { log } from "../utils/logger";
 import { OBJECT_ID_LEN, VALID_LAYERS } from "../utils/constants";
 import { IScene } from "../models/scene";
@@ -8,8 +8,17 @@ import { LayerUpdate, updateAssetFromLink, updateAssetFromUpload } from "../util
 import { validateViewPort } from "../utils/viewport";
 import { Rect } from "../utils/tablestate";
 
+const NAME_REGEX = /^[\w\s]{1,64}$/;
+
 function sceneExistsOr404(scene: IScene) {
   if (!scene) throw new Error('No scene', {cause: 404});
+  return scene;
+}
+
+// TODO move this to validators
+function validateScene(scene: IScene): IScene {
+  if (!scene) throw new Error('No scene', {cause: 400});
+  if (!NAME_REGEX.test(scene.description)) throw new Error('Invalid scene description', {cause: 400});
   return scene;
 }
 
@@ -36,8 +45,25 @@ export function getScenes(req: Request, res: Response, next: any) {
     .catch(() => next({status: 500}));
 }
 
+export function deleteScene(req: Request, res: Response, next: any) {
+  // ensure the id is reasonable
+  if (req.params.id.length != OBJECT_ID_LEN)
+    return res.sendStatus(400);
+
+  return getUser(req.auth)
+    .then(user => userExistsOr401(user))
+    .then(user => deleteUserScene(user, req.params.id))
+    .then(() => res.sendStatus(200));
+}
+
 export function createScene(req: Request, res: Response, next: any) {
-  return res.status(501).send('micah todo');
+  return getUser(req.auth)
+    .then(user => userExistsOr401(user))
+    .then(user => {
+      validateScene(req.body);
+      return createUserScene(user, req.body);
+    })
+    .then(scene => res.send(scene));
 }
 
 export function updateSceneContent(req: Request, res: Response, next: any) {

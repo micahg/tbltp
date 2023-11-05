@@ -13,7 +13,7 @@ import { NO_AUTH_ASSET, ALL_SCENES_PATH, STATE_ASSET,
 import { getState, updateState } from "../routes/state";
 
 import { auth } from "express-oauth2-jwt-bearer";
-import { createScene, getScene, getScenes, updateSceneContent, updateSceneViewport } from "../routes/scene";
+import { createScene, deleteScene, getScene, getScenes, updateSceneContent, updateSceneViewport } from "../routes/scene";
 import { getFakeUser } from "../utils/auth";
 
 function getJWTCheck(noauth: boolean) {
@@ -83,6 +83,7 @@ export function create(): Express {
   app.put(STATE_ASSET,        jwtCheck, updateState);
   app.put(SCENE_VIEWPORT_PATH,jwtCheck, updateSceneViewport)
   app.get(SCENE_PATH,         jwtCheck, getScene);
+  app.delete(SCENE_PATH,      jwtCheck, deleteScene);
   app.get(ALL_SCENES_PATH,    jwtCheck, getScenes);
   app.put(ALL_SCENES_PATH,    jwtCheck, createScene);
   app.put(SCENE_CONTENT_PATH, jwtCheck, upload.single('image'), updateSceneContent);
