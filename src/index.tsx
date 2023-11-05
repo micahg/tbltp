@@ -13,7 +13,7 @@ import GameMasterComponent from './components/GameMasterComponent/GameMasterComp
 import DeviceCodeComponent from './components/DeviceCodeComponent/DeviceCodeComponent.lazy';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 
-let routes: Object[] = [];
+const routes = [];
 routes.push({path: '/',        element: <LandingComponent/>,       errorElement: null});
 routes.push({path: '/display', element: <RemoteDisplayComponent/>, errorElement: null});
 routes.push({path: '/edit',    element: <GameMasterComponent />,   errorElement: null });

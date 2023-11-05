@@ -13,10 +13,15 @@ import GameMasterActionComponent, { GameMasterAction } from '../GameMasterAction
 import { useDispatch, useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-
-interface GameMasterComponentProps {}
+import SceneComponent from '../SceneComponent/SceneComponent.lazy';
+import { Scene } from '../../reducers/ContentReducer';
 
 const drawerWidth = 240;
+
+enum FocusedComponent {
+  ContentEditor,
+  Scene,
+}
 
 const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
   open?: boolean;
@@ -67,17 +72,19 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   justifyContent: 'flex-end',
 }));
 
-const GameMasterComponent = (props: GameMasterComponentProps) => {
+const GameMasterComponent = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const [open, setOpen] = useState<boolean>(false);
   const [scenesOpen, setScenesOpen] = useState<boolean>(false);
   const [actions, setActions] = useState<GameMasterAction[]>([]);
   const [doot, setDoot] = useState<number>(0);
+  const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(FocusedComponent.ContentEditor)
   const auth = useSelector((state: AppReducerState) => state.environment.auth);
   const noauth = useSelector((state: AppReducerState) => state.environment.noauth);
   const authClient = useSelector((state: AppReducerState) => state.environment.authClient);
   const scenes = useSelector((state: AppReducerState) => state.content.scenes);
+  const currentScene = useSelector((state: AppReducerState) => state.content.currentScene);
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -86,6 +93,24 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
   const handleDrawerClose = () => {
     setOpen(false);
   };
+
+  const handleCreateScene = (/*event: React.MouseEvent<HTMLElement>*/) => {
+    dispatch({type: 'content/currentscene'});
+    setFocusedComponent(FocusedComponent.Scene);
+  }
+
+  const handleEditScene = (scene?: Scene) => {
+    if (scene) dispatch({type: 'content/currentscene', payload: scene});
+    setFocusedComponent(FocusedComponent.ContentEditor);
+  }
+
+  const handleManageScene = () => {
+    setFocusedComponent(FocusedComponent.Scene);
+  }
+
+  const handleDeleteScene = (scene: Scene) => {
+    dispatch({type: 'content/deletescene', payload: scene});
+  }
 
   const handleLogout = () => dispatch({type: 'environment/logout'});
 
@@ -122,7 +147,7 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div">
-            Persistent drawer
+            Network Table Top
           </Typography>
           <GameMasterActionComponent actions={actions}/>
         </Toolbar>
@@ -166,32 +191,22 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
           </ListItem>
           <Collapse in={scenesOpen} timeout="auto" unmountOnExit>
             <ListSubheader>
-              <ListItemButton>
+              <ListItemButton onClick={() => handleCreateScene()}>
                 <ListItemIcon>
                   <AddIcon/>
                 </ListItemIcon>
                 <ListItemText primary="Create Scene"/>
               </ListItemButton>
             </ListSubheader>
-            {scenes.map((scene, index) => (
-              <ListItem key={index} secondaryAction={
-                <IconButton edge="end" aria-label="delete">
+            {scenes.map(scene => (
+              <ListItem key={scene._id} secondaryAction={
+                <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteScene(scene)}>
                   <DeleteIcon />
                 </IconButton>
-                }>
-                <ListItemButton>
+              }>
+                <ListItemButton
+                  onClick={() => handleEditScene(scene)}>
                   <ListItemText primary={scene.description} />
-                </ListItemButton>
-              </ListItem>
-            ))}
-            {['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'].map((value, index) => (
-              <ListItem key={index} secondaryAction={
-                <IconButton edge="end" aria-label="delete">
-                  <DeleteIcon />
-                </IconButton>
-                }>
-                <ListItemButton>
-                  <ListItemText primary={value} />
                 </ListItemButton>
               </ListItem>
             ))}
@@ -205,34 +220,18 @@ const GameMasterComponent = (props: GameMasterComponentProps) => {
             </ListItemButton>
           </ListItem>
         </List>
-        {/* <Divider />
-        <List>
-          {scenes.map((scene, index) => (
-            <ListItem key={index}>
-              <ListItemButton>
-                <ListItemText primary={scene.description} />
-              </ListItemButton>
-            </ListItem>
-          ))}
-          {['All mail', 'Trash', 'Spam'].map((text, index) => (
-            <ListItem key={text} disablePadding>
-              <ListItemButton>
-                <ListItemIcon>
-                  {index % 2 === 0 ? <InboxIcon /> : <MailIcon />}
-                </ListItemIcon>
-                <ListItemText primary={text} />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-        <Divider /> */}
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        <ContentEditor
+        {focusedComponent === FocusedComponent.ContentEditor && <ContentEditor
           populateToolbar={handlePopulateToolbar}
           redrawToolbar={handleRedrawToolbar}
-        />
+          manageScene={handleManageScene}
+        />}
+        {focusedComponent === FocusedComponent.Scene && <SceneComponent
+          scene={currentScene}
+          editScene={handleEditScene}
+        />}
       </Main>
     </Box>
   );

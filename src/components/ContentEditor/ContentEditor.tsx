@@ -11,7 +11,7 @@ import { rotateRect, scaleSelection } from '../../utils/geometry';
 import { MouseStateMachine } from '../../utils/mousestatemachine';
 import { setCallback } from '../../utils/statemachine';
 import styles from './ContentEditor.module.css';
-import { Opacity, ZoomIn, ZoomOut, LayersClear, Sync, FileUpload, Palette, VisibilityOff, Visibility } from '@mui/icons-material';
+import { Opacity, ZoomIn, ZoomOut, LayersClear, Sync, Map, Palette, VisibilityOff, Visibility } from '@mui/icons-material';
 import { GameMasterAction } from '../GameMasterActionComponent/GameMasterActionComponent';
 import { Box, Menu, MenuItem, Popover, Slider } from '@mui/material';
 
@@ -20,6 +20,7 @@ const sm = new MouseStateMachine();
 interface ContentEditorProps {
   populateToolbar?: (actions: GameMasterAction[]) => void;
   redrawToolbar?: () => void;
+  manageScene?: () => void;
 }
 
 // hack around rerendering -- keep one object in state and update properties
@@ -30,7 +31,7 @@ interface InternalState {
   zoom: boolean;
 }
 
-const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => {
+const ContentEditor = ({populateToolbar, redrawToolbar, manageScene}: ContentEditorProps) => {
   const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
@@ -39,12 +40,14 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
   const [internalState, ] = useState<InternalState>({zoom: false, obscure: false, color: createRef()});
   const [contentCtx, setContentCtx] = useState<CanvasRenderingContext2D|null>(null);
   const [overlayCtx, setOverlayCtx] = useState<CanvasRenderingContext2D|null>(null);
-  const [backgroundLoaded, setBackgroundLoaded] = useState<boolean>(false);
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
   const [showOpacitySlider, setShowOpacitySlider] = useState<boolean>(false);
   const [backgroundSize, setBackgroundSize] = useState<number[]|null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [bgRev, setBgRev] = useState<number>(0);
+  const [ovRev, setOvRev] = useState<number>(0);
+  const [sceneId, setSceneId] = useState<string>(); // used to track flipping between scenes
 
   /**
    * THIS GUY RIGHT HERE IS REALLY IMPORTANT. Because we use a callback to render
@@ -58,22 +61,9 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
 
   const auth = useSelector((state: AppReducerState) => state.environment.auth);
   const noauth = useSelector((state: AppReducerState) => state.environment.noauth);
-  const background = useSelector((state: AppReducerState) => state.content.currentScene?.tableContent);
-  const overlay = useSelector((state: AppReducerState) => state.content.currentScene?.overlayContent);
+  const scene = useSelector((state: AppReducerState) => state.content.currentScene);
   const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
   const pushTime = useSelector((state: AppReducerState) => state.content.pushTime);
-  const viewport = useSelector((state: AppReducerState) => state.content.currentScene?.viewport);
-
-  const updateBackground = (data: URL | File) => {
-    // send without payload to wipe overlay
-    dispatch({type: 'content/overlay'});
-
-    // update our internal state to indicate we have no background... yet
-    setBackgroundLoaded(false);
-
-    // send the new background
-    dispatch({type: 'content/background', payload: data});
-  }
 
   const updateOverlay = () => {
     overlayCanvasRef.current?.toBlob((blob: Blob | null) => {
@@ -82,6 +72,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
         return;
       }
       dispatch({type: 'content/overlay', payload: blob})
+      setOvRev(ovRev + 1);
     }, 'image/png', 1);
   }
 
@@ -103,17 +94,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
     updateOverlay();
   }
 
-  const selectFile = () => {
-    let input = document.createElement('input');
-    input.type='file';
-    input.multiple = false;
-    input.onchange = () => {
-      if (!input.files) return sm.transition('done');
-      updateBackground(input.files[0]);
-      sm.transition('done');
-    }
-    input.click();
-  }
+  const sceneManager = () => {if (manageScene) manageScene(); }
 
   const zoomIn = (x1: number, y1: number, x2: number, y2: number) => {
     if (!backgroundSize) return;
@@ -123,7 +104,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
     // the viewport (vp) in this case is not relative to the background image
     // size, but the size of the canvas upon which it is painted
     let vp = getRect(0,0, overlayCtx.canvas.width, overlayCtx.canvas.height);
-    let [w, h] = backgroundSize;
+    const [w, h] = backgroundSize;
 
     // rotate the selection
     // TODO this doesn't need rotation in portrait
@@ -131,14 +112,14 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
       sel = rotateRect(-90, sel, vp.width, vp.height);
       vp = getRect(0,0, overlayCtx.canvas.height, overlayCtx.canvas.width);
     }
-    let selection = scaleSelection(sel, vp, w, h);
-        dispatch({type: 'content/zoom', payload: {'viewport': selection}});
+    const selection = scaleSelection(sel, vp, w, h);
+    dispatch({type: 'content/zoom', payload: {'viewport': selection}});
     sm.transition('wait');
   }
 
   const zoomOut = () => {
     if (!backgroundSize) return;
-    let imgRect = getRect(0, 0, backgroundSize[0], backgroundSize[1]);
+    const imgRect = getRect(0, 0, backgroundSize[0], backgroundSize[1]);
     dispatch({type: 'content/zoom', payload: {'backgroundSize': imgRect, 'viewport': imgRect}});
   }
 
@@ -185,7 +166,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
 
     const actions: GameMasterAction[] = [
       { icon: Sync,          tooltip: "Sync Remote Display",       hidden: () => false,               disabled: () => false,                  callback: () => sm.transition('push') },
-      { icon: FileUpload,    tooltip: "Upload or Link Background", hidden: () => false,               disabled: () => false,                  callback: selectFile },
+      { icon: Map,           tooltip: "Scene Backgrounds",         hidden: () => false,               disabled: () => false,                  callback: sceneManager },
       { icon: Palette,       tooltip: "Color Palette",             hidden: () => false,               disabled: () => false,                  callback: gmSelectColor },
       { icon: LayersClear,   tooltip: "Clear Overlay",             hidden: () => false,               disabled: () => internalState.obscure,  callback: () => sm.transition('clear')},
       { icon: VisibilityOff, tooltip: "Obscure",                   hidden: () => false,               disabled: () => !internalState.obscure, callback: () => sm.transition('obscure')},
@@ -210,12 +191,13 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
   }, [overlayCanvasRef, overlayCtx]);
 
   useEffect(() => {
-    if (!viewport) return;
+    if (!scene || !scene.viewport) return;
+    // if (!viewport) return;
     if (!backgroundSize) return;
     if (!redrawToolbar) return;
-    let v = viewport;
-        let [w, h] = backgroundSize;
-    let zoomedOut: boolean = (v.x === 0 && v.y === 0 && w === v.width && h === v.height);
+    const v = scene.viewport;
+    const [w, h] = backgroundSize;
+    const zoomedOut: boolean = (v.x === 0 && v.y === 0 && w === v.width && h === v.height);
     // if zoomed out and in then state changed.... think about it man...
     // if (zoomedOut !== zoomedIn) return;
     // setZoomedIn(!zoomedOut);
@@ -224,7 +206,7 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
     redrawToolbar();
 
     sm.transition('wait');
-  }, [viewport, backgroundSize, internalState, redrawToolbar]);
+  }, [scene, backgroundSize, internalState, redrawToolbar]);
 
 
   useEffect(() => {
@@ -254,9 +236,8 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
     setCallback(sm, 'background_link', () => {
       setShowBackgroundMenu(false);
     });
-    setCallback(sm, 'background_upload', selectFile);
+    setCallback(sm, 'background_upload', sceneManager);
     setCallback(sm, 'obscure', () => {
-      // console.log(`Obscuring ${sm.x1()}, ${sm.y1()}, ${sm.x2()}, ${sm.y2()}`);
       obscure(sm.x1(), sm.y1(), sm.x2(), sm.y2());
       sm.transition('wait');
     });
@@ -265,7 +246,6 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
       sm.transition('wait');
     });
     setCallback(sm, 'zoomIn', () => {
-      // console.log(`Zooming ${sm.x1()}, ${sm.y1()}, ${sm.x2()}, ${sm.y2()}`);
       zoomIn(sm.x1(), sm.y1(), sm.x2(), sm.y2())
     });
     setCallback(sm, 'zoomOut', () => zoomOut());
@@ -327,26 +307,50 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
    * before we get the background and we can't really sequence these events.
    */
   useEffect(() => {
-    if (!apiUrl || !background || !contentCtx || !overlayCtx) return;
-    let bgImg = `${apiUrl}/${background}`;
-    loadImage(bgImg)
-      .then(img => {
-        setBackgroundSize([img.width, img.height]);
-        let imgRect = getRect(0, 0, img.width, img.height);
-        dispatch({type: 'content/zoom', payload: {'backgroundSize': imgRect, 'viewport': imgRect}});    
-        return img;
-      })
-      // MICAH fix render image to use the container height and width
-      .then(img => renderImageInContainer(img, contentCtx, true))
-      .then(bounds => {
-        setBackgroundLoaded(true);
-        setupOverlayCanvas(bounds, overlayCtx);
-      })
-      .catch(err => {
-        // TODO SIGNAL ERROR
-        console.log(`Unable to load image: ${JSON.stringify(err)}`);
+    /**
+     * THIS CAN BE BETTER
+     * 
+     * if you put a breakpoint inside the `if (bg) {` block down below, we hit
+     * that breakpoint twice on a scene flip... something is triggering a needless
+     * rerender
+     */
+    if (!apiUrl || !scene || !scene.playerContent || !contentCtx || !overlayCtx) return;
+
+    // if the scene has changed, reset our revisions so we properly redraw any updated assets
+    // also because the setter from useState (setBgRev/setOvRev) don't take effect until next
+    // render we need localized up-to-date values to avoid needless rerendering.
+    // SOMETHING IS OFF about that comment above... logically the scene id should also stay
+    // changed until the next render
+    const curBgRev = (sceneId !== scene._id) ? 0 : bgRev;
+    const curOvRev = (sceneId !== scene._id) ? 0 : ovRev;
+    if (sceneId !== scene._id) {
+      setSceneId(scene._id);
+      setBgRev(0);
+      setOvRev(0);
+    }
+
+    const ovPromise = (scene.overlayContentRev && scene.overlayContentRev > curOvRev) ? loadImage(`${apiUrl}/${scene.overlayContent}`) : Promise.resolve(null);
+    const bgPromise = (scene.playerContentRev && scene.playerContentRev > curBgRev) ? loadImage(`${apiUrl}/${scene.playerContent}`) : Promise.resolve(null);
+    Promise.all([bgPromise,ovPromise])
+      .then(([bg, ov]) => {
+        if (bg) {
+          if (scene.playerContentRev) setBgRev(scene.playerContentRev);
+          setBackgroundSize([bg.width, bg.height]);
+          // if the scene hasn't set a viewport, default to entire background
+          if (!scene.viewport) {
+            const imgRect = getRect(0, 0, bg.width, bg.height);
+            dispatch({type: 'content/zoom', payload: {'backgroundSize': imgRect, 'viewport': imgRect}});
+          }
+          const bounds = renderImageInContainer(bg, contentCtx, true)
+          setupOverlayCanvas(bounds, overlayCtx);
+        }
+        if (ov) {
+          if (scene.overlayContentRev) setOvRev(scene.overlayContentRev);
+          renderImageInContainer(ov, overlayCtx)
+          setOverlayAsBaseData(overlayCtx)
+        }
       });
-  }, [apiUrl, background, contentCtx, overlayCtx, dispatch])
+  }, [apiUrl, scene, sceneId, contentCtx, overlayCtx, dispatch, ovRev, bgRev])
 
   // make sure we end the push state when we get a successful push time update
   useEffect(() => sm.transition('done'), [pushTime])
@@ -363,21 +367,6 @@ const ContentEditor = ({populateToolbar, redrawToolbar}: ContentEditorProps) => 
     if (!apiUrl || !dispatch || !toolbarPopulated) return;
     dispatch({type: 'content/pull'});
   }, [apiUrl, dispatch, toolbarPopulated, auth, noauth]);
-
-  useEffect(() => {
-    // if the background isn't loaded yet, no point rendering the overlay
-    if (!backgroundLoaded) return;
-    // if the overlay is a string, then load it. This should only be the case on init
-    if (!overlay) return;
-    if (((overlay as unknown) as Blob).type !== undefined) return;
-    if (!overlayCtx) return;
-
-    let overlayImg: string = overlay as string;
-    loadImage(`${apiUrl}/${overlayImg}?`)
-      .then(img => renderImageInContainer(img, overlayCtx))
-      .then(() => setOverlayAsBaseData(overlayCtx))
-      .catch(err => console.error(err));
-  }, [apiUrl, overlay, backgroundLoaded, overlayCtx])
 
   return (
     <div className={styles.ContentEditor}

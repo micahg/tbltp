@@ -4,9 +4,8 @@ import { AppReducerState } from '../../reducers/AppReducer';
 import { useNavigate } from 'react-router-dom';
 import { Box, Paper, Typography } from '@mui/material';
 import * as QRCode from 'qrcode';
-interface DeviceCodeComponentProps {}
 
-const DeviceCodeComponent = (props: DeviceCodeComponentProps) => {
+const DeviceCodeComponent = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();

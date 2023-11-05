@@ -3,7 +3,7 @@ export interface StateMachine {
   states: Record<string, Record<string, string>>
   actions: Record<string, (args: any[]) => void>
   transition(input: string, ...args: any[]): void;
-};
+}
 
 /**
  * Generic state machine transition method

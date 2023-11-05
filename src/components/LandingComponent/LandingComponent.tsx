@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react';
 import { Box, Paper, Typography  } from '@mui/material';
 import { useNavigate, Link} from 'react-router-dom';
 
-interface LandingComponentProps {}
 let interval: NodeJS.Timer;
 const activityListener = () => {
   clearInterval(interval);
   window.removeEventListener('mousemove', activityListener);
 }
 
-const LandingComponent = (props: LandingComponentProps) => {
+const LandingComponent = () => {
   const [countDown, setCountDown] = useState<number>(5);
   const navigate = useNavigate();
 

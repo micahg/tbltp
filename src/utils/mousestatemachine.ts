@@ -4,10 +4,10 @@ export class MouseStateMachine implements StateMachine {
   current: string;
   states: Record<string, Record<string, string>>
   actions: Record<string, (args: any[]) => void>
-  startX: number = -1;
-  startY: number = -1;
-  endX: number = 0;
-  endY: number = 0;
+  startX = -1;
+  startY = -1;
+  endX = 0;
+  endY = 0;
   startCallback: (() => void) | null = null;
   moveCallback: ((x1: number, y1: number, x2: number, y2: number) => void) | null = null;
 
@@ -105,7 +105,7 @@ export class MouseStateMachine implements StateMachine {
     if ('record' in this.actions) this.actions['record'](args);
 
     // deal with recording mouse events
-    let evt: MouseEvent = args[0];
+    const evt: MouseEvent = args[0];
     if (this.startX < 0) {
       this.startX = evt.offsetX;
       this.startY = evt.offsetY;

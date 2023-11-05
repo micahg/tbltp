@@ -63,15 +63,15 @@ const RemoteDisplayComponent = () => {
       console.error('Unable to render without viewport');
       return;
     }
-    let viewport: Rect = js.state.viewport;
+    const viewport: Rect = js.state.viewport;
 
     if (!js.state.backgroundSize) {
       console.error('Unable to render without background size');
       return;
     }
-    let tableBGSize: Rect = js.state.backgroundSize;
+    const tableBGSize: Rect = js.state.backgroundSize;
 
-    let ts: number = new Date().getTime();
+    const ts: number = new Date().getTime();
     let overlayUri: string | null = null;
     if ('overlay' in js.state && js.state.overlay) {
       overlayUri = `${apiUrl}/${js.state.overlay}?${ts}`;
@@ -120,26 +120,24 @@ const RemoteDisplayComponent = () => {
             [y, y2] = [Math.min(y, y2), Math.max(y, y2)];
             w = x2 - x;
             h = y2 - y;
-            let scale = ovrImg.width/tableBGSize.height;
+            const scale = ovrImg.width/tableBGSize.height;
             x *= scale;
             y *= scale;
             w *= scale;
             h *= scale;
           } else {
-            let scale = tableBGSize.width/ovrImg.width;
+            const scale = tableBGSize.width/ovrImg.width;
             x = bgVPnoTaint.x / scale;
             y = bgVPnoTaint.y / scale;
             w = bgVPnoTaint.width / scale;
             h = bgVPnoTaint.height / scale;
           }
-          let olVP = {x: x, y: y, width: w, height: h};
-          renderImageFullScreen(ovrImg, overlay, olVP)
-            .then(() => renderImageFullScreen(bgImg, content, bgVP))
-            .catch(err => console.error(`Error rendering background or overlay image: ${JSON.stringify(err)}`));
+          const olVP = {x: x, y: y, width: w, height: h};
+          renderImageFullScreen(ovrImg, overlay, olVP);
+          renderImageFullScreen(bgImg, content, bgVP);
         }).catch(err => console.error(`Error loading overlay iamge ${overlayUri}: ${JSON.stringify(err)}`));
       } else {
-        renderImageFullScreen(bgImg, content, bgVP)
-          .catch(err => console.error(`Error rendering background imager: ${JSON.stringify(err)}`));
+        renderImageFullScreen(bgImg, content, bgVP);
       }
     }).catch(err => console.error(`Error loading background image: ${JSON.stringify(err)}`));
   }, []);
@@ -223,7 +221,7 @@ const RemoteDisplayComponent = () => {
     }
 
     const fullUrl = noauth ? `${wsUrl}` : `${wsUrl}?bearer=${token}`;
-    let ws = new WebSocket(fullUrl);
+    const ws = new WebSocket(fullUrl);
     console.log('Attempting websocket connection');
     ws.onmessage = (event: MessageEvent) => processWSMessage(event.data);
     ws.onclose = (event: Event) => scheduleConnection();

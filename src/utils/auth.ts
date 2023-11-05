@@ -137,7 +137,7 @@ export function pollDeviceCode(store: MiddlewareAPI<Dispatch<AnyAction>>) {
       device_code: deviceCode.device_code,
       client_id: deviceCode.client_id,
     });
-    const url: string = `https://${deviceCode.domain}/oauth/token`;
+    const url = `https://${deviceCode.domain}/oauth/token`;
     axios.post(url, params)
       .then(resp => resolve(resp.data))
       .catch(err => err.response.status === 403 ? resolve({}) : reject(err));

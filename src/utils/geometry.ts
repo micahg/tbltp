@@ -5,7 +5,7 @@ export interface Rect {
   y: number,
   width: number,
   height: number,
-};
+}
 
 export interface ImageBound {
   left: number;
@@ -32,20 +32,20 @@ export function getWidthAndHeight(): number[] {
 
 
 export function calculateBounds(canvasWidth: number, canvasHeight: number, imageWidth: number, imageHeight: number) {
-  let result:ImageBound = {left: 0, top: 0, height: 0, width: 0, rotate: false};
-  let wideImage: boolean = imageWidth >= imageHeight;
-  let wideCanvas: boolean = canvasWidth >= canvasHeight;
-  let rotate = (wideCanvas !== wideImage)
+  const result:ImageBound = {left: 0, top: 0, height: 0, width: 0, rotate: false};
+  const wideImage: boolean = imageWidth >= imageHeight;
+  const wideCanvas: boolean = canvasWidth >= canvasHeight;
+  const rotate = (wideCanvas !== wideImage)
 
   if ((canvasWidth >= canvasHeight && imageWidth >= imageHeight) ||
       (canvasHeight > canvasWidth && imageHeight >= imageWidth)) {
-    let scale = Math.min(canvasWidth / imageWidth, canvasHeight / imageHeight);
+    const scale = Math.min(canvasWidth / imageWidth, canvasHeight / imageHeight);
     result.width = imageWidth * scale;
     result.height = imageHeight * scale;
     result.top = (canvasHeight - result.height)/2;
     result.left = (canvasWidth - result.width)/2;
   } else {
-    let scale = Math.min(canvasWidth / imageHeight, canvasHeight / imageWidth);
+    const scale = Math.min(canvasWidth / imageHeight, canvasHeight / imageWidth);
     result.width =  imageWidth * scale;
     result.height = imageHeight * scale;
     result.top = (canvasHeight - result.width)/2;
@@ -67,17 +67,17 @@ export function calculateBounds(canvasWidth: number, canvasHeight: number, image
  * @returns an array of length two, containing the rotated X and Y cordinate values
  */
 export function rotate(angle: number, x: number, y: number, width: number, height: number): number[] {
-  let r = Math.PI * (angle/180);
-  let c_x = width/2;
-  let c_y = height/2;
-  let t_x = x - c_x; // translated x
-  let t_y = y - c_y; // translated y
-  let mcos = Math.cos(r);
-  let msin = Math.sin(r);
+  const r = Math.PI * (angle/180);
+  const c_x = width/2;
+  const c_y = height/2;
+  const t_x = x - c_x; // translated x
+  const t_y = y - c_y; // translated y
+  const mcos = Math.cos(r);
+  const msin = Math.sin(r);
   // any math i can look up says this is wrong. The final addends of each
   // line are flipped (c_y should be c_x and c_x should be c_y)...
-  let x1 = (mcos * t_x) - (msin * t_y) + c_y;
-  let y1 = (msin * t_x) + (mcos * t_y) + c_x;
+  const x1 = (mcos * t_x) - (msin * t_y) + c_y;
+  const y1 = (msin * t_x) + (mcos * t_y) + c_x;
   return [x1, y1]
 }
 
@@ -86,20 +86,18 @@ export function rotateRect(angle: number, rect: Rect, width: number, height: num
   let [x2, y2] = rotate(-90, rect.x + rect.width, rect.y + rect.height, width, height);
   [x1, x2] = [Math.min(x1, x2), Math.max(x1, x2)];
   [y1, y2] = [Math.min(y1, y2), Math.max(y1, y2)];
-  let r: Rect = {x: x1, y: y1, width: x2 - x1, height: y2 - y1};
-  return r;
+  return {x: x1, y: y1, width: x2 - x1, height: y2 - y1};
 }
 
 export function scaleSelection(selection: Rect, viewport: Rect, width: number, height: number) {
-  let v_w = viewport.width - viewport.x;
-  let v_h = viewport.height - viewport.y;
-  let h_scale = width/v_w;
-  let v_scale = height/v_h;
-  let res: Rect = {
+  const v_w = viewport.width - viewport.x;
+  const v_h = viewport.height - viewport.y;
+  const h_scale = width/v_w;
+  const v_scale = height/v_h;
+  return {
     x: selection.x * h_scale, y: selection.y * v_scale,
     width: selection.width * h_scale, height: selection.height * v_scale,
   };
-  return res;
 }
 
 /**
@@ -127,8 +125,8 @@ export function fillToAspect(selection: Rect | null, tableBGRect: Rect, width: n
 
   const [screenWidth, screenHeight] = getWidthAndHeight();
   
-  let selR = selection.width / selection.height
-  let scrR = (tableBGRect.width > tableBGRect.height) ? screenWidth/screenHeight : screenHeight/screenWidth;
+  const selR = selection.width / selection.height
+  const scrR = (tableBGRect.width > tableBGRect.height) ? screenWidth/screenHeight : screenHeight/screenWidth;
 
   // calculate coefficient for browser-resized images
   // We shouldn't need to square (**2) the scaling value; however, I
@@ -141,7 +139,7 @@ export function fillToAspect(selection: Rect | null, tableBGRect: Rect, width: n
   // aspect ratio of the selection is wider than the aspect ratio of the
   // screen, so the height can be scaled up to match the screen/image ratio
   if (selR >= scrR) {
-    let newHeight = selection.width / scrR;
+    const newHeight = selection.width / scrR;
     let newY = selection.y -((newHeight - selection.height)/2);
 
     // these bits ensure we render from the edge rather than show black
@@ -157,7 +155,7 @@ export function fillToAspect(selection: Rect | null, tableBGRect: Rect, width: n
   // conversly, if the selection ratio is less than the screen ratio, it implies
   // that the aspect ratio of the selection is less than the aspect ratio of the
   // screen, so the width can be scaled up to match the screen/image ratio
-  let newWidth = scrR * selection.height;
+  const newWidth = scrR * selection.height;
   let newX = selection.x - ((newWidth - selection.width)/2);
 
   // these bits ensure we render from the edge rather than show black

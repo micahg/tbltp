@@ -2,10 +2,10 @@ import { calculateBounds, getWidthAndHeight, ImageBound, Rect } from "./geometry
 
 export const CONTROLS_HEIGHT = 46;
 let baseData: ImageData | null = null;
-let red: string = '255';
-let green: string = '0';
-let blue: string = '0';
-let opacity: string = '1';
+let red = '255';
+let green = '0';
+let blue = '0';
+let opacity = '1';
 
 export function getRect(x1: number, y1: number, x2: number, y2: number): Rect {
   let x: number;
@@ -59,8 +59,7 @@ export function loadImage(uri: string): Promise<HTMLImageElement> {
 }
 
 export function renderImageInContainer(image: HTMLImageElement, ctx: CanvasRenderingContext2D,
-  resizeCanvas: boolean = false) {
-  if (!ctx) return Promise.reject(`Unable to get canvas context`);
+  resizeCanvas = false) {
 
   if (resizeCanvas) {
     const [windowWidth, windowHeight] = getWidthAndHeight();
@@ -100,9 +99,7 @@ export function renderImageFullScreen(image: HTMLImageElement, ctx: CanvasRender
 }
 
 function renderImage(image: HTMLImageElement, ctx: CanvasRenderingContext2D,
-  viewport: Rect | null = null): Promise<ImageBound> {
-
-  if (!ctx) return Promise.reject(`Unable to get canvas context`);
+  viewport: Rect | null = null): ImageBound {
 
   // if we're zoomed we should use viewport width and height (not image)
   const [width, height] = viewport ? [viewport.width, viewport.height] : [image.width, image.height];
@@ -121,13 +118,12 @@ function renderImage(image: HTMLImageElement, ctx: CanvasRenderingContext2D,
     ctx.drawImage(image, -bounds.width/2, -bounds.height/2, bounds.width, bounds.height);
   }
   ctx.restore();
-
-  return Promise.resolve(bounds);
+  return bounds;
 }
 
 export function setupOverlayCanvas(bounds: ImageBound, ctx: CanvasRenderingContext2D): Promise<void> {
-  let width = bounds.rotate ? bounds.height : bounds.width;
-  let height = bounds.rotate ? bounds.width : bounds.height;
+  const width = bounds.rotate ? bounds.height : bounds.width;
+  const height = bounds.rotate ? bounds.width : bounds.height;
 
   ctx.canvas.width = width;
   ctx.canvas.height = height;
