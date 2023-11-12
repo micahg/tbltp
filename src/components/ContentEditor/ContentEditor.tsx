@@ -329,12 +329,13 @@ const ContentEditor = ({populateToolbar, redrawToolbar, manageScene}: ContentEdi
       setOvRev(0);
     }
 
+    const [rev, content] = scene.detailContentRev ? [scene.detailContentRev, scene.detailContent] : [scene.playerContentRev, scene.playerContent];
     const ovPromise = (scene.overlayContentRev && scene.overlayContentRev > curOvRev) ? loadImage(`${apiUrl}/${scene.overlayContent}`) : Promise.resolve(null);
-    const bgPromise = (scene.playerContentRev && scene.playerContentRev > curBgRev) ? loadImage(`${apiUrl}/${scene.playerContent}`) : Promise.resolve(null);
+    const bgPromise = (rev && rev > curBgRev) ? loadImage(`${apiUrl}/${content}`) : Promise.resolve(null);
     Promise.all([bgPromise,ovPromise])
       .then(([bg, ov]) => {
         if (bg) {
-          if (scene.playerContentRev) setBgRev(scene.playerContentRev);
+          if (rev) setBgRev(rev);
           setBackgroundSize([bg.width, bg.height]);
           // if the scene hasn't set a viewport, default to entire background
           if (!scene.viewport) {

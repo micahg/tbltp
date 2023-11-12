@@ -66,23 +66,25 @@ export const ContentMiddleware: Middleware = storeAPI => next => action=> {
         });
     }
     break;
-    case 'content/background':{
-      const scene: Scene = state.content.currentScene;
-      sendFile(state, scene, action.payload, 'background').then((value) => {
-        const ts: number = (new Date()).getTime();
-        const scene: Scene = value.data;
-        scene.playerContent = `${scene.playerContent}?${ts}`
-        return next({type: 'content/scene', payload: scene})
-      }).catch(err => console.error(`Unable to update overlay: ${JSON.stringify(err)}`));
-      break;
-    }
+    // case 'content/player':{
+    //   const scene: Scene = state.content.currentScene;
+    //   sendFile(state, scene, action.payload, 'background').then((value) => {
+    //     // const ts: number = (new Date()).getTime();
+    //     // const scene: Scene = value.data;
+    //     // scene.playerContent = `${scene.playerContent}?${ts}`
+    //     return next({type: 'content/scene', payload: scene})
+    //   }).catch(err => console.error(`Unable to update overlay: ${JSON.stringify(err)}`));
+    //   break;
+    // }
+    case 'content/player':
+    case 'content/detail':
     case 'content/overlay': {
       // undefined means we're wiping the canvas... probably a new background
       if (action.payload === undefined) return next(action);
 
       const scene: Scene = state.content.currentScene;
       // if we have an overlay payload then send it
-      sendFile(state, scene, action.payload, 'overlay')
+      sendFile(state, scene, action.payload, action.type.split('/')[1])
         .then((value) => next({type: 'content/scene', payload: value.data}))
         .catch(err => console.error(`Unable to update overlay: ${JSON.stringify(err)}`));
       break;
@@ -113,9 +115,14 @@ export const ContentMiddleware: Middleware = storeAPI => next => action=> {
         .then(headers => axios.put(url, bundle, {headers: headers}))
         .then(data => {
           next({type: 'content/scene', payload: data.data});
-          return sendFile(state, data.data, bundle.player, 'background'); // TODO rename 'background' to player
+          return sendFile(state, data.data, bundle.player, 'player');
         })
-        .then(data => next({type: 'content/scene', payload: data.data})); // TODO send detailed if it is there
+        .then(data => {
+          if (!bundle.detail) return data; // skip if there is no detailed view
+          next({type: 'content/scene', payload: data.data});
+          return sendFile(state, data.data, bundle.detail, 'detail');
+        })
+        .then(data => next({type: 'content/scene', payload: data.data}));
       break;
     }
     case 'content/deletescene': {
