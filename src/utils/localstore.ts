@@ -67,11 +67,11 @@ export function updateAssetFromLink(scene: IScene, layer: string, req: Request) 
 }
 
 export function updateAssetFromUpload(scene: IScene, layer: string, req: Request): Promise<LayerUpdate> {
-  let ext = getContentTypeExtension(req.file.mimetype);
+  const ext = getContentTypeExtension(req.file.mimetype);
   if (!ext) throw new Error(`Invalid mime type: ${req.file.mimetype}`, {cause: 400});
-  let src = req.file.path;
-  let fileName = `${layer}.${ext}`
-  let dest = `${DEST_FOLDER}/${scene.user}/scene/${scene._id}/${fileName}`
+  const src = req.file.path;
+  const fileName = `${layer}.${ext}`
+  const dest = `${DEST_FOLDER}/${scene.user}/scene/${scene._id}/${fileName}`
   
   return new Promise(resolve => {
 

@@ -64,7 +64,7 @@ describe("scene", () => {
     const userCount0 = await usersCollection.countDocuments();
     expect(userCount0).toBe(1);
     const url = `/scene/${u0DefScene._id}/content`;
-    await request(app).put(url).field('layer', 'background').attach('image', 'test/assets/1x1.png');
+    await request(app).put(url).field('layer', 'player').attach('image', 'test/assets/1x1.png');
     const resp = await request(app)
       .put(`/scene/${u0DefScene._id}/viewport`)
       .send({
@@ -96,7 +96,7 @@ describe("scene", () => {
 
   it("Should should have a playerContentRev of 2 on a second update", async () => {
     const url = `/scene/${u0DefScene._id}/content`;
-    const resp = await request(app).put(url).field('layer', 'background').attach('image', 'test/assets/1x1.png');
+    const resp = await request(app).put(url).field('layer', 'player').attach('image', 'test/assets/1x1.png');
     expect(resp.statusCode).toBe(200);
     expect(resp.body.playerContentRev).toBe(2);
   });

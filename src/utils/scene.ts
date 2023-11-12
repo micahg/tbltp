@@ -10,11 +10,11 @@ function getScenesByUser(user: IUser): Promise<IScene[]> {
   return Scene.find({user: user._id})
 }
 
-export function setSceneTableContent(id: string, path: string) {
+export function setScenePlayerContent(id: string, path: string) {
   return Scene.findOneAndUpdate({_id: id}, {$set: {playerContent: path}, $inc: {playerContentRev: 1}}, {new: true});
 }
 
-export function setSceneUserContent(id: string, path: string) {
+export function setSceneDetailContent(id: string, path: string) {
   return Scene.findOneAndUpdate({_id: id}, {$set: {detailContent: path}, $inc: {detailContentRev: 1}}, {new: true});
 }
 

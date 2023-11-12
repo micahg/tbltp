@@ -61,13 +61,13 @@ describe("scene", () => {
   it("Should create scenes", async () => {
     const sceneOneId = (await request(app).get('/scene')).body[0]._id;
     await request(app).put('/state').send({scene: sceneOneId});
-    await request(app).put(`/scene/${sceneOneId}/content`).field('layer', 'background').attach('image', 'test/assets/1x1.png');
+    await request(app).put(`/scene/${sceneOneId}/content`).field('layer', 'player').attach('image', 'test/assets/1x1.png');
 
     (getFakeUser as jest.Mock).mockReturnValue(userOne);
 
     const sceneTwoId = (await request(app).get('/scene')).body[0]._id;
     await request(app).put('/state').send({scene: sceneTwoId});
-    await request(app).put(`/scene/${sceneTwoId}/content`).field('layer', 'background').attach('image', 'test/assets/1x1.png');
+    await request(app).put(`/scene/${sceneTwoId}/content`).field('layer', 'player').attach('image', 'test/assets/1x1.png');
 
     expect(sceneOneId).not.toBe(sceneTwoId);
   });
@@ -124,7 +124,7 @@ describe("scene", () => {
           expect(msg).toHaveProperty('utf8Data');
           const data = JSON.parse(msg.utf8Data);
           expect(data.method).toBe('connection');
-          expect(data.state.background).toMatch(/public.*\/scene\/.*\/background\.png/)
+          expect(data.state.background).toMatch(/public.*\/scene\/.*\/player\.png/)
         } finally {
           conn.close();
         }

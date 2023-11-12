@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { getUser, getOrCreateUser, userExistsOr401 } from "../utils/user";
-import { createUserScene, deleteUserScene, getOrCreateScenes, getSceneById, setSceneOverlayContent, setSceneTableContent, setSceneUserContent, setSceneViewport } from "../utils/scene";
-import { log } from "../utils/logger";
+import { createUserScene, deleteUserScene, getOrCreateScenes, getSceneById, setSceneOverlayContent, setScenePlayerContent, setSceneDetailContent, setSceneViewport } from "../utils/scene";
 import { OBJECT_ID_LEN, VALID_LAYERS } from "../utils/constants";
 import { IScene } from "../models/scene";
 import { LayerUpdate, updateAssetFromLink, updateAssetFromUpload } from "../utils/localstore";
@@ -90,9 +89,9 @@ export function updateSceneContent(req: Request, res: Response, next: any) {
       throw new Error('No file or link in layer update request.', {cause: 406});
     })
     .then((update: LayerUpdate) => {
-      if      (update.layer === 'background') return setSceneTableContent(update.id, update.path);
-      else if (update.layer === 'overlay')    return setSceneOverlayContent(update.id, update.path);
-      else if (update.layer === 'gamemaster') return setSceneUserContent(update.id, update.path);
+      if      (update.layer === 'player') return setScenePlayerContent(update.id, update.path);
+      else if (update.layer === 'overlay') return setSceneOverlayContent(update.id, update.path);
+      else if (update.layer === 'detail') return setSceneDetailContent(update.id, update.path);
       throw new Error(`Invalid layer ${update.layer}`, {cause: 404});
     })
     .then(scene => res.json(scene))

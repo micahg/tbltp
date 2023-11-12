@@ -9,7 +9,7 @@ export const SCENE_PATH          = '/scene/:id';
 export const SCENE_CONTENT_PATH  = '/scene/:id/content';
 export const SCENE_VIEWPORT_PATH = '/scene/:id/viewport';
 
-export const VALID_LAYERS = ['overlay', 'background', 'gamemaster'];
+export const VALID_LAYERS = ['overlay', 'detail', 'player'];
 
 export const VALID_CONTENT_TYPES = ['image/png', 'image/jpeg'];
 export const   CONTENT_TYPE_EXTS = ['png',       'jpg'];

@@ -108,7 +108,7 @@ describe("scene", () => {
     const url = `/scene/${u0DefScene._id}/content`;
     let resp;
     try {
-      resp = await request(app).put(url).field('layer', 'background').attach('image', 'test/assets/1x1.png');
+      resp = await request(app).put(url).field('layer', 'player').attach('image', 'test/assets/1x1.png');
     } catch (err) {
       fail(`Exception: ${JSON.stringify(err)}`);
     }
@@ -130,7 +130,7 @@ describe("scene", () => {
     const url = `/scene/${u0DefScene._id}/content`;
     let resp;
     try {
-      resp = await request(app).put(url).field('layer', 'gamemaster').attach('image', 'test/assets/1x1.png');
+      resp = await request(app).put(url).field('layer', 'detail').attach('image', 'test/assets/1x1.png');
     } catch (err) {
       fail(`Exception: ${JSON.stringify(err)}`);
     }
