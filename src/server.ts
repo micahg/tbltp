@@ -52,7 +52,7 @@ export const shutDown = (reason: string) => {
 }
 
 // defer listening for requests until we receive an event to check for startup conditions
-// events are emitted when a precondition is satisfied (eg: connecton to the db)
+// events are emitted when a precondition is satisfied (eg: connection to the db)
 // ts-prune-ignore-next used in unit test
 export const serverPromise = new Promise<Server>(resolve => {
   app.on(STARTUP_CHECK_SIG, () => {
@@ -63,7 +63,6 @@ export const serverPromise = new Promise<Server>(resolve => {
     log.info('All startup flags set');
 
     // presumably the dir was created and we don't need to check for it.
-    // let srvr: Server = expressConfig.listen(app);
     srvr = expressConfig.listen(app);
     getOAuthPublicKey().then(pem => {
       log.info('Retrieved OAuth PEM');

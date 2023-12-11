@@ -4,7 +4,7 @@ import { createUserScene, deleteUserScene, getOrCreateScenes, getSceneById, setS
 import { OBJECT_ID_LEN, VALID_LAYERS } from "../utils/constants";
 import { IScene } from "../models/scene";
 import { LayerUpdate, updateAssetFromLink, updateAssetFromUpload } from "../utils/localstore";
-import { validateViewPort } from "../utils/viewport";
+import { validateAngle, validateViewPort } from "../utils/viewport";
 import { Rect } from "../utils/tablestate";
 
 const NAME_REGEX = /^[\w\s]{1,64}$/;
@@ -104,16 +104,24 @@ export function updateSceneViewport(req: Request, res: Response, next: any) {
 
   const vp: Rect = req.body.viewport;
   const bg: Rect = req.body.backgroundSize;
+  const angle: number = req.body.angle;
+
+  if ((angle === undefined || angle === null) && !bg && !vp)
+    throw new Error(`Nothing to do`, {cause: 400});
+
   if (vp && !validateViewPort(vp))
     throw new Error(`Invalid height in set viewport body`, {cause: 400});
 
   if (bg && !validateViewPort(bg))
     throw new Error(`Invalid background rect in set viewport body`, {cause: 400});
 
+  if (angle && !validateAngle(angle))
+    throw new Error(`Invalid angle in set viewport body`, {cause: 400});
+
   return getUser(req.auth)
     .then(user => userExistsOr401(user))
     .then(user => getSceneById(req.params.id, user._id.toString()))
-    .then(scene => setSceneViewport(scene._id.toString(), bg, vp))
+    .then(scene => setSceneViewport(scene._id.toString(), bg, vp, angle))
     .then(scene => res.json(scene))
     .catch(err => next(err));
 }

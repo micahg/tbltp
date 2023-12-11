@@ -166,4 +166,48 @@ describe("scene", () => {
     expect(resp.body.backgroundSize.width).toBe(1);
   });
 
+  it("Should update the angle", async () => {
+    const resp = await request(app)
+      .put(`/scene/${u0DefScene._id}/viewport`)
+      .send({
+        angle: 90,
+      });
+    expect(resp.statusCode).toBe(200);
+    expect(resp.body.angle).toBe(90);
+  });
+
+  it("Should handle an empty payload", async () => {
+    const resp = await request(app)
+      .put(`/scene/${u0DefScene._id}/viewport`)
+      .send({});
+    expect(resp.statusCode).toBe(400);
+  });
+
+  it("Should handle bad viewport", async () => {
+    const resp = await request(app)
+    .put(`/scene/${u0DefScene._id}/viewport`)
+    .send({
+      viewport: 'notAVP',
+    });
+    expect(resp.statusCode).toBe(400);
+  });
+
+  it("Should handle bad background", async () => {
+    const resp = await request(app)
+    .put(`/scene/${u0DefScene._id}/viewport`)
+    .send({
+      backgroundSize: 'notABG',
+    });
+    expect(resp.statusCode).toBe(400);
+  });
+
+  it("Should handle bad angle", async () => {
+    const resp = await request(app)
+    .put(`/scene/${u0DefScene._id}/viewport`)
+    .send({
+      angle: 'noAngle',
+    });
+    expect(resp.statusCode).toBe(400);
+  });
+
 });

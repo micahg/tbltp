@@ -83,3 +83,17 @@ GAME {
 Follow a pathing structure like `/ENVIRONMENT/USER/GAME/SCENE` then quota enforement should be easyier as we can just roll up. S3 offers free storage for a year so maybe see if we can work that out!
 
 Looks like presigned URLs might be what we need...
+
+## Dump DB
+
+To export, call: 
+
+```
+mongodump mongodb://localhost:27017/ntt --gzip --archive ntt.gz
+```
+
+To import after `db.dropDatabase()`, call:
+
+```
+mongorestore mongodb://localhost:27017/ntt --gzip --archive ntt.gz
+```

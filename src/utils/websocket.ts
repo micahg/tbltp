@@ -85,6 +85,7 @@ function verifyConnection(sock: WebSocket, req: IncomingMessage) {
         background: scene.playerContent,
         viewport: scene.viewport,
         backgroundSize: scene.backgroundSize,
+        angle: scene.angle || 0,
       };
       const msg: WSStateMessage = {
         'method': 'connection',
@@ -118,6 +119,7 @@ export function startWSServer(nodeServer: Server, app: Express, pem: string): We
       background: update.playerContent,
       viewport: update.viewport,
       backgroundSize: update.backgroundSize,
+      angle: update.angle || 0, 
     }
     const sock: WebSocket = SOCKET_SESSIONS.get(userID);
     const msg: WSStateMessage = {

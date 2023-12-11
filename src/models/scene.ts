@@ -18,6 +18,7 @@ interface IScene {
   playerContentRev?: number;
   viewport?: Rect;
   backgroundSize?: Rect;
+  angle?: number;
 }
 
 const SceneSchema = new Schema<IScene>({
@@ -29,7 +30,8 @@ const SceneSchema = new Schema<IScene>({
   detailContentRev:  { type: Number,                required: false },
   playerContent:     { type: String,                required: false },
   playerContentRev:  { type: Number,                required: false },
-  viewport:        { type: {
+  angle:             { type: Number,                required: false },
+  viewport:          { type: {
       x: Number,
       y: Number,
       width: Number,
@@ -37,14 +39,14 @@ const SceneSchema = new Schema<IScene>({
     },
     required: false
   },
-  backgroundSize:  { type: {
-    x: Number,
-    y: Number,
-    width: Number,
-    height: Number,
-  },
-  required: false
-}
+  backgroundSize:    { type: {
+      x: Number,
+      y: Number,
+      width: Number,
+      height: Number,
+    },
+    required: false
+  }
 }, {timestamps: true});
 
 const Scene = model<IScene>('Scene', SceneSchema);

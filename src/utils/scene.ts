@@ -56,6 +56,6 @@ export function getOrCreateScenes(user: IUser): Promise<IScene[]> {
   });
 }
 
-export function setSceneViewport(id: string, bg?: Rect, vp?: Rect) {
-  return Scene.findOneAndUpdate({_id: id}, {backgroundSize: bg, viewport: vp}, {new: true});
+export function setSceneViewport(id: string, bg?: Rect, vp?: Rect, angle?: number) {
+  return Scene.findOneAndUpdate({_id: id}, {backgroundSize: bg, viewport: vp, angle: angle}, {new: true});
 }
