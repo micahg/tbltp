@@ -14,6 +14,7 @@ export interface Scene {
   playerContentRev?: number;
   viewport?: Rect;
   backgroundSize?: Rect;
+  angle?: number;
 }
 
 // copied from the api

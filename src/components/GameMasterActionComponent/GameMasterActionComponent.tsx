@@ -5,6 +5,9 @@ export interface GameMasterAction {
   icon: typeof SvgIcon;
   tooltip: string;
   callback: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  // Due to closures these shouldn't be component state that change ever render.
+  // check out inernalState from the existing components... I suck at react so if
+  // there is a more correct way please do let me know
   disabled: () => boolean;
   hidden: () => boolean;
 }

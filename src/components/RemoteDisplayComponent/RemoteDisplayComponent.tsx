@@ -1,8 +1,8 @@
 import { createRef, useCallback, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppReducerState } from '../../reducers/AppReducer';
-import { loadImage, renderImageFullScreen } from '../../utils/drawing';
-import { Rect, fillToAspect, rotate } from '../../utils/geometry';
+import { loadImage, renderViewPort } from '../../utils/drawing';
+import { Rect, getWidthAndHeight, fillRotatedViewport } from '../../utils/geometry';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 
@@ -71,6 +71,8 @@ const RemoteDisplayComponent = () => {
     }
     const tableBGSize: Rect = js.state.backgroundSize;
 
+    const angle = js.state.angle || 0;
+
     const ts: number = new Date().getTime();
     let overlayUri: string | null = null;
     if ('overlay' in js.state && js.state.overlay) {
@@ -87,6 +89,17 @@ const RemoteDisplayComponent = () => {
       return;
     }
 
+    // const screen = getWidthAndHeight();
+    const [width, height] = getWidthAndHeight();
+    content.canvas.width = width;
+    content.canvas.height = height;
+    content.canvas.style.width = `${width}px`;
+    content.canvas.style.height = `${height}px`;
+    overlay.canvas.width = width;
+    overlay.canvas.height = height;
+    overlay.canvas.style.width = `${width}px`;
+    overlay.canvas.style.height = `${height}px`;
+
     /**
      * I hate this so much... if someone ever does contribute to this
      * project and your js game is better than mine, see if you can make this
@@ -100,44 +113,18 @@ const RemoteDisplayComponent = () => {
       // since we can safely assume (for now) that the overlay isn't downscaled due to
       // memory constraints, then we can get our ratios using the intended background size
       // instead of the actual
-      const bgVPnoTaint = fillToAspect(viewport, tableBGSize, tableBGSize.width, tableBGSize.height);
-      const bgVP = fillToAspect(viewport, tableBGSize, bgImg.width, bgImg.height);
+      // const bgVPnoTaint = fillToAspect(viewport, tableBGSize, tableBGSize.width, tableBGSize.height);
+      // const bgVP = fillToAspect(viewport, tableBGSize, bgImg.width, bgImg.height);
+      const oDimensions = [tableBGSize.width, tableBGSize.height]
+      const bgVP = fillRotatedViewport([width, height], [bgImg.width, bgImg.height], oDimensions, angle, viewport);
       if (overlayUri) {
         loadImage(overlayUri).then(ovrImg => {
-          /* REALLY IMPORTANT - base overlay on the BG Viewport as it can shift the
-           * image. If the zoomed selection is so small that we render negative space
-           * (eg beyond the bordres) the viewport shifts to render from the border */
-          
-          // start assuming no rotation (the easy case)
-
-          // TODO detect portrait - ALL OF THIS CODE assumes editor/overlay are landsacpe
-          let [x, y, w, h] = [0, 0, 0, 0]
-          if (bgImg.width < bgImg.height) {
-            [x, y] = rotate(90, bgVPnoTaint.x, bgVPnoTaint.y, tableBGSize.width, tableBGSize.height);
-            let [x2, y2] = rotate(90, bgVPnoTaint.x + bgVPnoTaint.width, bgVPnoTaint.y + bgVPnoTaint.height,
-                                  tableBGSize.width, tableBGSize.height);
-            [x, x2] = [Math.min(x, x2), Math.max(x, x2)];
-            [y, y2] = [Math.min(y, y2), Math.max(y, y2)];
-            w = x2 - x;
-            h = y2 - y;
-            const scale = ovrImg.width/tableBGSize.height;
-            x *= scale;
-            y *= scale;
-            w *= scale;
-            h *= scale;
-          } else {
-            const scale = tableBGSize.width/ovrImg.width;
-            x = bgVPnoTaint.x / scale;
-            y = bgVPnoTaint.y / scale;
-            w = bgVPnoTaint.width / scale;
-            h = bgVPnoTaint.height / scale;
-          }
-          const olVP = {x: x, y: y, width: w, height: h};
-          renderImageFullScreen(ovrImg, overlay, olVP);
-          renderImageFullScreen(bgImg, content, bgVP);
-        }).catch(err => console.error(`Error loading overlay iamge ${overlayUri}: ${JSON.stringify(err)}`));
+          const ovVP = fillRotatedViewport([width, height], [ovrImg.width, ovrImg.height], oDimensions, angle, viewport);
+          renderViewPort(overlay, ovrImg, angle, ovVP);
+          renderViewPort(content, bgImg, angle, bgVP);
+        }).catch(err => console.error(`Error loading overlay image ${overlayUri}: ${JSON.stringify(err)}`));
       } else {
-        renderImageFullScreen(bgImg, content, bgVP);
+        renderViewPort(content, bgImg, angle, bgVP);
       }
     }).catch(err => console.error(`Error loading background image: ${JSON.stringify(err)}`));
   }, []);

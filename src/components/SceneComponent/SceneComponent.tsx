@@ -5,16 +5,19 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Scene } from '../../reducers/ContentReducer';
 import { AppReducerState } from '../../reducers/AppReducer';
 import { NewSceneBundle } from '../../middleware/ContentMiddleware';
+import { GameMasterAction } from '../GameMasterActionComponent/GameMasterActionComponent';
 
 const NAME_REGEX = /^[\w\s]{1,64}$/;
 
 interface SceneComponentProps {
+  populateToolbar?: (actions: GameMasterAction[]) => void;
+  redrawToolbar?: () => void;
   scene?: Scene, // scene to manage should be undefined for new
   editScene?: () => void, // callback to trigger content editor
 }
 
 // TODO use destructuring
-const SceneComponent = ({scene, editScene}: SceneComponentProps) => {
+const SceneComponent = ({populateToolbar, redrawToolbar, scene, editScene}: SceneComponentProps) => {
   const dispatch = useDispatch();
   
   /**
@@ -60,16 +63,13 @@ const SceneComponent = ({scene, editScene}: SceneComponentProps) => {
     input.multiple = false;
     input.onchange = () => {
       if (!input.files) return;
+      const file = input.files[0];
       if (layer === 'detail') {
-        // TODO compare against other resolution
-        const file = input.files[0];
         setDetailFile(file);
         setDetailUrl(URL.createObjectURL(file));
         setDetailUpdated(true);
       }
       else if (layer === 'player') {
-        // TODO comapre against other resolution
-        const file = input.files[0];
         setPlayerFile(file);
         setPlayerUrl(URL.createObjectURL(file));
         setPlayerUpdated(true);
@@ -81,6 +81,9 @@ const SceneComponent = ({scene, editScene}: SceneComponentProps) => {
 
   const updateScene = () => {
     setCreating(true);
+    // if we are changing any images reset the viewport
+    const rect = {x: 0, y: 0, width: playerWH[0], height: playerWH[1]};
+    const vpData = {'backgroundSize': rect, 'viewport': rect};
     if (scene) {
       // TODO clear overlay
       if (playerFile && playerUpdated) {
@@ -91,12 +94,13 @@ const SceneComponent = ({scene, editScene}: SceneComponentProps) => {
         dispatch({type: 'content/detail', payload: detailFile});
         setDetailUpdated(false);
       }
+      dispatch({type: 'content/zoom', payload: vpData});
       if (editScene) editScene();
       return;
     }
     if (!name) return; // TODO ERROR
     if (!playerFile) return; // TODO ERROR
-    const data: NewSceneBundle = { description: name, player: playerFile, detail: detailFile};
+    const data: NewSceneBundle = { description: name, player: playerFile, detail: detailFile, viewport: vpData};
     dispatch({type: 'content/createscene', payload: data});
   }
 
@@ -125,6 +129,16 @@ const SceneComponent = ({scene, editScene}: SceneComponentProps) => {
       .then(value => value.blob())
       .then(blob => new File([blob], url, {type: blob.type}))
   }
+
+  useEffect(() => {
+    if (!populateToolbar) return;
+    const actions: GameMasterAction[] = [];
+    //   { icon: SaveIcon, tooltip: scene ? "Update" : "Create", hidden: () => false, disabled: () => internalState.disabledCreate, callback: updateScene}
+    // ];
+    // if (editScene) actions.push({ icon: EditIcon, tooltip: "Edit", hidden: () => false, disabled: () => false, callback: () => editScene()});
+    populateToolbar(actions);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   /**
    * If the scene comes with image assets already (it should have a player

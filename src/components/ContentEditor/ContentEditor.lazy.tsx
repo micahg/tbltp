@@ -5,6 +5,8 @@ const LazyContentEditor = lazy(() => import('./ContentEditor'));
 
 const ContentEditor = (props: JSX.IntrinsicAttributes & {
   populateToolbar?: (actions: GameMasterAction[]) => void;
+  redrawToolbar?: () => void;
+  manageScene?: () => void;
   children?: React.ReactNode;
 }) => (
   <Suspense fallback={null}>

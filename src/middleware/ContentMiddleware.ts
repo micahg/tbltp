@@ -3,18 +3,26 @@ import axios, { AxiosResponse } from 'axios';
 import { AppReducerState } from '../reducers/AppReducer';
 import { getToken } from '../utils/auth';
 import { Scene } from '../reducers/ContentReducer';
+import { Rect } from '../utils/geometry';
+
+export interface ViewportBundle {
+  backgroundSize?: Rect,
+  viewport?: Rect,
+  angle?:number,
+}
 
 export interface NewSceneBundle {
   description: string,
   player: File,
   detail?: File,
+  viewport?: ViewportBundle,
 }
 
 function isBlob(payload: URL | Blob): payload is File {
   return (payload as Blob).type !== undefined;
 }
 
-  function sendFile(state: AppReducerState, scene: Scene, blob: File | URL, layer: string): Promise<AxiosResponse> {
+function sendFile(state: AppReducerState, scene: Scene, blob: File | URL, layer: string): Promise<AxiosResponse> {
   return new Promise((resolve, reject) => {
     const url = `${state.environment.api}/scene/${scene._id}/content`;
     const formData = new FormData();
@@ -28,6 +36,12 @@ function isBlob(payload: URL | Blob): payload is File {
       .then(value => resolve(value))
       .catch(err => reject(err));
   });
+}
+
+function setViewport(state: AppReducerState, scene: Scene, viewport: ViewportBundle) {
+  const url = `${state.environment.api}/scene/${scene._id}/viewport`;
+  return getToken(state)
+    .then(headers => axios.put(url, viewport, {headers: headers}))
 }
 
 export const ContentMiddleware: Middleware = storeAPI => next => action=> {
@@ -66,16 +80,6 @@ export const ContentMiddleware: Middleware = storeAPI => next => action=> {
         });
     }
     break;
-    // case 'content/player':{
-    //   const scene: Scene = state.content.currentScene;
-    //   sendFile(state, scene, action.payload, 'background').then((value) => {
-    //     // const ts: number = (new Date()).getTime();
-    //     // const scene: Scene = value.data;
-    //     // scene.playerContent = `${scene.playerContent}?${ts}`
-    //     return next({type: 'content/scene', payload: scene})
-    //   }).catch(err => console.error(`Unable to update overlay: ${JSON.stringify(err)}`));
-    //   break;
-    // }
     case 'content/player':
     case 'content/detail':
     case 'content/overlay': {
@@ -93,9 +97,7 @@ export const ContentMiddleware: Middleware = storeAPI => next => action=> {
       if (action.payload === undefined) return;
       const scene = state.content.currentScene;
       if (!scene) return next(action);
-      const url = `${state.environment.api}/scene/${scene._id}/viewport`;
-      getToken(state)
-        .then(headers => axios.put(url, action.payload, {headers: headers}))
+      setViewport(state, scene, action.payload)
         .then(value => next({type: 'content/scene', payload: value.data}))
         .catch(err => console.error(`Unable to update viewport: ${JSON.stringify(err)}`));
       break;
@@ -122,6 +124,7 @@ export const ContentMiddleware: Middleware = storeAPI => next => action=> {
           next({type: 'content/scene', payload: data.data});
           return sendFile(state, data.data, bundle.detail, 'detail');
         })
+        .then(data => bundle.viewport ? setViewport(state, data.data, bundle.viewport) : data)
         .then(data => next({type: 'content/scene', payload: data.data}));
       break;
     }

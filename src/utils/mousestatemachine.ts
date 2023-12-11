@@ -22,6 +22,7 @@ export class MouseStateMachine implements StateMachine {
         'zoomOut': 'zoomOut',
         'clear': 'clear',
         'opacity': 'opacity_select',
+        'rotateClock': 'rotate_clock',
       },
       'push': {
         'done': 'wait',
@@ -90,6 +91,9 @@ export class MouseStateMachine implements StateMachine {
         'down': 'record_mouse',
         'change': 'update_render_opacity',
         'wait': 'wait',
+      },
+      'rotate_clock': {
+        'done': 'wait',
       },
     };
     setCallback(this, 'record_mouse', this.doRecord);
