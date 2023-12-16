@@ -10,7 +10,7 @@ export function validateViewPort(viewport: Rect): boolean {
 }
 
 export function validateAngle(angle: unknown): boolean {
-  if (typeof angle !== 'number') return false;
+  if (typeof angle !== "number") return false;
   if (angle < 0 || angle >= 360) return false;
   return true;
 }

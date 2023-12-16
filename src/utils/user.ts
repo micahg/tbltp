@@ -3,19 +3,19 @@ import { IUser, User } from "../models/user";
 import { AuthResult } from "express-oauth2-jwt-bearer";
 
 export function userExistsOr401(user: IUser) {
-  if (!user) throw new Error('No user', {cause: 401});
+  if (!user) throw new Error("No user", { cause: 401 });
   return user;
 }
 
 export async function getUserByID(user: string): Promise<IUser> {
-  return User.findOne({sub: user});
+  return User.findOne({ sub: user });
 }
 export async function getUser(auth: AuthResult): Promise<IUser> {
   return getUserByID(auth.payload.sub);
 }
 
 async function createUser(auth: AuthResult) {
-  return User.create({sub: auth.payload.sub});
+  return User.create({ sub: auth.payload.sub });
   // req.auth = {
   //   payload: {
   //     iss: "https://nttdev.us.auth0.com/",
@@ -39,8 +39,8 @@ async function createUser(auth: AuthResult) {
 }
 
 export function getOrCreateUser(auth: AuthResult): Promise<IUser> {
-  return getUser(auth).then(user => {
+  return getUser(auth).then((user) => {
     if (user) return user;
-    return createUser(auth)
+    return createUser(auth);
   });
 }

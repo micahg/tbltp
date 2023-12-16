@@ -1,13 +1,12 @@
 export interface Rect {
-  x: number,
-  y: number,
-  width: number,
-  height: number,
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 /**
- * Table state. In the future this should be in mongo if we need persistance
- * across runs or whatever.
+ * Table state.
  */
 export interface TableState {
   overlay?: string;
