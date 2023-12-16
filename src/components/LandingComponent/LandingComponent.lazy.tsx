@@ -1,8 +1,10 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense } from "react";
 
-const LazyLandingComponent = lazy(() => import('./LandingComponent'));
+const LazyLandingComponent = lazy(() => import("./LandingComponent"));
 
-const LandingComponent = (props: JSX.IntrinsicAttributes & { children?: React.ReactNode; }) => (
+const LandingComponent = (
+  props: JSX.IntrinsicAttributes & { children?: React.ReactNode },
+) => (
   <Suspense fallback={null}>
     <LazyLandingComponent {...props} />
   </Suspense>

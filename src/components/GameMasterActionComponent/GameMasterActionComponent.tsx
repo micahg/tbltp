@@ -1,5 +1,5 @@
-import { createElement } from 'react';
-import { Box, IconButton, SvgIcon, Tooltip } from '@mui/material';
+import { createElement } from "react";
+import { Box, IconButton, SvgIcon, Tooltip } from "@mui/material";
 
 export interface GameMasterAction {
   icon: typeof SvgIcon;
@@ -16,24 +16,30 @@ interface GameMasterActionComponentProps {
   actions?: GameMasterAction[];
 }
 
-const GameMasterActionComponent = ({actions}: GameMasterActionComponentProps) => {
+const GameMasterActionComponent = ({
+  actions,
+}: GameMasterActionComponentProps) => {
   return (
-    <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'row-reverse' }}>
-      {
-        actions?.map((action, idx) => {
-          return (
-            !action.hidden() && <Tooltip key={idx} title={action.tooltip}>
-              <span>{/* avoid tooltip complaining about disabled */}
-                <IconButton onClick={action.callback} disabled={action.disabled()}>
+    <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "row-reverse" }}>
+      {actions?.map((action, idx) => {
+        return (
+          !action.hidden() && (
+            <Tooltip key={idx} title={action.tooltip}>
+              <span>
+                {/* avoid tooltip complaining about disabled */}
+                <IconButton
+                  onClick={action.callback}
+                  disabled={action.disabled()}
+                >
                   {createElement(action.icon)}
                 </IconButton>
               </span>
             </Tooltip>
           )
-        })
-      }
+        );
+      })}
     </Box>
-  )
+  );
 };
 
 export default GameMasterActionComponent;

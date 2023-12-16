@@ -1,20 +1,41 @@
-import { useEffect, useState } from 'react';
-import { AppBar, AppBarProps, Box, Collapse, CssBaseline, Divider, Drawer, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ListSubheader, Toolbar, Typography, styled, useTheme } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import PhotoIcon from '@mui/icons-material/Photo';
-import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
-import LogoutIcon from '@mui/icons-material/Logout';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
-import ContentEditor from '../ContentEditor/ContentEditor.lazy';
-import GameMasterActionComponent, { GameMasterAction } from '../GameMasterActionComponent/GameMasterActionComponent';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppReducerState } from '../../reducers/AppReducer';
-import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import SceneComponent from '../SceneComponent/SceneComponent.lazy';
-import { Scene } from '../../reducers/ContentReducer';
+import { useEffect, useState } from "react";
+import {
+  AppBar,
+  AppBarProps,
+  Box,
+  Collapse,
+  CssBaseline,
+  Divider,
+  Drawer,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  ListSubheader,
+  Toolbar,
+  Typography,
+  styled,
+  useTheme,
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import PhotoIcon from "@mui/icons-material/Photo";
+import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
+import LogoutIcon from "@mui/icons-material/Logout";
+import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
+import ContentEditor from "../ContentEditor/ContentEditor.lazy";
+import GameMasterActionComponent, {
+  GameMasterAction,
+} from "../GameMasterActionComponent/GameMasterActionComponent";
+import { useDispatch, useSelector } from "react-redux";
+import { AppReducerState } from "../../reducers/AppReducer";
+import { ExpandLess, ExpandMore } from "@mui/icons-material";
+import SceneComponent from "../SceneComponent/SceneComponent.lazy";
+import { Scene } from "../../reducers/ContentReducer";
 
 const drawerWidth = 240;
 
@@ -23,18 +44,18 @@ enum FocusedComponent {
   Scene,
 }
 
-const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
+const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
   open?: boolean;
 }>(({ theme, open }) => ({
   flexGrow: 1,
   padding: theme.spacing(3),
-  transition: theme.transitions.create('margin', {
+  transition: theme.transitions.create("margin", {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
   }),
   marginLeft: `-${drawerWidth}px`,
   ...(open && {
-    transition: theme.transitions.create('margin', {
+    transition: theme.transitions.create("margin", {
       easing: theme.transitions.easing.easeOut,
       duration: theme.transitions.duration.enteringScreen,
     }),
@@ -47,29 +68,29 @@ interface GameMasterAppBarProps extends AppBarProps {
 }
 
 const GameMasterAppBar = styled(AppBar, {
-  shouldForwardProp: (prop) => prop !== 'open',
+  shouldForwardProp: (prop) => prop !== "open",
 })<GameMasterAppBarProps>(({ theme, open }) => ({
-  transition: theme.transitions.create(['margin', 'width'], {
+  transition: theme.transitions.create(["margin", "width"], {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
   }),
   ...(open && {
     width: `calc(100% - ${drawerWidth}px)`,
     marginLeft: `${drawerWidth}px`,
-    transition: theme.transitions.create(['margin', 'width'], {
+    transition: theme.transitions.create(["margin", "width"], {
       easing: theme.transitions.easing.easeOut,
       duration: theme.transitions.duration.enteringScreen,
     }),
   }),
 }));
 
-const DrawerHeader = styled('div')(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
+const DrawerHeader = styled("div")(({ theme }) => ({
+  display: "flex",
+  alignItems: "center",
   padding: theme.spacing(0, 1),
   // necessary for content to be below app bar
   ...theme.mixins.toolbar,
-  justifyContent: 'flex-end',
+  justifyContent: "flex-end",
 }));
 
 const GameMasterComponent = () => {
@@ -79,12 +100,20 @@ const GameMasterComponent = () => {
   const [scenesOpen, setScenesOpen] = useState<boolean>(false);
   const [actions, setActions] = useState<GameMasterAction[]>([]);
   const [doot, setDoot] = useState<number>(0);
-  const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(FocusedComponent.ContentEditor)
+  const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
+    FocusedComponent.ContentEditor,
+  );
   const auth = useSelector((state: AppReducerState) => state.environment.auth);
-  const noauth = useSelector((state: AppReducerState) => state.environment.noauth);
-  const authClient = useSelector((state: AppReducerState) => state.environment.authClient);
+  const noauth = useSelector(
+    (state: AppReducerState) => state.environment.noauth,
+  );
+  const authClient = useSelector(
+    (state: AppReducerState) => state.environment.authClient,
+  );
   const scenes = useSelector((state: AppReducerState) => state.content.scenes);
-  const currentScene = useSelector((state: AppReducerState) => state.content.currentScene);
+  const currentScene = useSelector(
+    (state: AppReducerState) => state.content.currentScene,
+  );
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -95,26 +124,27 @@ const GameMasterComponent = () => {
   };
 
   const handleCreateScene = (/*event: React.MouseEvent<HTMLElement>*/) => {
-    dispatch({type: 'content/currentscene'});
+    dispatch({ type: "content/currentscene" });
     setFocusedComponent(FocusedComponent.Scene);
-  }
+  };
 
   const handleEditScene = (scene?: Scene) => {
-    if (scene) dispatch({type: 'content/currentscene', payload: scene});
+    if (scene) dispatch({ type: "content/currentscene", payload: scene });
     setFocusedComponent(FocusedComponent.ContentEditor);
-  }
+  };
 
   const handleManageScene = () => {
     setFocusedComponent(FocusedComponent.Scene);
-  }
+  };
 
   const handleDeleteScene = (scene: Scene) => {
-    dispatch({type: 'content/deletescene', payload: scene});
-  }
+    dispatch({ type: "content/deletescene", payload: scene });
+  };
 
-  const handleLogout = () => dispatch({type: 'environment/logout'});
+  const handleLogout = () => dispatch({ type: "environment/logout" });
 
-  const handlePopulateToolbar = (newActions: GameMasterAction[]) => setActions(newActions);
+  const handlePopulateToolbar = (newActions: GameMasterAction[]) =>
+    setActions(newActions);
 
   const handleRedrawToolbar = () => setDoot(doot + 1);
 
@@ -124,16 +154,16 @@ const GameMasterComponent = () => {
     if (!dispatch) return;
     if (!noauth && !authClient) return;
     if (noauth || auth) {
-      dispatch({type: 'content/scenes'});
+      dispatch({ type: "content/scenes" });
       return;
     }
     // if (noauth) return;
     // if (auth) return;
-    dispatch({type: 'environment/authenticate'});
-  }, [dispatch, noauth, auth, authClient])
+    dispatch({ type: "environment/authenticate" });
+  }, [dispatch, noauth, auth, authClient]);
 
   return (
-    <Box sx={{ display: 'flex', width: '100vw', height: '100vh'}}>
+    <Box sx={{ display: "flex", width: "100vw", height: "100vh" }}>
       <CssBaseline />
       <GameMasterAppBar position="fixed" open={open}>
         <Toolbar>
@@ -142,23 +172,23 @@ const GameMasterComponent = () => {
             aria-label="open drawer"
             onClick={handleDrawerOpen}
             edge="start"
-            sx={{ mr: 2, ...(open && { display: 'none' }) }}
+            sx={{ mr: 2, ...(open && { display: "none" }) }}
           >
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div">
             Network Table Top
           </Typography>
-          <GameMasterActionComponent actions={actions}/>
+          <GameMasterActionComponent actions={actions} />
         </Toolbar>
       </GameMasterAppBar>
       <Drawer
         sx={{
           width: drawerWidth,
           flexShrink: 0,
-          '& .MuiDrawer-paper': {
+          "& .MuiDrawer-paper": {
             width: drawerWidth,
-            boxSizing: 'border-box',
+            boxSizing: "border-box",
           },
         }}
         variant="persistent"
@@ -167,45 +197,55 @@ const GameMasterComponent = () => {
       >
         <DrawerHeader>
           <IconButton onClick={handleDrawerClose}>
-            {theme.direction === 'ltr' ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+            {theme.direction === "ltr" ? (
+              <ChevronLeftIcon />
+            ) : (
+              <ChevronRightIcon />
+            )}
           </IconButton>
         </DrawerHeader>
         <Divider />
         <List>
-        <ListItem key="Campaigns" disablePadding>
+          <ListItem key="Campaigns" disablePadding>
             <ListItemButton>
               <ListItemIcon>
-                <PhotoLibraryIcon/>
+                <PhotoLibraryIcon />
               </ListItemIcon>
-              <ListItemText primary="Campaigns"/>
+              <ListItemText primary="Campaigns" />
             </ListItemButton>
           </ListItem>
           <ListItem key="Scenes" disablePadding onClick={scenesClick}>
             <ListItemButton>
               <ListItemIcon>
-                <PhotoIcon/>
+                <PhotoIcon />
               </ListItemIcon>
-              <ListItemText primary="Scenes"/>
-              {scenesOpen ? <ExpandLess/> : <ExpandMore />}
+              <ListItemText primary="Scenes" />
+              {scenesOpen ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
           </ListItem>
           <Collapse in={scenesOpen} timeout="auto" unmountOnExit>
             <ListSubheader>
               <ListItemButton onClick={() => handleCreateScene()}>
                 <ListItemIcon>
-                  <AddIcon/>
+                  <AddIcon />
                 </ListItemIcon>
-                <ListItemText primary="Create Scene"/>
+                <ListItemText primary="Create Scene" />
               </ListItemButton>
             </ListSubheader>
-            {scenes.map(scene => (
-              <ListItem key={scene._id} secondaryAction={
-                <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteScene(scene)}>
-                  <DeleteIcon />
-                </IconButton>
-              }>
-                <ListItemButton
-                  onClick={() => handleEditScene(scene)}>
+            {scenes.map((scene) => (
+              <ListItem
+                key={scene._id}
+                secondaryAction={
+                  <IconButton
+                    edge="end"
+                    aria-label="delete"
+                    onClick={() => handleDeleteScene(scene)}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                }
+              >
+                <ListItemButton onClick={() => handleEditScene(scene)}>
                   <ListItemText primary={scene.description} />
                 </ListItemButton>
               </ListItem>
@@ -214,26 +254,30 @@ const GameMasterComponent = () => {
           <ListItem key="Log Out" disablePadding onClick={handleLogout}>
             <ListItemButton>
               <ListItemIcon>
-                <LogoutIcon/>
+                <LogoutIcon />
               </ListItemIcon>
-              <ListItemText primary="Log Out"/>
+              <ListItemText primary="Log Out" />
             </ListItemButton>
           </ListItem>
         </List>
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        {focusedComponent === FocusedComponent.ContentEditor && <ContentEditor
-          populateToolbar={handlePopulateToolbar}
-          redrawToolbar={handleRedrawToolbar}
-          manageScene={handleManageScene}
-        />}
-        {focusedComponent === FocusedComponent.Scene && <SceneComponent
-          populateToolbar={handlePopulateToolbar}
-          redrawToolbar={handleRedrawToolbar}
-          scene={currentScene}
-          editScene={handleEditScene}
-        />}
+        {focusedComponent === FocusedComponent.ContentEditor && (
+          <ContentEditor
+            populateToolbar={handlePopulateToolbar}
+            redrawToolbar={handleRedrawToolbar}
+            manageScene={handleManageScene}
+          />
+        )}
+        {focusedComponent === FocusedComponent.Scene && (
+          <SceneComponent
+            populateToolbar={handlePopulateToolbar}
+            redrawToolbar={handleRedrawToolbar}
+            scene={currentScene}
+            editScene={handleEditScene}
+          />
+        )}
       </Main>
     </Box>
   );

@@ -1,8 +1,15 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense } from "react";
 
-const LazyGameMasterActionComponent = lazy(() => import('./GameMasterActionComponent'));
+const LazyGameMasterActionComponent = lazy(
+  () => import("./GameMasterActionComponent"),
+);
 
-const GameMasterActionComponent = (props: JSX.IntrinsicAttributes & { redraw: number; children?: React.ReactNode; }) => (
+const GameMasterActionComponent = (
+  props: JSX.IntrinsicAttributes & {
+    redraw: number;
+    children?: React.ReactNode;
+  },
+) => (
   <Suspense fallback={null}>
     <LazyGameMasterActionComponent {...props} />
   </Suspense>

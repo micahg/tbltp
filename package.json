@@ -1,6 +1,6 @@
 {
   "name": "@micahg/ntt",
-  "version": "0.0.37",
+  "version": "0.0.38",
   "files": [
     "build"
   ],
@@ -28,7 +28,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "lint": "eslint src"
   },
   "eslintConfig": {
     "extends": [
@@ -66,6 +67,8 @@
     "@typescript-eslint/parser": "^5.62.0",
     "babel-jest": "^29.6.2",
     "eslint": "^8.52.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.0.1",
     "react-devtools": "^4.28.5"
   }
 }
