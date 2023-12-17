@@ -313,7 +313,7 @@ const ContentEditor = ({
 
     const v = scene.viewport;
     const bg = scene.backgroundSize;
-    // need to ignore rotat`ion
+    // need to ignore rotation
     const zoomedOut =
       v.x === bg.x &&
       v.y === bg.y &&
@@ -402,8 +402,8 @@ const ContentEditor = ({
       setShowOpacitySlider(true);
     });
     setCallback(sm, "update_display_opacity", (args) => {
-      if (typeof args[0] !== "string") return;
-      const opacity: string = args[0];
+      if (typeof args[0] !== "number") return;
+      const opacity = String(args[0]);
       if (overlayCanvasRef.current) {
         overlayCanvasRef.current.style.opacity = opacity;
       }
