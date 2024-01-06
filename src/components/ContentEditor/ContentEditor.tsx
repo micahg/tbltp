@@ -63,13 +63,14 @@ const ContentEditor = ({
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
   const [showOpacitySlider, setShowOpacitySlider] = useState<boolean>(false);
-  const [canvasSize, setCanvasSize] = useState<number[] | null>(null);
+  const [viewportSize, setViewportSize] = useState<number[] | null>(null);
   const [imageSize, setImageSize] = useState<number[] | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [bgRev, setBgRev] = useState<number>(0);
   const [ovRev, setOvRev] = useState<number>(0);
   const [sceneId, setSceneId] = useState<string>(); // used to track flipping between scenes
   const [worker, setWorker] = useState<Worker>();
+  const [canvasListening, setCanvasListening] = useState<boolean>(false);
   const [canvassesTransferred, setCanvassesTransferred] =
     useState<boolean>(false); // avoid transfer errors
 
@@ -108,15 +109,6 @@ const ContentEditor = ({
   const sceneManager = useCallback(() => {
     if (manageScene) manageScene();
   }, [manageScene]);
-
-  const rotateClockwise = useCallback(() => {
-    if (!worker) return;
-    if (!scene) return;
-    const angle = ((scene.angle || 0) + 90) % 360;
-    worker.postMessage({ cmd: "rotate", angle: angle });
-    // angle is part of the viewport call
-    dispatch({ type: "content/zoom", payload: { angle: angle } });
-  }, [dispatch, worker, scene]);
 
   const gmSelectColor = () => {
     if (!internalState.color.current) return;
@@ -159,9 +151,16 @@ const ContentEditor = ({
   };
 
   const selectOverlay = useCallback(
-    (x1: number, y1: number, x2: number, y2: number) => {
+    (buttons: number, x1: number, y1: number, x2: number, y2: number) => {
       if (!worker) return;
-      worker.postMessage({ cmd: "record", x1: x1, y1: y1, x2: x2, y2: y2 });
+      worker.postMessage({
+        cmd: "record",
+        buttons: buttons,
+        x1: x1,
+        y1: y1,
+        x2: x2,
+        y2: y2,
+      });
     },
     [worker],
   );
@@ -182,10 +181,8 @@ const ContentEditor = ({
         } else console.error("Error: no blob in worker message");
       } else if (evt.data.cmd === "viewport") {
         if ("viewport" in evt.data) {
-          dispatch({
-            type: "content/zoom",
-            payload: { viewport: evt.data.viewport },
-          });
+          const vp = evt.data.viewport;
+          dispatch({ type: "content/zoom", payload: { viewport: vp } });
         } else console.error("No viewport in worker message");
       } else if (evt.data.cmd === "initialized") {
         if (!("width" in evt.data) || typeof evt.data.width !== "number") {
@@ -210,8 +207,11 @@ const ContentEditor = ({
           console.error("Invalid fullHeight in worker initialized message");
           return;
         }
-        setCanvasSize([evt.data.width, evt.data.height]);
+        setViewportSize([evt.data.width, evt.data.height]);
         setImageSize([evt.data.fullWidth, evt.data.fullHeight]);
+      } else if (evt.data.cmd === "pan_complete") {
+        // after panning is done, we can go back to waiting state
+        sm.transition("wait");
       }
     },
     [dispatch, ovRev],
@@ -308,7 +308,7 @@ const ContentEditor = ({
   useEffect(() => {
     if (!scene || !scene.viewport || !scene.backgroundSize) return;
     // if (!viewport) return;
-    if (!canvasSize) return;
+    if (!viewportSize) return;
     if (!redrawToolbar) return;
 
     const v = scene.viewport;
@@ -323,13 +323,17 @@ const ContentEditor = ({
     internalState.zoom = !zoomedOut;
     redrawToolbar();
     sm.transition("wait");
-  }, [scene, canvasSize, internalState, redrawToolbar]);
+  }, [scene, viewportSize, internalState, redrawToolbar]);
 
   useEffect(() => {
+    /**
+     * For now, we do want to run this every render, because we need
+     * updated state for some of the callbacks (eg: rotation).
+     */
     if (!overlayCanvasRef.current) return;
-    if (!canvasSize || !canvasSize.length) return;
+    if (!viewportSize || !viewportSize.length) return;
     if (!imageSize || !imageSize.length) return;
-    if (!worker) return;
+    if (!scene || !worker) return;
 
     setCallback(sm, "wait", () => {
       sm.resetCoordinates();
@@ -411,7 +415,7 @@ const ContentEditor = ({
     setCallback(sm, "update_render_opacity", (args) =>
       worker.postMessage({ cmd: "opacity", opacity: args[0] }),
     );
-
+    sm.setStartCallback(() => worker.postMessage({ cmd: "start_recording" }));
     sm.setMoveCallback(selectOverlay);
     setCallback(sm, "push", () => dispatch({ type: "content/push" }));
     setCallback(sm, "clear", () => {
@@ -419,30 +423,55 @@ const ContentEditor = ({
       sm.transition("done");
     });
     setCallback(sm, "rotate_clock", () => {
-      rotateClockwise();
+      const angle = ((scene.angle || 0) + 90) % 360;
+      worker.postMessage({ cmd: "rotate", angle: angle });
+      dispatch({ type: "content/zoom", payload: { angle: angle } });
       sm.transition("done");
     });
-
-    overlayCanvasRef.current.addEventListener("mousedown", (evt: MouseEvent) =>
-      sm.transition("down", evt),
-    );
-    overlayCanvasRef.current.addEventListener("mouseup", (evt: MouseEvent) =>
-      sm.transition("up", evt),
-    );
-    overlayCanvasRef.current.addEventListener("mousemove", (evt: MouseEvent) =>
-      sm.transition("move", evt),
-    );
   }, [
-    canvasSize,
+    viewportSize,
     dispatch,
     imageSize,
-    overlayCanvasRef,
-    rotateClockwise,
     sceneManager,
     selectOverlay,
     updateObscure,
+    scene,
+    overlayCanvasRef,
     worker,
   ]);
+
+  useEffect(() => {
+    /**
+     * We avoid adding listeners on every rerender, otherwise, you start
+     * stacking up events.
+     */
+    const canvas = overlayCanvasRef.current;
+    if (!worker || !canvas || canvasListening) return;
+    // prevent right click context menu on canvas
+    canvas.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    canvas.addEventListener("mousedown", (e) => sm.transition("down", e));
+    canvas.addEventListener("mouseup", (e) => sm.transition("up", e));
+    canvas.addEventListener("mousemove", (e) => sm.transition("move", e));
+    canvas.addEventListener("wheel", (e: WheelEvent) => {
+      if (e.deltaY > 0) {
+        worker.postMessage({ cmd: "zoom_in", x: e.offsetX, y: e.offsetY });
+      } else if (e.deltaY < 0) {
+        worker.postMessage({ cmd: "zoom_out", x: e.offsetX, y: e.offsetY });
+      }
+    });
+
+    // watch for canvas size changes and report to worker
+    const observer = new ResizeObserver((e) => {
+      const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
+      if (w === 0 && h === 0) return; // when the component is hidden or destroyed
+      worker.postMessage({ cmd: "resize", width: w, height: h });
+    });
+    observer.observe(canvas);
+    setCanvasListening(true);
+  }, [canvasListening, overlayCanvasRef, worker]);
 
   /**
    * This is the main rendering loop. Its a bit odd looking but we're working really hard to avoid repainting
@@ -498,7 +527,7 @@ const ContentEditor = ({
       const angle = scene.angle || 0;
       const [scrW, scrH] = getWidthAndHeight();
 
-      // hencefourth canvas is transferred -- this doesn't take effect until the next render
+      // henceforth canvas is transferred -- this doesn't take effect until the next render
       // so the on this pass it is false when passed to setCanvassesTransferred even if set
       setCanvassesTransferred(true);
       const wrkr = setupOffscreenCanvas(
@@ -545,13 +574,12 @@ const ContentEditor = ({
   }, [apiUrl, dispatch, toolbarPopulated, auth, noauth]);
 
   return (
-    <div
-      className={styles.ContentEditor}
-      data-testid="ContentEditor"
-      onFocus={() => {
-        if (sm.current === "background_upload") {
-          sm.transition("done");
-        }
+    <Box
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
       }}
     >
       {/* TODO make content a DIV, per https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas#use_plain_css_for_large_background_images */}
@@ -599,7 +627,7 @@ const ContentEditor = ({
           />
         </Box>
       </Popover>
-    </div>
+    </Box>
   );
 };
 

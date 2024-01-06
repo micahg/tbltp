@@ -68,9 +68,9 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const scene: Scene = action.payload as unknown as Scene;
       const idx = state.scenes.findIndex((s) => s._id === scene._id);
       if (idx < 0) return { ...state, scenes: [...state.scenes, scene] };
-      state.scenes.splice(idx, 1, scene); // remember this changes inline, hence absense from return
+      state.scenes.splice(idx, 1, scene); // remember this changes inline, hence absence of return
       // historically there was some notion that we don't want to rerender if
-      // we are just swappign in new contents. But we an image or viewport of
+      // we are just swapping in new contents. But if an image, angle or viewport of
       // the current scene is updated we do need to rerender.
       if (scene._id !== state.currentScene?._id)
         return { ...state, scenes: state.scenes };

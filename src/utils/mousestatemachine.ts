@@ -8,13 +8,20 @@ export class MouseStateMachine implements StateMachine {
   current: string;
   states: Record<string, Record<string, string>>;
   actions: Record<string, (args: unknown[]) => void>;
+  buttons = 0;
   startX = -1;
   startY = -1;
   endX = 0;
   endY = 0;
   startCallback: (() => void) | null = null;
   moveCallback:
-    | ((x1: number, y1: number, x2: number, y2: number) => void)
+    | ((
+        buttons: number,
+        x1: number,
+        y1: number,
+        x2: number,
+        y2: number,
+      ) => void)
     | null = null;
 
   constructor() {
@@ -127,12 +134,15 @@ export class MouseStateMachine implements StateMachine {
       typeof evt !== "object" ||
       !("offsetX" in evt) ||
       !("offsetY" in evt) ||
+      !("buttons" in evt) ||
+      typeof evt.buttons !== "number" ||
       typeof evt.offsetX !== "number" ||
       typeof evt.offsetY !== "number"
     ) {
       return;
     }
     if (this.startX < 0) {
+      this.buttons = evt.buttons;
       this.startX = evt.offsetX;
       this.startY = evt.offsetY;
       if (this.startCallback) this.startCallback();
@@ -140,7 +150,13 @@ export class MouseStateMachine implements StateMachine {
       this.endY = evt.offsetY;
       this.endX = evt.offsetX;
       if (this.moveCallback)
-        this.moveCallback(this.startX, this.startY, this.endX, this.endY);
+        this.moveCallback(
+          this.buttons,
+          this.startX,
+          this.startY,
+          this.endX,
+          this.endY,
+        );
     }
   }
 
@@ -166,7 +182,13 @@ export class MouseStateMachine implements StateMachine {
   }
 
   public setMoveCallback(
-    cb: (x1: number, y1: number, x2: number, y2: number) => void,
+    cb: (
+      buttons: number,
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+    ) => void,
   ) {
     this.moveCallback = cb;
   }

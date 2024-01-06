@@ -38,6 +38,7 @@ import SceneComponent from "../SceneComponent/SceneComponent.lazy";
 import { Scene } from "../../reducers/ContentReducer";
 
 const drawerWidth = 240;
+const appBarHeight = 64;
 
 enum FocusedComponent {
   ContentEditor,
@@ -48,7 +49,7 @@ const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
   open?: boolean;
 }>(({ theme, open }) => ({
   flexGrow: 1,
-  padding: theme.spacing(3),
+  padding: theme.spacing(1),
   transition: theme.transitions.create("margin", {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
@@ -61,6 +62,7 @@ const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
     }),
     marginLeft: 0,
   }),
+  marginTop: `${appBarHeight}px`,
 }));
 
 interface GameMasterAppBarProps extends AppBarProps {
@@ -262,7 +264,6 @@ const GameMasterComponent = () => {
         </List>
       </Drawer>
       <Main open={open}>
-        <DrawerHeader />
         {focusedComponent === FocusedComponent.ContentEditor && (
           <ContentEditor
             populateToolbar={handlePopulateToolbar}
