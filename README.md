@@ -5,7 +5,7 @@ Present tabletop assets on a remote screen.
 ## Mission
 
 1. Eliminate paper maps
-1. Run on any screen with a browser
+1. Run on any screen
 1. Stay simple
 1. Stay open source
 1. Stay cheap

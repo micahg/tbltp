@@ -154,7 +154,10 @@ function loadAllImages(background: string, overlay?: string) {
     // keep a copy of these to prevent having to recreate them from the image buffer
     backgroundImage = bgImg;
     if (ovImg) overlayImage = ovImg;
-    else storeOverlay(false);
+    else {
+      clearCanvas();
+      storeOverlay(false);
+    }
     return [bgImg, ovImg];
   });
 }
@@ -270,7 +273,7 @@ function restoreOverlay() {
   fullCtx.putImageData(fullBuff, 0, 0);
 }
 
-function fullRerender() {
+function fullRerender(zoomOut = false) {
   /**
    * Full render is called when the image, angle or zoom changes - hence the
    * recalculation of rotated width and height, zoom, and viewports
@@ -283,8 +286,10 @@ function fullRerender() {
   _max_zoom = Math.max(_fullRotW / _canvas.width, _fullRotH / _canvas.height);
   _first_zoom_step = firstZoomStep(_max_zoom, _zoom_step);
   // this might get weird for rotation -- maybe it belongs in calculateCanvasses...
-  if (_zoom === undefined || _zoom > _max_zoom) {
+  if (_zoom === undefined || _zoom > _max_zoom || zoomOut) {
     _zoom = _max_zoom;
+    _img.x = 0;
+    _img.y = 0;
   }
   calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
   renderAllCanvasses(backgroundImage, overlayImage);
@@ -396,7 +401,7 @@ self.onmessage = (evt) => {
           if (bgImg) {
             calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
             trimPanning();
-            fullRerender();
+            fullRerender(true);
           }
         })
         .then(() => {
