@@ -24,16 +24,23 @@ interface TableTop {
   scene?: string;
 }
 
+export type ContentReducerError = {
+  msg: string;
+  success: boolean;
+};
+
 export type ContentReducerState = {
   readonly pushTime: number | undefined;
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
+  readonly err?: ContentReducerError;
 };
 
 const initialState: ContentReducerState = {
   pushTime: undefined,
   currentScene: undefined,
   scenes: [],
+  err: undefined,
 };
 
 export const ContentReducer = (state = initialState, action: PayloadAction) => {
@@ -79,11 +86,17 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     case "content/deletescene": {
       const scene: Scene = action.payload as unknown as Scene;
       const scenes = state.scenes.filter((s) => s._id !== scene._id);
-      return { ...state, scenes: scenes, currentScene: scene };
+      return { ...state, scenes: scenes };
     }
     case "content/currentscene": {
       const scene: Scene = action.payload as unknown as Scene;
       return { ...state, currentScene: scene };
+    }
+    case "content/error": {
+      // important to let undefined through. This will clear the error
+      // and allow components to get it off screen when their state updates
+      const err = action.payload as unknown as ContentReducerError;
+      return { ...state, err: err };
     }
     default:
       return state;

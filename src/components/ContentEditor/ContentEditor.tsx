@@ -570,8 +570,12 @@ const ContentEditor = ({
 
     // otherwise wait until we have populated the toolbar before we get our state
     if (!apiUrl || !dispatch || !toolbarPopulated) return;
+
+    // don't pull everything if we already scene data
+    if (sceneId) return;
+
     dispatch({ type: "content/pull" });
-  }, [apiUrl, dispatch, toolbarPopulated, auth, noauth]);
+  }, [apiUrl, dispatch, toolbarPopulated, auth, noauth, sceneId]);
 
   return (
     <Box
@@ -582,7 +586,9 @@ const ContentEditor = ({
         position: "relative",
       }}
     >
-      {/* TODO make content a DIV, per https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas#use_plain_css_for_large_background_images */}
+      {/* <Box sx={{ margin: "-0.5em", width: `calc(100% + 1em)` }}>
+        <LinearProgress />
+      </Box> */}
       <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>
         Sorry, your browser does not support canvas.
       </canvas>

@@ -1,11 +1,21 @@
 // import styles from './SceneComponent.module.css';
-import { Alert, Box, Button, TextField, Tooltip } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  IconButton,
+  LinearProgress,
+  TextField,
+  Tooltip,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Scene } from "../../reducers/ContentReducer";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { NewSceneBundle } from "../../middleware/ContentMiddleware";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
+import { AxiosProgressEvent } from "axios";
 
 const NAME_REGEX = /^[\w\s]{1,64}$/;
 
@@ -28,7 +38,7 @@ const SceneComponent = ({
   /**
    * Regarding *Url, *File and *WH below, I do not love storing basically the
    * same thing three times, but there doesn't seem to be one object that holds
-   * this well at thes same time. Why do we need each? URL is so we pickup the
+   * this well at the same time. Why do we need each? URL is so we pickup the
    * changed image when the display repaints. File is for when we upload when
    * the user submits, WH is so we can show an error if the sizes don't match.
    */
@@ -44,12 +54,16 @@ const SceneComponent = ({
   const [name, setName] = useState<string>();
   const [creating, setCreating] = useState<boolean>(false);
   const [nameError, setNameError] = useState<string>();
+  const [playerProgress, setPlayerProgress] = useState<number>(0);
+  const [detailProgress, setDetailProgress] = useState<number>(0);
   const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
+  const error = useSelector((state: AppReducerState) => state.content.err);
   const disabledCreate =
     creating || // currently already creating or updating
     (!name && !scene) || // neither name nor scene (existing scene would have name)
-    !!nameError || // dont' create with name error
+    !!nameError || // don't create with name error
     !(playerUpdated || detailUpdated) || // don't send if neither updated
+    error !== undefined ||
     resolutionMismatch; // for now, don't send on resolution mismatch
   // we should probably send if resolution is different but aspect ratio same
 
@@ -64,6 +78,12 @@ const SceneComponent = ({
       setNameError("Invalid scene name");
     }
   };
+
+  const playerProgressHandler = (event: AxiosProgressEvent) =>
+    setPlayerProgress(event.progress ? event.progress * 100 : 0);
+
+  const detailProgressHandler = (event: AxiosProgressEvent) =>
+    setDetailProgress(event.progress ? event.progress * 100 : 0);
 
   const selectFile = (layer: string) => {
     const input = document.createElement("input");
@@ -93,15 +113,16 @@ const SceneComponent = ({
     if (scene) {
       // TODO clear overlay
       if (playerFile && playerUpdated) {
-        dispatch({ type: "content/player", payload: playerFile });
+        const payload = { asset: playerFile, progress: playerProgressHandler };
+        dispatch({ type: "content/player", payload: payload });
         setPlayerUpdated(false);
       }
       if (detailFile && detailUpdated) {
-        dispatch({ type: "content/detail", payload: detailFile });
+        const payload = { asset: detailFile, progress: detailProgressHandler };
+        dispatch({ type: "content/detail", payload: payload });
         setDetailUpdated(false);
       }
       dispatch({ type: "content/zoom", payload: vpData });
-      if (editScene) editScene();
       return;
     }
     if (!name) return; // TODO ERROR
@@ -111,6 +132,8 @@ const SceneComponent = ({
       player: playerFile,
       detail: detailFile,
       viewport: vpData,
+      playerProgress: playerProgressHandler,
+      detailProgress: detailProgressHandler,
     };
     dispatch({ type: "content/createscene", payload: data });
   };
@@ -147,28 +170,36 @@ const SceneComponent = ({
   useEffect(() => {
     if (!populateToolbar) return;
     const actions: GameMasterAction[] = [];
-    //   { icon: SaveIcon, tooltip: scene ? "Update" : "Create", hidden: () => false, disabled: () => internalState.disabledCreate, callback: updateScene}
-    // ];
-    // if (editScene) actions.push({ icon: EditIcon, tooltip: "Edit", hidden: () => false, disabled: () => false, callback: () => editScene()});
     populateToolbar(actions);
+    return () => {
+      // clear the error if there is one
+      dispatch({ type: "content/error" });
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (error) setCreating(false);
+  }, [error]);
 
   /**
    * If the scene comes with image assets already (it should have a player
    * visible image) then set the URL so that the <Box> image can pick it up.
+   * Don't bother fetching the files more than once though - they don't change
+   * and doing so causes rendering issues and wastes bandwidth (if there was a
+   * change, its because we'd have just uploaded, we don't need to download it)
    */
   useEffect(() => {
-    if (scene?.detailContent) {
+    if (scene?.detailContent && detailFile === undefined) {
       setDetailUrl(`${apiUrl}/${scene.detailContent}`);
       syncSceneAsset(scene.detailContent)
         .then((file) => setDetailFile(file))
         .catch((err) =>
           console.error(
-            `Unable to sync detail contenet: ${JSON.stringify(err)}`,
+            `Unable to sync detail content: ${JSON.stringify(err)}`,
           ),
         );
     }
-    if (scene?.playerContent) {
+    if (scene?.playerContent && playerFile === undefined) {
       setPlayerUrl(`${apiUrl}/${scene.playerContent}`);
       syncSceneAsset(scene.playerContent)
         .then((file) => setPlayerFile(file))
@@ -178,7 +209,7 @@ const SceneComponent = ({
           ),
         );
     }
-  }, [apiUrl, scene]);
+  }, [apiUrl, detailFile, playerFile, scene]);
 
   return (
     <Box
@@ -193,6 +224,46 @@ const SceneComponent = ({
       {resolutionMismatch && (
         <Alert severity="error">
           Image resolution does not match (they must match).
+        </Alert>
+      )}
+      {error?.success === false && (
+        <Alert
+          severity="error"
+          action={
+            <IconButton
+              aria-label="close"
+              color="inherit"
+              size="small"
+              onClick={() => {
+                setCreating(false);
+                dispatch({ type: "content/error" });
+              }}
+            >
+              <CloseIcon fontSize="inherit" />
+            </IconButton>
+          }
+        >
+          {error.msg}
+        </Alert>
+      )}
+      {error?.success === true && (
+        <Alert
+          severity="success"
+          action={
+            <IconButton
+              aria-label="close"
+              color="inherit"
+              size="small"
+              onClick={() => {
+                setCreating(false);
+                dispatch({ type: "content/error" });
+              }}
+            >
+              <CloseIcon fontSize="inherit" />
+            </IconButton>
+          }
+        >
+          {error.msg}
         </Alert>
       )}
       <TextField
@@ -232,6 +303,9 @@ const SceneComponent = ({
             sx={{ width: "100%" }}
             onLoad={(e) => imageLoaded("player", e)}
           />
+          {playerProgress > 0 && playerProgress < 100 && (
+            <LinearProgress variant="determinate" value={playerProgress} />
+          )}
         </Box>
         <Box
           sx={{
@@ -252,6 +326,9 @@ const SceneComponent = ({
             sx={{ width: "100%" }}
             onLoad={(e) => imageLoaded("detail", e)}
           />
+          {detailProgress > 0 && detailProgress < 100 && (
+            <LinearProgress variant="determinate" value={detailProgress} />
+          )}
         </Box>
       </Box>
       <Box
