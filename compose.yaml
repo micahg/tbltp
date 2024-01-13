@@ -1,0 +1,23 @@
+services:
+  mongo:
+    image: mongo:7.0.0
+    ports:
+      - 27017:27017
+  api:
+    image: ghcr.io/micahg/nttsrv:0.0.21
+    ports:
+      - 3000:3000
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/ntt
+      - DISABLE_AUTH=true
+  ui:
+    image: ghcr.io/micahg/ntt:0.0.44
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    environment:
+      - API_URL=http://127.0.0.1:3000
+      - WS_URL=ws://127.0.0.1:3000
