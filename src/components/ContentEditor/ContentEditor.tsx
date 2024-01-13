@@ -25,8 +25,17 @@ import {
   Visibility,
 } from "@mui/icons-material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
-import { Box, Menu, MenuItem, Popover, Slider } from "@mui/material";
+import {
+  Box,
+  Menu,
+  MenuItem,
+  Popover,
+  Slider,
+  LinearProgress,
+} from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
+import { DownloadProgress } from "../../utils/contentworker";
+import { debounce } from "lodash";
 
 const sm = new MouseStateMachine();
 
@@ -73,6 +82,8 @@ const ContentEditor = ({
   const [canvasListening, setCanvasListening] = useState<boolean>(false);
   const [canvassesTransferred, setCanvassesTransferred] =
     useState<boolean>(false); // avoid transfer errors
+  const [downloads] = useState<Record<string, number>>({});
+  const [downloadProgress, setDownloadProgress] = useState<number>(0);
 
   /**
    * THIS GUY RIGHT HERE IS REALLY IMPORTANT. Because we use a callback to render
@@ -150,6 +161,12 @@ const ContentEditor = ({
     worker.postMessage({ cmd: "colour", red: red, green: green, blue: blue });
   };
 
+  const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
+    const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
+    if (w === 0 && h === 0) return; // when the component is hidden or destroyed
+    if (worker) worker.postMessage({ cmd: "resize", width: w, height: h });
+  }, 250);
+
   const selectOverlay = useCallback(
     (buttons: number, x1: number, y1: number, x2: number, y2: number) => {
       if (!worker) return;
@@ -212,9 +229,26 @@ const ContentEditor = ({
       } else if (evt.data.cmd === "pan_complete") {
         // after panning is done, we can go back to waiting state
         sm.transition("wait");
+      } else if (evt.data.cmd === "progress") {
+        if ("evt" in evt.data) {
+          const e = evt.data.evt as DownloadProgress;
+
+          // on complete (progress of 1) remove the download
+          if (e.progress === 1) delete downloads[e.img];
+          else downloads[e.img] = e.progress;
+
+          // with nothing left we're fully loaded
+          const length = Object.keys(downloads).length;
+          if (length === 0) return setDownloadProgress(100);
+
+          // otherwise, tally the totals and set the progress
+          let value = 0;
+          for (const [, v] of Object.entries(downloads)) value += v;
+          setDownloadProgress((value * 100) / length);
+        }
       }
     },
-    [dispatch, ovRev],
+    [dispatch, downloads, ovRev],
   );
 
   useEffect(() => {
@@ -442,8 +476,8 @@ const ContentEditor = ({
 
   useEffect(() => {
     /**
-     * We avoid adding listeners on every rerender, otherwise, you start
-     * stacking up events.
+     * We avoid adding listeners or resize observers on every rerender,
+     * otherwise, you start stacking up the same event multiple times.
      */
     const canvas = overlayCanvasRef.current;
     if (!worker || !canvas || canvasListening) return;
@@ -464,14 +498,11 @@ const ContentEditor = ({
     });
 
     // watch for canvas size changes and report to worker
-    const observer = new ResizeObserver((e) => {
-      const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
-      if (w === 0 && h === 0) return; // when the component is hidden or destroyed
-      worker.postMessage({ cmd: "resize", width: w, height: h });
-    });
-    observer.observe(canvas);
+    new ResizeObserver((e) => handleResizeEvent(e)).observe(canvas);
+
+    // make sure we don't come back
     setCanvasListening(true);
-  }, [canvasListening, overlayCanvasRef, worker]);
+  }, [canvasListening, handleResizeEvent, overlayCanvasRef, worker]);
 
   /**
    * This is the main rendering loop. Its a bit odd looking but we're working really hard to avoid repainting
@@ -633,6 +664,11 @@ const ContentEditor = ({
           />
         </Box>
       </Popover>
+      {downloadProgress > 0 && downloadProgress < 100 && (
+        <Box sx={{ margin: "-0.5em", width: `calc(100% + 1em)` }}>
+          <LinearProgress variant="determinate" value={downloadProgress} />
+        </Box>
+      )}
     </Box>
   );
 };

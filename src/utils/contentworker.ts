@@ -13,6 +13,12 @@ import {
   scalePoints,
   translatePoints,
 } from "./geometry";
+import axios, { AxiosProgressEvent } from "axios";
+
+export type DownloadProgress = {
+  img: string;
+  progress: number;
+};
 
 /**
  * Worker for offscreen drawing in the content editor.
@@ -108,10 +114,18 @@ function renderImage(
   ctx.restore();
 }
 
+function postProgress(evt: AxiosProgressEvent, url: string) {
+  const pe: DownloadProgress = { progress: evt.progress || 1, img: url };
+  postMessage({ cmd: "progress", evt: pe });
+}
+
 function loadImage(url: string): Promise<ImageBitmap> {
-  return fetch(url)
-    .then((resp) => resp.blob())
-    .then((blob) => createImageBitmap(blob));
+  return axios
+    .get(url, {
+      responseType: "blob",
+      onDownloadProgress: (e) => postProgress(e, url),
+    })
+    .then((resp) => createImageBitmap(resp.data));
 }
 
 function calculateViewport(
@@ -561,6 +575,7 @@ self.onmessage = (evt) => {
       if (zoom === _max_zoom) return;
       if (zoom === _first_zoom_step) zoom = _max_zoom;
       else zoom += _zoom_step;
+      if (zoom >= _max_zoom) zoom = _max_zoom; // after a resize this can happen
       if (zoom !== _zoom) adjustZoom(zoom, evt.data.x, evt.data.y);
       break;
     }
