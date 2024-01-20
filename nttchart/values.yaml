@@ -19,5 +19,5 @@ mongoDB: ntt
 certIssuer: letsencrypt-staging
 maxBodySize: 32m
 
-wsReadTimeout: "60"
-wsSendTimeout: "60"
+wsReadTimeout: 60
+wsSendTimeout: 60
