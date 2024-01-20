@@ -38,11 +38,17 @@ spec:
             configMapKeyRef:
               name: env-config
               key: issuer.url
-        - name: MONGO_URL
+        - name: WS_READ_TIMEOUT
           valueFrom:
             configMapKeyRef:
               name: env-config
-              key: mongo.url
+              key: ws.readTimeout
+        - name: WS_SEND_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: ws.sendTimeout
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
