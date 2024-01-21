@@ -99,10 +99,24 @@ export function create(): Express {
     next();
   });
 
-  app.use("/public", express.static("public"));
+  // authenticate everything BUT the OPTIONS call
+  app.use(
+    "/public",
+    (req, res, next) => {
+      if (req.method === "OPTIONS") res.sendStatus(200);
+      else next();
+    },
+    jwtCheck,
+    express.static("public"),
+  );
 
   const destdir: string = os.tmpdir();
   const upload: multer.Multer = multer({ dest: destdir });
+  // this is just for local testing -- ingress-nginx should handle IRL
+  // const upload: multer.Multer = multer({
+  //   dest: destdir,
+  //   limits: { fileSize: 8388608 },
+  // });
 
   app.get(NO_AUTH_ASSET, (_req, res) =>
     res.status(200).send({ noauth: noauth }),
@@ -125,6 +139,11 @@ export function create(): Express {
   app.use((err, req, res, next) => {
     if (!err) next();
     if (err.status) return res.sendStatus(err.status);
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.sendStatus(413);
+      }
+    }
 
     // generic in-app exception handling
     if (err.cause) {

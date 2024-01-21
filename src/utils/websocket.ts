@@ -24,6 +24,10 @@ interface WSStateMessage {
   state?: TableState;
 }
 
+const READ_TIMEOUT = parseInt(process.env.WS_READ_TIMEOUT) || 60;
+const SEND_TIMEOUT = parseInt(process.env.WS_SEND_TIMEOUT) || 60;
+const PING_TIMER = (Math.min(READ_TIMEOUT, SEND_TIMEOUT) - 1) * 1000;
+
 const AUD: string = process.env.AUDIENCE_URL || "http://localhost:3000/";
 const ISS: string = process.env.ISSUER_URL || "https://nttdev.us.auth0.com/";
 const AUTH_REQURIED: boolean =
@@ -100,6 +104,13 @@ function verifyConnection(sock: WebSocket, req: IncomingMessage) {
         method: "connection",
         state: state,
       };
+      // make sure we don't get shut down on the next interval
+      sock["live"] = true;
+      // sock.on("pong", () => (sock["live"] = true));
+      sock.on("pong", () => {
+        log.info("pong received DELETE ME");
+        sock["live"] = true;
+      });
       sock.send(JSON.stringify(msg));
     })
     .catch((err) => {
@@ -148,6 +159,18 @@ export function startWSServer(
   });
 
   wss.on("connection", verifyConnection);
+  const interval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if ("live" in ws && !ws["live"]) return ws.terminate();
+      ws["live"] = false;
+      ws.ping();
+    });
+  }, PING_TIMER);
+  wss.on("close", () => {
+    clearInterval(interval);
+    log.warn("Forcefully terminating remaining websocket connections...");
+    wss.clients.forEach((ws) => ws.close());
+  });
   log.info("Websocket server started");
   return wss;
 }
