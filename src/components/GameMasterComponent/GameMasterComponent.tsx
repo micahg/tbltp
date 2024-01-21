@@ -102,6 +102,7 @@ const GameMasterComponent = () => {
   const [scenesOpen, setScenesOpen] = useState<boolean>(false);
   const [actions, setActions] = useState<GameMasterAction[]>([]);
   const [doot, setDoot] = useState<number>(0);
+  const [sceneKey, setSceneKey] = useState<number>(0);
   const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
     FocusedComponent.ContentEditor,
   );
@@ -126,7 +127,13 @@ const GameMasterComponent = () => {
   };
 
   const handleCreateScene = (/*event: React.MouseEvent<HTMLElement>*/) => {
+    // bump the scene key so the scene component state resets
+    setSceneKey(sceneKey + 1);
+
+    // unset the current scene
     dispatch({ type: "content/currentscene" });
+
+    // display the scene component
     setFocusedComponent(FocusedComponent.Scene);
   };
 
@@ -273,6 +280,7 @@ const GameMasterComponent = () => {
         )}
         {focusedComponent === FocusedComponent.Scene && (
           <SceneComponent
+            key={sceneKey} // increments on ever new scene press to reset state
             populateToolbar={handlePopulateToolbar}
             redrawToolbar={handleRedrawToolbar}
             scene={currentScene}

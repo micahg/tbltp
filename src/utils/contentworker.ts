@@ -1,3 +1,4 @@
+import { LoadProgress, loadImage } from "./content";
 import {
   Point,
   Rect,
@@ -13,12 +14,6 @@ import {
   scalePoints,
   translatePoints,
 } from "./geometry";
-import axios, { AxiosProgressEvent } from "axios";
-
-export type DownloadProgress = {
-  img: string;
-  progress: number;
-};
 
 /**
  * Worker for offscreen drawing in the content editor.
@@ -114,20 +109,6 @@ function renderImage(
   ctx.restore();
 }
 
-function postProgress(evt: AxiosProgressEvent, url: string) {
-  const pe: DownloadProgress = { progress: evt.progress || 1, img: url };
-  postMessage({ cmd: "progress", evt: pe });
-}
-
-function loadImage(url: string): Promise<ImageBitmap> {
-  return axios
-    .get(url, {
-      responseType: "blob",
-      onDownloadProgress: (e) => postProgress(e, url),
-    })
-    .then((resp) => createImageBitmap(resp.data));
-}
-
 function calculateViewport(
   angle: number,
   zoom: number,
@@ -161,9 +142,14 @@ function sizeVisibleCanvasses(width: number, height: number) {
   overlayCanvas.height = height;
 }
 
-function loadAllImages(background: string, overlay?: string) {
-  const bgP = loadImage(background);
-  const ovP = overlay ? loadImage(overlay) : Promise.resolve(null);
+function loadAllImages(bearer: string, background: string, overlay?: string) {
+  const progress = (p: LoadProgress) =>
+    postMessage({ cmd: "progress", evt: p });
+  const bgP = loadImage(background, bearer, progress);
+  const ovP = overlay
+    ? loadImage(overlay, bearer, progress)
+    : Promise.resolve(null);
+  // TODO signal an error if either promise fails
   return Promise.all([bgP, ovP]).then(([bgImg, ovImg]) => {
     // keep a copy of these to prevent having to recreate them from the image buffer
     backgroundImage = bgImg;
@@ -386,6 +372,7 @@ self.onmessage = (evt) => {
   switch (evt.data.cmd) {
     case "init": {
       _angle = evt.data.values.angle;
+      // _bearer = evt.data.values.bearer;
 
       if (evt.data.background) {
         backgroundCanvas = evt.data.background;
@@ -410,7 +397,11 @@ self.onmessage = (evt) => {
         }) as OffscreenCanvasRenderingContext2D;
       }
 
-      loadAllImages(evt.data.values.background, evt.data.values.overlay)
+      loadAllImages(
+        evt.data.values.bearer,
+        evt.data.values.background,
+        evt.data.values.overlay,
+      )
         .then(([bgImg]) => {
           if (bgImg) {
             calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);

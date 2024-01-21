@@ -1,7 +1,7 @@
 import { createRef, useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { loadImage, renderViewPort } from "../../utils/drawing";
+import { renderViewPort } from "../../utils/drawing";
 import {
   Rect,
   getWidthAndHeight,
@@ -13,6 +13,7 @@ import Stack from "@mui/material/Stack";
 import styles from "./RemoteDisplayComponent.module.css";
 import { useNavigate } from "react-router-dom";
 import { Box } from "@mui/material";
+import { loadImage } from "../../utils/content";
 
 /**
  * Table state sent to display client by websocket. A partial Scene.
@@ -107,6 +108,7 @@ const RemoteDisplayComponent = () => {
       apiUrl: string,
       content: CanvasRenderingContext2D,
       overlay: CanvasRenderingContext2D,
+      bearer: string,
     ) => {
       // ignore null state -- happens when server has no useful state loaded yet
       if (!js.state) return;
@@ -160,7 +162,7 @@ const RemoteDisplayComponent = () => {
        * overlay, then the background. If there is no overlay then just draw
        * background with expanded selection if there is one.
        */
-      loadImage(backgroundUri)
+      loadImage(backgroundUri, bearer)
         .then((bgImg) => {
           // the untainted one is not dealing with the silkScale (more on that in geometry.ts)
           // since we can safely assume (for now) that the overlay isn't downscaled due to
@@ -177,7 +179,7 @@ const RemoteDisplayComponent = () => {
             viewport,
           );
           if (overlayUri) {
-            loadImage(overlayUri)
+            loadImage(overlayUri, bearer)
               .then((ovrImg) => {
                 const ovVP = fillRotatedViewport(
                   [width, height],
@@ -333,9 +335,10 @@ const RemoteDisplayComponent = () => {
     if (!contentCtx) return;
     if (!apiUrl) return;
     if (!tableData) return;
+    if (!token) return;
 
-    processTableData(tableData, apiUrl, contentCtx, overlayCtx);
-  }, [contentCtx, overlayCtx, apiUrl, tableData, processTableData]);
+    processTableData(tableData, apiUrl, contentCtx, overlayCtx, token);
+  }, [contentCtx, overlayCtx, apiUrl, tableData, token, processTableData]);
 
   return (
     <div className={styles.map}>

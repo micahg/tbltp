@@ -23,41 +23,10 @@ export function getRect(x1: number, y1: number, x2: number, y2: number): Rect {
   }
   return { x: x, y: y, width: w, height: h };
 }
-/**
- * Load an image.
- * @param uri the URI of the image to load
- * @returns a promise that resolves to an HTMLImageElement
- */
-export function loadImage(uri: string): Promise<HTMLImageElement> {
-  const img = new Image();
-  return new Promise((resolve, reject) => {
-    img.onload = function () {
-      // just to mess with stuff silk (amazon browser) will resize us here,
-      // to 1.599905190803508 smaller, screwing up our viewports. Its
-      // probably a ram constraint...
-      resolve(this as HTMLImageElement);
-    };
-    img.onerror = function (error) {
-      reject(error);
-    };
-    // Anonymous only works if the server cors are setup... Setting it avoids the
-    // error:
-    //
-    //    The canvas has been tainted by cross-origin data.
-    //
-    // from happening when we (later) call getImageData on the overlay BUT have
-    // loaded the overlay with an existing image from localhost:3000. The problem
-    // originates from the fact that our frontend in dev is on localhost:4200 and
-    // I don't think cross-origin is setup properly for static data on the nose
-    // server
-    img.crossOrigin = "Anonymous";
-    img.src = uri;
-  });
-}
 
 export function renderViewPort(
   ctx: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  image: ImageBitmap,
   angle: number,
   viewport: Rect,
 ) {

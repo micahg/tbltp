@@ -109,6 +109,7 @@ export function getAuthState(client: Auth0Client): Promise<AuthState> {
  */
 export function getToken(
   state: AppReducerState,
+  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   headers?: { [key: string]: string },
 ): Promise<{ [key: string]: string }> {
   const res = headers || {};
@@ -126,6 +127,7 @@ export function getToken(
     client
       .getTokenSilently()
       .then((value) => {
+        store.dispatch({ type: "environment/bearer", payload: value });
         res["Authorization"] = `Bearer ${value}`;
         resolve(res);
       })

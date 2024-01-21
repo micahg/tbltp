@@ -34,8 +34,8 @@ import {
   LinearProgress,
 } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
-import { DownloadProgress } from "../../utils/contentworker";
 import { debounce } from "lodash";
+import { LoadProgress } from "../../utils/content";
 
 const sm = new MouseStateMachine();
 
@@ -103,6 +103,9 @@ const ContentEditor = ({
     (state: AppReducerState) => state.content.currentScene,
   );
   const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
+  const bearer = useSelector(
+    (state: AppReducerState) => state.environment.bearer,
+  );
   const pushTime = useSelector(
     (state: AppReducerState) => state.content.pushTime,
   );
@@ -231,7 +234,7 @@ const ContentEditor = ({
         sm.transition("wait");
       } else if (evt.data.cmd === "progress") {
         if ("evt" in evt.data) {
-          const e = evt.data.evt as DownloadProgress;
+          const e = evt.data.evt as LoadProgress;
 
           // on complete (progress of 1) remove the download
           if (e.progress === 1) delete downloads[e.img];
@@ -512,6 +515,7 @@ const ContentEditor = ({
     if (
       !apiUrl ||
       !scene ||
+      !bearer ||
       !contentCanvasRef?.current ||
       !overlayCanvasRef?.current ||
       !fullCanvasRef?.current
@@ -562,6 +566,7 @@ const ContentEditor = ({
       // so the on this pass it is false when passed to setCanvassesTransferred even if set
       setCanvassesTransferred(true);
       const wrkr = setupOffscreenCanvas(
+        bearer,
         backgroundCanvas,
         overlayCanvas,
         fullCanvas,
@@ -577,6 +582,7 @@ const ContentEditor = ({
     }
   }, [
     apiUrl,
+    bearer,
     bgRev,
     canvassesTransferred,
     contentCanvasRef,

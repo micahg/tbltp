@@ -1,6 +1,7 @@
 let worker: Worker;
 
 export function setupOffscreenCanvas(
+  bearer: string,
   backgroundCanvas: HTMLCanvasElement,
   overlayCanvas: HTMLCanvasElement,
   fullOverlayCanvas: HTMLCanvasElement,
@@ -12,6 +13,7 @@ export function setupOffscreenCanvas(
   overlay?: string,
 ): Worker {
   const values = {
+    bearer: bearer,
     screenWidth: screenWidth,
     screenHeight: screenHeight,
     overlay: overlay,
