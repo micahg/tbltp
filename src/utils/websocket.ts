@@ -106,11 +106,7 @@ function verifyConnection(sock: WebSocket, req: IncomingMessage) {
       };
       // make sure we don't get shut down on the next interval
       sock["live"] = true;
-      // sock.on("pong", () => (sock["live"] = true));
-      sock.on("pong", () => {
-        log.info("pong received DELETE ME");
-        sock["live"] = true;
-      });
+      sock.on("pong", () => (sock["live"] = true));
       sock.send(JSON.stringify(msg));
     })
     .catch((err) => {
