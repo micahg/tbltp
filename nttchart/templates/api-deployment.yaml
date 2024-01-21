@@ -38,6 +38,11 @@ spec:
             configMapKeyRef:
               name: env-config
               key: issuer.url
+        - name: MONGO_URL
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: mongo.url
         - name: WS_READ_TIMEOUT
           valueFrom:
             configMapKeyRef:
