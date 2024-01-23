@@ -65,3 +65,24 @@ spec:
   ports:
     - protocol: TCP
       port: 80
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ .Values.uiAppName }}-allow-inbound-web-only
+  namespace: {{ .Values.namespace }}
+spec:
+  endpointSelector:
+    matchLabels:
+      app: {{ .Values.uiAppName }}
+  egressDeny:
+  - fromEntities:
+    - "all"
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        "k8s:io.kubernetes.pod.namespace": {{ .Values.ingressNamespace }}
+    toPorts:
+    - ports:
+      - port: "80"
+        protocol: TCP

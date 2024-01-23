@@ -9,3 +9,4 @@ installLoadBalancer: true
 mongoStorageClass: microk8s-hostpath
 mongoStorageClassSize: 1Gi
 certIssuer: letsencrypt-prod
+ingressNamespace: "ingress"

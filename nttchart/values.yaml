@@ -21,3 +21,5 @@ maxBodySize: 32m
 
 wsReadTimeout: 60
 wsSendTimeout: 60
+
+ingressNamespace: "ingress-nginx"
