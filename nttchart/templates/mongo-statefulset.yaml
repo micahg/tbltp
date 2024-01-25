@@ -46,3 +46,21 @@ spec:
   ports:
     - protocol: TCP
       port: {{ .Values.mongoPort }}
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ .Values.mongoName }}-allow-inbound-api-only
+  namespace: {{ .Values.namespace }}
+spec:
+  endpointSelector:
+    matchLabels:
+      app: {{ .Values.mongoName }}
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        "app": "ntt-api"
+    toPorts:
+    - ports:
+      - port: "{{ .Values.mongoPort }}"
+        protocol: TCP
