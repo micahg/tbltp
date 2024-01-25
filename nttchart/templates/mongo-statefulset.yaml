@@ -62,5 +62,5 @@ spec:
         "app": "ntt-api"
     toPorts:
     - ports:
-      - port: "27017"
+      - port: "{{ .Values.mongoPort }}"
         protocol: TCP

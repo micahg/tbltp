@@ -80,3 +80,47 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 3000
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ .Values.apiAppName }}-allow-inbound-web-and-outbound-cert
+  namespace: {{ .Values.namespace }}
+spec:
+  endpointSelector:
+    matchLabels:
+      app: {{ .Values.apiAppName }}
+  egress:
+  - toFQDNs:
+    - matchName: {{ .Values.issuerDomain }}
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        "k8s:io.kubernetes.pod.namespace": kube-system
+        "k8s:k8s-app": kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: ANY
+      rules:
+        dns:
+        - matchPattern: "*"
+  - toEndpoints:
+    -matchLabels:
+      "app": {{ .Values.mongoName }}
+    toPorts:
+    - ports:
+      - port: "{{ .Values.mongoPort }}"
+        protocol: TCP
+  # add mongo egress
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        "k8s:io.kubernetes.pod.namespace": {{ .Values.ingressNamespace }}
+    toPorts:
+    - ports:
+      - port: "3000"
+        protocol: TCP
