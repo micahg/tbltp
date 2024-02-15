@@ -33,10 +33,7 @@ jobs:
           if ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
           if ! [ -f ~/.kube/config ]; then touch ~/.kube/config; fi
           chmod go-rwx ~/.kube/config
-          echo $KUBE_CONFIG > ~/.kube/config
-          ls -l ~/.kube/config
           echo $KUBE_CONFIG | base64 -d > ~/.kube/config
-          ls -l ~/.kube/config
       - id: clusterinfo
         name: Cluster Info
         run: |
