@@ -5,6 +5,9 @@ on:
       environment:
         required: true
         type: string
+      extra-helm-args:
+        required: false
+        type: string
     secrets:
       KUBE_CONFIG:
         required: true
@@ -39,10 +42,7 @@ jobs:
         name: Helm Upgrade
         env:
           ENVIRONMENT: ${{ inputs.environment }}
+          EXTRA_ARGS: ${{ inputs.extra-helm-args }}
         run: |
-          EXTRA_ARGS=""
-          if [ $ENVIRONMENT == "Dev" ]; then
-            EXTRA_ARGS="-f nttchart/values-dev.yaml"
-          fi
           echo "$EXTRA_ARGS"
           echo helm upgrade --install -f nttchart/values.yaml $EXTRA_ARGS ntt-infra nttchart
