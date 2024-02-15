@@ -8,17 +8,22 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        target: [Dev, Prod]
+        include:
+          - environment: "Dev"
+            helm-args: "-f nttchart/values-dev.yaml"
+          - environment: "Prod"
+        # target: [Dev, Prod]
     uses: ./.github/workflows/helm.yaml
     secrets: inherit
     with:
-      environment: ${ {matrix.target }}
+      environment: ${{ matrix.environment }}
+      extra-helm-args: ${{ matrix.helm-args }}
   version:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: |
           git config --global user.name "$GITHUB_ACTOR"
           git config --global user.email "$GITHUB_ACTOR@github.com"
