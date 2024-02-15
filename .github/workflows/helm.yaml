@@ -1,0 +1,49 @@
+name: Deploy
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+    secrets:
+      KUBE_CONFIG:
+        required: true
+jobs:
+  helm:
+    runs-on: ubuntu-latest
+    environment: Dev
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      # - uses: actions/checkout@v3
+      - id: preflight
+        name: Preflight Checks
+        run: |
+          ls -l /usr/local/bin
+          which helm
+          which kubectl
+      - id: kubeconfig
+        name: Kubectl Config
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          if ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
+          if ! [ -f ~/.kube/config ]; then touch ~/.kube/config; fi
+          chmod go-rwx ~/.kube/config
+          echo $KUBE_CONFIG | base64 -d > ~/.kube/config
+      - id: clusterinfo
+        name: Cluster Info
+        run: |
+          kubectl cluster-info
+      - id: helm
+        name: Helm Upgrade
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          EXTRA_ARGS=""
+          if [ $ENVIRONMENT == "Dev" ]; then
+            EXTRA_ARGS="-f nttchart/values-dev.yaml"
+          fi
+          echo "$EXTRA_ARGS"
+          echo helm upgrade --install -f nttchart/values.yaml $EXTRA_ARGS ntt-infra nttchart
