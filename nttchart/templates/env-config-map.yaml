@@ -11,6 +11,11 @@ data:
   ws.url: wss://{{ .Values.apiDomain }}
   ws.readTimeout: "{{ .Values.wsReadTimeout }}"
   ws.sendTimeout: "{{ .Values.wsSendTimeout }}"
+  # mongoConnectionString will be set by the github action
+  {{- if .Values.mongoConnectionString }}
+  mongo.url: {{ .Values.mongoConnectionString }}
+  {{- else }}
   mongo.url: mongodb://{{ .Values.mongoName }}-service:{{ .Values.mongoPort }}/{{ .Values.mongoDB }}
+  {{- end }}
   issuer.url: https://{{ .Values.issuerDomain }}
   auth.redirect: https://{{ .Values.uiDomain }}/edit

@@ -28,7 +28,4 @@ jobs:
       - name: Helm Debug Dry Run
         id: checkyq
         run: |
-          source .github/sharedenv.sh
-          echo "$HELM_ARGS"
-          echo helm upgrade --dry-run --debug $HELM_ARGS
-          helm upgrade --dry-run --debug $HELM_ARGS
+          helm upgrade --dry-run --debug --install -f nttchart/values.yaml ntt-infra nttchart
