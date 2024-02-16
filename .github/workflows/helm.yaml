@@ -12,7 +12,7 @@ on:
       KUBE_CONFIG:
         required: true
       MONGODB_CONNECTION_STRING:
-        required: true
+        required: false
 jobs:
   helm:
     runs-on: ubuntu-latest
