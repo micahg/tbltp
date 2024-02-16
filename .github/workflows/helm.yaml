@@ -44,7 +44,9 @@ jobs:
           ENVIRONMENT: ${{ inputs.environment }}
           EXTRA_ARGS: ${{ inputs.extra-helm-args }}
         run: |
+          ls -l nttchart/values.yaml
           [[ ! -z "$MONGODB_CONNECTION_STRING" ]] && VALUE=`echo "$MONGODB_CONNECTION_STRING" | base64 -d` yq e -i ".mongoConnectionString=env(VALUE)" nttchart/values.yaml
+          ls -l nttchart/values.yaml
           grep mongoConnectionString < nttchart/values.yaml | wc -c
           echo "$EXTRA_ARGS"
           echo helm upgrade --install -f nttchart/values.yaml $EXTRA_ARGS ntt-infra nttchart
