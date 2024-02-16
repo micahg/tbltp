@@ -11,6 +11,8 @@ on:
     secrets:
       KUBE_CONFIG:
         required: true
+      MONGODB_CONNECTION_STRING:
+        required: true
 jobs:
   helm:
     runs-on: ubuntu-latest
