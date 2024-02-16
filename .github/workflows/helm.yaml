@@ -45,6 +45,7 @@ jobs:
           EXTRA_ARGS: ${{ inputs.extra-helm-args }}
         run: |
           pwd
+          which yq
           ls -l
           ls -l nttchart/values.yaml
           [[ ! -z "$MONGODB_CONNECTION_STRING" ]] && VALUE=`echo "$MONGODB_CONNECTION_STRING" | base64 -d` yq e -i ".mongoConnectionString=env(VALUE)" nttchart/values.yaml
