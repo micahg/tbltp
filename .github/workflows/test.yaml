@@ -29,4 +29,4 @@ jobs:
         # note that --set mongoConnectionString is a hack just to validate output
         run: |
           helm upgrade --dry-run --debug --install -f nttchart/values.yaml ntt-infra nttchart \
-            --set mongoConnectionString=CON_STR_VALUE
+          --set mongoConnectionString=CON_STR_VALUE
