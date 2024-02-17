@@ -7,7 +7,7 @@ import mongoose, { Mongoose } from "mongoose";
  */
 // ts-prune-ignore-next used in unit tests
 export function getUrl(): string {
-  return process.env.MONGO_URL || "mongodb://localhost:27017/ntt";
+  return process.env.MONGO_URL || "mongodb://localhost:27017/tbltp";
 }
 
 export function connect(): Promise<Mongoose> {
