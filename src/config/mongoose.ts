@@ -15,6 +15,6 @@ export function connect(): Promise<Mongoose> {
     serverSelectionTimeoutMS: 5000,
   };
   const url = getUrl();
-  log.info(`Connecting to "${url}"...`);
+  log.info(`Connecting to mongo...`);
   return mongoose.connect(url, options);
 }
