@@ -33,5 +33,5 @@ jobs:
           export BRANCH="release/$NEW_VERSION"
           echo "Checking out $BRANCH"
           git checkout -b "$BRANCH"
-          git commit -m "Create chart version $BRANCH" nttchart/Chart.yaml
+          git commit -m "chore: update chart version $BRANCH" nttchart/Chart.yaml
           git push --set-upstream origin "$BRANCH"
