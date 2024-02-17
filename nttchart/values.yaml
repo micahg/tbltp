@@ -1,7 +1,7 @@
 namespace: ntt
 uiAppName: ntt-ui
 uiAppReplicas: 1
-uiImageVers: 0.0.45
+uiImageVers: 0.0.46
 uiImagePath: ghcr.io/micahg/ntt
 uiImageSecret: gitlab-ntt-ui
 uiDomain: "tbltp.dev"
@@ -9,7 +9,7 @@ webDomain: "www.tbltp.dev"
 
 apiAppName: ntt-api
 apiAppReplicas: 1
-apiImageVers: 0.0.24
+apiImageVers: 0.0.25
 apiImagePath: ghcr.io/micahg/nttsrv
 apiDomain: "api.tbltp.dev"
 
@@ -17,7 +17,7 @@ mongoName: "mongo"
 mongoImagePath: mongo
 mongoImageVers: 7.0.0
 mongoPort: 27017
-mongoDB: ntt
+mongoDB: tbltp
 
 certIssuer: letsencrypt-staging
 maxBodySize: 32m
