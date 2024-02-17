@@ -1,4 +1,5 @@
 name: Test
+run-name: d00t d00t
 on:
   push:
     branches-ignore:
