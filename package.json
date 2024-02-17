@@ -1,6 +1,6 @@
 {
   "name": "@micahg/nttsrv",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "Network Tabletop Server",
   "main": "server.js",
   "files": [],

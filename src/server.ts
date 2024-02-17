@@ -100,7 +100,8 @@ export function startUp() {
     .then((goose) => {
       mongoConnectedFlag = true;
       mongo = goose;
-      log.info("MongoDB connection succeeded");
+      const conn = goose.connection;
+      log.info(`Mongo connected to ${conn.name} on ${conn.host}`);
       app.emit(STARTUP_CHECK_SIG);
     })
     .catch((err) => {
