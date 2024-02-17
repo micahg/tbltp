@@ -16,16 +16,17 @@ jobs:
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
         run: |
-          if  ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
-          echo $KUBE_CONFIG | base64 -d > ~/.kube/config
+          if ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
+          if ! [ -f ~/.kube/config ]; then touch ~/.kube/config; fi
           chmod go-rwx ~/.kube/config
-          sha512sum ~/.kube/config
-          wc -l ~/.kube/config
+          echo $KUBE_CONFIG | base64 -d > ~/.kube/config
       - id: clusterinfo
         name: Cluster Info
         run: |
           kubectl cluster-info
       - name: Helm Debug Dry Run
-        id: checkyq
+        id: dryrun
+        # note that --set mongoConnectionString is a hack just to validate output
         run: |
-          helm upgrade --dry-run --debug --install -f nttchart/values.yaml ntt-infra nttchart
+          helm upgrade --dry-run --debug --install -f nttchart/values.yaml ntt-infra nttchart \
+          --set mongoConnectionString=CON_STR_VALUE

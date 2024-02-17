@@ -40,8 +40,8 @@ spec:
               key: issuer.url
         - name: MONGO_URL
           valueFrom:
-            configMapKeyRef:
-              name: env-config
+            secretKeyRef:
+              name: {{ .Values.mongoName }}-connection-string
               key: mongo.url
         - name: WS_READ_TIMEOUT
           valueFrom:
