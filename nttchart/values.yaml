@@ -1,3 +1,4 @@
+# FORCE REDEPLOY
 namespace: ntt
 uiAppName: ntt-ui
 uiAppReplicas: 1
