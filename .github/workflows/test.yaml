@@ -11,19 +11,19 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      # - id: kubeconfig
-      #   name: Kubectl Config
-      #   env:
-      #     KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-      #   run: |
-      #     if ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
-      #     if ! [ -f ~/.kube/config ]; then touch ~/.kube/config; fi
-      #     chmod go-rwx ~/.kube/config
-      #     echo $KUBE_CONFIG | base64 -d > ~/.kube/config
-      # - id: clusterinfo
-      #   name: Cluster Info
-      #   run: |
-      #     kubectl cluster-info
+      - id: kubeconfig
+        name: Kubectl Config
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          if ! [ -d ~/.kube ]; then mkdir ~/.kube; fi
+          if ! [ -f ~/.kube/config ]; then touch ~/.kube/config; fi
+          chmod go-rwx ~/.kube/config
+          echo $KUBE_CONFIG | base64 -d > ~/.kube/config
+      - id: clusterinfo
+        name: Cluster Info
+        run: |
+          kubectl cluster-info
       - name: Helm Debug Dry Run
         id: dryrun
         # note that --set mongoConnectionString is a hack just to validate output
