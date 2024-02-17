@@ -1,4 +1,4 @@
-name: Deploy ${{ matrix.environment }}
+name: Deploy
 on:
   push:
     branches:

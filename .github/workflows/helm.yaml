@@ -1,4 +1,5 @@
-name: Deploy
+name: Helm
+run-name: Helm deploy to ${{ inputs.environment }}
 on:
   workflow_call:
     inputs:
