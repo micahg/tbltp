@@ -10,7 +10,7 @@ services:
     depends_on:
       - mongo
     environment:
-      - MONGO_URL=mongodb://mongo:27017/ntt
+      - MONGO_URL=mongodb://mongo:27017/tbltp
       - DISABLE_AUTH=true
   ui:
     image: ghcr.io/micahg/ntt:0.0.44
