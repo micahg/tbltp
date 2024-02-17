@@ -5,7 +5,6 @@ export interface Point {
   y: number;
 }
 
-// TODO should be able to make a rect from two points
 export interface Rect {
   x: number;
   y: number;

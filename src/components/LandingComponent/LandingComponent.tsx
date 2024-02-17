@@ -44,8 +44,8 @@ const LandingComponent = () => {
           Disclaimer
         </Typography>
         <p>
-          Network Table Top is not responsible for anything. Close immeditaly or
-          use at your own risk.
+          Network Table Top is not responsible for anything. Close immediately
+          or use at your own risk.
         </p>
       </Paper>
       <Paper sx={{ padding: "1em", margin: "1em 0" }} elevation={6}>

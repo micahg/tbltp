@@ -10,6 +10,7 @@ export interface GameMasterAction {
   // there is a more correct way please do let me know
   disabled: () => boolean;
   hidden: () => boolean;
+  emphasis?: boolean;
 }
 
 interface GameMasterActionComponentProps {
@@ -30,6 +31,7 @@ const GameMasterActionComponent = ({
                 <IconButton
                   onClick={action.callback}
                   disabled={action.disabled()}
+                  color={action.emphasis ? "secondary" : "default"}
                 >
                   {createElement(action.icon)}
                 </IconButton>

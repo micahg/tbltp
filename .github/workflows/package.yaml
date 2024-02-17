@@ -82,13 +82,13 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: ntttgz
-      - name: Exract Package
+      - name: Extract Package
         env:
           PACKAGE_FILE: ${{needs.build.outputs.package_file}}
         # NPM sets all file modification times to 1985/10/26, see
         # https://github.com/npm/npm/issues/20439#issuecomment-385121133
         # The browser sees that in the last-modified header and wont pull the
-        # new files. Recursivly touching all files udpates modification time.
+        # new files. Recursively touching all files updates modification time.
         run: |
           ls -lt
           tar xvf "./$PACKAGE_FILE"

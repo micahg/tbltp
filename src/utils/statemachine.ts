@@ -19,9 +19,12 @@ export function transitionStateMachine(
   ...args: unknown[]
 ): boolean {
   // yes this could crash but not unless something has really gone wrong
-  if (!(input in sm.states[sm.current])) {
+  const current = sm.states[sm.current];
+  if (!current) {
+    console.error(`Current state undefined: ${sm.current}`);
     return false;
   }
+  if (!(input in sm.states[sm.current])) return false;
 
   sm.current = sm.states[sm.current][input];
 

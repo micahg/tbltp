@@ -13,30 +13,40 @@ export class MouseStateMachine implements StateMachine {
   startY = -1;
   endX = 0;
   endY = 0;
-  startCallback: (() => void) | null = null;
-  moveCallback:
-    | ((
-        buttons: number,
-        x1: number,
-        y1: number,
-        x2: number,
-        y2: number,
-      ) => void)
-    | null = null;
+  moveCallback: ((buttons: number, x: number, y: number) => void) | null = null;
 
   constructor() {
     this.current = "wait";
     this.actions = {};
     this.states = {
+      // before anything happens
       wait: {
-        // waiting to start recording
-        down: "record_mouse",
-        background: "background_select",
         push: "push",
-        zoomOut: "zoomOut",
+        background: "background_select",
+        remoteZoomOut: "remoteZoomOut",
         clear: "clear",
+        down: "record_mouse", // canvas interaction with no tool selected (pan/zoom)
+        /**********************/
+        // don't add more of these -- these (paint, select, whatever else) are just instances of
+        // recording -- it should probably be a "record" state and then track what the recording means
+        // in the component.
+        select: "select",
+        paint: "paint",
+        /**********************/
         opacity: "opacity_select",
         rotateClock: "rotate_clock",
+        wheel: "zoom",
+      },
+      // after select or paint is done
+      complete: {
+        down: "record_mouse", // canvas interaction with no tool selected (pan/zoom)
+        background: "background_select",
+        select: "select",
+        paint: "paint",
+        obscure: "obscure",
+        reveal: "reveal",
+        remoteZoomIn: "remoteZoomIn",
+        wait: "wait",
       },
       push: {
         done: "wait",
@@ -47,26 +57,27 @@ export class MouseStateMachine implements StateMachine {
         up: "complete",
         out: "complete",
         down: "record_mouse",
+        wait: "wait", // for situations like paint->record_mouse where we show translucent brush
+        wheel: "record_mouse_wheel",
       },
-      complete: {
-        // done recording - box selected
-        down: "record_mouse",
-        obscure: "obscure",
-        reveal: "reveal",
-        zoomIn: "zoomIn",
-        background: "background_select",
-        wait: "wait",
+      record_mouse_wheel: {
+        done: "record_mouse",
       },
       obscure: {
-        wait: "wait",
+        select: "select",
       },
       reveal: {
+        select: "select",
+      },
+      // LOCAL EDITOR ZOOM
+      zoom: {
         wait: "wait",
       },
-      zoomIn: {
-        wait: "wait",
+      // REMOTE DISPLAY ZOOMS
+      remoteZoomIn: {
+        select: "select",
       },
-      zoomOut: {
+      remoteZoomOut: {
         wait: "wait",
       },
       background_select: {
@@ -82,6 +93,23 @@ export class MouseStateMachine implements StateMachine {
       },
       clear: {
         done: "wait",
+      },
+      select: {
+        wait: "wait",
+        down: "selecting",
+      },
+      selecting: {
+        move: "record_mouse",
+        up: "wait",
+      },
+      paint: {
+        wait: "wait",
+        down: "painting",
+        move: "record_mouse",
+      },
+      painting: {
+        move: "record_mouse",
+        up: "wait", // use paint instead of wait if you want to enable multiple strokes
       },
       opacity_select: {
         display: "opacity_display",
@@ -141,23 +169,8 @@ export class MouseStateMachine implements StateMachine {
     ) {
       return;
     }
-    if (this.startX < 0) {
-      this.buttons = evt.buttons;
-      this.startX = evt.offsetX;
-      this.startY = evt.offsetY;
-      if (this.startCallback) this.startCallback();
-    } else {
-      this.endY = evt.offsetY;
-      this.endX = evt.offsetX;
-      if (this.moveCallback)
-        this.moveCallback(
-          this.buttons,
-          this.startX,
-          this.startY,
-          this.endX,
-          this.endY,
-        );
-    }
+    if (this.moveCallback)
+      this.moveCallback(evt.buttons, evt.offsetX, evt.offsetY);
   }
 
   public resetCoordinates() {
@@ -181,18 +194,7 @@ export class MouseStateMachine implements StateMachine {
     return this.endY;
   }
 
-  public setMoveCallback(
-    cb: (
-      buttons: number,
-      x1: number,
-      y1: number,
-      x2: number,
-      y2: number,
-    ) => void,
-  ) {
+  public setMoveCallback(cb: (buttons: number, x: number, y: number) => void) {
     this.moveCallback = cb;
-  }
-  public setStartCallback(cb: () => void) {
-    this.startCallback = cb;
   }
 }

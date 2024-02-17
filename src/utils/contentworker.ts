@@ -29,13 +29,12 @@ let fullCtx: OffscreenCanvasRenderingContext2D;
 let recording = false;
 let selecting = false;
 let panning = false;
-let buff: ImageData;
-let fullBuff: ImageData;
 let _angle: number;
 let _zoom: number;
 const _zoom_step = 0.5;
 let _max_zoom: number;
 let _first_zoom_step: number;
+let _frame: number;
 
 // canvas width and height (sent from main thread)
 const _canvas: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -54,10 +53,13 @@ let startX: number, startY: number, endX: number, endY: number;
 let lastAnimX = -1;
 let lastAnimY = -1;
 
+const MIN_BRUSH = 10;
+const GUIDE_FILL = "rgba(255, 255, 255, 0.25)";
 let opacity = "1";
 let red = "255";
 let green = "0";
 let blue = "0";
+let brush = MIN_BRUSH;
 
 function trimPanning() {
   if (_img.x <= 0) _img.x = 0;
@@ -176,17 +178,10 @@ function renderAllCanvasses(
     renderImage(backgroundCtx, background, _angle);
     if (overlay) {
       renderImage(overlayCtx, overlay, _angle);
-      buff = overlayCtx.getImageData(
-        0,
-        0,
-        overlayCtx.canvas.width,
-        overlayCtx.canvas.height,
-      );
       // sync full overlay to background size and draw un-scaled/un-rotated image
       fullOverlayCanvas.width = background.width;
       fullOverlayCanvas.height = background.height;
       fullCtx.drawImage(overlay, 0, 0);
-      fullBuff = fullCtx.getImageData(0, 0, overlay.width, overlay.height);
     }
   }
 }
@@ -199,7 +194,7 @@ function unrotateAndScalePoints(points: Point[]) {
 }
 
 /**
- * Given to points on the overlay, un-rotate and scale to the full size overlay
+ * Given two points on the overlay, un-rotate and scale to the full size overlay
  */
 function unrotateBox(x1: number, y1: number, x2: number, y2: number) {
   const op = rotateBackToBackgroundOrientation;
@@ -236,6 +231,26 @@ function unrotateBox(x1: number, y1: number, x2: number, y2: number) {
   return [p1.x, p1.y, p2.x - p1.x, p2.y - p1.y];
 }
 
+function renderBrush(x: number, y: number, radius: number, full = true) {
+  overlayCtx.save();
+  overlayCtx.beginPath();
+  overlayCtx.arc(x, y, radius, 0, 2 * Math.PI);
+  overlayCtx.fill();
+  overlayCtx.restore();
+  if (full) {
+    // un-rotate and scale
+    const p = unrotateAndScalePoints(createPoints([x, y]))[0];
+    // then add the image area offset
+    p.x += _img.x;
+    p.y += _img.y;
+    fullCtx.save();
+    fullCtx.beginPath();
+    fullCtx.arc(p.x, p.y, Math.round(radius * _zoom), 0, 2 * Math.PI);
+    fullCtx.fill();
+    fullCtx.restore();
+  }
+}
+
 function renderBox(
   x1: number,
   y1: number,
@@ -269,8 +284,8 @@ function clearCanvas() {
 }
 
 function restoreOverlay() {
-  overlayCtx.putImageData(buff, 0, 0);
-  fullCtx.putImageData(fullBuff, 0, 0);
+  renderImage(overlayCtx, overlayImage, _angle);
+  fullCtx.drawImage(overlayImage, 0, 0);
 }
 
 function fullRerender(zoomOut = false) {
@@ -303,18 +318,6 @@ function fullRerender(zoomOut = false) {
  *             for upload.
  */
 function storeOverlay(post = true) {
-  fullBuff = fullCtx.getImageData(
-    0,
-    0,
-    fullCtx.canvas.width,
-    fullCtx.canvas.height,
-  );
-  buff = overlayCtx.getImageData(
-    0,
-    0,
-    overlayCtx.canvas.width,
-    overlayCtx.canvas.height,
-  );
   if (post)
     fullOverlayCanvas
       .convertToBlob()
@@ -325,11 +328,18 @@ function storeOverlay(post = true) {
   overlayImage = fullOverlayCanvas.transferToImageBitmap();
 }
 
+function animateBrush(x: number, y: number) {
+  if (!recording) return;
+  renderImage(overlayCtx, overlayImage, _angle);
+  renderBrush(x, y, brush, false);
+  _frame = requestAnimationFrame(() => animateBrush(x, y));
+}
+
 function animateSelection() {
   if (!recording) return;
   if (selecting) {
-    restoreOverlay();
-    renderBox(startX, startY, endX, endY, "rgba(255, 255, 255, 0.25)", false);
+    renderImage(overlayCtx, overlayImage, _angle);
+    renderBox(startX, startY, endX, endY, GUIDE_FILL, false);
   } else if (panning) {
     // calculate the (rotated) movement since the last frame and update for the next
     const [w, h] = rot(-_angle, endX - lastAnimX, endY - lastAnimY);
@@ -417,18 +427,6 @@ self.onmessage = (evt) => {
             fullWidth: backgroundImage.width,
             fullHeight: backgroundImage.height,
           });
-          buff = overlayCtx.getImageData(
-            0,
-            0,
-            overlayCtx.canvas.width,
-            overlayCtx.canvas.height,
-          );
-          fullBuff = fullCtx.getImageData(
-            0,
-            0,
-            fullCtx.canvas.width,
-            fullCtx.canvas.height,
-          );
         })
         .catch((err) => {
           console.error(
@@ -463,29 +461,83 @@ self.onmessage = (evt) => {
       selecting = false;
       break;
     }
+    case "paint": {
+      // update the current mouse coordinates
+      // [endX, endY] = [evt.data.x2, evt.data.y2];
+
+      if (evt.data.buttons === 0) {
+        // here we don't draw BUT if you look at animateBrush, you'll see that we'll just repaint the
+        // overlay and then render the translucent brush
+        if (!recording) {
+          overlayCtx.fillStyle = GUIDE_FILL;
+          recording = true;
+        }
+        // IS this even necessary? I guess if the mouse moves faster than the screen refresh it might cut some
+        // old frames out of the list
+        cancelAnimationFrame(_frame);
+        requestAnimationFrame(() => animateBrush(evt.data.x, evt.data.y));
+      } else if (evt.data.buttons === 1) {
+        // here however we just update the canvas with the actual brush. It seems that the fill call
+        // in renderBrush will force the canvas to update so there isn't much point in using animation
+        // frames
+        if (recording) {
+          recording = false;
+          restoreOverlay(); // one day i hope someone smarter than me can explain why removing this wipes the canvas
+          overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+          fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+        }
+        renderBrush(evt.data.x, evt.data.y, brush);
+      }
+      break;
+    }
+    case "move":
     case "record": {
       if (lastAnimX < 0) {
         // less than 0 indicates a new recording so initialize the last
         // animation x and y coordinates
-        lastAnimX = evt.data.x1;
-        lastAnimY = evt.data.y1;
+        lastAnimX = evt.data.x;
+        lastAnimY = evt.data.y;
+        startX = evt.data.x;
+        startY = evt.data.y;
       }
-      startX = evt.data.x1;
-      startY = evt.data.y1;
-      endX = evt.data.x2;
-      endY = evt.data.y2;
+      endX = evt.data.x;
+      endY = evt.data.y;
       if (!recording) {
         recording = true;
-        selecting = evt.data.buttons === 1;
-        panning = evt.data.buttons === 2;
+        selecting = evt.data.cmd === "record";
+        panning = evt.data.cmd === "move";
         requestAnimationFrame(animateSelection);
       }
       break;
     }
-    case "endrecording": {
+    case "wait":
+    case "end_panning": {
+      panning = false;
+      recording = false;
+      lastAnimX = -1;
+      lastAnimY = -1;
+      startX = -1;
+      startY = -1;
+      endX = -1;
+      endY = -1;
+      break;
+    }
+    case "end_painting": {
+      recording = false;
+      panning = false;
+      storeOverlay(true);
+      renderImage(overlayCtx, overlayImage, _angle);
+      break;
+    }
+    case "end_selecting": {
       if (panning) {
         storeOverlay(false);
         postMessage({ cmd: "pan_complete" });
+      } else {
+        postMessage({
+          cmd: "select_complete",
+          rect: rectFromPoints(createPoints([startX, startY, endX, endY])),
+        });
       }
       // when we're done recording we're done panning BUT not selecting
       // we still have a selection on screen. Selection ends at the start
@@ -495,12 +547,17 @@ self.onmessage = (evt) => {
       // reset last animation coordinates
       lastAnimX = -1;
       lastAnimY = -1;
+      startX = -1;
+      startY = -1;
+      endX = -1;
+      endY = -1;
       break;
     }
     case "obscure": {
       restoreOverlay();
       const fill = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
-      renderBox(startX, startY, endX, endY, fill);
+      const r = evt.data.rect as unknown as Rect;
+      renderBox(r.x, r.y, r.x + r.width, r.y + r.height, fill);
       storeOverlay();
       break;
     }
@@ -568,6 +625,14 @@ self.onmessage = (evt) => {
       else zoom += _zoom_step;
       if (zoom >= _max_zoom) zoom = _max_zoom; // after a resize this can happen
       if (zoom !== _zoom) adjustZoom(zoom, evt.data.x, evt.data.y);
+      break;
+    }
+    case "brush_inc": {
+      brush += MIN_BRUSH;
+      break;
+    }
+    case "brush_dec": {
+      brush -= brush > MIN_BRUSH ? MIN_BRUSH : 0;
       break;
     }
     default: {
