@@ -4,11 +4,14 @@ uiAppReplicas: 1
 uiImageVers: 0.0.45
 uiImagePath: ghcr.io/micahg/ntt
 uiImageSecret: gitlab-ntt-ui
+uiDomain: "tbltp.dev"
+webDomain: "www.tbltp.dev"
 
 apiAppName: ntt-api
 apiAppReplicas: 1
 apiImageVers: 0.0.23
 apiImagePath: ghcr.io/micahg/nttsrv
+apiDomain: "api.tbltp.dev"
 
 mongoName: "mongo"
 mongoImagePath: mongo
@@ -24,3 +27,4 @@ wsSendTimeout: 60
 
 ingressNamespace: "ingress-nginx"
 issuerDomain: "tbltp.us.auth0.com"
+clientId: I9UCeStWDPIHZsXhXk9XeIDpFyIjBwC8
