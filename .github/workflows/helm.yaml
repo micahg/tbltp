@@ -45,6 +45,7 @@ jobs:
         env:
           ENVIRONMENT: ${{ inputs.environment }}
           EXTRA_ARGS: ${{ inputs.extra-helm-args }}
+          MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
         run: |
           pwd
           which yq
