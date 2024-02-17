@@ -13,6 +13,8 @@ apiAppReplicas: 1
 apiImageVers: 0.0.26
 apiImagePath: ghcr.io/micahg/nttsrv
 apiDomain: "api.tbltp.dev"
+apiStorageClass: do-block-storage
+apiStorageClassSize: 10Gi
 
 mongoName: "mongo"
 mongoImagePath: mongo
