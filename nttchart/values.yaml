@@ -9,7 +9,7 @@ webDomain: "www.tbltp.dev"
 
 apiAppName: ntt-api
 apiAppReplicas: 1
-apiImageVers: 0.0.23
+apiImageVers: 0.0.24
 apiImagePath: ghcr.io/micahg/nttsrv
 apiDomain: "api.tbltp.dev"
 

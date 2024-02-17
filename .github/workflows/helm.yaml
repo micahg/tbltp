@@ -52,4 +52,4 @@ jobs:
           [[ ! -z "$MONGODB_CONNECTION_STRING" ]] && VALUE=`echo "$MONGODB_CONNECTION_STRING" | base64 -d` yq e -i ".mongoConnectionString=env(VALUE)" nttchart/values.yaml
           ls -l nttchart/values.yaml
           grep mongoConnectionString < nttchart/values.yaml | wc -c
-          echo helm upgrade --install -f nttchart/values.yaml $EXTRA_ARGS ntt-infra nttchart
+          helm upgrade --install -f nttchart/values.yaml $EXTRA_ARGS ntt-infra nttchart
