@@ -115,7 +115,9 @@ export function getToken(
   const res = headers || {};
 
   if (state.environment.noauth) {
-    res["Authorization"] = `Bearer NOAUTH`;
+    const value = "NOAUTH";
+    res["Authorization"] = `Bearer ${value}`;
+    store.dispatch({ type: "environment/bearer", payload: value });
     return Promise.resolve(res);
   }
 
