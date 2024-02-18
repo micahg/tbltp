@@ -48,8 +48,8 @@ jobs:
           EXTRA_ARGS: ${{ inputs.extra-helm-args }}
           MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
         run: |
-          ls -l nttchart/values.yaml
-          [[ ! -z "$MONGODB_CONNECTION_STRING" ]] && VALUE=`echo "$MONGODB_CONNECTION_STRING" | base64 -d` yq e -i ".mongoConnectionString=env(VALUE)" nttchart/values.yaml
-          ls -l nttchart/values.yaml
-          grep mongoConnectionString < nttchart/values.yaml | wc -c
-          helm upgrade --install -f nttchart/values.yaml $EXTRA_ARGS ntt-infra nttchart
+          ls -l chart/values.yaml
+          [[ ! -z "$MONGODB_CONNECTION_STRING" ]] && VALUE=`echo "$MONGODB_CONNECTION_STRING" | base64 -d` yq e -i ".mongoConnectionString=env(VALUE)" chart/values.yaml
+          ls -l chart/values.yaml
+          grep mongoConnectionString < chart/values.yaml | wc -c
+          helm upgrade --install -f chart/values.yaml $EXTRA_ARGS ntt-infra chart

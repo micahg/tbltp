@@ -28,5 +28,5 @@ jobs:
         id: dryrun
         # note that --set mongoConnectionString is a hack just to validate output
         run: |
-          helm upgrade --dry-run --debug --install -f nttchart/values.yaml ntt-infra nttchart \
+          helm upgrade --dry-run --debug --install -f chart/values.yaml ntt-infra chart \
           --set mongoConnectionString=CON_STR_VALUE
