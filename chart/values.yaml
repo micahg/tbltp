@@ -2,7 +2,7 @@
 namespace: ntt
 uiAppName: ntt-ui
 uiAppReplicas: 1
-uiImageVers: 0.0.46
+uiImageVers: 0.0.47
 uiImagePath: ghcr.io/micahg/ntt
 uiImageSecret: gitlab-ntt-ui
 uiDomain: "tbltp.dev"
@@ -10,7 +10,7 @@ webDomain: "www.tbltp.dev"
 
 apiAppName: ntt-api
 apiAppReplicas: 1
-apiImageVers: 0.0.26
+apiImageVers: 0.0.27
 apiImagePath: ghcr.io/micahg/nttsrv
 apiDomain: "api.tbltp.dev"
 apiStorageClass: do-block-storage
