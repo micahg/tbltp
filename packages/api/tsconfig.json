@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "lib": ["es2022"],
+    "module": "commonjs",
+    "target": "ES2022",
+    "resolveJsonModule": true,
+    "sourceMap": true,
+  },
+  "exclude": [
+    "./test/"
+  ]
+}

@@ -5,9 +5,36 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Build",
+      "type": "chrome",
+      "request": "launch",
+      "name": "Run (Chrome)",
+      "url": "http://localhost:4200",
+      "webRoot": "${workspaceFolder}",
+      "userDataDir": false
+    },
+    {
+      "name": "Build UI",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "npm",
+      "env": {
+          "HOST": "localhost",
+          "PORT": "4200",
+          "BROWSER": "none"
+      },
+      "runtimeArgs": [
+        "-w",
+        "packages/mui",
+        "start"
+      ]
+    },
+    {
+      "name": "Build API",
       "request": "launch",
       "runtimeArgs": [
+        "-w",
+        "packages/api",
         "run",
         "dev"
       ],
@@ -20,18 +47,20 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Run",
+      "name": "Run API",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [ "start" ],
+      "runtimeArgs": [
+        "-w",
+        "packages/api",
+        "start"
+      ],
       "outputCapture": "std",
       "env": {
         "DISABLE_AUTH": "false",
-        // "AUDIENCE_URL": "asdf.com",
-        //"ISSUER_URL": "https://nttdev.us.auth0.com"
       }
     },
     {
-      "name": "Debug Jest Tests",
+      "name": "Debug API Tests",
       "type": "node",
       "request": "launch",
       "runtimeArgs": [
@@ -51,6 +80,13 @@
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Build All",
+      "configurations": [ "Build API", "Build UI" ],
+      "stopAll": true,
     }
   ]
 }
