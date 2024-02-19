@@ -1,0 +1,16 @@
+{
+  "name": "tbltp",
+  "version": "0.1.0",
+  "description": "Network Table Top",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/micahg/tbltp.git"
+  },
+  "author": "Micah Galizia <micahgalizia@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/micahg/tbltp/issues"
+  },
+  "homepage": "https://github.com/micahg/tbltp",
+  "workspaces": ["packages/api", "packages/mui"]
+}
