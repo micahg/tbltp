@@ -5,7 +5,7 @@ Monorepo for open source network table-top, which aims to be:
 * An alternative to printing maps
 * Free for you to run on your own hardware
 
-## Running With Dockerr
+## Running With Docker
 
 Download https://raw.githubusercontent.com/micahg/tbltp/main/compose.yaml, and run `docker compose up`.
 
