@@ -1,0 +1,23 @@
+.ContentCanvas {
+  z-index: 1;
+  top: 0;
+  left: 0;
+  position: absolute;
+}
+
+.OverlayCanvas {
+  z-index: 2;
+  cursor: pointer;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.map {
+  width: 100vw;
+  height: 100vh;
+  background-color: aqua;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center center;
+}
