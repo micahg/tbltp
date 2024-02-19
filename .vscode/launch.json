@@ -5,6 +5,14 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Run (Chrome)",
+      "url": "http://localhost:4200",
+      "webRoot": "${workspaceFolder}",
+      "userDataDir": false
+    },
+    {
       "name": "Build UI",
       "type": "node",
       "request": "launch",
@@ -72,6 +80,13 @@
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Build All",
+      "configurations": [ "Build API", "Build UI" ],
+      "stopAll": true,
     }
   ]
 }
