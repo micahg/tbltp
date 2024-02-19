@@ -1,0 +1,56 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Build",
+      "request": "launch",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "runtimeExecutable": "npm",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "type": "node"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Run",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [ "start" ],
+      "outputCapture": "std",
+      "env": {
+        "DISABLE_AUTH": "false",
+        // "AUDIENCE_URL": "asdf.com",
+        //"ISSUER_URL": "https://nttdev.us.auth0.com"
+      }
+    },
+    {
+      "name": "Debug Jest Tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeArgs": [
+        "--inspect-brk",
+        "${workspaceRoot}/node_modules/.bin/jest",
+        "--runInBand",
+        "--testTimeout",
+        "60000",
+        "--detectOpenHandles",
+        "--coverage",
+        // "--",
+        // "websocket.test.ts"
+      ],
+      "env": {
+        "MONGOMS_VERSION": "7.0.0",
+        "MONGOMS_DOWNLOAD_URL": "https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2204-7.0.0.tgz",
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ]
+}

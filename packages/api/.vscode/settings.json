@@ -1,0 +1,11 @@
+{
+    "cSpell.languageSettings": [
+        {
+            "languageId": "javascript,typescript",
+            "includeRegExpList": [
+                "CStyleComment",
+                "strings"
+            ]
+        },
+    ],
+}
