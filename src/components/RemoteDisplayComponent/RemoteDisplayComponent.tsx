@@ -280,6 +280,12 @@ const RemoteDisplayComponent = () => {
     // if authorization is ON and we are not authorized, redirect
     if (!noauth && !authorized) return navigate(`/device`);
 
+    // if auth is off this should (in the middleware/auth code) force the token to NOAUTH
+    if (noauth)
+      dispatch({
+        type: "environment/devicecodepoll",
+      });
+
     // having authorized for the first time, start the connection loop
     setConnected(false);
   }, [authorized, noauth, navigate, authTimer, dispatch]);

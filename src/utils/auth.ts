@@ -159,6 +159,9 @@ export function getDeviceCode(data: AuthConfig) {
 }
 
 export function pollDeviceCode(store: MiddlewareAPI<Dispatch<AnyAction>>) {
+  if (store.getState().environment.noauth)
+    return Promise.resolve({ access_token: "NOAUTH" });
+
   return new Promise((resolve, reject) => {
     const deviceCode = store.getState().environment.deviceCode;
     const params = new URLSearchParams({
