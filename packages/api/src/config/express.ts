@@ -1,6 +1,7 @@
 import * as os from "os";
 
 import { log } from "../utils/logger";
+
 import * as express from "express";
 import { Express, NextFunction } from "express";
 import * as bodyParser from "body-parser";
