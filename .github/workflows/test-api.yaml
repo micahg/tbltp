@@ -2,7 +2,7 @@ name: Test changes
 on:
   push:
     paths:
-      - 'packages/api'
+      - 'packages/api/**'
     branches-ignore:
       - main
 env:
