@@ -25,11 +25,10 @@ jobs:
           echo "packages are $MODIFIED_PACKAGES"
           echo "packages=$MODIFIED_PACKAGES"
           echo "packages=$MODIFIED_PACKAGES" >> "$GITHUB_OUTPUT"
-          for p in $(git diff --name-only "v0.16.0" "v0.15.0" | grep "^packages\/*" | cut -d / -f2 | sort | uniq); do
+          for p in $(git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG" | grep "^packages\/*" | cut -d / -f2 | sort | uniq); do
             echo "package_$p=true"
             echo "package_$p=true" >> "$GITHUB_OUTPUT"
           done
-          echo "TODO BRANCH AND VERSION MONO REPO"
   package-mui:
     needs: [start-release]
     if: needs.start-release.outputs.package_mui == 'true'
