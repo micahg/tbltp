@@ -1,0 +1,130 @@
+name: Release
+on:
+  push:
+    branches:
+      - main
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      package_version: ${{ steps.get_version.outputs.package_version }}
+      package_file: ${{ steps.get_package.outputs.package_file }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3 
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      - id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "package_version=$VERSION"
+          echo "package_version=$VERSION" >> "$GITHUB_ENV"
+          echo "package_version=$VERSION" >> "$GITHUB_OUTPUT"
+      - id: get_package
+        run: |
+          npm ci
+          npm run build
+          PACKAGE=$(npm pack)
+          echo "package envvar is $PACKAGE"
+          echo "package_file=$PACKAGE"
+          echo "package_file=$PACKAGE" >> "$GITHUB_ENV"
+          echo "package_file=$PACKAGE" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ntttgz
+          path: micahg-ntt-${{ env.package_version }}.tgz
+  publish:
+    needs: [build]  
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+      # Setup .npmrc file to publish to GitHub Packages
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          registry-url: 'https://npm.pkg.github.com'
+          # Defaults to the user or organization that owns the workflow file
+          scope: '@micahg'
+      - uses: actions/download-artifact@v3
+        with:
+          name: ntttgz
+      - env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_FILE: ${{needs.package.outputs.package_file}}
+        # Using the package file explicitly prevents NPM from rebuilding
+        # the tgz without any contents
+        run: npm publish "./$PACKAGE_FILE"
+  package:
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v3
+      - name: Docker registry login
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download TGZ
+        uses: actions/download-artifact@v3
+        with:
+          name: ntttgz
+      - name: Extract Package
+        env:
+          PACKAGE_FILE: ${{needs.build.outputs.package_file}}
+        # NPM sets all file modification times to 1985/10/26, see
+        # https://github.com/npm/npm/issues/20439#issuecomment-385121133
+        # The browser sees that in the last-modified header and wont pull the
+        # new files. Recursively touching all files updates modification time.
+        run: |
+          ls -lt
+          tar xvf "./$PACKAGE_FILE"
+          find package/build -type f -exec touch {} +
+          ls -lt package/build
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        env:
+          IMAGE_VERSION: ${{needs.build.outputs.package_version}}
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          labels: |
+            org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ env.IMAGE_VERSION }}
+      - name: Docker Build and Push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          git config --global user.name "$GITHUB_ACTOR"
+          git config --global user.email "$GITHUB_ACTOR@github.com"
+          npm version patch
+          VERSION=$(node -p "require('./package.json').version")
+          BRANCH="release/$VERSION"
+          echo "Checking out $BRANCH"
+          git checkout -b "$BRANCH"
+          git push --set-upstream origin "$BRANCH"

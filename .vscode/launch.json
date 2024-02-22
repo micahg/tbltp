@@ -1,0 +1,92 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Run (Chrome)",
+      "url": "http://localhost:4200",
+      "webRoot": "${workspaceFolder}",
+      "userDataDir": false
+    },
+    {
+      "name": "Build UI",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "npm",
+      "env": {
+          "HOST": "localhost",
+          "PORT": "4200",
+          "BROWSER": "none"
+      },
+      "runtimeArgs": [
+        "-w",
+        "packages/mui",
+        "start"
+      ]
+    },
+    {
+      "name": "Build API",
+      "request": "launch",
+      "runtimeArgs": [
+        "-w",
+        "packages/api",
+        "run",
+        "dev"
+      ],
+      "runtimeExecutable": "npm",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "type": "node"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Run API",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "-w",
+        "packages/api",
+        "start"
+      ],
+      "outputCapture": "std",
+      "env": {
+        "DISABLE_AUTH": "false",
+      }
+    },
+    {
+      "name": "Debug API Tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeArgs": [
+        "--inspect-brk",
+        "${workspaceRoot}/node_modules/.bin/jest",
+        "--runInBand",
+        "--testTimeout",
+        "60000",
+        "--detectOpenHandles",
+        "--coverage",
+        // "--",
+        // "websocket.test.ts"
+      ],
+      "env": {
+        "MONGOMS_VERSION": "7.0.0",
+        "MONGOMS_DOWNLOAD_URL": "https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2204-7.0.0.tgz",
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Build All",
+      "configurations": [ "Build API", "Build UI" ],
+      "stopAll": true,
+    }
+  ]
+}

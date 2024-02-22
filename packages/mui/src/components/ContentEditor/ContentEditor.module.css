@@ -1,0 +1,113 @@
+.ContentEditor {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.ContentContainer {
+  position: absolute;
+  margin-bottom: 4em;
+}
+
+.ContentCanvas {
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  position: absolute; 
+}
+
+.OverlayCanvas {
+  z-index: 2;
+  cursor: pointer;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.OpacitySlider {
+  right: 37.5em;
+  bottom: 3em;
+  z-index: 3;
+  position: absolute;
+  background-color: gray;
+}
+
+.BackgroundMenu {
+  right: 2.25em;
+}
+
+.OpacityMenu {
+  right: 37.5em;
+}
+
+.Menu {
+  bottom: 3em;
+  z-index: 3;
+  position: absolute;
+}
+
+.Menu button {
+  background-color: gray;
+  color: black;
+  display: block;
+  text-decoration: none;
+  width: 10em;
+  text-align: left;
+  padding: 0.25em;
+  border: 1px solid black;
+}
+
+.Menu button:hover {
+  background-color: lightgray;
+  color: black;
+}
+
+.Menu button:active {
+  background-color: whitesmoke;
+  color: black;
+}
+
+.ControlsContainer {
+  display: flex;
+  flex-direction: row;
+  justify-content: right;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  z-index: 1;
+}
+
+.ControlsContainer input[type=color]{
+  margin: 0.5em;
+  padding: 0;
+  height: 2.5em;
+}
+
+.ControlsContainer input[type=text] {
+  margin: 0.5em;
+  padding: 0.5em;
+  height: 1em;
+}
+.ControlsContainer button {
+  border-radius: 12px;
+  margin: 0.5em;
+  padding: 0.5em;
+  transition-duration: 0.4s;
+  background-color: gray;
+  color: black;
+}
+
+.ControlsContainer button[disabled]:hover {
+  background-color: gray;
+  color: black;
+}
+
+.ControlsContainer button:hover {
+  background-color: lightgray;
+  color: black;
+}
+
+.ControlsContainer button:active {
+  background-color: whitesmoke;
+  color: black;
+}

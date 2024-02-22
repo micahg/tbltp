@@ -1,0 +1,24 @@
+name: Test MUI
+on:
+  push:
+    paths:
+      - 'packages/mui/**'
+    branches-ignore:
+      - main
+jobs:
+  test_mui:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+      - run: npm ci -w packages/mui
+      - name: Utils Unit Test
+        run: npm run test:utils -w packages/mui
+      - name: Test Build
+        run: npm run build -w packages/mui
+
+      

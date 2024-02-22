@@ -1,4 +1,17 @@
 {
+    "cSpell.languageSettings": [
+        {
+            "languageId": "javascript,typescript",
+            "includeRegExpList": [
+                "CStyleComment",
+                "strings"
+            ]
+        },
+    ],
+    "cSpell.words": [
+        "colour",
+        "viewports"
+    ],
     "yaml.schemas": {
         "https://json.schemastore.org/github-workflow.json": "file:///home/micah/dev/nttinfra/.github/workflows/deploy.yaml"
     }

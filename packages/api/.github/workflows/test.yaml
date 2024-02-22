@@ -1,0 +1,52 @@
+name: Test changes
+on:
+  push:
+    branches-ignore:
+      - main
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  MONGO_CACHE_PATH: ~/.cache/mongodb-binaries
+  MONGO_BINARY: mongod-x86_64-ubuntu-7.0.0
+  MONGOMS_VERSION: 7.0.0
+  MONGOMS_DOWNLOAD_URL: https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2204-7.0.0.tgz
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      package_version: ${{ steps.get_version.outputs.package_version }}
+    permissions:
+      contents: read
+    steps:
+    # cache download ./node_modules/.cache
+      - uses: actions/checkout@v3 
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      - name: Cache Mongo Binary
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.MONGO_CACHE_PATH }}/${{ env.MONGO_BINARY }}
+          key: ${{ env.MONGO_BINARY }}
+      - name: Node Modules
+        run: npm ci
+      - name: Lint Code
+        run: npm run lint
+      - name: Prune Dead Code
+        run: npm run prune
+      - name: Unit Test
+        run: npm run test
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      package_version: ${{ steps.get_version.outputs.package_version }}
+    permissions:
+      contents: read
+    steps:
+    # cache download ./node_modules/.cache
+      - uses: actions/checkout@v3 
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      - run: npm ci
+      - run: npm run build
