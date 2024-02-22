@@ -29,6 +29,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:utils": "jest --runInBand -- geometry.test.ts",
     "eject": "react-scripts eject",
     "lint": "eslint src",
     "lint:fix": "npm run lint -- --fix"

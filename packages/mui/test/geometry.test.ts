@@ -3,7 +3,6 @@
  */
 
 import {
-  Rect,
   calculateBounds,
   rotatedWidthAndHeight,
   rotateBackToBackgroundOrientation,
