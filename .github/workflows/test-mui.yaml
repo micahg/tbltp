@@ -6,7 +6,7 @@ on:
     branches-ignore:
       - main
 jobs:
-  test-build:
+  test_mui:
     runs-on: ubuntu-latest
     permissions:
       contents: read
