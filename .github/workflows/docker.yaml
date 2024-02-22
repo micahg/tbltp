@@ -37,18 +37,19 @@ jobs:
         env:
           IMAGE_VERSION: ${{ steps.get-version.outputs.package_version}}
           REGISTRY: ghcr.io
-          IMAGE_NAME: ${{ github.repository }}
+          IMAGE_NAME: tbltp-${{ inputs.package }}
         with:
           images: ${{ env.REGISTRY }}/tbltp-${{ inputs.package }}
           labels: |
             org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
+            org.opencontainers.image.title=tbltp-${{ inputs.package }}
           tags: |
             type=semver,pattern={{version}},value=${{ env.IMAGE_VERSION }}
       - name: Docker Build and Push
         uses: docker/build-push-action@v5
         with:
-          context: ./packages/api
-          file: ./packages/api/Dockerfile
+          context: ./packages/${{ inputs.package }}
+          file: ./packages/${{ inputs.package }}/Dockerfile
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
