@@ -49,7 +49,7 @@ jobs:
   package-api:
     needs: [start-release]
     if: needs.start-release.outputs.package_api == 'true'
-    uses: ./.github/workflows/helm.yaml
+    uses: ./.github/workflows/docker.yaml
     permissions:
       contents: read
     with:
