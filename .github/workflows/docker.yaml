@@ -39,10 +39,11 @@ jobs:
           REGISTRY: ghcr.io
           IMAGE_NAME: tbltp-${{ inputs.package }}
         with:
-          images: ${{ env.REGISTRY }}/tbltp-${{ inputs.package }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          # images: ${{ env.REGISTRY }}/tbltp-${{ inputs.package }}
           labels: |
             org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
-            org.opencontainers.image.title=tbltp-${{ inputs.package }}
+          # org.opencontainers.image.title=tbltp-${{ inputs.package }}
           tags: |
             type=semver,pattern={{version}},value=${{ env.IMAGE_VERSION }}
       - name: Docker Build and Push
