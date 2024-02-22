@@ -16,15 +16,9 @@ jobs:
         with:
           node-version: '18.x'
       - run: npm ci -w packages/mui
-      - run: npm run build -w packages/mui
-  test-utils:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '18.x'
-      - run: npm run test:utils -w packages/mui
+      - name: Utils Unit Test
+        run: npm run test:utils -w packages/mui
+      - name: Test Build
+        run: npm run build -w packages/mui
+
+      
