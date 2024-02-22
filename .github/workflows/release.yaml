@@ -58,12 +58,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '18.x'
-      - run: npm ci
-      - run: npm run build
+      - run: npm ci -w packages/api
+      - run: npm run build -w packages/api
       - id: get-version
         name: Get API Version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION=$(node -p "require('./packages/api/package.json').version")
           echo "package_version=$VERSION"
           echo "package_version=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Docker registry login
@@ -87,7 +87,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: ./Dockerfile
+          file: ./packages/api/Dockerfile
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
