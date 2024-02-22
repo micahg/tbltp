@@ -52,5 +52,6 @@ jobs:
     uses: ./.github/workflows/docker.yaml
     permissions:
       contents: read
+      packages: write
     with:
       package: api
