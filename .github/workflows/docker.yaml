@@ -6,6 +6,9 @@ on:
       package:
         required: true
         type: string
+      registry:
+        required: true
+        type: string
 jobs:
   docker-image:
     runs-on: ubuntu-latest
@@ -28,21 +31,20 @@ jobs:
       - name: Docker registry login
         uses: docker/login-action@v2
         with:
-          registry: ghcr.io
+          registry: ${{ inputs.registry }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract metadata (tags, labels) for Docker
         id: metadata
         uses: docker/metadata-action@v5
-        env:
-          IMAGE_VERSION: ${{ steps.get-version.outputs.package_version}}
-          REGISTRY: ghcr.io
-          IMAGE_NAME: tbltp-${{ inputs.package }}
+        # env:
+        #   IMAGE_VERSION: ${{ steps.get-version.outputs.package_version}}
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}
-          # images: ${{ env.REGISTRY }}/tbltp-${{ inputs.package }}
+          # images: ${{ env.REGISTRY }}/${{ github.repository }}
+          images: ${{ inputs.registry }}/tbltp-${{ inputs.package }}
           labels: |
-            org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
+            org.opencontainers.image.version=${{ steps.get-version.outputs.package_version}}
+          # org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
           # org.opencontainers.image.title=tbltp-${{ inputs.package }}
           tags: |
             type=semver,pattern={{version}},value=${{ env.IMAGE_VERSION }}
