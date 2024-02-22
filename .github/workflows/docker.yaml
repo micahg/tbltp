@@ -33,7 +33,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Extract metadata (tags, labels) for Docker
         id: metadata
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         env:
           IMAGE_VERSION: ${{ steps.get-version.outputs.package_version}}
           REGISTRY: ghcr.io
@@ -45,10 +45,10 @@ jobs:
           tags: |
             type=semver,pattern={{version}},value=${{ env.IMAGE_VERSION }}
       - name: Docker Build and Push
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: ./packages/api
-          file: ./Dockerfile
+          file: ./packages/api/Dockerfile
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
