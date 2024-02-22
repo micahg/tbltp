@@ -28,24 +28,12 @@ jobs:
   package-mui:
     needs: [start-release]
     if: needs.start-release.outputs.package_mui == 'true'
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/docker.yaml
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Package A
-        env:
-          ALL_PACKAGES: ${{ needs.start-release.outputs.packages}}
-          PACKAGE_NAME: a
-          DO_PACKAGE: ${{ needs.start-release.outputs.package_mui }}
-        run: |
-          echo "PACKAGES ARE \""$ALL_PACKAGES"\" \""$DO_PACKAGE"\""
-          if ! [[ $DO_PACKAGE != true ]]; then
-              echo "$PACKAGE_NAME unchanged - will not build"
-              exit
-          fi
-          
-          echo "BUILD IT"
+      packages: write
+    with:
+      package: mui
   package-api:
     needs: [start-release]
     if: needs.start-release.outputs.package_api == 'true'

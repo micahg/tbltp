@@ -39,7 +39,7 @@ jobs:
           REGISTRY: ghcr.io
           IMAGE_NAME: ${{ github.repository }}
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/tbltp-${{ inputs.package }}
           labels: |
             org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
           tags: |
