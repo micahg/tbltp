@@ -1,0 +1,54 @@
+name: Build and Upload Docker Images
+run-name: Build and Upload ${{ inputs.package }} Docker Image
+on:
+  workflow_call:
+    inputs:
+      package:
+        required: true
+        type: string
+jobs:
+  docker-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+      - run: npm ci -w packages/${{ inputs.package }}
+      - run: npm run build -w packages/${{ inputs.package }}
+      - id: get-version
+        name: Get ${{ inputs.package }} Version
+        run: |
+          VERSION=$(node -p "require('./packages/${{ inputs.package }}/package.json').version")
+          echo "package_version=$VERSION"
+          echo "package_version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Docker registry login
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: metadata
+        uses: docker/metadata-action@v4
+        env:
+          IMAGE_VERSION: ${{ steps.get-version.outputs.package_version}}
+          REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.repository }}
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          labels: |
+            org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ env.IMAGE_VERSION }}
+      - name: Docker Build and Push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./packages/api/Dockerfile
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
