@@ -41,7 +41,7 @@ jobs:
         # env:
         #   IMAGE_VERSION: ${{ steps.get-version.outputs.package_version}}
         with:
-          images: ${{ github.repository }}-${{ inputs.package }}
+          images: ${{ github.repository }}/${{ inputs.package }}
           # images: ${{ inputs.registry }}/tbltp
           labels: |
             org.opencontainers.image.version=${{ steps.get-version.outputs.package_version}}
