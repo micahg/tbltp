@@ -34,6 +34,7 @@ jobs:
       packages: write
     with:
       package: mui
+      registry: ghcr.io
   package-api:
     needs: [start-release]
     if: needs.start-release.outputs.package_api == 'true'
@@ -43,3 +44,4 @@ jobs:
       packages: write
     with:
       package: api
+      registry: ghcr.io
