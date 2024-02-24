@@ -45,10 +45,10 @@ jobs:
         with:
           images: ${{ inputs.registry }}/${{ github.repository }}-${{ inputs.package }}
           labels: |
-            org.opencontainers.image.version=${{ steps.get-version.outputs.package_version}}
+            org.opencontainers.image.version=${{ steps.get-version.outputs.package_version }}
             org.opencontainers.image.title=${{ github.repository }}-${{ inputs.package }}
           tags: |
-            type=semver,pattern={{version}},value=${{ steps.get-version.outputs.package_version}}
+            type=semver,pattern={{version}},value=${{ steps.get-version.outputs.package_version }}
       - name: Docker Build and Push
         uses: docker/build-push-action@v5
         with:
