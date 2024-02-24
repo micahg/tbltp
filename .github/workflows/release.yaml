@@ -25,23 +25,57 @@ jobs:
             echo "package_$p=true"
             echo "package_$p=true" >> "$GITHUB_OUTPUT"
           done
-  package-mui:
+  version:
     needs: [start-release]
-    if: needs.start-release.outputs.package_mui == 'true'
-    uses: ./.github/workflows/docker.yaml
+    runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
-    with:
-      package: mui
-      registry: ghcr.io
-  package-api:
-    needs: [start-release]
-    if: needs.start-release.outputs.package_api == 'true'
-    uses: ./.github/workflows/docker.yaml
-    permissions:
-      contents: read
-      packages: write
-    with:
-      package: api
-      registry: ghcr.io
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - id: create-branch
+        name: Create Branch
+        run: |
+          git config --global user.name "$GITHUB_ACTOR"
+          git config --global user.email "$GITHUB_ACTOR@github.com"
+          echo npm version minor
+          npm version minor
+          VERSION=$(node -p "require('./package.json').version")
+          BRANCH="release/$VERSION"
+          echo "release_branch=$BRANCH"
+          echo "release_branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          if [ ${{ needs.start-release.outputs.package_api }} == true ]; then
+            echo npm version minor -w packages/api
+            npm version minor -w packages/api
+          fi
+          if [ ${{ needs.start-release.outputs.package_mui }} == true ]; then
+            echo npm version minor -w packages/mui
+            npm version minor -w packages/mui
+          fi
+          git checkout -b "$BRANCH"
+          git push --set-upstream origin "$BRANCH"
+      - name: Create Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create --base main --head ${{ steps.create-branch.outputs.release_branch }} -b "chore: update package versions" -t "chore: update package versions"
+
+  # package-mui:
+  #   needs: [start-release]
+  #   if: needs.start-release.outputs.package_mui == 'true'
+  #   uses: ./.github/workflows/docker.yaml
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #   with:
+  #     package: mui
+  #     registry: ghcr.io
+  # package-api:
+  #   needs: [start-release]
+  #   if: needs.start-release.outputs.package_api == 'true'
+  #   uses: ./.github/workflows/docker.yaml
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #   with:
+  #     package: api
+  #     registry: ghcr.io

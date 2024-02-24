@@ -1,4 +1,3 @@
-// import { MongoClient, Db } from "mongodb";
 import { log } from "../utils/logger";
 import mongoose, { Mongoose } from "mongoose";
 
