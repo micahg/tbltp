@@ -43,11 +43,13 @@ jobs:
           BRANCH="release/$VERSION"
           echo "release_branch=$BRANCH"
           echo "release_branch=$BRANCH" >> "$GITHUB_OUTPUT"
-          if [ ${{ needs.start-release.outputs.package_api }} == true ]; then
+          echo "${{ needs.start-release.outputs.package_api }}"
+          if [ "${{ needs.start-release.outputs.package_api }}" == "true" ]; then
             echo npm version minor -w packages/api
             npm version minor -w packages/api
           fi
-          if [ ${{ needs.start-release.outputs.package_mui }} == true ]; then
+          echo "${{ needs.start-release.outputs.package_mui }}"
+          if [ "${{ needs.start-release.outputs.package_mui }}" == "true" ]; then
             echo npm version minor -w packages/mui
             npm version minor -w packages/mui
           fi
@@ -55,9 +57,12 @@ jobs:
           git push --set-upstream origin "$BRANCH"
       - name: Create Pull Request
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD: ${{ steps.create-branch.outputs.release_branch }}
+          TITLE: "chore: update package versions"
+          BODY: "Automated version update PR"
         run: |
-          gh pr create --base main --head ${{ steps.create-branch.outputs.release_branch }} -b "chore: update package versions" -t "chore: update package versions"
+          gh pr create --base main --head "$HEAD" -b "$BODY" -t "$NOTE"
 
   # package-mui:
   #   needs: [start-release]
