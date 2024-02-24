@@ -21,7 +21,7 @@ jobs:
       - run: |
           echo ${{ inputs.registry }}
           echo ${{ github.repository }}
-          echo ${{ inputs.package }}}}
+          echo ${{ inputs.package }}
       - uses: actions/setup-node@v4
         with:
           node-version: '18.x'
@@ -42,17 +42,13 @@ jobs:
       - name: Extract metadata (tags, labels) for Docker
         id: metadata
         uses: docker/metadata-action@v5
-        # env:
-        #   IMAGE_VERSION: ${{ steps.get-version.outputs.package_version}}
         with:
           images: ${{ inputs.registry }}/${{ github.repository }}-${{ inputs.package }}
-          # images: ${{ inputs.registry }}/tbltp
           labels: |
             org.opencontainers.image.version=${{ steps.get-version.outputs.package_version}}
-          # org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
-          # org.opencontainers.image.title=tbltp-${{ inputs.package }}
+            org.opencontainers.image.title=${{ github.repository }}-${{ inputs.package }}
           tags: |
-            type=semver,pattern={{version}},value=${{ env.IMAGE_VERSION }}
+            type=semver,pattern={{version}},value=${{ steps.get-version.outputs.package_version}}
       - name: Docker Build and Push
         uses: docker/build-push-action@v5
         with:
