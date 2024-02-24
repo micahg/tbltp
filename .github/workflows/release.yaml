@@ -62,7 +62,7 @@ jobs:
           TITLE: "chore: update package versions"
           BODY: "Automated version update PR"
         run: |
-          gh pr create --base main --head "$HEAD" -b "$BODY" -t "$NOTE"
+          gh pr create --base main --head "$HEAD" -b "$BODY" -t "$TITLE"
 
   # package-mui:
   #   needs: [start-release]
