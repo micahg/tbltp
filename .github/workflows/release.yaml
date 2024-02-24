@@ -40,24 +40,30 @@ jobs:
         run: |
           git config --global user.name "$GITHUB_ACTOR"
           git config --global user.email "$GITHUB_ACTOR@github.com"
-          echo npm version $SEGMENT
-          npm version $SEGMENT
           VERSION=$(node -p "require('./package.json').version")
           BRANCH="release/$VERSION"
+          git checkout -b "$BRANCH"
+
           echo "release_branch=$BRANCH"
           echo "release_branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+          echo npm version $SEGMENT --no-commit-hooks --no-git-tag-version
+          npm version $SEGMENT --no-commit-hooks --no-git-tag-version
+
           echo "${{ needs.start-release.outputs.package_api }}"
           if [ "${{ needs.start-release.outputs.package_api }}" == "true" ]; then
-            echo npm version $SEGMENT -w packages/api
-            npm version $SEGMENT -w packages/api
+            echo npm version $SEGMENT --no-commit-hooks --no-git-tag-version -w packages/api
+            npm version $SEGMENT --no-commit-hooks --no-git-tag-version -w packages/api
           fi
+
           echo "${{ needs.start-release.outputs.package_mui }}"
           if [ "${{ needs.start-release.outputs.package_mui }}" == "true" ]; then
-            echo npm version $SEGMENT -w packages/mui
-            npm version $SEGMENT -w packages/mui
+            echo npm version $SEGMENT --no-commit-hooks --no-git-tag-version -w packages/mui
+            npm version $SEGMENT --no-commit-hooks --no-git-tag-version -w packages/mui
           fi
-          git checkout -b "$BRANCH"
+
           git status
+          git commit -m "chore: increment version numbers" -a
           git push --set-upstream origin "$BRANCH"
       - name: Create Pull Request
         env:
@@ -67,7 +73,7 @@ jobs:
           BODY: "Automated version update PR"
         run: |
           gh pr create --base main --head "$HEAD" -b "$BODY" -t "$TITLE"
-          gh pr merge
+          # gh pr merge
   package-mui:
     needs: [start-release]
     if: needs.start-release.outputs.package_mui == 'true'
