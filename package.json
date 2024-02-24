@@ -1,6 +1,6 @@
 {
   "name": "tbltp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Network Table Top",
   "repository": {
     "type": "git",
@@ -12,5 +12,8 @@
     "url": "https://github.com/micahg/tbltp/issues"
   },
   "homepage": "https://github.com/micahg/tbltp",
-  "workspaces": ["packages/api", "packages/mui"]
+  "workspaces": [
+    "packages/api",
+    "packages/mui"
+  ]
 }
