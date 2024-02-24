@@ -35,24 +35,26 @@ jobs:
       - uses: actions/checkout@v4
       - id: create-branch
         name: Create Branch
+        env:
+          SEGMENT: patch
         run: |
           git config --global user.name "$GITHUB_ACTOR"
           git config --global user.email "$GITHUB_ACTOR@github.com"
-          echo npm version minor
-          npm version minor
+          echo npm version $SEGMENT
+          npm version $SEGMENT
           VERSION=$(node -p "require('./package.json').version")
           BRANCH="release/$VERSION"
           echo "release_branch=$BRANCH"
           echo "release_branch=$BRANCH" >> "$GITHUB_OUTPUT"
           echo "${{ needs.start-release.outputs.package_api }}"
           if [ "${{ needs.start-release.outputs.package_api }}" == "true" ]; then
-            echo npm version minor -w packages/api
-            npm version minor -w packages/api
+            echo npm version $SEGMENT -w packages/api
+            npm version $SEGMENT -w packages/api
           fi
           echo "${{ needs.start-release.outputs.package_mui }}"
           if [ "${{ needs.start-release.outputs.package_mui }}" == "true" ]; then
-            echo npm version minor -w packages/mui
-            npm version minor -w packages/mui
+            echo npm version $SEGMENT -w packages/mui
+            npm version $SEGMENT -w packages/mui
           fi
           git checkout -b "$BRANCH"
           git status
@@ -65,24 +67,24 @@ jobs:
           BODY: "Automated version update PR"
         run: |
           gh pr create --base main --head "$HEAD" -b "$BODY" -t "$TITLE"
-
-  # package-mui:
-  #   needs: [start-release]
-  #   if: needs.start-release.outputs.package_mui == 'true'
-  #   uses: ./.github/workflows/docker.yaml
-  #   permissions:
-  #     contents: read
-  #     packages: write
-  #   with:
-  #     package: mui
-  #     registry: ghcr.io
-  # package-api:
-  #   needs: [start-release]
-  #   if: needs.start-release.outputs.package_api == 'true'
-  #   uses: ./.github/workflows/docker.yaml
-  #   permissions:
-  #     contents: read
-  #     packages: write
-  #   with:
-  #     package: api
-  #     registry: ghcr.io
+          gh pr merge
+  package-mui:
+    needs: [start-release]
+    if: needs.start-release.outputs.package_mui == 'true'
+    uses: ./.github/workflows/docker.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      package: mui
+      registry: ghcr.io
+  package-api:
+    needs: [start-release]
+    if: needs.start-release.outputs.package_api == 'true'
+    uses: ./.github/workflows/docker.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      package: api
+      registry: ghcr.io
