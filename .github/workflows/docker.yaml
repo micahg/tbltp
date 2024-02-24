@@ -18,6 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: env
+      - run: |
+          echo ${{ inputs.registry }}
+          echo ${{ github.repository }}
+          echo ${{ inputs.package }}}}
       - uses: actions/setup-node@v4
         with:
           node-version: '18.x'
@@ -41,7 +45,7 @@ jobs:
         # env:
         #   IMAGE_VERSION: ${{ steps.get-version.outputs.package_version}}
         with:
-          images: ${{ github.repository }}/${{ inputs.package }}
+          images: ${{ inputs.registry }}/${{ github.repository }}-${{ inputs.package }}
           # images: ${{ inputs.registry }}/tbltp
           labels: |
             org.opencontainers.image.version=${{ steps.get-version.outputs.package_version}}
