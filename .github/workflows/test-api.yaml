@@ -1,11 +1,10 @@
 name: Test API
 on:
-  workflow_dispatch:
-  # push:
-  #   paths:
-  #     - 'packages/api/**'
-  #   branches-ignore:
-  #     - main
+  push:
+    paths:
+      - 'packages/api/**'
+    branches-ignore:
+      - main
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
