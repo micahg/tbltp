@@ -30,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - id: create-branch
@@ -54,6 +55,7 @@ jobs:
             npm version minor -w packages/mui
           fi
           git checkout -b "$BRANCH"
+          git status
           git push --set-upstream origin "$BRANCH"
       - name: Create Pull Request
         env:
