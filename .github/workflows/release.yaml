@@ -73,7 +73,7 @@ jobs:
           BODY: "Automated version update PR"
         run: |
           gh pr create --base main --head "$HEAD" -b "$BODY" -t "$TITLE"
-          gh pr merge
+          gh pr merge --squash
   package-mui:
     needs: [start-release]
     if: needs.start-release.outputs.package_mui == 'true'

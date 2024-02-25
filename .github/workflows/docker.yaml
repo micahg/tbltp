@@ -51,7 +51,7 @@ jobs:
             type=semver,pattern={{version}},value=${{ steps.get-version.outputs.package_version }}
       - name: DELETE ME LATER
         run: |
-          ls -l /packages/${{ inputs.package }}/
+          ls -l ./packages/${{ inputs.package }}/
       - name: Docker Build and Push
         uses: docker/build-push-action@v5
         with:
