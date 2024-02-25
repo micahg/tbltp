@@ -12,6 +12,10 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4 
+      - name: Check changed files
+        run: |
+          FIRST_COMMIT_AFTER_VERSION=$(git rev-list "$PREV_TAG...HEAD" | tail -n 2 | head -n 1)
+          git diff --name-only "$GITHUB_REF_NAME" "$FIRST_COMMIT_AFTER_VERSION" | grep "^packages\/*"
       - uses: actions/setup-node@v4
         with:
           node-version: '18.x'
