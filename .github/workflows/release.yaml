@@ -16,21 +16,14 @@ jobs:
           fetch-depth: 0
       - id: version-mono
         run: |
-          env
+          echo "TODO SOME DAY COME BACK AND FIGURE OUT HOW TO GET THE COMMIT AFTER THE VERSION BUMP"
           git config --global user.name "$GITHUB_ACTOR"
           git config --global user.email "$GITHUB_ACTOR@github.com"
           git rev-list --tags --skip=1 --max-count=1
           PREV_TAG_HASH=$(git rev-list --tags --skip=1 --max-count=1)
           PREV_TAG=$(git describe --abbrev=0 --tags $PREV_TAG_HASH)
           FIRST_COMMIT_PREV_TAG=$(git rev-list "$PREV_TAG...HEAD" | tail -n 2 | head -n 1)
-          echo "$PREV_TAG_HASH"
-          echo "$FIRST_COMMIT_PREV_TAG"
-          echo git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG"
-          git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG"
-          echo git diff --name-only "$GITHUB_SHA" "$FIRST_COMMIT_PREV_TAG"
-          git diff --name-only "$GITHUB_SHA" "$FIRST_COMMIT_PREV_TAG"
-          echo "HI"
-          for p in $(git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG" | grep "^packages\/*" | cut -d / -f2 | sort | uniq); do
+          for p in $(git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG" | grep "^packages\/*" | grep -v "package.json" | grep -v "package-lock.json" | cut -d / -f2 | sort | uniq); do
             echo "package_$p=true"
             echo "package_$p=true" >> "$GITHUB_OUTPUT"
           done
