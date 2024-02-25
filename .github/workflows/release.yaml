@@ -93,7 +93,8 @@ jobs:
 
           git status
           git commit -m "chore: increment version numbers" -a
-          git push --set-upstream origin ${{ needs.create-branch.outputs.release_branch }}
+          git status
+          git push --set-upstream origin ${{ steps.create-branch.outputs.release_branch }}
       - name: Create Pull Request
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
