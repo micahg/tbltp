@@ -21,9 +21,15 @@ jobs:
           git rev-list --tags --skip=1 --max-count=1
           PREV_TAG_HASH=$(git rev-list --tags --skip=1 --max-count=1)
           PREV_TAG=$(git describe --abbrev=0 --tags $PREV_TAG_HASH)
-          echo git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG"
-          git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG" | grep "^packages\/*"
-          for p in $(git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG" | grep "^packages\/*" | cut -d / -f2 | sort | uniq); do
+          FIRST_COMMIT_PREV_TAG=$(git rev-list "$PREV_TAG...HEAD" | tail -n 2 | head -n 1)
+          # echo git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG"
+          # git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG" | grep "^packages\/*"
+          # for p in $(git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG" | grep "^packages\/*" | cut -d / -f2 | sort | uniq); do
+          echo git diff --name-only "$GITHUB_REF_NAME" "$FIRST_COMMIT_PREV_TAG"
+          git diff --name-only "$GITHUB_REF_NAME" "$FIRST_COMMIT_PREV_TAG"
+          echo git diff --name-only "$GITHUB_REF_NAME" "$FIRST_COMMIT_PREV_TAG" | grep "^packages\/*"
+          git diff --name-only "$GITHUB_REF_NAME" "$FIRST_COMMIT_PREV_TAG" | grep "^packages\/*"
+          for p in $(git diff --name-only "$GITHUB_REF_NAME" "$FIRST_COMMIT_PREV_TAG" | grep "^packages\/*" | cut -d / -f2 | sort | uniq); do
             echo "package_$p=true"
             echo "package_$p=true" >> "$GITHUB_OUTPUT"
           done
