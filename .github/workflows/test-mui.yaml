@@ -19,6 +19,12 @@ jobs:
           echo "hi"
           PREV_TAG_HASH=$(git rev-list --tags --skip=1 --max-count=1)
           PREV_TAG=$(git describe --abbrev=0 --tags $PREV_TAG_HASH)
+          echo git rev-list "$PREV_TAG...HEAD"
+          git rev-list "$PREV_TAG...HEAD"
+          echo git rev-list "$PREV_TAG...HEAD" | tail -n 2
+          git rev-list "$PREV_TAG...HEAD" | tail -n 2
+          echo git rev-list "$PREV_TAG...HEAD" | tail -n 2 | head -n 1
+          git rev-list "$PREV_TAG...HEAD" | tail -n 2 | head -n 1
           FIRST_COMMIT_AFTER_VERSION=$(git rev-list "$PREV_TAG...HEAD" | tail -n 2 | head -n 1)
           git diff --name-only "$GITHUB_REF_NAME" "$FIRST_COMMIT_AFTER_VERSION" | grep "^packages\/*"
       - uses: actions/setup-node@v4
