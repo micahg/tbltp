@@ -51,25 +51,25 @@ jobs:
       - id: update-chart
         run: |
           NEW_VERSION=$(node -p "require('./package.json').version")
-          yq -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
-          echo yq -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
+          echo yq e -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
+          yq e -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
 
           echo "${{ needs.start-release.outputs.package_api }}"
           if [ "${{ needs.start-release.outputs.package_api }}" == "true" ]; then
             NEW_VERSION=$(node -p "require('./packages/api/package.json').version")
-            echo yq -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-            yq -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-            echo yq -i '.services.api.image = ghcr.io/micahg/tbltp-api:strenv(NEW_VERSION)' chart/values.yaml
-            yq -i '.services.api.image = ghcr.io/micahg/tbltp-api:strenv(NEW_VERSION)' chart/values.yaml
+            echo yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+            yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+            echo yq e -i '.services.api.image = ghcr.io/micahg/tbltp-api:strenv(NEW_VERSION)' compose.yaml
+            yq e -i '.services.api.image = ghcr.io/micahg/tbltp-api:strenv(NEW_VERSION)' compose.yaml
           fi
 
           echo "${{ needs.start-release.outputs.package_mui }}"
           if [ "${{ needs.start-release.outputs.package_mui }}" == "true" ]; then
             NEW_VERSION=$(node -p "require('./packages/mui/package.json').version")
-            echo yq -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-            yq -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-            echo yq -i '.services.ui.image = ghcr.io/micahg/tbltp-mui:strenv(NEW_VERSION)' chart/values.yaml
-            yq -i '.services.ui.image = ghcr.io/micahg/tbltp-mui:strenv(NEW_VERSION)' chart/values.yaml
+            echo yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+            yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+            echo yq e -i '.services.ui.image = ghcr.io/micahg/tbltp-mui:strenv(NEW_VERSION)' compose.yaml
+            yq e -i '.services.ui.image = ghcr.io/micahg/tbltp-mui:strenv(NEW_VERSION)' compose.yaml
           fi
       - id: update-versions
         run: |
