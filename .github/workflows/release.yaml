@@ -52,28 +52,27 @@ jobs:
         name: Update Docker and Helm
         run: |
           NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "NEW_VERSION $NEW_VERSION"
           echo yq e -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
           yq e -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
 
-          echo "${{ needs.start-release.outputs.package_api }}"
-          if [ "${{ needs.start-release.outputs.package_api }}" == "true" ]; then
-            NEW_VERSION=$(node -p "require('./packages/api/package.json').version")
-            NEW_IMAGE="ghcr.io/micahg/tbltp-api:$NEW_VERSION"
-            echo yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-            yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-            echo yq e -i '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
-            yq e -i '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
-          fi
+          NEW_VERSION=$(node -p "require('./packages/api/package.json').version")
+          NEW_IMAGE="ghcr.io/micahg/tbltp-api:$NEW_VERSION"
+          echo "NEW_VERSION $NEW_VERSION"
+          echo "NEW_IMAGE $NEW_IMAGE"
+          echo yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          echo yq e -i '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
+          yq e -i '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
 
-          echo "${{ needs.start-release.outputs.package_mui }}"
-          if [ "${{ needs.start-release.outputs.package_mui }}" == "true" ]; then
-            NEW_VERSION=$(node -p "require('./packages/mui/package.json').version")
-            NEW_IMAGE="ghcr.io/micahg/tbltp-mui:$NEW_VERSION"
-            echo yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-            yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-            echo yq e -i '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
-            yq e -i '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
-          fi
+          NEW_VERSION=$(node -p "require('./packages/mui/package.json').version")
+          NEW_IMAGE="ghcr.io/micahg/tbltp-mui:$NEW_VERSION"
+          echo "NEW_VERSION $NEW_VERSION"
+          echo "NEW_IMAGE $NEW_IMAGE"
+          echo yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          echo yq e -i '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
+          yq e -i '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
       - id: update-versions
         run: |
           echo npm version $SEGMENT --no-commit-hooks --no-git-tag-version
