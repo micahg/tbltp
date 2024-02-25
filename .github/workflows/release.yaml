@@ -27,6 +27,8 @@ jobs:
           echo "$FIRST_COMMIT_PREV_TAG"
           echo git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG"
           git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG"
+          echo git diff --name-only "$GITHUB_SHA" "$FIRST_COMMIT_PREV_TAG"
+          git diff --name-only "$GITHUB_SHA" "$FIRST_COMMIT_PREV_TAG"
           for p in $(git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG" | grep "^packages\/*" | cut -d / -f2 | sort | uniq); do
             echo "package_$p=true"
             echo "package_$p=true" >> "$GITHUB_OUTPUT"
