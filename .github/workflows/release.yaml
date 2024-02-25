@@ -49,6 +49,7 @@ jobs:
           echo "release_branch=$BRANCH"
           echo "release_branch=$BRANCH" >> "$GITHUB_OUTPUT"
       - id: update-chart
+        name: Update Docker and Helm
         run: |
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo yq e -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
@@ -92,7 +93,7 @@ jobs:
 
           git status
           git commit -m "chore: increment version numbers" -a
-          git push --set-upstream origin "$BRANCH"
+          git push --set-upstream origin ${{ needs.create-branch.outputs.release_branch }}
       - name: Create Pull Request
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
