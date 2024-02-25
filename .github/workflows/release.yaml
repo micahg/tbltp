@@ -21,6 +21,7 @@ jobs:
           git rev-list --tags --skip=1 --max-count=1
           PREV_TAG_HASH=$(git rev-list --tags --skip=1 --max-count=1)
           PREV_TAG=$(git describe --abbrev=0 --tags $PREV_TAG_HASH)
+          git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG" | grep "^packages\/*" | cut -d / -f2 | sort | uniq
           for p in $(git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG" | grep "^packages\/*" | cut -d / -f2 | sort | uniq); do
             echo "package_$p=true"
             echo "package_$p=true" >> "$GITHUB_OUTPUT"
