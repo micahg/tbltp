@@ -1,3 +1,4 @@
+// asdf
 process.env['DISABLE_AUTH'] = "true";
 import { app, serverPromise, shutDown, startUp} from '../src/server' ;
 import * as request from 'supertest';
