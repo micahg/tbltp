@@ -15,6 +15,8 @@ jobs:
       - name: Check changed files
         run: |
           echo "hi"
+          PREV_TAG_HASH=$(git rev-list --tags --skip=1 --max-count=1)
+          PREV_TAG=$(git describe --abbrev=0 --tags $PREV_TAG_HASH)
           FIRST_COMMIT_AFTER_VERSION=$(git rev-list "$PREV_TAG...HEAD" | tail -n 2 | head -n 1)
           git diff --name-only "$GITHUB_REF_NAME" "$FIRST_COMMIT_AFTER_VERSION" | grep "^packages\/*"
       - uses: actions/setup-node@v4
