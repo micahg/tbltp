@@ -16,17 +16,33 @@ jobs:
   test_yq:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3 
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '18.x'
+      - id: get-versions
+        name: Get Versions
+        run: |
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          NEW_API_VERSION=$(node -p "require('./packages/api/package.json').version")
+          NEW_API_IMAGE="ghcr.io/micahg/tbltp-api:$NEW_VERSION"
+          NEW_MUI_VERSION=$(node -p "require('./packages/mui/package.json').version")
+          NEW_MUI_IMAGE="ghcr.io/micahg/tbltp-mui:$NEW_VERSION"
+          echo "new_version=$NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_api_version=$NEW_API_VERSION"
+          echo "new_api_version=$NEW_API_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_api_image=$NEW_API_IMAGE"
+          echo "new_api_image=$NEW_API_IMAGE" >> "$GITHUB_OUTPUT"
+          echo "new_mui_version=$NEW_MUI_VERSION"
+          echo "new_mui_version=$NEW_MUI_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_mui_image=$NEW_MUI_IMAGE"
+          echo "new_mui_image=$NEW_MUI_IMAGE" >> "$GITHUB_OUTPUT"
       - name: Test YQ
         run: |
           yq --version
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          echo "NEW_VERSION $NEW_VERSION"
-          echo yq -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
-          yq -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
+          echo yq -i '.appVersion = ${{ steps.get-versions.outputs.new_version}}' chart/Chart.yaml
+          yq -i '.appVersion = ${{ steps.get-versions.outputs.new_version}}' chart/Chart.yaml
           echo yq '.appVersion' chart/Chart.yaml
           yq '.appVersion' chart/Chart.yaml
           echo yq '.version' chart/Chart.yaml
