@@ -70,8 +70,6 @@ jobs:
           echo "release_branch=$BRANCH" >> "$GITHUB_OUTPUT"
       - id: update-chart
         name: Update Docker and Helm
-        env:
-          SEGMENT: patch
         run: |
           echo yq e -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
           yq e -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
@@ -86,6 +84,8 @@ jobs:
           echo yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
           yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
       - id: update-versions
+        env:
+          SEGMENT: patch
         run: |
           echo npm version $SEGMENT --no-commit-hooks --no-git-tag-version
           npm version $SEGMENT --no-commit-hooks --no-git-tag-version
