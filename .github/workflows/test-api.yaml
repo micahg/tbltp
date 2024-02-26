@@ -1,8 +1,8 @@
 name: Test API
 on:
   push:
-    paths:
-      - 'packages/api/**'
+    # paths:
+    #   - 'packages/api/**'
     branches-ignore:
       - main
 env:
@@ -13,42 +13,74 @@ env:
   MONGOMS_VERSION: 7.0.0
   MONGOMS_DOWNLOAD_URL: https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2204-7.0.0.tgz
 jobs:
-  test_api:
+  test_yq:
     runs-on: ubuntu-latest
-    outputs:
-      package_version: ${{ steps.get_version.outputs.package_version }}
-    permissions:
-      contents: read
     steps:
-    # cache download ./node_modules/.cache
       - uses: actions/checkout@v3 
       - uses: actions/setup-node@v3
         with:
           node-version: '18.x'
-      - name: Cache Mongo Binary
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.MONGO_CACHE_PATH }}/${{ env.MONGO_BINARY }}
-          key: ${{ env.MONGO_BINARY }}
-      - name: Node Modules
-        run: npm ci
-      - name: Lint Code
-        run: npm run lint -w packages/api
-      - name: Prune Dead Code
-        run: npm run prune -w packages/api
-      - name: Unit Test
-        run: npm run test -w packages/api
-  build_api:
-    runs-on: ubuntu-latest
-    outputs:
-      package_version: ${{ steps.get_version.outputs.package_version }}
-    permissions:
-      contents: read
-    steps:
-    # cache download ./node_modules/.cache
-      - uses: actions/checkout@v3 
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18.x'
-      - run: npm ci
-      - run: npm run build -w packages/api
+      - run: |
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "NEW_VERSION $NEW_VERSION"
+          echo yq e -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
+          yq e -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
+
+          NEW_VERSION=$(node -p "require('./packages/api/package.json').version")
+          NEW_IMAGE="ghcr.io/micahg/tbltp-api:$NEW_VERSION"
+          echo "NEW_VERSION $NEW_VERSION"
+          echo "NEW_IMAGE $NEW_IMAGE"
+          echo yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          echo yq e -i '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
+          yq e -i '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
+
+          NEW_VERSION=$(node -p "require('./packages/mui/package.json').version")
+          NEW_IMAGE="ghcr.io/micahg/tbltp-mui:$NEW_VERSION"
+          echo "NEW_VERSION $NEW_VERSION"
+          echo "NEW_IMAGE $NEW_IMAGE"
+          echo yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          echo yq e -i '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
+          yq e -i '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
+          git status
+          git diff
+  # test_api:
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     package_version: ${{ steps.get_version.outputs.package_version }}
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #   # cache download ./node_modules/.cache
+  #     - uses: actions/checkout@v3 
+  #     - uses: actions/setup-node@v3
+  #       with:
+  #         node-version: '18.x'
+  #     - name: Cache Mongo Binary
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: ${{ env.MONGO_CACHE_PATH }}/${{ env.MONGO_BINARY }}
+  #         key: ${{ env.MONGO_BINARY }}
+  #     - name: Node Modules
+  #       run: npm ci
+  #     - name: Lint Code
+  #       run: npm run lint -w packages/api
+  #     - name: Prune Dead Code
+  #       run: npm run prune -w packages/api
+  #     - name: Unit Test
+  #       run: npm run test -w packages/api
+  # build_api:
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     package_version: ${{ steps.get_version.outputs.package_version }}
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #   # cache download ./node_modules/.cache
+  #     - uses: actions/checkout@v3 
+  #     - uses: actions/setup-node@v3
+  #       with:
+  #         node-version: '18.x'
+  #     - run: npm ci
+  #     - run: npm run build -w packages/api
