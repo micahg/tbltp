@@ -20,12 +20,15 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '18.x'
-      - run: |
+      - name: Test YQ
+        run: |
           yq --version
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "NEW_VERSION $NEW_VERSION"
           echo yq -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
           yq -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
+          echo yq '.appVersion' chart/Chart.yaml
+          yq '.appVersion' chart/Chart.yaml
           git status
           git diff
   # test_api:
