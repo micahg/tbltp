@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '18.x'
-      - id: get-versions
+      - id: version-mono
         name: Get Versions
         run: |
           NEW_VERSION=$(node -p "require('./package.json').version")
@@ -41,8 +41,8 @@ jobs:
       - name: Test YQ
         run: |
           yq --version
-          echo yq -i '.appVersion = "${{ steps.get-versions.outputs.new_version}}"' chart/Chart.yaml
-          yq -i '.appVersion = "${{ steps.get-versions.outputs.new_version}}"' chart/Chart.yaml
+          echo yq -i '.appVersion = "${{ steps.version-mono.outputs.new_version }}"' chart/Chart.yaml
+          yq -i '.appVersion = "${{ steps.version-mono.outputs.new_version }}"' chart/Chart.yaml
           echo yq '.appVersion' chart/Chart.yaml
           yq '.appVersion' chart/Chart.yaml
           echo yq '.version' chart/Chart.yaml
