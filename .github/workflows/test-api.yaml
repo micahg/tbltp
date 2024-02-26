@@ -26,24 +26,6 @@ jobs:
           echo "NEW_VERSION $NEW_VERSION"
           echo yq -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
           yq -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
-
-          NEW_VERSION=$(node -p "require('./packages/api/package.json').version")
-          NEW_IMAGE="ghcr.io/micahg/tbltp-api:$NEW_VERSION"
-          echo "NEW_VERSION $NEW_VERSION"
-          echo "NEW_IMAGE $NEW_IMAGE"
-          echo yq -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-          yq -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-          echo yq -i '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
-          yq -i '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
-
-          NEW_VERSION=$(node -p "require('./packages/mui/package.json').version")
-          NEW_IMAGE="ghcr.io/micahg/tbltp-mui:$NEW_VERSION"
-          echo "NEW_VERSION $NEW_VERSION"
-          echo "NEW_IMAGE $NEW_IMAGE"
-          echo yq -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-          yq -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-          echo yq -i '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
-          yq -i '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
           git status
           git diff
   # test_api:
