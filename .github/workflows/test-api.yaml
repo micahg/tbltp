@@ -23,26 +23,26 @@ jobs:
       - run: |
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "NEW_VERSION $NEW_VERSION"
-          echo yq e -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
-          yq e -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
+          echo yq '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
+          yq '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
 
           NEW_VERSION=$(node -p "require('./packages/api/package.json').version")
           NEW_IMAGE="ghcr.io/micahg/tbltp-api:$NEW_VERSION"
           echo "NEW_VERSION $NEW_VERSION"
           echo "NEW_IMAGE $NEW_IMAGE"
-          echo yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-          yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-          echo yq e -i '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
-          yq e -i '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
+          echo yq '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          yq '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          echo yq '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
+          yq '.services.api.image = strenv(NEW_IMAGE)' compose.yaml
 
           NEW_VERSION=$(node -p "require('./packages/mui/package.json').version")
           NEW_IMAGE="ghcr.io/micahg/tbltp-mui:$NEW_VERSION"
           echo "NEW_VERSION $NEW_VERSION"
           echo "NEW_IMAGE $NEW_IMAGE"
-          echo yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-          yq e -i '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
-          echo yq e -i '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
-          yq e -i '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
+          echo yq '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          yq '.apiImageVers = strenv(NEW_VERSION)' chart/values.yaml
+          echo yq '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
+          yq '.services.ui.image = strenv(NEW_IMAGE)' compose.yaml
           git status
           git diff
   # test_api:
