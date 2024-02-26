@@ -29,6 +29,8 @@ jobs:
           yq -i '.appVersion = strenv(NEW_VERSION)' chart/Chart.yaml
           echo yq '.appVersion' chart/Chart.yaml
           yq '.appVersion' chart/Chart.yaml
+          echo yq '.version' chart/Chart.yaml
+          yq '.version' chart/Chart.yaml
           git status
           git diff
   # test_api:
