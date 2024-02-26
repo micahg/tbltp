@@ -10,11 +10,18 @@ jobs:
     outputs:
       package_mui: ${{ steps.version-mono.outputs.package_mui }}
       package_api: ${{ steps.version-mono.outputs.package_api }}
+      new_version: ${{ steps.version-mono.outputs.new_version }}
+      new_api_version: ${{ steps.version-mono.outputs.new_api_version }}
+      new_api_image: ${{ steps.version-mono.outputs.new_api_image }}
+      new_mui_version: ${{ steps.version-mono.outputs.new_mui_version }}
+      new_mui_image: ${{ steps.version-mono.outputs.new_mui_image }}
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - id: version-mono
+        name: Gather Version Information
         run: |
           echo "TODO SOME DAY COME BACK AND FIGURE OUT HOW TO GET THE COMMIT AFTER THE VERSION BUMP"
           git config --global user.name "$GITHUB_ACTOR"
@@ -66,18 +73,18 @@ jobs:
       - id: update-chart
         name: Update Docker and Helm
         run: |
-          echo yq -i '.appVersion = "${{ steps.version-mono.outputs.new_version }}"' chart/Chart.yaml
-          yq -i '.appVersion = "${{ steps.version-mono.outputs.new_version }}"' chart/Chart.yaml
+          echo yq -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
+          yq -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
 
-          echo yq e -i '.apiImageVers = "${{ steps.version-mono.outputs.new_api_version }}"' chart/values.yaml
-          yq e -i '.apiImageVers = "${{ steps.version-mono.outputs.new_api_version }}"' chart/values.yaml
-          echo yq e -i '.services.api.image = "${{ steps.version-mono.outputs.new_api_image }}"' compose.yaml
-          yq e -i '.services.api.image = "${{ steps.version-mono.outputs.new_api_image }}"' compose.yaml
+          echo yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_api_version }}"' chart/values.yaml
+          yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_api_version }}"' chart/values.yaml
+          echo yq e -i '.services.api.image = "${{ needs.start-release.outputs.new_api_image }}"' compose.yaml
+          yq e -i '.services.api.image = "${{ needs.start-release.outputs.new_api_image }}"' compose.yaml
 
-          echo yq e -i '.apiImageVers = "${{ steps.version-mono.outputs.new_mui_version }}"' chart/values.yaml
-          yq e -i '.apiImageVers = "${{ steps.version-mono.outputs.new_mui_version }}"' chart/values.yaml
-          echo yq e -i '.services.ui.image = "${{ steps.version-mono.outputs.new_mui_image }}"' compose.yaml
-          yq e -i '.services.ui.image = "${{ steps.version-mono.outputs.new_mui_image }}"' compose.yaml
+          echo yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
+          yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
+          echo yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
+          yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
       - id: update-versions
         run: |
           echo npm version $SEGMENT --no-commit-hooks --no-git-tag-version
