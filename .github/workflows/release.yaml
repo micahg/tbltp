@@ -36,9 +36,9 @@ jobs:
           done
           NEW_VERSION=$(node -p "require('./package.json').version")
           NEW_API_VERSION=$(node -p "require('./packages/api/package.json').version")
-          NEW_API_IMAGE="ghcr.io/micahg/tbltp-api:$NEW_VERSION"
+          NEW_API_IMAGE="ghcr.io/micahg/tbltp-api:$NEW_API_VERSION"
           NEW_MUI_VERSION=$(node -p "require('./packages/mui/package.json').version")
-          NEW_MUI_IMAGE="ghcr.io/micahg/tbltp-mui:$NEW_VERSION"
+          NEW_MUI_IMAGE="ghcr.io/micahg/tbltp-mui:$NEW_MUI_VERSION"
           echo "new_version=$NEW_VERSION"
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_api_version=$NEW_API_VERSION"
@@ -73,16 +73,16 @@ jobs:
       - id: update-chart
         name: Update Docker and Helm
         run: |
-          echo yq -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
-          yq -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
+          echo yq e -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
+          yq e -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
 
           echo yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_api_version }}"' chart/values.yaml
           yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_api_version }}"' chart/values.yaml
           echo yq e -i '.services.api.image = "${{ needs.start-release.outputs.new_api_image }}"' compose.yaml
           yq e -i '.services.api.image = "${{ needs.start-release.outputs.new_api_image }}"' compose.yaml
 
-          echo yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
-          yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
+          echo yq e -i '.uiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
+          yq e -i '.uiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
           echo yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
           yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
       - id: update-versions
