@@ -137,6 +137,10 @@ jobs:
       registry: ghcr.io
   deployment:
     needs: [package-api, package-mui, version]
+    if: |
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
     strategy:
       fail-fast: true
       matrix:
