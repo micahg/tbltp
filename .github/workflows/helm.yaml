@@ -9,6 +9,9 @@ on:
       extra-helm-args:
         required: false
         type: string
+      branch:
+        required: true
+        type: string
     secrets:
       KUBE_CONFIG:
         required: true
@@ -21,7 +24,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout ${{ inputs.branch }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
       - id: preflight
         name: Preflight Checks
         run: |

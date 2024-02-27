@@ -135,3 +135,18 @@ jobs:
     with:
       package: api
       registry: ghcr.io
+  deployment:
+    needs: [package-api, package-mui, version]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - environment: "Dev"
+            helm-args: "-f chart/values-dev.yaml"
+          - environment: "Prod"
+    uses: ./.github/workflows/helm.yaml
+    secrets: inherit
+    with:
+      environment: ${{ matrix.environment }}
+      extra-helm-args: ${{ matrix.helm-args }}
+      branch: main
