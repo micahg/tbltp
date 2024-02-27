@@ -1,9 +1,10 @@
 name: Deploy
 on:
-  workflow_dispatch:
-  # push:
-  #   branches:
-  #     - main
+  push:
+    paths:
+      - 'chart/**'
+    branches:
+      - main
 jobs:
   deployment:
     strategy:
@@ -18,21 +19,3 @@ jobs:
     with:
       environment: ${{ matrix.environment }}
       extra-helm-args: ${{ matrix.helm-args }}
-  version:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - run: |
-          git config --global user.name "$GITHUB_ACTOR"
-          git config --global user.email "$GITHUB_ACTOR@github.com"
-          export OLD_VERSION=`yq .version chart/Chart.yaml`
-          export NEW_VERSION=`echo "import os;vbits=os.environ.get('OLD_VERSION').rsplit('.');print('.'.join([*vbits[0:-1], str(int(vbits[-1])+1)]))" | python3`
-          echo "Migrating chart from $OLD_VERSION to $NEW_VERSION"
-          yq -i '.version = strenv(NEW_VERSION)' chart/Chart.yaml
-          export BRANCH="release/$NEW_VERSION"
-          echo "Checking out $BRANCH"
-          git checkout -b "$BRANCH"
-          git commit -m "chore: update chart version $BRANCH" chart/Chart.yaml
-          git push --set-upstream origin "$BRANCH"
