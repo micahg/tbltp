@@ -145,6 +145,8 @@ jobs:
     steps:
       - id: trigger-manual-deploy
         name: Trigger Deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run deploy.yaml
     # strategy:
     #   fail-fast: true
