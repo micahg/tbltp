@@ -135,22 +135,27 @@ jobs:
     with:
       package: api
       registry: ghcr.io
-  deployment:
+  trigger-deployment:
     needs: [package-api, package-mui, version]
+    runs-on: ubuntu-latest
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - environment: "Dev"
-            helm-args: "-f chart/values-dev.yaml"
-          - environment: "Prod"
-    uses: ./.github/workflows/helm.yaml
-    secrets: inherit
-    with:
-      environment: ${{ matrix.environment }}
-      extra-helm-args: ${{ matrix.helm-args }}
-      branch: main
+    steps:
+      - id: trigger-manual-deploy
+        name: Trigger Deployment
+        run: gh workflow run deploy.yaml
+    # strategy:
+    #   fail-fast: true
+    #   matrix:
+    #     include:
+    #       - environment: "Dev"
+    #         helm-args: "-f chart/values-dev.yaml"
+    #       - environment: "Prod"
+    # uses: ./.github/workflows/helm.yaml
+    # secrets: inherit
+    # with:
+    #   environment: ${{ matrix.environment }}
+    #   extra-helm-args: ${{ matrix.helm-args }}
+    #   branch: main
