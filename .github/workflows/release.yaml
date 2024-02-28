@@ -138,6 +138,9 @@ jobs:
   trigger-deployment:
     needs: [package-api, package-mui, version]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
