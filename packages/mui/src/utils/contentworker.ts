@@ -563,7 +563,8 @@ self.onmessage = (evt) => {
     }
     case "reveal": {
       restoreOverlay();
-      clearBox(startX, startY, endX, endY);
+      const r = evt.data.rect as unknown as Rect;
+      clearBox(r.x, r.y, r.x + r.width, r.y + r.height);
       storeOverlay();
       break;
     }
