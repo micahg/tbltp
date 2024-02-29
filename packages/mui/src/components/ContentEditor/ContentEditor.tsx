@@ -474,7 +474,7 @@ const ContentEditor = ({
       sm.transition("select");
     });
     setCallback(sm, "reveal", () => {
-      worker.postMessage({ cmd: "reveal" });
+      worker.postMessage({ cmd: "reveal", rect: selection });
       sm.transition("select");
     });
     setCallback(sm, "remoteZoomIn", () => {
