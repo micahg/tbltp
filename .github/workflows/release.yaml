@@ -141,7 +141,6 @@ jobs:
     permissions:
       contents: read
       actions: write
-      deployments: write
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
@@ -153,16 +152,3 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run deploy.yaml
-    # strategy:
-    #   fail-fast: true
-    #   matrix:
-    #     include:
-    #       - environment: "Dev"
-    #         helm-args: "-f chart/values-dev.yaml"
-    #       - environment: "Prod"
-    # uses: ./.github/workflows/helm.yaml
-    # secrets: inherit
-    # with:
-    #   environment: ${{ matrix.environment }}
-    #   extra-helm-args: ${{ matrix.helm-args }}
-    #   branch: main
