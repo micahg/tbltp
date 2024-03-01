@@ -37,6 +37,8 @@ import {
   LinearProgress,
   Paper,
   Typography,
+  Alert,
+  IconButton,
 } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
@@ -106,6 +108,9 @@ const ContentEditor = ({
   const [toolbarPopulated, setToolbarPopulated] = useState<boolean>(false);
 
   const auth = useSelector((state: AppReducerState) => state.environment.auth);
+  const authErr = useSelector(
+    (state: AppReducerState) => state.environment.authErr,
+  );
   const noauth = useSelector(
     (state: AppReducerState) => state.environment.noauth,
   );
@@ -731,6 +736,24 @@ const ContentEditor = ({
           <button onClick={() => sm.transition("upload")}>Upload</button>
           <button onClick={() => sm.transition("link")}>Link</button>
         </div>
+      )}
+      {authErr !== undefined && (
+        <Alert
+          severity="error"
+          action={
+            <IconButton
+              aria-label="close"
+              color="inherit"
+              size="small"
+              // onClick={() => {
+              //   setCreating(false);
+              //   dispatch({ type: "content/error" });
+              // }}
+            ></IconButton>
+          }
+        >
+          {authErr.error}: {authErr.reason}
+        </Alert>
       )}
       {!scene?.playerContent && (
         <Box sx={{ padding: "1em" }}>

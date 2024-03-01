@@ -8,10 +8,10 @@ import {
 } from "../utils/auth";
 import { Middleware } from "redux";
 import axios from "axios";
-import { AuthConfig } from "../reducers/EnvironmentReducer";
+import { AuthConfig, AuthError } from "../reducers/EnvironmentReducer";
 
 export const EnvironmentMiddleware: Middleware =
-  (storeAPI) => (next) => (action) => {
+  (storeAPI) => (next) => async (action) => {
     if (action.type === "environment/config") {
       axios
         .get("/env.json")
@@ -64,17 +64,39 @@ export const EnvironmentMiddleware: Middleware =
       if (storeAPI.getState().environment.authStarted) return next(action);
       next({ type: "environment/authstarted", payload: true });
 
-      getAuthState(storeAPI.getState().environment.authClient)
-        .then((state) => next({ type: action.type, payload: state }))
-        .catch((err) => {
-          if (err === "noauth") {
-            console.warn("Authentication explicitly disabled at server");
-            const authState: AuthState = { auth: false, noauth: true };
-            return next({ type: action.type, payload: authState });
-          }
-          console.error(`UNABLE TO AUTHENTICATE: ${JSON.stringify(err)}`);
-          return next(action);
-        });
+      const authClient = storeAPI.getState().environment.authClient;
+      try {
+        const state = await getAuthState(authClient);
+        if (state) return next({ type: action.type, payload: state });
+      } catch (err) {
+        if (err === "noauth") {
+          console.warn("Authentication explicitly disabled at server");
+          const authState: AuthState = { auth: false, noauth: true };
+          return next({ type: action.type, payload: authState });
+        }
+        // else if (err && typeof err === "object" && !Array.isArray(err)) {
+        //   const authErr = err as AuthError;
+        //   if (authErr.reason === "request_invite") {
+        //     console.log("REQUEST INVITE");
+        //   } else if (authErr.reason === "verify_email") {
+        //     console.log("VALIDATE YOUR EMAIL");
+        //   }
+        // }
+        return next({ type: "environment/authfailure", payload: err });
+        // console.error(`UNABLE TO AUTHENTICATE: ${JSON.stringify(err)}`);
+        // return next(action);
+      }
+      // getAuthState(storeAPI.getState().environment.authClient)
+      //   .then((state) => next({ type: action.type, payload: state }))
+      //   .catch((err) => {
+      //     if (err === "noauth") {
+      //       console.warn("Authentication explicitly disabled at server");
+      //       const authState: AuthState = { auth: false, noauth: true };
+      //       return next({ type: action.type, payload: authState });
+      //     }
+      //     console.error(`UNABLE TO AUTHENTICATE: ${JSON.stringify(err)}`);
+      //     return next(action);
+      //   });
     } else if (action.type === "environment/logout") {
       getAuthClient(storeAPI)
         .then((client) => client.logout())

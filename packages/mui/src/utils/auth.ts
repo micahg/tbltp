@@ -2,7 +2,7 @@ import { Auth0Client, createAuth0Client } from "@auth0/auth0-spa-js";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import axios from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
-import { AuthConfig } from "../reducers/EnvironmentReducer";
+import { AuthConfig, AuthError } from "../reducers/EnvironmentReducer";
 
 /**
  * Authorization state
@@ -79,7 +79,15 @@ export function getAuthState(client: Auth0Client): Promise<AuthState> {
       if (authn) return resolve({ client: client, auth: true });
 
       // if we have a auth code callback handle it
-      if (query.includes("code=") && query.includes("state=")) {
+      const searchParams = new URLSearchParams(query);
+      if (searchParams.get("error")) {
+        const res: AuthError = {
+          error: searchParams.get("error"),
+          reason: searchParams.get("error_description"),
+        };
+        return reject(res);
+      }
+      if (searchParams.get("code") && searchParams.get("state")) {
         return client
           .handleRedirectCallback(window.location.href)
           .then(() => {
