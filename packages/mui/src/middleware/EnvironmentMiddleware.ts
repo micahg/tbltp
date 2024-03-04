@@ -74,29 +74,8 @@ export const EnvironmentMiddleware: Middleware =
           const authState: AuthState = { auth: false, noauth: true };
           return next({ type: action.type, payload: authState });
         }
-        // else if (err && typeof err === "object" && !Array.isArray(err)) {
-        //   const authErr = err as AuthError;
-        //   if (authErr.reason === "request_invite") {
-        //     console.log("REQUEST INVITE");
-        //   } else if (authErr.reason === "verify_email") {
-        //     console.log("VALIDATE YOUR EMAIL");
-        //   }
-        // }
         return next({ type: "environment/authfailure", payload: err });
-        // console.error(`UNABLE TO AUTHENTICATE: ${JSON.stringify(err)}`);
-        // return next(action);
       }
-      // getAuthState(storeAPI.getState().environment.authClient)
-      //   .then((state) => next({ type: action.type, payload: state }))
-      //   .catch((err) => {
-      //     if (err === "noauth") {
-      //       console.warn("Authentication explicitly disabled at server");
-      //       const authState: AuthState = { auth: false, noauth: true };
-      //       return next({ type: action.type, payload: authState });
-      //     }
-      //     console.error(`UNABLE TO AUTHENTICATE: ${JSON.stringify(err)}`);
-      //     return next(action);
-      //   });
     } else if (action.type === "environment/logout") {
       getAuthClient(storeAPI)
         .then((client) => client.logout())

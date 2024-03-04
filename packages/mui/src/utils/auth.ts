@@ -17,6 +17,10 @@ export interface AuthState {
   config?: unknown;
 }
 
+const AUTH_ERRORS: { [key: string]: string } = {
+  access_denied: "Access Denied",
+};
+
 /**
  * Step 1 - get your authentication configuration. Remember, its up to the
  * middleware to set this. If you come back here hopefully you read this and
@@ -70,19 +74,24 @@ export function getAuthClient(
   });
 }
 
+function removeUrlQuery() {
+  const href = window.location.href.split("?")[0];
+  window.history.replaceState({}, document.title, href);
+}
+
 export function getAuthState(client: Auth0Client): Promise<AuthState> {
   return new Promise((resolve, reject) => {
     client.isAuthenticated().then((authn) => {
-      const query = window.location.search;
-
       // if we're already authenticated we can just go get a token
       if (authn) return resolve({ client: client, auth: true });
 
       // if we have a auth code callback handle it
-      const searchParams = new URLSearchParams(query);
+      const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get("error")) {
+        removeUrlQuery();
+        const err = searchParams.get("error");
         const res: AuthError = {
-          error: searchParams.get("error"),
+          error: err ? AUTH_ERRORS[err] : err,
           reason: searchParams.get("error_description"),
         };
         return reject(res);
@@ -91,8 +100,7 @@ export function getAuthState(client: Auth0Client): Promise<AuthState> {
         return client
           .handleRedirectCallback(window.location.href)
           .then(() => {
-            const href = window.location.href.split("?")[0];
-            window.history.replaceState({}, document.title, href);
+            removeUrlQuery();
             resolve({ client: client, auth: true });
           })
           .catch((reason) => reject(reason));

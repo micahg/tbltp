@@ -738,22 +738,20 @@ const ContentEditor = ({
         </div>
       )}
       {authErr !== undefined && (
-        <Alert
-          severity="error"
-          action={
-            <IconButton
-              aria-label="close"
-              color="inherit"
-              size="small"
-              // onClick={() => {
-              //   setCreating(false);
-              //   dispatch({ type: "content/error" });
-              // }}
-            ></IconButton>
-          }
-        >
-          {authErr.error}: {authErr.reason}
-        </Alert>
+        <Box sx={{ pt: "1em", pr: "1em", pl: "1em" }}>
+          <Alert
+            severity="error"
+            action={
+              <IconButton
+                aria-label="close"
+                color="inherit"
+                size="small"
+              ></IconButton>
+            }
+          >
+            {authErr.error}: {authErr.reason}
+          </Alert>
+        </Box>
       )}
       {!scene?.playerContent && (
         <Box sx={{ padding: "1em" }}>
