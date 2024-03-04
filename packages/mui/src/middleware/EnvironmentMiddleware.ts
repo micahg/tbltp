@@ -8,7 +8,7 @@ import {
 } from "../utils/auth";
 import { Middleware } from "redux";
 import axios from "axios";
-import { AuthConfig, AuthError } from "../reducers/EnvironmentReducer";
+import { AuthConfig } from "../reducers/EnvironmentReducer";
 
 export const EnvironmentMiddleware: Middleware =
   (storeAPI) => (next) => async (action) => {
