@@ -11,6 +11,11 @@ export interface AuthConfig {
   };
 }
 
+export interface AuthError {
+  error: string | null;
+  reason: string | null;
+}
+
 // https://auth0.com/docs/get-started/authentication-and-authorization-flow/call-your-api-using-the-device-authorization-flow#device-code-response
 export interface DeviceCode {
   device_code: string;
@@ -36,6 +41,7 @@ export type EnvironmentReducerState = {
    * true => auth succeeded
    */
   readonly auth?: boolean;
+  readonly authErr?: AuthError;
   readonly authClient?: Auth0Client;
   readonly authConfig?: AuthConfig;
   readonly deviceCode?: DeviceCode;
@@ -91,6 +97,10 @@ export const EnvironmentReducer = (
       if (action.payload === null || action.payload === undefined) return state;
       const authState: AuthState = action.payload as unknown as AuthState;
       return { ...state, auth: authState.auth, noauth: authState.noauth };
+    }
+    case "environment/authfailure": {
+      const err = action.payload as unknown as AuthError;
+      return { ...state, auth: false, authErr: err };
     }
     case "environment/authclient": {
       if (action.payload === null || action.payload === undefined) return state;

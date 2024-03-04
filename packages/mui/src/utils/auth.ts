@@ -2,7 +2,7 @@ import { Auth0Client, createAuth0Client } from "@auth0/auth0-spa-js";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import axios from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
-import { AuthConfig } from "../reducers/EnvironmentReducer";
+import { AuthConfig, AuthError } from "../reducers/EnvironmentReducer";
 
 /**
  * Authorization state
@@ -16,6 +16,10 @@ export interface AuthState {
   noauth?: boolean;
   config?: unknown;
 }
+
+const AUTH_ERRORS: { [key: string]: string } = {
+  access_denied: "Access Denied",
+};
 
 /**
  * Step 1 - get your authentication configuration. Remember, its up to the
@@ -70,21 +74,33 @@ export function getAuthClient(
   });
 }
 
+function removeUrlQuery() {
+  const href = window.location.href.split("?")[0];
+  window.history.replaceState({}, document.title, href);
+}
+
 export function getAuthState(client: Auth0Client): Promise<AuthState> {
   return new Promise((resolve, reject) => {
     client.isAuthenticated().then((authn) => {
-      const query = window.location.search;
-
       // if we're already authenticated we can just go get a token
       if (authn) return resolve({ client: client, auth: true });
 
       // if we have a auth code callback handle it
-      if (query.includes("code=") && query.includes("state=")) {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get("error")) {
+        removeUrlQuery();
+        const err = searchParams.get("error");
+        const res: AuthError = {
+          error: err ? AUTH_ERRORS[err] : err,
+          reason: searchParams.get("error_description"),
+        };
+        return reject(res);
+      }
+      if (searchParams.get("code") && searchParams.get("state")) {
         return client
           .handleRedirectCallback(window.location.href)
           .then(() => {
-            const href = window.location.href.split("?")[0];
-            window.history.replaceState({}, document.title, href);
+            removeUrlQuery();
             resolve({ client: client, auth: true });
           })
           .catch((reason) => reject(reason));
