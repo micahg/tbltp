@@ -2,7 +2,7 @@
 namespace: ntt
 uiAppName: ntt-ui
 uiAppReplicas: 1
-uiImageVers: 0.0.57
+uiImageVers: 0.0.58
 uiImagePath: ghcr.io/micahg/tbltp-mui
 uiImageSecret: gitlab-ntt-ui
 uiDomain: "tbltp.dev"
