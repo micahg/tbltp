@@ -7,8 +7,8 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - environment: "Dev"
-            helm-args: "-f chart/values-dev.yaml"
+          # - environment: "Dev"
+          #   helm-args: "-f chart/values-dev.yaml"
           - environment: "Prod"
     uses: ./.github/workflows/helm.yaml
     secrets: inherit

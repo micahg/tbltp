@@ -37,7 +37,7 @@ const LandingComponent = () => {
   return (
     <Box sx={{ padding: "1em" }}>
       <Typography variant="h4" gutterBottom>
-        Network Table Top
+        tbltp.dev
       </Typography>
       <Paper sx={{ padding: "1em", margin: "1em 0" }} elevation={6}>
         <Typography variant="h5" gutterBottom>
@@ -47,6 +47,38 @@ const LandingComponent = () => {
           Network Table Top is not responsible for anything. Close immediately
           or use at your own risk.
         </p>
+      </Paper>
+      <Paper sx={{ padding: "1em", margin: "1em 0" }} elevation={6}>
+        <Typography variant="h5" gutterBottom>
+          About
+        </Typography>
+        <p>
+          Network Table Top is an open source application that you can use to
+          run your tabletop display.
+        </p>
+        <p>
+          To contribute or setup your own tabletop, continue on to{" "}
+          <a href="https://github.com/micahg/tbltp">github</a>. If you just want
+          to use the hosted version for your table, reach out to the
+          administrators for access.
+        </p>
+        <Box
+          sx={{
+            mt: "2em",
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "center",
+          }}
+        >
+          <a href="https://github.com/micahg/tbltp">
+            <Box
+              sx={{ width: "4em" }}
+              component="img"
+              src="github-mark.png"
+              alt="github"
+            />
+          </a>
+        </Box>
       </Paper>
       <Paper sx={{ padding: "1em", margin: "1em 0" }} elevation={6}>
         <Typography variant="h5" gutterBottom>
