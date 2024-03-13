@@ -85,7 +85,7 @@ jobs:
           yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
       - id: update-versions
         env:
-          SEGMENT: patch
+          SEGMENT: minor
         run: |
           echo npm version $SEGMENT --no-commit-hooks --no-git-tag-version
           npm version $SEGMENT --no-commit-hooks --no-git-tag-version
