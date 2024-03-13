@@ -1,4 +1,4 @@
-// trigger rebuild
+// trigger rebuild.
 import React, {
   RefObject,
   createRef,
