@@ -1,6 +1,6 @@
 {
   "name": "@micahg/tbltp-api",
-  "version": "0.0.35",
+  "version": "0.1.0",
   "description": "Network Tabletop Server",
   "main": "server.js",
   "files": [],
