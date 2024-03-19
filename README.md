@@ -4,6 +4,8 @@ Monorepo for open source network table-top, which aims to be:
 
 * An alternative to printing maps
 * Free for you to run on your own hardware
+* Easy to use on any display
+  * Right now this is just done using a full-screen browser
 
 ## Running With Docker
 
