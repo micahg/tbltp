@@ -279,7 +279,12 @@ export function fillRotatedViewport(
   // think due to a browser bug, squaring silkScale below is what works.
   // FWIW, the bug was filed here:
   // https://bugs.chromium.org/p/chromium/issues/detail?id=1494756
-  const silkScale = (image[0] / oImage[0]) ** 2;
+  //
+  // Some time before the end of March of 2024, the workaround stopped being
+  // necessary
+  //
+  // const silkScale = (image[0] / oImage[0]) ** 2;
+  const silkScale = image[0] / oImage[0];
   return {
     x: x * silkScale,
     y: y * silkScale,
