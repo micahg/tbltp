@@ -102,7 +102,9 @@ const GameMasterComponent = () => {
   const [scenesOpen, setScenesOpen] = useState<boolean>(false);
   const [actions, setActions] = useState<GameMasterAction[]>([]);
   const [doot, setDoot] = useState<number>(0);
+  // scene key is used to force rerender of scene creation component
   const [sceneKey, setSceneKey] = useState<number>(0);
+  const [sceneCount, setSceneCount] = useState<number>(0);
   const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
     FocusedComponent.ContentEditor,
   );
@@ -170,6 +172,16 @@ const GameMasterComponent = () => {
     // if (auth) return;
     dispatch({ type: "environment/authenticate" });
   }, [dispatch, noauth, auth, authClient]);
+
+  useEffect(() => {
+    if (scenes.length === sceneCount) return;
+
+    // if we added a scene, increate the key so we redraw the scene component
+    if (scenes.length > sceneCount) setSceneKey(sceneKey + 1);
+
+    // keep the count in sync
+    setSceneCount(scenes.length);
+  }, [sceneCount, sceneKey, scenes]);
 
   return (
     <Box sx={{ display: "flex", width: "100vw", height: "100vh" }}>

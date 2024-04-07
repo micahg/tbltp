@@ -176,9 +176,17 @@ const SceneComponent = ({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!error) return;
+    if (!error || !dispatch) return;
+
+    // error feedback means creation (success or failure) is done
     setCreating(false);
-  }, [error]);
+
+    // on success, clear the banner eventually
+    if (error.success) {
+      const id = setTimeout(() => dispatch({ type: "content/error" }), 5000);
+      return () => clearTimeout(id);
+    }
+  }, [dispatch, error]);
 
   function renderImage(i: ImageBitmap, canvas: HTMLCanvasElement) {
     const w = canvas.width;
@@ -241,7 +249,6 @@ const SceneComponent = ({
               color="inherit"
               size="small"
               onClick={() => {
-                setCreating(false);
                 dispatch({ type: "content/error" });
               }}
             >
@@ -261,7 +268,6 @@ const SceneComponent = ({
               color="inherit"
               size="small"
               onClick={() => {
-                setCreating(false);
                 dispatch({ type: "content/error" });
               }}
             >
