@@ -26,6 +26,7 @@ import {
   updateSceneViewport,
 } from "../routes/scene";
 import { getFakeUser } from "../utils/auth";
+import { metrics } from "@opentelemetry/api";
 
 function getJWTCheck(noauth: boolean) {
   const aud: string = process.env.AUDIENCE_URL || "http://localhost:3000/";
@@ -117,9 +118,14 @@ export function create(): Express {
   //   limits: { fileSize: 8388608 },
   // });
 
-  app.get(NO_AUTH_ASSET, (_req, res) =>
-    res.status(200).send({ noauth: noauth }),
-  );
+  const meter = metrics.getMeter("ntt-api", "0.2.0");
+  const counter = meter.createCounter("ntt-api.noauth.counter");
+
+  app.get(NO_AUTH_ASSET, (_req, res) => {
+    counter.add(1);
+    log.info("asdf");
+    return res.status(200).send({ noauth: noauth });
+  });
   app.get(STATE_ASSET, jwtCheck, getState);
   app.put(STATE_ASSET, jwtCheck, updateState);
   app.put(SCENE_VIEWPORT_PATH, jwtCheck, updateSceneViewport);
