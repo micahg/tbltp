@@ -53,7 +53,11 @@ spec:
             configMapKeyRef:
               name: env-config
               key: ws.sendTimeout
-
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: otel.url
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
