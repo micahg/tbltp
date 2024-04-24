@@ -115,6 +115,13 @@ spec:
     - ports:
       - port: "{{ .Values.mongoPort }}"
         protocol: TCP
+  - toEndpoints:
+    -matchLabels:
+      "app": {{ .Values.otelAppName }}
+    toPorts:
+    - ports:
+      - port: "{{ .Values.otelPort }}"
+        protocol: TCP
   # add mongo egress
   ingress:
   - fromEndpoints:
