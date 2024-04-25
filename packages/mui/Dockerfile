@@ -1,4 +1,4 @@
-FROM nginx:1.25.3
+FROM nginx:1.26
 
 # Create app directory
 RUN mkdir /var/www/
