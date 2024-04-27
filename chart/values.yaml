@@ -2,7 +2,7 @@
 namespace: ntt
 uiAppName: ntt-ui
 uiAppReplicas: 1
-uiImageVers: 0.1.0
+uiImageVers: 0.2.0
 uiImagePath: ghcr.io/micahg/tbltp-mui
 uiImageSecret: gitlab-ntt-ui
 uiDomain: "tbltp.dev"
@@ -26,7 +26,6 @@ wsSendTimeout: 60
 ingressNamespace: "ingress-nginx"
 issuerDomain: "tbltp.us.auth0.com"
 clientId: I9UCeStWDPIHZsXhXk9XeIDpFyIjBwC8
-
 otelPort: 4318
 otelAppName: opentelemetry-collector
 otelImagePath: otel/opentelemetry-collector-contrib
