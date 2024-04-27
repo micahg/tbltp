@@ -15,9 +15,5 @@
   "workspaces": [
     "packages/api",
     "packages/mui"
-  ],
-  "dependencies": {
-    "@opentelemetry/exporter-metrics-otlp-proto": "^0.50.0",
-    "@opentelemetry/exporter-trace-otlp-proto": "^0.50.0"
-  }
+  ]
 }
