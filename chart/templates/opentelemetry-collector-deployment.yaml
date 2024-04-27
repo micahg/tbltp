@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.otelAppName }}-deployment
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.otelAppName }}
+spec:
+  replicas: {{ .Values.otelAppReplicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.otelAppName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.otelAppName }}
+    spec:
+      volumes:
+        - name: otel-config
+          secret:
+            secretName: {{ .Values.otelAppName }}-config
+            items:
+            - key: otelConfig
+              path: config.yaml
+      containers:
+      - name: {{ .Values.otelAppName }}
+        image: {{ .Values.otelImagePath }}:{{ .Values.otelImageVers }}
+        volumeMounts:
+          - mountPath: /etc/otelcol-contrib
+            name: otel-config
+            readOnly: true
+        ports:
+        - containerPort: {{ .Values.otelPort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.otelAppName }}-service
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: {{ .Values.otelAppName }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.otelPort }}
+      targetPort: {{ .Values.otelPort }}
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ .Values.otelAppName }}-allow-outbound-grafana
+  namespace: {{ .Values.namespace }}
+spec:
+  endpointSelector:
+    matchLabels:
+      app: {{ .Values.otelAppName }}
+  egress:
+  - toFQDNs:
+    - matchPattern: "{{ .Values.otelDomains }}"
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+  - toEndpoints:
+    - matchLabels:
+        "k8s:io.kubernetes.pod.namespace": kube-system
+        "k8s:k8s-app": kube-dns
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: ANY
+      rules:
+        dns:
+        - matchPattern: "*"

@@ -26,3 +26,10 @@ wsSendTimeout: 60
 ingressNamespace: "ingress-nginx"
 issuerDomain: "tbltp.us.auth0.com"
 clientId: I9UCeStWDPIHZsXhXk9XeIDpFyIjBwC8
+
+otelPort: 4318
+otelAppName: opentelemetry-collector
+otelImagePath: otel/opentelemetry-collector-contrib
+otelImageVers: 0.98.0
+otelAppReplicas: 1
+otelDomains: "*.grafana.net"

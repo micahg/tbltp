@@ -17,6 +17,8 @@ on:
         required: true
       MONGODB_CONNECTION_STRING:
         required: false
+      OTEL_CONFIG_STRING:
+        required: true
 jobs:
   helm:
     runs-on: ubuntu-latest
@@ -53,7 +55,9 @@ jobs:
           ENVIRONMENT: ${{ inputs.environment }}
           EXTRA_ARGS: ${{ inputs.extra-helm-args }}
           MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
+          OTEL_CONFIG_STRING: ${{ secrets.OTEL_CONFIG_STRING }}
         run: |
           [[ ! -z "$MONGODB_CONNECTION_STRING" ]] && VALUE=`echo "$MONGODB_CONNECTION_STRING" | base64 -d` yq e -i ".mongoConnectionString=env(VALUE)" chart/values.yaml
+          [[ ! -z "$OTEL_CONFIG_STRING" ]] && VALUE=`echo "$OTEL_CONFIG_STRING"` yq e -i ".otelConfig=env(VALUE)" chart/values.yaml
           grep mongoConnectionString < chart/values.yaml | wc -c
           helm upgrade --install -f chart/values.yaml $EXTRA_ARGS ntt-infra chart

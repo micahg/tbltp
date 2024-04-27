@@ -13,3 +13,4 @@ data:
   ws.sendTimeout: "{{ .Values.wsSendTimeout }}"
   issuer.url: https://{{ .Values.issuerDomain }}
   auth.redirect: https://{{ .Values.uiDomain }}/edit
+  otel.url: http://{{ .Values.otelAppName }}-service:{{ .Values.otelPort }}

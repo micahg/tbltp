@@ -5,6 +5,8 @@ import { Server } from "http";
 import { log } from "./utils/logger";
 
 import * as expressConfig from "./config/express";
+import { startInstrumentation } from "./config/instrumentation";
+
 import { startWSServer, stopWSConnections } from "./utils/websocket";
 import { STARTUP_CHECK_SIG, STARTUP_DONE_SIG } from "./utils/constants";
 import { getOAuthPublicKey } from "./utils/auth";
@@ -12,6 +14,7 @@ import { getOAuthPublicKey } from "./utils/auth";
 import { connect } from "./config/mongoose";
 import mongoose from "mongoose";
 import { WebSocketServer } from "ws";
+import { ValueType, metrics } from "@opentelemetry/api";
 
 // mongoose.set('debug', true);
 
@@ -23,6 +26,8 @@ let wss: WebSocketServer;
 let mongo: typeof mongoose;
 let mongoConnectedFlag = false;
 let storageConnectedFlag = false;
+
+startInstrumentation();
 
 // ts-prune-ignore-next used in unit tests
 export const app = expressConfig.create();
@@ -84,7 +89,20 @@ export const serverPromise = new Promise<Server>((resolve) => {
 });
 
 // ts-prune-ignore-next used in unit test
-export function startUp() {
+export async function startUp() {
+  // gracefully shut down
+  process.on("SIGTERM", () => shutDown("SIGINT"));
+  process.on("SIGINT", () => shutDown("SIGINT"));
+
+  const meter = metrics.getMeter("ntt-api", "0.2.0");
+  const mongoUpDown = meter.createUpDownCounter("ntt-api.mongo.connected", {
+    description: "Count of mongoose connections",
+    valueType: ValueType.INT,
+  });
+
+  // TODO IS THIS NECESSARY!?!?!?
+  mongoUpDown.add(0);
+
   // TODO move this to the storage driver
   log.info(`Create public resources folder...`);
   mkdir("public", { recursive: true }, (err, path) => {
@@ -97,22 +115,30 @@ export function startUp() {
     app.emit(STARTUP_CHECK_SIG);
   });
 
-  connect()
-    .then((goose) => {
-      mongoConnectedFlag = true;
-      mongo = goose;
-      const conn = goose.connection;
-      log.info(`Mongo connected to ${conn.name} on ${conn.host}`);
-      app.emit(STARTUP_CHECK_SIG);
-    })
-    .catch((err) => {
-      log.error(`Unable to ping mongo: ${err}`);
-      process.exit(1);
-    });
+  let goose;
+  while (!goose) {
+    try {
+      goose = await connect();
+    } catch (err) {
+      log.error(`Unable to connect to mongo: ${err}`);
+    }
+  }
 
-  // gracefully shut down
-  process.on("SIGTERM", () => shutDown("SIGINT"));
-  process.on("SIGINT", () => shutDown("SIGINT"));
+  mongoUpDown.add(1);
+  mongoConnectedFlag = true;
+  mongo = goose;
+  const conn = goose.connection;
+  conn.on("error", (err) => log.error("Mongoose error", err));
+  conn.on("disconnected", (err) => {
+    mongoUpDown.add(-1);
+    log.error("Mongoose disconnected", err);
+  });
+  conn.on("reconnected", () => {
+    mongoUpDown.add(1);
+    log.info("Mongoose reconnected");
+  });
+  log.info(`Mongo connected to ${conn.name} on ${conn.host}`);
+  app.emit(STARTUP_CHECK_SIG);
 }
 
 // if we're not main module then we're running in jest and it needs to call
