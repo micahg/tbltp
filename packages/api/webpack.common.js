@@ -35,5 +35,17 @@ module.exports = {
       }
     ]
   },
-  externals: nodeModules
-}
+  externals: nodeModules,
+  ignoreWarnings: [
+    {
+      module: /opentelemetry/,
+      message:
+        /Critical dependency: the request of a dependency is an expression/,
+    },
+    {
+      module: /express/,
+      message:
+        /Critical dependency: the request of a dependency is an expression/,
+    },
+  ],
+};
