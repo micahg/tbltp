@@ -4,7 +4,6 @@ uiAppName: ntt-ui
 uiAppReplicas: 1
 uiImageVers: 0.3.0
 uiImagePath: ghcr.io/micahg/tbltp-mui
-uiImageSecret: gitlab-ntt-ui
 uiDomain: "tbltp.dev"
 webDomain: "www.tbltp.dev"
 apiAppName: ntt-api
