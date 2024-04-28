@@ -51,8 +51,6 @@ spec:
             configMapKeyRef:
               name: env-config
               key: auth.redirect
-      imagePullSecrets:
-      - name: {{ .Values.uiImageSecret }}
 ---
 apiVersion: v1
 kind: Service
