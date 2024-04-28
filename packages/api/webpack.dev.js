@@ -8,7 +8,6 @@ module.exports = merge(common, {
   plugins: [
     new webpack.DefinePlugin({
       PRODUCTION: JSON.stringify(false),
-      DB_URL: JSON.stringify("mongodb://localhost:27017/yardduty")
-    })
+    }),
   ],
 });
