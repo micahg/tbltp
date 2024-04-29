@@ -58,7 +58,7 @@ jobs:
         name: Helm Upgrade
         env:
           ENVIRONMENT: ${{ inputs.environment }}
-          DEPLOY_ENV: ${{ vars.DEPLOYMENT_ENVIRONMENT }}}}
+          DEPLOY_ENV: ${{ vars.DEPLOYMENT_ENVIRONMENT }}
           EXTRA_ARGS: ${{ inputs.extra-helm-args }}
           MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
           OTEL_CONFIG_STRING: ${{ secrets.OTEL_CONFIG_STRING }}
