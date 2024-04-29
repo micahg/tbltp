@@ -284,7 +284,7 @@ const ContentEditor = ({
           const length = Object.keys(downloads).length;
           if (length === 0) return setDownloadProgress(100);
 
-          // otherwise, tally the totals and set the progress
+          // otherwise, tally the totals and set progress
           let value = 0;
           for (const [, v] of Object.entries(downloads)) value += v;
           setDownloadProgress((value * 100) / length);
