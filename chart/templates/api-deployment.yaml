@@ -58,7 +58,7 @@ spec:
             configMapKeyRef:
               name: env-config
               key: release.version
-        -name: DEPLOYMENT_ENVIRONMENT
+        - name: DEPLOYMENT_ENVIRONMENT
           valueFrom:
             configMapKeyRef:
               name: env-config
