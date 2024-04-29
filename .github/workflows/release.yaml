@@ -74,15 +74,21 @@ jobs:
           echo yq e -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
           yq e -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
 
-          echo yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_api_version }}"' chart/values.yaml
-          yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_api_version }}"' chart/values.yaml
-          echo yq e -i '.services.api.image = "${{ needs.start-release.outputs.new_api_image }}"' compose.yaml
-          yq e -i '.services.api.image = "${{ needs.start-release.outputs.new_api_image }}"' compose.yaml
+          echo "${{ needs.start-release.outputs.package_api }}"
+          if [ "${{ needs.start-release.outputs.package_api }}" == "true" ]; then
+            echo yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_api_version }}"' chart/values.yaml
+            yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_api_version }}"' chart/values.yaml
+            echo yq e -i '.services.api.image = "${{ needs.start-release.outputs.new_api_image }}"' compose.yaml
+            yq e -i '.services.api.image = "${{ needs.start-release.outputs.new_api_image }}"' compose.yaml
+          fi
 
-          echo yq e -i '.uiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
-          yq e -i '.uiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
-          echo yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
-          yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
+          echo "${{ needs.start-release.outputs.package_mui }}"
+          if [ "${{ needs.start-release.outputs.package_mui }}" == "true" ]; then
+            echo yq e -i '.uiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
+            yq e -i '.uiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
+            echo yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
+            yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
+          fi
       - id: update-versions
         env:
           SEGMENT: minor
