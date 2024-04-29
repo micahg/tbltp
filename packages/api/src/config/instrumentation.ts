@@ -12,7 +12,6 @@ import {
 import { Resource } from "@opentelemetry/resources";
 
 // https://opentelemetry.io/docs/languages/js/instrumentation/#initialize-the-sdk
-// opentelemetry-collector-service:4318
 const sdk = new NodeSDK({
   resource: new Resource({
     [SEMRESATTRS_SERVICE_NAME]: "ntt-api",
