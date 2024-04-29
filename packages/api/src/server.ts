@@ -5,7 +5,10 @@ import { Server } from "http";
 import { log } from "./utils/logger";
 
 import * as expressConfig from "./config/express";
-import { startInstrumentation } from "./config/instrumentation";
+import {
+  startInstrumentation,
+  stopInstrumentation,
+} from "./config/instrumentation";
 
 import { startWSServer, stopWSConnections } from "./utils/websocket";
 import { STARTUP_CHECK_SIG, STARTUP_DONE_SIG } from "./utils/constants";
@@ -33,7 +36,7 @@ startInstrumentation();
 export const app = expressConfig.create();
 
 // ts-prune-ignore-next used in unit tests
-export const shutDown = (reason: string) => {
+export const shutDown = async (reason: string) => {
   log.warn(`Shutting down (${reason})`);
   if (mongo) {
     log.warn(`Closing mongo connection...`);
@@ -53,6 +56,15 @@ export const shutDown = (reason: string) => {
       else log.warn("Websocket server shut down");
     });
   }
+
+  log.warn(`Closing instrumentation...`);
+  try {
+    await stopInstrumentation();
+    log.warn(`Instrumentation stopped.`);
+  } catch (err) {
+    log.error(`Unable to stop instrumentation: ${JSON.stringify(err)}`);
+  }
+
   if (srvr) {
     log.warn(`Closing down server...`);
     srvr.close((err) => {

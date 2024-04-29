@@ -4,6 +4,8 @@ metadata:
   name: env-config
   namespace: {{ .Values.namespace }}
 data:
+  release.version: {{ .Values.releaseVersion }}
+  deploy.environment: {{ .Values.deployEnv }}
   auth.domain: {{ .Values.issuerDomain }}
   auth.client: {{ .Values.clientId }}
   auth.audience: https://{{ .Values.apiDomain }}
