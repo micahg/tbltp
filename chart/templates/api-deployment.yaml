@@ -53,6 +53,16 @@ spec:
             configMapKeyRef:
               name: env-config
               key: ws.sendTimeout
+        - name: RELEASE_VERSION
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: release.version
+        -name: DEPLOYMENT_ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: deploy.environment
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           valueFrom:
             configMapKeyRef:
