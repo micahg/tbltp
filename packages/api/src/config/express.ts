@@ -86,7 +86,6 @@ export function create(): Express {
         path: req.route ? req.route.path : req.baseUrl,
         status: res.statusCode,
       };
-      console.log(latency);
       latencyHistogram.record(latency, attribs);
       requestCounter.add(1, attribs);
     });
