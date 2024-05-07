@@ -231,6 +231,57 @@ function unrotateBox(x1: number, y1: number, x2: number, y2: number) {
   return [p1.x, p1.y, p2.x - p1.x, p2.y - p1.y];
 }
 
+function eraseBrush(x: number, y: number, radius: number, full = true) {
+  overlayCtx.save();
+  // TODO MICAH USE clearCanvas to clear both canvii
+  overlayCtx.clearRect(0, 0, overlayCtx.canvas.width, overlayCtx.canvas.height);
+  overlayCtx.beginPath();
+  // pay close attention here, rect is clockwise, arc is anticlockwise (last param)
+  // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing#inverse_clipping_path)
+  overlayCtx.rect(0, 0, overlayCtx.canvas.width, overlayCtx.canvas.height);
+  overlayCtx.arc(x, y, radius, 0, 2 * Math.PI, true);
+  // overlayCtx.fill();
+  overlayCtx.clip();
+  // renderImage(overlayCtx, overlayImage, _angle);
+  overlayCtx.translate(
+    overlayCtx.canvas.width / 2,
+    overlayCtx.canvas.height / 2,
+  );
+  overlayCtx.rotate((_angle * Math.PI) / 180);
+  overlayCtx.drawImage(
+    overlayImage,
+    // we ctx.rotate above, so REMEMBER: the actual source image SHOULD NOT BE ROTATED
+    _img.x,
+    _img.y,
+    _img.width,
+    _img.height,
+    // the viewport, on the other hand, does need to accommodate that rotation since
+    // we are on a mostly statically sized canvas but width and height might be rotated
+    -_vp.width / 2,
+    -_vp.height / 2,
+    _vp.width,
+    _vp.height,
+  );
+  overlayCtx.restore();
+
+  // TODO MICAH MAKE THIS fullOverlayCanvas WHEN YOU HAVE THE FULL UPDATING
+  // in fact, do the operation on the full, and just dump it to the smaller!
+  // overlayImage = fullOverlayCanvas.transferToImageBitmap();
+
+  // if (full) {
+  //   // un-rotate and scale
+  //   const p = unrotateAndScalePoints(createPoints([x, y]))[0];
+  //   // then add the image area offset
+  //   p.x += _img.x;
+  //   p.y += _img.y;
+  //   fullCtx.save();
+  //   fullCtx.beginPath();
+  //   fullCtx.arc(p.x, p.y, Math.round(radius * _zoom), 0, 2 * Math.PI);
+  //   fullCtx.fill();
+  //   fullCtx.restore();
+  // }
+}
+
 function renderBrush(x: number, y: number, radius: number, full = true) {
   overlayCtx.save();
   overlayCtx.beginPath();
@@ -461,10 +512,34 @@ self.onmessage = (evt) => {
       selecting = false;
       break;
     }
+    case "erase": {
+      if (evt.data.buttons === 0) {
+        // here we don't draw BUT if you look at animateBrush, you'll see that we'll just repaint the
+        // overlay and then render the translucent brush
+        if (!recording) {
+          overlayCtx.fillStyle = GUIDE_FILL;
+          recording = true;
+        }
+        // IS this even necessary? I guess if the mouse moves faster than the screen refresh it might cut some
+        // old frames out of the list
+        cancelAnimationFrame(_frame);
+        requestAnimationFrame(() => animateBrush(evt.data.x, evt.data.y));
+      } else if (evt.data.buttons === 1) {
+        /* nop */
+        if (recording) {
+          recording = false;
+          restoreOverlay(); // one day i hope someone smarter than me can explain why removing this wipes the canvas
+          overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+          fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+        }
+        eraseBrush(evt.data.x, evt.data.y, brush);
+      }
+      break;
+    }
     case "paint": {
-      // update the current mouse coordinates
-      // [endX, endY] = [evt.data.x2, evt.data.y2];
-
+      // here we do not turn recording on or off (thats handled by the move/record/end events elsewhere)
+      // also "recording" is not "painting" TODO MICAH COME BACK HERE AND CONFIRM ITS ABOUT CANVAS ANIMATION
+      // where we do not paint (painting is separate from drawing the selection or the translucent brush)
       if (evt.data.buttons === 0) {
         // here we don't draw BUT if you look at animateBrush, you'll see that we'll just repaint the
         // overlay and then render the translucent brush
@@ -522,6 +597,7 @@ self.onmessage = (evt) => {
       endY = -1;
       break;
     }
+    case "end_erase":
     case "end_painting": {
       recording = false;
       panning = false;

@@ -27,6 +27,7 @@ import {
   Palette,
   VisibilityOff,
   Visibility,
+  EditOff,
 } from "@mui/icons-material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import {
@@ -53,6 +54,15 @@ interface ContentEditorProps {
   manageScene?: () => void;
 }
 
+// enum RecordingAction {
+//   None,
+//   Select,
+//   Paint,
+//   Erase,
+// }
+
+type RecordingAction = "none" | "select" | "paint" | "erase";
+
 // hack around rerendering -- keep one object in state and update properties
 // so that the object itself remains unchanged.
 interface InternalState {
@@ -61,6 +71,8 @@ interface InternalState {
   selected: boolean;
   zoom: boolean;
   painting: boolean;
+  recording: RecordingAction;
+  isRecording: boolean;
 }
 
 const ContentEditor = ({
@@ -80,6 +92,8 @@ const ContentEditor = ({
     selected: false,
     color: createRef(),
     painting: false,
+    recording: "none",
+    isRecording: false,
   });
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
@@ -155,6 +169,31 @@ const ContentEditor = ({
     [internalState, redrawToolbar],
   );
 
+  const updateRecording = useCallback(
+    (value: boolean) => {
+      if (internalState.isRecording !== value && redrawToolbar) {
+        internalState.isRecording = value;
+        if (!value) {
+          internalState.recording = "none";
+        }
+        redrawToolbar();
+      }
+    },
+    [internalState, redrawToolbar],
+  );
+
+  const prepareRecording = useCallback(
+    (action: RecordingAction) => {
+      internalState.isRecording = false;
+      internalState.recording = action;
+      if (action === "erase") {
+        // TODO MICAH THIS SHOULD BECOME "record"
+        sm.transition("paint");
+      }
+    },
+    [internalState],
+  );
+
   const sceneManager = useCallback(() => {
     if (manageScene) manageScene();
   }, [manageScene]);
@@ -211,7 +250,9 @@ const ContentEditor = ({
       let cmd;
       if (internalState.painting) cmd = "paint";
       else if (internalState.selecting) cmd = "record";
-      else cmd = "move";
+      else if (internalState.isRecording) {
+        cmd = internalState.recording;
+      } else cmd = "move";
       worker.postMessage({
         cmd: cmd,
         buttons: buttons,
@@ -219,7 +260,13 @@ const ContentEditor = ({
         y: y,
       });
     },
-    [internalState.selecting, internalState.painting, worker],
+    [
+      worker,
+      internalState.painting,
+      internalState.selecting,
+      internalState.isRecording,
+      internalState.recording,
+    ],
   );
 
   /**
@@ -378,6 +425,22 @@ const ContentEditor = ({
         callback: () => sm.transition("rotateClock"),
       },
       {
+        icon: EditOff,
+        tooltip: "Erase",
+        hidden: () => internalState.isRecording,
+        disabled: () =>
+          internalState.isRecording && internalState.recording !== "erase",
+        callback: () => prepareRecording("erase"),
+      },
+      {
+        icon: EditOff,
+        tooltip: "Finish Erase",
+        emphasis: true,
+        hidden: () => !internalState.isRecording,
+        disabled: () => false,
+        callback: () => sm.transition("wait"),
+      },
+      {
         icon: Brush,
         tooltip: "Paint",
         hidden: () => internalState.painting,
@@ -451,6 +514,7 @@ const ContentEditor = ({
       setShowOpacityMenu(false);
       // these ones update internal state - can't wait to fix that - doesn't feel right
       updateSelecting(false);
+      updateRecording(false);
       // state machine for paint loops from complete back to paint to prevent having to click
       // the paint button every time. So, now we know we're *really* done, make sure the worker
       // knows too and stops recording mouse events
@@ -502,6 +566,10 @@ const ContentEditor = ({
       } else if (internalState.painting) {
         worker.postMessage({ cmd: "end_painting" });
         sm.transition("paint");
+      } else if (internalState.isRecording) {
+        worker.postMessage({ cmd: `end_${internalState.recording}` });
+        // TODO MICAH MAKE THIS RECORDING
+        sm.transition("paint");
       } else {
         worker.postMessage({ cmd: "end_panning" });
         sm.transition("wait");
@@ -542,10 +610,13 @@ const ContentEditor = ({
       updateSelected(false);
       updatePainting(false);
     });
+    // TODO MICAH THIS SHOULD BE RECORD
     setCallback(sm, "paint", () => {
       updateSelecting(false);
       updateSelected(false);
-      updatePainting(true);
+      if (internalState.recording === "erase") {
+        updateRecording(true);
+      } else updatePainting(true);
     });
     setCallback(sm, "painting", () => {
       console.log("NOW PAINTING");
