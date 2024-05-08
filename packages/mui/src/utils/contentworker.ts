@@ -159,7 +159,7 @@ function loadAllImages(bearer: string, background: string, overlay?: string) {
       overlayImage = ovImg;
     } else {
       clearCanvas();
-      storeOverlay(false);
+      // storeOverlay(false);
     }
     return [bgImg, ovImg];
   });
@@ -252,7 +252,6 @@ function eraseBrush(x: number, y: number, radius: number, full = true) {
   fullCtx.drawImage(img, 0, 0);
   fullCtx.restore();
   img.close();
-  // storeOverlay(false);
   renderImage(overlayCtx, fullCtx.canvas, _angle);
 }
 
@@ -286,6 +285,7 @@ function renderBox(
   style: string,
   full = true,
 ) {
+  // TODO MICAH THIS ALSO SUCKS FULL FIRST THEN DUMP
   overlayCtx.save();
   overlayCtx.fillStyle = style;
   overlayCtx.fillRect(x1, y1, x2 - x1, y2 - y1);
@@ -374,7 +374,7 @@ function animateBrush(x: number, y: number) {
 function animateSelection() {
   if (!recording) return;
   if (selecting) {
-    renderImage(overlayCtx, overlayImage, _angle);
+    renderImage(overlayCtx, fullCtx.canvas, _angle);
     renderBox(startX, startY, endX, endY, GUIDE_FILL, false);
   } else if (panning) {
     // calculate the (rotated) movement since the last frame and update for the next
@@ -604,7 +604,6 @@ self.onmessage = (evt) => {
     }
     case "end_selecting": {
       if (panning) {
-        storeOverlay(false);
         postMessage({ cmd: "pan_complete" });
       } else {
         postMessage({
@@ -627,18 +626,16 @@ self.onmessage = (evt) => {
       break;
     }
     case "obscure": {
-      restoreOverlay();
       const fill = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
       const r = evt.data.rect as unknown as Rect;
       renderBox(r.x, r.y, r.x + r.width, r.y + r.height, fill);
-      storeOverlay();
+      shipOverlay();
       break;
     }
     case "reveal": {
-      restoreOverlay();
       const r = evt.data.rect as unknown as Rect;
       clearBox(r.x, r.y, r.x + r.width, r.y + r.height);
-      storeOverlay();
+      shipOverlay();
       break;
     }
     case "clear": {
