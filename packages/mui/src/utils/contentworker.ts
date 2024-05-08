@@ -159,7 +159,6 @@ function loadAllImages(bearer: string, background: string, overlay?: string) {
       overlayImage = ovImg;
     } else {
       clearCanvas();
-      // storeOverlay(false);
     }
     return [bgImg, ovImg];
   });
@@ -167,7 +166,7 @@ function loadAllImages(bearer: string, background: string, overlay?: string) {
 
 function renderVisibleCanvasses() {
   renderImage(backgroundCtx, backgroundImage, _angle);
-  renderImage(overlayCtx, overlayImage, _angle);
+  renderImage(overlayCtx, fullCtx.canvas, _angle);
 }
 
 function renderAllCanvasses(
@@ -310,11 +309,6 @@ function clearCanvas() {
   fullCtx.clearRect(0, 0, fullCtx.canvas.width, fullCtx.canvas.height);
 }
 
-function restoreOverlay() {
-  renderImage(overlayCtx, overlayImage, _angle);
-  fullCtx.drawImage(overlayImage, 0, 0);
-}
-
 function fullRerender(zoomOut = false) {
   /**
    * Full render is called when the image, angle or zoom changes - hence the
@@ -344,19 +338,7 @@ function fullRerender(zoomOut = false) {
  * @param post flag indicating if the image should be sent to the main thread
  *             for upload.
  */
-function storeOverlay(post = true) {
-  overlayImage = fullOverlayCanvas.transferToImageBitmap();
-  if (post)
-    fullOverlayCanvas
-      .convertToBlob()
-      .then((blob: Blob) => postMessage({ cmd: "overlay", blob: blob }))
-      .catch((err) =>
-        console.error(`Unable to post blob: ${JSON.stringify(err)}`),
-      );
-}
-
-// MICAH you should think long and hard about how you're not waiting for this...
-const shipOverlay = () =>
+const storeOverlay = () =>
   fullOverlayCanvas
     .convertToBlob()
     .then((blob: Blob) => postMessage({ cmd: "overlay", blob: blob }))
@@ -492,11 +474,6 @@ self.onmessage = (evt) => {
       fullRerender();
       break;
     }
-    case "start_recording": {
-      restoreOverlay();
-      selecting = false;
-      break;
-    }
     case "erase": {
       if (evt.data.buttons === 0) {
         // here we don't draw BUT if you look at animateBrush, you'll see that we'll just repaint the
@@ -513,9 +490,6 @@ self.onmessage = (evt) => {
         /* nop */
         if (recording) {
           recording = false;
-          // restoreOverlay(); // one day i hope someone smarter than me can explain why removing this wipes the canvas
-          // overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
-          // fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
         }
         eraseBrush(evt.data.x, evt.data.y, brush);
       }
@@ -585,20 +559,13 @@ self.onmessage = (evt) => {
       recording = false;
       panning = false;
       renderImage(overlayCtx, fullCtx.canvas, _angle);
-      shipOverlay();
+      storeOverlay();
       break;
     }
     case "end_painting": {
       recording = false;
       panning = false;
-      // storeOverlay(true);
-      shipOverlay();
-      // fullOverlayCanvas
-      //   .convertToBlob()
-      //   .then((blob: Blob) => postMessage({ cmd: "overlay", blob: blob }))
-      //   .catch((err) =>
-      //     console.error(`Unable to post blob: ${JSON.stringify(err)}`),
-      //   );
+      storeOverlay();
       renderImage(overlayCtx, fullCtx.canvas, _angle);
       break;
     }
@@ -629,22 +596,18 @@ self.onmessage = (evt) => {
       const fill = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
       const r = evt.data.rect as unknown as Rect;
       renderBox(r.x, r.y, r.x + r.width, r.y + r.height, fill);
-      shipOverlay();
+      storeOverlay();
       break;
     }
     case "reveal": {
       const r = evt.data.rect as unknown as Rect;
       clearBox(r.x, r.y, r.x + r.width, r.y + r.height);
-      shipOverlay();
+      storeOverlay();
       break;
     }
     case "clear": {
       clearCanvas();
       storeOverlay();
-      break;
-    }
-    case "clearselection": {
-      restoreOverlay();
       break;
     }
     case "opacity": {
@@ -677,8 +640,6 @@ self.onmessage = (evt) => {
       );
       // post back the full viewport
       postMessage({ cmd: "viewport", viewport: fullVp });
-      // clear selection
-      restoreOverlay();
       break;
     }
     case "zoom_in": {
