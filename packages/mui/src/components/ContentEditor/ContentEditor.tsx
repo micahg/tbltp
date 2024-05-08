@@ -21,12 +21,12 @@ import {
   ZoomIn,
   ZoomOut,
   LayersClear,
-  Brush,
   Sync,
   Map,
   Palette,
   VisibilityOff,
   Visibility,
+  Edit,
   EditOff,
 } from "@mui/icons-material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
@@ -442,14 +442,14 @@ const ContentEditor = ({
         callback: () => sm.transition("wait"),
       },
       {
-        icon: Brush,
+        icon: Edit,
         tooltip: "Paint",
         hidden: () => internalState.painting,
         disabled: () => internalState.selecting,
         callback: () => sm.transition("paint"),
       },
       {
-        icon: Brush,
+        icon: Edit,
         tooltip: "Finish Paint",
         emphasis: true,
         hidden: () => !internalState.painting,
@@ -857,7 +857,7 @@ const ContentEditor = ({
                 </li>
               </ul>
               <li>
-                <Brush sx={{ verticalAlign: "bottom" }} /> will allow you to
+                <Edit sx={{ verticalAlign: "bottom" }} /> will allow you to
                 paint.
               </li>
               <li>
