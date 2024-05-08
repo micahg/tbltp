@@ -76,7 +76,7 @@ function trimPanning() {
 
 function renderImage(
   ctx: OffscreenCanvasRenderingContext2D,
-  img: ImageBitmap,
+  img: CanvasImageSource | OffscreenCanvas,
   angle: number,
 ) {
   // if (debug) {
@@ -155,8 +155,9 @@ function loadAllImages(bearer: string, background: string, overlay?: string) {
   return Promise.all([bgP, ovP]).then(([bgImg, ovImg]) => {
     // keep a copy of these to prevent having to recreate them from the image buffer
     backgroundImage = bgImg;
-    if (ovImg) overlayImage = ovImg;
-    else {
+    if (ovImg) {
+      overlayImage = ovImg;
+    } else {
       clearCanvas();
       storeOverlay(false);
     }
@@ -232,57 +233,32 @@ function unrotateBox(x1: number, y1: number, x2: number, y2: number) {
 }
 
 function eraseBrush(x: number, y: number, radius: number, full = true) {
-  overlayCtx.save();
-  // TODO MICAH USE clearCanvas to clear both canvii
-  overlayCtx.clearRect(0, 0, overlayCtx.canvas.width, overlayCtx.canvas.height);
-  overlayCtx.beginPath();
+  // un-rotate and scale
+  const p = unrotateAndScalePoints(createPoints([x, y]))[0];
+
+  // copy image so we can clip it shortly
+  const img = fullOverlayCanvas.transferToImageBitmap();
+  // then add the image area offset
+  p.x += _img.x;
+  p.y += _img.y;
+  fullCtx.save();
+  // fullCtx.clearRect(0, 0, fullCtx.canvas.width, fullCtx.canvas.height);
   // pay close attention here, rect is clockwise, arc is anticlockwise (last param)
   // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing#inverse_clipping_path)
-  overlayCtx.rect(0, 0, overlayCtx.canvas.width, overlayCtx.canvas.height);
-  overlayCtx.arc(x, y, radius, 0, 2 * Math.PI, true);
-  // overlayCtx.fill();
-  overlayCtx.clip();
-  // renderImage(overlayCtx, overlayImage, _angle);
-  overlayCtx.translate(
-    overlayCtx.canvas.width / 2,
-    overlayCtx.canvas.height / 2,
-  );
-  overlayCtx.rotate((_angle * Math.PI) / 180);
-  overlayCtx.drawImage(
-    overlayImage,
-    // we ctx.rotate above, so REMEMBER: the actual source image SHOULD NOT BE ROTATED
-    _img.x,
-    _img.y,
-    _img.width,
-    _img.height,
-    // the viewport, on the other hand, does need to accommodate that rotation since
-    // we are on a mostly statically sized canvas but width and height might be rotated
-    -_vp.width / 2,
-    -_vp.height / 2,
-    _vp.width,
-    _vp.height,
-  );
-  overlayCtx.restore();
-
-  // TODO MICAH MAKE THIS fullOverlayCanvas WHEN YOU HAVE THE FULL UPDATING
-  // in fact, do the operation on the full, and just dump it to the smaller!
-  // overlayImage = fullOverlayCanvas.transferToImageBitmap();
-
-  // if (full) {
-  //   // un-rotate and scale
-  //   const p = unrotateAndScalePoints(createPoints([x, y]))[0];
-  //   // then add the image area offset
-  //   p.x += _img.x;
-  //   p.y += _img.y;
-  //   fullCtx.save();
-  //   fullCtx.beginPath();
-  //   fullCtx.arc(p.x, p.y, Math.round(radius * _zoom), 0, 2 * Math.PI);
-  //   fullCtx.fill();
-  //   fullCtx.restore();
-  // }
+  fullCtx.beginPath();
+  fullCtx.rect(0, 0, fullCtx.canvas.width, fullCtx.canvas.height);
+  fullCtx.arc(p.x, p.y, Math.round(radius * _zoom), 0, 2 * Math.PI, true);
+  fullCtx.clip();
+  fullCtx.drawImage(img, 0, 0);
+  fullCtx.restore();
+  img.close();
+  // storeOverlay(false);
+  renderImage(overlayCtx, fullCtx.canvas, _angle);
 }
 
 function renderBrush(x: number, y: number, radius: number, full = true) {
+  // TODO THIS SUCKS - we should render to the full offscreen canvas,
+  // store as bitmap, and then dump it to the visible canvas
   overlayCtx.save();
   overlayCtx.beginPath();
   overlayCtx.arc(x, y, radius, 0, 2 * Math.PI);
@@ -369,6 +345,7 @@ function fullRerender(zoomOut = false) {
  *             for upload.
  */
 function storeOverlay(post = true) {
+  overlayImage = fullOverlayCanvas.transferToImageBitmap();
   if (post)
     fullOverlayCanvas
       .convertToBlob()
@@ -376,12 +353,20 @@ function storeOverlay(post = true) {
       .catch((err) =>
         console.error(`Unable to post blob: ${JSON.stringify(err)}`),
       );
-  overlayImage = fullOverlayCanvas.transferToImageBitmap();
 }
+
+// MICAH you should think long and hard about how you're not waiting for this...
+const shipOverlay = () =>
+  fullOverlayCanvas
+    .convertToBlob()
+    .then((blob: Blob) => postMessage({ cmd: "overlay", blob: blob }))
+    .catch((err) =>
+      console.error(`Unable to post blob: ${JSON.stringify(err)}`),
+    );
 
 function animateBrush(x: number, y: number) {
   if (!recording) return;
-  renderImage(overlayCtx, overlayImage, _angle);
+  renderImage(overlayCtx, fullCtx.canvas, _angle);
   renderBrush(x, y, brush, false);
   _frame = requestAnimationFrame(() => animateBrush(x, y));
 }
@@ -528,9 +513,9 @@ self.onmessage = (evt) => {
         /* nop */
         if (recording) {
           recording = false;
-          restoreOverlay(); // one day i hope someone smarter than me can explain why removing this wipes the canvas
-          overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
-          fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+          // restoreOverlay(); // one day i hope someone smarter than me can explain why removing this wipes the canvas
+          // overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+          // fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
         }
         eraseBrush(evt.data.x, evt.data.y, brush);
       }
@@ -557,7 +542,6 @@ self.onmessage = (evt) => {
         // frames
         if (recording) {
           recording = false;
-          restoreOverlay(); // one day i hope someone smarter than me can explain why removing this wipes the canvas
           overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
           fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
         }
@@ -597,12 +581,25 @@ self.onmessage = (evt) => {
       endY = -1;
       break;
     }
-    case "end_erase":
+    case "end_erase": {
+      recording = false;
+      panning = false;
+      renderImage(overlayCtx, fullCtx.canvas, _angle);
+      shipOverlay();
+      break;
+    }
     case "end_painting": {
       recording = false;
       panning = false;
-      storeOverlay(true);
-      renderImage(overlayCtx, overlayImage, _angle);
+      // storeOverlay(true);
+      shipOverlay();
+      // fullOverlayCanvas
+      //   .convertToBlob()
+      //   .then((blob: Blob) => postMessage({ cmd: "overlay", blob: blob }))
+      //   .catch((err) =>
+      //     console.error(`Unable to post blob: ${JSON.stringify(err)}`),
+      //   );
+      renderImage(overlayCtx, fullCtx.canvas, _angle);
       break;
     }
     case "end_selecting": {

@@ -429,7 +429,8 @@ const ContentEditor = ({
         tooltip: "Erase",
         hidden: () => internalState.isRecording,
         disabled: () =>
-          internalState.isRecording && internalState.recording !== "erase",
+          internalState.painting ||
+          (internalState.isRecording && internalState.recording !== "erase"),
         callback: () => prepareRecording("erase"),
       },
       {
@@ -661,6 +662,7 @@ const ContentEditor = ({
     worker,
     internalState,
     selection,
+    updateRecording,
   ]);
 
   useEffect(() => {
