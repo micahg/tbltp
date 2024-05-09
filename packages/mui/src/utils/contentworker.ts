@@ -19,7 +19,6 @@ import {
  * Worker for offscreen drawing in the content editor.
  */
 let backgroundImage: ImageBitmap;
-let overlayImage: ImageBitmap;
 let backgroundCanvas: OffscreenCanvas;
 let backgroundCtx: OffscreenCanvasRenderingContext2D;
 let overlayCanvas: OffscreenCanvas;
@@ -155,11 +154,6 @@ function loadAllImages(bearer: string, background: string, overlay?: string) {
   return Promise.all([bgP, ovP]).then(([bgImg, ovImg]) => {
     // keep a copy of these to prevent having to recreate them from the image buffer
     backgroundImage = bgImg;
-    if (ovImg) {
-      overlayImage = ovImg;
-    } else {
-      clearCanvas();
-    }
     return [bgImg, ovImg];
   });
 }
@@ -169,20 +163,11 @@ function renderVisibleCanvasses() {
   renderImage(overlayCtx, fullCtx.canvas, _angle);
 }
 
-function renderAllCanvasses(
-  background: ImageBitmap | null,
-  overlay: ImageBitmap | null,
-) {
+function renderAllCanvasses(background: ImageBitmap | null) {
   if (background) {
     sizeVisibleCanvasses(_canvas.width, _canvas.height);
     renderImage(backgroundCtx, background, _angle);
-    if (overlay) {
-      renderImage(overlayCtx, overlay, _angle);
-      // sync full overlay to background size and draw un-scaled/un-rotated image
-      fullOverlayCanvas.width = background.width;
-      fullOverlayCanvas.height = background.height;
-      fullCtx.drawImage(overlay, 0, 0);
-    }
+    renderImage(overlayCtx, fullCtx.canvas, _angle);
   }
 }
 
@@ -328,7 +313,7 @@ function fullRerender(zoomOut = false) {
     _img.y = 0;
   }
   calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
-  renderAllCanvasses(backgroundImage, overlayImage);
+  renderAllCanvasses(backgroundImage);
 }
 
 /**
@@ -393,7 +378,7 @@ function adjustZoom(zoom: number, x: number, y: number) {
   _img.x = q.x - _zoom * newX;
   _img.y = q.y - _zoom * newY;
   trimPanning();
-  renderAllCanvasses(backgroundImage, overlayImage);
+  renderAllCanvasses(backgroundImage);
 }
 // eslint-disable-next-line no-restricted-globals
 self.onmessage = (evt) => {
@@ -430,10 +415,20 @@ self.onmessage = (evt) => {
         evt.data.values.background,
         evt.data.values.overlay,
       )
-        .then(([bgImg]) => {
+        .then(([bgImg, ovImg]) => {
           if (bgImg) {
             calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
             trimPanning();
+
+            // this *should* be the one and only place we load the offscreen canvas
+            fullOverlayCanvas.width = bgImg.width;
+            fullOverlayCanvas.height = bgImg.height;
+            if (ovImg) {
+              fullCtx.drawImage(ovImg, 0, 0);
+              ovImg.close();
+            } else {
+              clearCanvas();
+            }
             fullRerender(true);
           }
         })
