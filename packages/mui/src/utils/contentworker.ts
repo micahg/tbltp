@@ -19,11 +19,8 @@ import {
  * Worker for offscreen drawing in the content editor.
  */
 let backgroundImage: ImageBitmap;
-let backgroundCanvas: OffscreenCanvas;
 let backgroundCtx: OffscreenCanvasRenderingContext2D;
-let overlayCanvas: OffscreenCanvas;
 let overlayCtx: OffscreenCanvasRenderingContext2D;
-let fullOverlayCanvas: OffscreenCanvas;
 let fullCtx: OffscreenCanvasRenderingContext2D;
 let recording = false;
 let selecting = false;
@@ -137,10 +134,10 @@ function calculateViewport(
  * @returns
  */
 function sizeVisibleCanvasses(width: number, height: number) {
-  backgroundCanvas.width = width;
-  backgroundCanvas.height = height;
-  overlayCanvas.width = width;
-  overlayCanvas.height = height;
+  backgroundCtx.canvas.width = width;
+  backgroundCtx.canvas.height = height;
+  overlayCtx.canvas.width = width;
+  overlayCtx.canvas.height = height;
 }
 
 function loadAllImages(bearer: string, background: string, overlay?: string) {
@@ -221,7 +218,7 @@ function eraseBrush(x: number, y: number, radius: number, full = true) {
   const p = unrotateAndScalePoints(createPoints([x, y]))[0];
 
   // copy image so we can clip it shortly
-  const img = fullOverlayCanvas.transferToImageBitmap();
+  const img = fullCtx.canvas.transferToImageBitmap();
   // then add the image area offset
   p.x += _img.x;
   p.y += _img.y;
@@ -324,7 +321,7 @@ function fullRerender(zoomOut = false) {
  *             for upload.
  */
 const storeOverlay = () =>
-  fullOverlayCanvas
+  fullCtx.canvas
     .convertToBlob()
     .then((blob: Blob) => postMessage({ cmd: "overlay", blob: blob }))
     .catch((err) =>
@@ -388,24 +385,22 @@ self.onmessage = (evt) => {
       // _bearer = evt.data.values.bearer;
 
       if (evt.data.background) {
-        backgroundCanvas = evt.data.background;
-        _canvas.width = Math.round(backgroundCanvas.width);
-        _canvas.height = Math.round(backgroundCanvas.height);
-        backgroundCtx = backgroundCanvas.getContext("2d", {
+        const bgCanvas = evt.data.background;
+        _canvas.width = Math.round(bgCanvas.width);
+        _canvas.height = Math.round(bgCanvas.height);
+        backgroundCtx = bgCanvas.getContext("2d", {
           alpha: false,
         }) as OffscreenCanvasRenderingContext2D;
       }
 
       if (evt.data.overlay) {
-        overlayCanvas = evt.data.overlay;
-        overlayCtx = overlayCanvas.getContext("2d", {
+        overlayCtx = evt.data.overlay.getContext("2d", {
           alpha: true,
         }) as OffscreenCanvasRenderingContext2D;
       }
 
       if (evt.data.fullOverlay) {
-        fullOverlayCanvas = evt.data.fullOverlay;
-        fullCtx = fullOverlayCanvas.getContext("2d", {
+        fullCtx = evt.data.fullOverlay.getContext("2d", {
           alpha: true,
         }) as OffscreenCanvasRenderingContext2D;
       }
@@ -421,8 +416,8 @@ self.onmessage = (evt) => {
             trimPanning();
 
             // this *should* be the one and only place we load the offscreen canvas
-            fullOverlayCanvas.width = bgImg.width;
-            fullOverlayCanvas.height = bgImg.height;
+            fullCtx.canvas.width = bgImg.width;
+            fullCtx.canvas.height = bgImg.height;
             if (ovImg) {
               fullCtx.drawImage(ovImg, 0, 0);
               ovImg.close();
