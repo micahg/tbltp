@@ -237,25 +237,26 @@ function eraseBrush(x: number, y: number, radius: number, full = true) {
 }
 
 function renderBrush(x: number, y: number, radius: number, full = true) {
-  // TODO THIS SUCKS - we should render to the full offscreen canvas,
-  // store as bitmap, and then dump it to the visible canvas
-  overlayCtx.save();
-  overlayCtx.beginPath();
-  overlayCtx.arc(x, y, radius, 0, 2 * Math.PI);
-  overlayCtx.fill();
-  overlayCtx.restore();
-  if (full) {
-    // un-rotate and scale
-    const p = unrotateAndScalePoints(createPoints([x, y]))[0];
-    // then add the image area offset
-    p.x += _img.x;
-    p.y += _img.y;
-    fullCtx.save();
-    fullCtx.beginPath();
-    fullCtx.arc(p.x, p.y, Math.round(radius * _zoom), 0, 2 * Math.PI);
-    fullCtx.fill();
-    fullCtx.restore();
+  if (!full) {
+    overlayCtx.save();
+    overlayCtx.beginPath();
+    overlayCtx.arc(x, y, radius, 0, 2 * Math.PI);
+    overlayCtx.fill();
+    overlayCtx.restore();
+    return;
   }
+  // un-rotate and scale
+  const p = unrotateAndScalePoints(createPoints([x, y]))[0];
+  // then add the image area offset
+  p.x += _img.x;
+  p.y += _img.y;
+  fullCtx.save();
+  fullCtx.beginPath();
+  fullCtx.arc(p.x, p.y, Math.round(radius * _zoom), 0, 2 * Math.PI);
+  fullCtx.fill();
+  fullCtx.restore();
+  // dump to visible canvas
+  renderImage(overlayCtx, fullCtx.canvas, _angle);
 }
 
 function renderBox(
@@ -266,18 +267,20 @@ function renderBox(
   style: string,
   full = true,
 ) {
-  // TODO MICAH THIS ALSO SUCKS FULL FIRST THEN DUMP
-  overlayCtx.save();
-  overlayCtx.fillStyle = style;
-  overlayCtx.fillRect(x1, y1, x2 - x1, y2 - y1);
-  overlayCtx.restore();
-  if (full) {
-    const [x, y, w, h] = unrotateBox(x1, y1, x2, y2);
-    fullCtx.save();
-    fullCtx.fillStyle = style;
-    fullCtx.fillRect(x, y, w, h);
-    fullCtx.restore();
+  if (!full) {
+    overlayCtx.save();
+    overlayCtx.fillStyle = style;
+    overlayCtx.fillRect(x1, y1, x2 - x1, y2 - y1);
+    overlayCtx.restore();
+    return;
   }
+
+  const [x, y, w, h] = unrotateBox(x1, y1, x2, y2);
+  fullCtx.save();
+  fullCtx.fillStyle = style;
+  fullCtx.fillRect(x, y, w, h);
+  fullCtx.restore();
+  renderImage(overlayCtx, fullCtx.canvas, _angle);
 }
 
 function clearBox(x1: number, y1: number, x2: number, y2: number) {
