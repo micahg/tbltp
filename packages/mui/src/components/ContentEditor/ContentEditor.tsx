@@ -66,8 +66,8 @@ interface InternalState {
   color: RefObject<HTMLInputElement>;
   selected: boolean;
   zoom: boolean;
-  rec: RecordingAction;
-  isRec: boolean;
+  act: RecordingAction;
+  rec: boolean;
 }
 
 const ContentEditor = ({
@@ -85,8 +85,8 @@ const ContentEditor = ({
     zoom: false,
     selected: false,
     color: createRef(),
-    rec: "move",
-    isRec: false,
+    act: "move",
+    rec: false,
   });
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
@@ -145,10 +145,10 @@ const ContentEditor = ({
 
   const updateRecording = useCallback(
     (value: boolean) => {
-      if (internalState.isRec !== value && redrawToolbar) {
-        internalState.isRec = value;
+      if (internalState.rec !== value && redrawToolbar) {
+        internalState.rec = value;
         if (!value) {
-          internalState.rec = "move";
+          internalState.act = "move";
         }
         redrawToolbar();
       }
@@ -158,9 +158,9 @@ const ContentEditor = ({
 
   const prepareRecording = useCallback(
     (action: RecordingAction) => {
-      internalState.isRec = false;
+      internalState.rec = false;
       internalState.selected = false;
-      internalState.rec = action;
+      internalState.act = action;
       sm.transition("record");
     },
     [internalState],
@@ -220,8 +220,8 @@ const ContentEditor = ({
     (buttons: number, x: number, y: number) => {
       if (!worker) return;
       let cmd;
-      if (internalState.isRec) {
-        cmd = internalState.rec;
+      if (internalState.rec) {
+        cmd = internalState.act;
       }
       worker.postMessage({
         cmd: cmd,
@@ -230,7 +230,7 @@ const ContentEditor = ({
         y: y,
       });
     },
-    [worker, internalState.isRec, internalState.rec],
+    [worker, internalState.rec, internalState.act],
   );
 
   /**
@@ -322,28 +322,28 @@ const ContentEditor = ({
         icon: Sync,
         tooltip: "Sync Remote Display",
         hidden: () => false,
-        disabled: () => internalState.isRec || internalState.rec !== "move",
+        disabled: () => internalState.rec || internalState.act !== "move",
         callback: () => sm.transition("push"),
       },
       {
         icon: Map,
         tooltip: "Scene Backgrounds",
         hidden: () => false,
-        disabled: () => internalState.isRec || internalState.rec !== "move",
+        disabled: () => internalState.rec || internalState.act !== "move",
         callback: sceneManager,
       },
       {
         icon: Palette,
         tooltip: "Color Palette",
         hidden: () => false,
-        disabled: () => internalState.isRec || internalState.rec !== "move",
+        disabled: () => internalState.rec || internalState.act !== "move",
         callback: gmSelectColor,
       },
       {
         icon: LayersClear,
         tooltip: "Clear Overlay",
         hidden: () => false,
-        disabled: () => internalState.isRec || internalState.rec !== "move",
+        disabled: () => internalState.rec || internalState.act !== "move",
         callback: () => sm.transition("clear"),
       },
       {
@@ -371,65 +371,65 @@ const ContentEditor = ({
         icon: ZoomOut,
         tooltip: "Zoom Out",
         hidden: () => !internalState.zoom,
-        disabled: () => internalState.isRec || internalState.selected,
+        disabled: () => internalState.rec || internalState.selected,
         callback: () => sm.transition("remoteZoomOut"),
       },
       {
         icon: Opacity,
         tooltip: "Opacity",
         hidden: () => false,
-        disabled: () => internalState.isRec || internalState.rec === "select",
+        disabled: () => internalState.rec || internalState.act === "select",
         callback: (evt) => gmSelectOpacityMenu(evt),
       },
       {
         icon: RotateRight,
         tooltip: "Rotate",
         hidden: () => false,
-        disabled: () => internalState.isRec || internalState.rec === "select",
+        disabled: () => internalState.rec || internalState.act === "select",
         callback: () => sm.transition("rotateClock"),
       },
       {
         icon: EditOff,
         tooltip: "Erase",
-        hidden: () => internalState.isRec && internalState.rec === "erase",
-        disabled: () => internalState.isRec && internalState.rec !== "erase",
+        hidden: () => internalState.rec && internalState.act === "erase",
+        disabled: () => internalState.rec && internalState.act !== "erase",
         callback: () => prepareRecording("erase"),
       },
       {
         icon: EditOff,
         tooltip: "Finish Erase",
         emphasis: true,
-        hidden: () => !(internalState.isRec && internalState.rec === "erase"),
+        hidden: () => !(internalState.rec && internalState.act === "erase"),
         disabled: () => false,
         callback: () => sm.transition("wait"),
       },
       {
         icon: Edit,
         tooltip: "Paint",
-        hidden: () => internalState.isRec && internalState.rec === "paint",
-        disabled: () => internalState.isRec && internalState.rec !== "paint",
+        hidden: () => internalState.rec && internalState.act === "paint",
+        disabled: () => internalState.rec && internalState.act !== "paint",
         callback: () => prepareRecording("paint"),
       },
       {
         icon: Edit,
         tooltip: "Finish Paint",
         emphasis: true,
-        hidden: () => !(internalState.isRec && internalState.rec === "paint"),
+        hidden: () => !(internalState.rec && internalState.act === "paint"),
         disabled: () => false,
         callback: () => sm.transition("wait"),
       },
       {
         icon: Rectangle,
         tooltip: "Select",
-        hidden: () => internalState.isRec && internalState.rec === "select",
-        disabled: () => internalState.isRec && internalState.rec !== "select",
+        hidden: () => internalState.rec && internalState.act === "select",
+        disabled: () => internalState.rec && internalState.act !== "select",
         callback: () => prepareRecording("select"),
       },
       {
         icon: Rectangle,
         tooltip: "Finish Select",
         emphasis: true,
-        hidden: () => !(internalState.isRec && internalState.rec === "select"),
+        hidden: () => !(internalState.rec && internalState.act === "select"),
         disabled: () => false,
         callback: () => sm.transition("wait"),
       },
@@ -486,7 +486,7 @@ const ContentEditor = ({
 
     setCallback(sm, "record", () => {
       // skip if we're already recording
-      if (internalState.isRec) return;
+      if (internalState.rec) return;
       setShowBackgroundMenu(false);
       setShowOpacityMenu(false);
       setShowOpacitySlider(false);
@@ -523,25 +523,25 @@ const ContentEditor = ({
       });
     });
     setCallback(sm, "complete", () => {
-      if (!internalState.isRec) {
+      if (!internalState.rec) {
         console.error(`complete CALLBACK in non-recording state`);
         return;
       }
-      if (internalState.rec === "select") {
+      if (internalState.act === "select") {
         worker.postMessage({ cmd: "end_select" });
         updateSelected(true);
       } else if (
-        internalState.rec === "erase" ||
-        internalState.rec === "paint"
+        internalState.act === "erase" ||
+        internalState.act === "paint"
       ) {
-        worker.postMessage({ cmd: `end_${internalState.rec}` });
+        worker.postMessage({ cmd: `end_${internalState.act}` });
         sm.transition("record");
-      } else if (internalState.rec === "move") {
+      } else if (internalState.act === "move") {
         worker.postMessage({ cmd: "end_panning" });
         sm.transition("wait");
       } else {
         console.error(
-          `RECORDING COMPLETE IN INVALID STATE: ${internalState.rec}`,
+          `RECORDING COMPLETE IN INVALID STATE: ${internalState.act}`,
         );
       }
     });
@@ -586,8 +586,8 @@ const ContentEditor = ({
     });
     setCallback(sm, "record_mouse_wheel", (args) => {
       if (
-        internalState.isRec &&
-        (internalState.rec === "erase" || internalState.rec === "paint")
+        internalState.rec &&
+        (internalState.act === "erase" || internalState.act === "paint")
       ) {
         sm.transition("done");
         const e: WheelEvent = args[0] as WheelEvent;
