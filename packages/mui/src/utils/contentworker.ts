@@ -19,12 +19,8 @@ import {
  * Worker for offscreen drawing in the content editor.
  */
 let backgroundImage: ImageBitmap;
-let overlayImage: ImageBitmap;
-let backgroundCanvas: OffscreenCanvas;
 let backgroundCtx: OffscreenCanvasRenderingContext2D;
-let overlayCanvas: OffscreenCanvas;
 let overlayCtx: OffscreenCanvasRenderingContext2D;
-let fullOverlayCanvas: OffscreenCanvas;
 let fullCtx: OffscreenCanvasRenderingContext2D;
 let recording = false;
 let selecting = false;
@@ -76,7 +72,7 @@ function trimPanning() {
 
 function renderImage(
   ctx: OffscreenCanvasRenderingContext2D,
-  img: ImageBitmap,
+  img: CanvasImageSource | OffscreenCanvas,
   angle: number,
 ) {
   // if (debug) {
@@ -138,10 +134,10 @@ function calculateViewport(
  * @returns
  */
 function sizeVisibleCanvasses(width: number, height: number) {
-  backgroundCanvas.width = width;
-  backgroundCanvas.height = height;
-  overlayCanvas.width = width;
-  overlayCanvas.height = height;
+  backgroundCtx.canvas.width = width;
+  backgroundCtx.canvas.height = height;
+  overlayCtx.canvas.width = width;
+  overlayCtx.canvas.height = height;
 }
 
 function loadAllImages(bearer: string, background: string, overlay?: string) {
@@ -155,34 +151,20 @@ function loadAllImages(bearer: string, background: string, overlay?: string) {
   return Promise.all([bgP, ovP]).then(([bgImg, ovImg]) => {
     // keep a copy of these to prevent having to recreate them from the image buffer
     backgroundImage = bgImg;
-    if (ovImg) overlayImage = ovImg;
-    else {
-      clearCanvas();
-      storeOverlay(false);
-    }
     return [bgImg, ovImg];
   });
 }
 
 function renderVisibleCanvasses() {
   renderImage(backgroundCtx, backgroundImage, _angle);
-  renderImage(overlayCtx, overlayImage, _angle);
+  renderImage(overlayCtx, fullCtx.canvas, _angle);
 }
 
-function renderAllCanvasses(
-  background: ImageBitmap | null,
-  overlay: ImageBitmap | null,
-) {
+function renderAllCanvasses(background: ImageBitmap | null) {
   if (background) {
     sizeVisibleCanvasses(_canvas.width, _canvas.height);
     renderImage(backgroundCtx, background, _angle);
-    if (overlay) {
-      renderImage(overlayCtx, overlay, _angle);
-      // sync full overlay to background size and draw un-scaled/un-rotated image
-      fullOverlayCanvas.width = background.width;
-      fullOverlayCanvas.height = background.height;
-      fullCtx.drawImage(overlay, 0, 0);
-    }
+    renderImage(overlayCtx, fullCtx.canvas, _angle);
   }
 }
 
@@ -231,24 +213,50 @@ function unrotateBox(x1: number, y1: number, x2: number, y2: number) {
   return [p1.x, p1.y, p2.x - p1.x, p2.y - p1.y];
 }
 
+function eraseBrush(x: number, y: number, radius: number, full = true) {
+  // un-rotate and scale
+  const p = unrotateAndScalePoints(createPoints([x, y]))[0];
+
+  // copy image so we can clip it shortly
+  const img = fullCtx.canvas.transferToImageBitmap();
+  // then add the image area offset
+  p.x += _img.x;
+  p.y += _img.y;
+  fullCtx.save();
+  // fullCtx.clearRect(0, 0, fullCtx.canvas.width, fullCtx.canvas.height);
+  // pay close attention here, rect is clockwise, arc is anticlockwise (last param)
+  // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing#inverse_clipping_path)
+  fullCtx.beginPath();
+  fullCtx.rect(0, 0, fullCtx.canvas.width, fullCtx.canvas.height);
+  fullCtx.arc(p.x, p.y, Math.round(radius * _zoom), 0, 2 * Math.PI, true);
+  fullCtx.clip();
+  fullCtx.drawImage(img, 0, 0);
+  fullCtx.restore();
+  img.close();
+  renderImage(overlayCtx, fullCtx.canvas, _angle);
+}
+
 function renderBrush(x: number, y: number, radius: number, full = true) {
-  overlayCtx.save();
-  overlayCtx.beginPath();
-  overlayCtx.arc(x, y, radius, 0, 2 * Math.PI);
-  overlayCtx.fill();
-  overlayCtx.restore();
-  if (full) {
-    // un-rotate and scale
-    const p = unrotateAndScalePoints(createPoints([x, y]))[0];
-    // then add the image area offset
-    p.x += _img.x;
-    p.y += _img.y;
-    fullCtx.save();
-    fullCtx.beginPath();
-    fullCtx.arc(p.x, p.y, Math.round(radius * _zoom), 0, 2 * Math.PI);
-    fullCtx.fill();
-    fullCtx.restore();
+  if (!full) {
+    overlayCtx.save();
+    overlayCtx.beginPath();
+    overlayCtx.arc(x, y, radius, 0, 2 * Math.PI);
+    overlayCtx.fill();
+    overlayCtx.restore();
+    return;
   }
+  // un-rotate and scale
+  const p = unrotateAndScalePoints(createPoints([x, y]))[0];
+  // then add the image area offset
+  p.x += _img.x;
+  p.y += _img.y;
+  fullCtx.save();
+  fullCtx.beginPath();
+  fullCtx.arc(p.x, p.y, Math.round(radius * _zoom), 0, 2 * Math.PI);
+  fullCtx.fill();
+  fullCtx.restore();
+  // dump to visible canvas
+  renderImage(overlayCtx, fullCtx.canvas, _angle);
 }
 
 function renderBox(
@@ -259,17 +267,20 @@ function renderBox(
   style: string,
   full = true,
 ) {
-  overlayCtx.save();
-  overlayCtx.fillStyle = style;
-  overlayCtx.fillRect(x1, y1, x2 - x1, y2 - y1);
-  overlayCtx.restore();
-  if (full) {
-    const [x, y, w, h] = unrotateBox(x1, y1, x2, y2);
-    fullCtx.save();
-    fullCtx.fillStyle = style;
-    fullCtx.fillRect(x, y, w, h);
-    fullCtx.restore();
+  if (!full) {
+    overlayCtx.save();
+    overlayCtx.fillStyle = style;
+    overlayCtx.fillRect(x1, y1, x2 - x1, y2 - y1);
+    overlayCtx.restore();
+    return;
   }
+
+  const [x, y, w, h] = unrotateBox(x1, y1, x2, y2);
+  fullCtx.save();
+  fullCtx.fillStyle = style;
+  fullCtx.fillRect(x, y, w, h);
+  fullCtx.restore();
+  renderImage(overlayCtx, fullCtx.canvas, _angle);
 }
 
 function clearBox(x1: number, y1: number, x2: number, y2: number) {
@@ -281,11 +292,6 @@ function clearBox(x1: number, y1: number, x2: number, y2: number) {
 function clearCanvas() {
   overlayCtx.clearRect(0, 0, overlayCtx.canvas.width, overlayCtx.canvas.height);
   fullCtx.clearRect(0, 0, fullCtx.canvas.width, fullCtx.canvas.height);
-}
-
-function restoreOverlay() {
-  renderImage(overlayCtx, overlayImage, _angle);
-  fullCtx.drawImage(overlayImage, 0, 0);
 }
 
 function fullRerender(zoomOut = false) {
@@ -307,7 +313,7 @@ function fullRerender(zoomOut = false) {
     _img.y = 0;
   }
   calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
-  renderAllCanvasses(backgroundImage, overlayImage);
+  renderAllCanvasses(backgroundImage);
 }
 
 /**
@@ -317,20 +323,17 @@ function fullRerender(zoomOut = false) {
  * @param post flag indicating if the image should be sent to the main thread
  *             for upload.
  */
-function storeOverlay(post = true) {
-  if (post)
-    fullOverlayCanvas
-      .convertToBlob()
-      .then((blob: Blob) => postMessage({ cmd: "overlay", blob: blob }))
-      .catch((err) =>
-        console.error(`Unable to post blob: ${JSON.stringify(err)}`),
-      );
-  overlayImage = fullOverlayCanvas.transferToImageBitmap();
-}
+const storeOverlay = () =>
+  fullCtx.canvas
+    .convertToBlob()
+    .then((blob: Blob) => postMessage({ cmd: "overlay", blob: blob }))
+    .catch((err) =>
+      console.error(`Unable to post blob: ${JSON.stringify(err)}`),
+    );
 
 function animateBrush(x: number, y: number) {
   if (!recording) return;
-  renderImage(overlayCtx, overlayImage, _angle);
+  renderImage(overlayCtx, fullCtx.canvas, _angle);
   renderBrush(x, y, brush, false);
   _frame = requestAnimationFrame(() => animateBrush(x, y));
 }
@@ -338,7 +341,7 @@ function animateBrush(x: number, y: number) {
 function animateSelection() {
   if (!recording) return;
   if (selecting) {
-    renderImage(overlayCtx, overlayImage, _angle);
+    renderImage(overlayCtx, fullCtx.canvas, _angle);
     renderBox(startX, startY, endX, endY, GUIDE_FILL, false);
   } else if (panning) {
     // calculate the (rotated) movement since the last frame and update for the next
@@ -375,7 +378,7 @@ function adjustZoom(zoom: number, x: number, y: number) {
   _img.x = q.x - _zoom * newX;
   _img.y = q.y - _zoom * newY;
   trimPanning();
-  renderAllCanvasses(backgroundImage, overlayImage);
+  renderAllCanvasses(backgroundImage);
 }
 // eslint-disable-next-line no-restricted-globals
 self.onmessage = (evt) => {
@@ -385,24 +388,22 @@ self.onmessage = (evt) => {
       // _bearer = evt.data.values.bearer;
 
       if (evt.data.background) {
-        backgroundCanvas = evt.data.background;
-        _canvas.width = Math.round(backgroundCanvas.width);
-        _canvas.height = Math.round(backgroundCanvas.height);
-        backgroundCtx = backgroundCanvas.getContext("2d", {
+        const bgCanvas = evt.data.background;
+        _canvas.width = Math.round(bgCanvas.width);
+        _canvas.height = Math.round(bgCanvas.height);
+        backgroundCtx = bgCanvas.getContext("2d", {
           alpha: false,
         }) as OffscreenCanvasRenderingContext2D;
       }
 
       if (evt.data.overlay) {
-        overlayCanvas = evt.data.overlay;
-        overlayCtx = overlayCanvas.getContext("2d", {
+        overlayCtx = evt.data.overlay.getContext("2d", {
           alpha: true,
         }) as OffscreenCanvasRenderingContext2D;
       }
 
       if (evt.data.fullOverlay) {
-        fullOverlayCanvas = evt.data.fullOverlay;
-        fullCtx = fullOverlayCanvas.getContext("2d", {
+        fullCtx = evt.data.fullOverlay.getContext("2d", {
           alpha: true,
         }) as OffscreenCanvasRenderingContext2D;
       }
@@ -412,10 +413,20 @@ self.onmessage = (evt) => {
         evt.data.values.background,
         evt.data.values.overlay,
       )
-        .then(([bgImg]) => {
+        .then(([bgImg, ovImg]) => {
           if (bgImg) {
             calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
             trimPanning();
+
+            // this *should* be the one and only place we load the offscreen canvas
+            fullCtx.canvas.width = bgImg.width;
+            fullCtx.canvas.height = bgImg.height;
+            if (ovImg) {
+              fullCtx.drawImage(ovImg, 0, 0);
+              ovImg.close();
+            } else {
+              clearCanvas();
+            }
             fullRerender(true);
           }
         })
@@ -456,15 +467,31 @@ self.onmessage = (evt) => {
       fullRerender();
       break;
     }
-    case "start_recording": {
-      restoreOverlay();
-      selecting = false;
+    case "erase": {
+      if (evt.data.buttons === 0) {
+        // here we don't draw BUT if you look at animateBrush, you'll see that we'll just repaint the
+        // overlay and then render the translucent brush
+        if (!recording) {
+          overlayCtx.fillStyle = GUIDE_FILL;
+          recording = true;
+        }
+        // IS this even necessary? I guess if the mouse moves faster than the screen refresh it might cut some
+        // old frames out of the list
+        cancelAnimationFrame(_frame);
+        requestAnimationFrame(() => animateBrush(evt.data.x, evt.data.y));
+      } else if (evt.data.buttons === 1) {
+        /* nop */
+        if (recording) {
+          recording = false;
+        }
+        eraseBrush(evt.data.x, evt.data.y, brush);
+      }
       break;
     }
     case "paint": {
-      // update the current mouse coordinates
-      // [endX, endY] = [evt.data.x2, evt.data.y2];
-
+      // here we do not turn recording on or off (thats handled by the move/record/end events elsewhere)
+      // also "recording" is not "painting" TODO MICAH COME BACK HERE AND CONFIRM ITS ABOUT CANVAS ANIMATION
+      // where we do not paint (painting is separate from drawing the selection or the translucent brush)
       if (evt.data.buttons === 0) {
         // here we don't draw BUT if you look at animateBrush, you'll see that we'll just repaint the
         // overlay and then render the translucent brush
@@ -482,7 +509,6 @@ self.onmessage = (evt) => {
         // frames
         if (recording) {
           recording = false;
-          restoreOverlay(); // one day i hope someone smarter than me can explain why removing this wipes the canvas
           overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
           fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
         }
@@ -491,27 +517,26 @@ self.onmessage = (evt) => {
       break;
     }
     case "move":
+    case "select":
     case "record": {
-      if (lastAnimX < 0) {
-        // less than 0 indicates a new recording so initialize the last
-        // animation x and y coordinates
-        lastAnimX = evt.data.x;
-        lastAnimY = evt.data.y;
-        startX = evt.data.x;
-        startY = evt.data.y;
-      }
       endX = evt.data.x;
       endY = evt.data.y;
       if (!recording) {
-        recording = true;
-        selecting = evt.data.cmd === "record";
+        selecting = evt.data.cmd === "select";
         panning = evt.data.cmd === "move";
+        recording = (selecting && evt.data.buttons === 1) || panning;
+        if (recording) {
+          lastAnimX = evt.data.x;
+          lastAnimY = evt.data.y;
+          startX = evt.data.x;
+          startY = evt.data.y;
+        }
         requestAnimationFrame(animateSelection);
       }
       break;
     }
     case "wait":
-    case "end_panning": {
+    case "end_move": {
       panning = false;
       recording = false;
       lastAnimX = -1;
@@ -522,16 +547,22 @@ self.onmessage = (evt) => {
       endY = -1;
       break;
     }
-    case "end_painting": {
+    case "end_erase": {
       recording = false;
       panning = false;
-      storeOverlay(true);
-      renderImage(overlayCtx, overlayImage, _angle);
+      renderImage(overlayCtx, fullCtx.canvas, _angle);
+      storeOverlay();
       break;
     }
-    case "end_selecting": {
+    case "end_paint": {
+      recording = false;
+      panning = false;
+      storeOverlay();
+      renderImage(overlayCtx, fullCtx.canvas, _angle);
+      break;
+    }
+    case "end_select": {
       if (panning) {
-        storeOverlay(false);
         postMessage({ cmd: "pan_complete" });
       } else {
         postMessage({
@@ -554,7 +585,6 @@ self.onmessage = (evt) => {
       break;
     }
     case "obscure": {
-      restoreOverlay();
       const fill = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
       const r = evt.data.rect as unknown as Rect;
       renderBox(r.x, r.y, r.x + r.width, r.y + r.height, fill);
@@ -562,7 +592,6 @@ self.onmessage = (evt) => {
       break;
     }
     case "reveal": {
-      restoreOverlay();
       const r = evt.data.rect as unknown as Rect;
       clearBox(r.x, r.y, r.x + r.width, r.y + r.height);
       storeOverlay();
@@ -571,10 +600,6 @@ self.onmessage = (evt) => {
     case "clear": {
       clearCanvas();
       storeOverlay();
-      break;
-    }
-    case "clearselection": {
-      restoreOverlay();
       break;
     }
     case "opacity": {
@@ -607,8 +632,6 @@ self.onmessage = (evt) => {
       );
       // post back the full viewport
       postMessage({ cmd: "viewport", viewport: fullVp });
-      // clear selection
-      restoreOverlay();
       break;
     }
     case "zoom_in": {

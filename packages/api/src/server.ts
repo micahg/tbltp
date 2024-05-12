@@ -106,7 +106,7 @@ export async function startUp() {
   process.on("SIGTERM", () => shutDown("SIGINT"));
   process.on("SIGINT", () => shutDown("SIGINT"));
 
-  const meter = metrics.getMeter("ntt-api", "0.2.0");
+  const meter = metrics.getMeter("ntt-api");
   const mongoUpDown = meter.createUpDownCounter("ntt-api.mongo.connected", {
     description: "Count of mongoose connections",
     valueType: ValueType.INT,

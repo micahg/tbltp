@@ -107,7 +107,7 @@ export function updateAssetFromUpload(
       if (err)
         throw new Error(`Unable to copy ${src} to ${dest}`, { cause: 500 });
 
-      log.info(`Updated ${dest}`);
+      // log.info(`Updated ${dest}`);
       const update: LayerUpdate = {
         id: scene._id.toString(),
         layer: layer,

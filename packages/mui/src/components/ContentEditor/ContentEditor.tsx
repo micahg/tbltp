@@ -21,12 +21,13 @@ import {
   ZoomIn,
   ZoomOut,
   LayersClear,
-  Brush,
   Sync,
   Map,
   Palette,
   VisibilityOff,
   Visibility,
+  Edit,
+  EditOff,
 } from "@mui/icons-material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import {
@@ -53,14 +54,20 @@ interface ContentEditorProps {
   manageScene?: () => void;
 }
 
+const SELECT_ACTIONS = ["select"] as const;
+const BRUSH_ACTIONS = ["paint", "erase"] as const;
+type BrushAction = (typeof BRUSH_ACTIONS)[number];
+type SelectAction = (typeof SELECT_ACTIONS)[number];
+type RecordingAction = "move" | SelectAction | BrushAction;
+
 // hack around rerendering -- keep one object in state and update properties
 // so that the object itself remains unchanged.
 interface InternalState {
   color: RefObject<HTMLInputElement>;
-  selecting: boolean;
   selected: boolean;
   zoom: boolean;
-  painting: boolean;
+  act: RecordingAction;
+  rec: boolean;
 }
 
 const ContentEditor = ({
@@ -76,10 +83,10 @@ const ContentEditor = ({
 
   const [internalState] = useState<InternalState>({
     zoom: false,
-    selecting: false,
     selected: false,
     color: createRef(),
-    painting: false,
+    act: "move",
+    rec: false,
   });
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
@@ -126,15 +133,6 @@ const ContentEditor = ({
     (state: AppReducerState) => state.content.pushTime,
   );
 
-  const updateSelecting = useCallback(
-    (value: boolean) => {
-      if (internalState.selecting !== value && redrawToolbar) {
-        internalState.selecting = value;
-        redrawToolbar();
-      }
-    },
-    [internalState, redrawToolbar],
-  );
   const updateSelected = useCallback(
     (value: boolean) => {
       if (internalState.selected !== value && redrawToolbar) {
@@ -145,14 +143,30 @@ const ContentEditor = ({
     [internalState, redrawToolbar],
   );
 
-  const updatePainting = useCallback(
+  const updateRecording = useCallback(
     (value: boolean) => {
-      if (internalState.painting !== value && redrawToolbar) {
-        internalState.painting = value;
+      if (internalState.rec !== value && redrawToolbar) {
+        internalState.rec = value;
+        if (!value) {
+          internalState.act = "move";
+        }
         redrawToolbar();
       }
     },
     [internalState, redrawToolbar],
+  );
+
+  /**
+   * Set the action in preparation of recording callbacks from the state machine
+   */
+  const prepareRecording = useCallback(
+    (action: RecordingAction) => {
+      internalState.rec = false;
+      internalState.selected = false;
+      internalState.act = action;
+      sm.transition("record");
+    },
+    [internalState],
   );
 
   const sceneManager = useCallback(() => {
@@ -208,18 +222,15 @@ const ContentEditor = ({
   const handleMouseMove = useCallback(
     (buttons: number, x: number, y: number) => {
       if (!worker) return;
-      let cmd;
-      if (internalState.painting) cmd = "paint";
-      else if (internalState.selecting) cmd = "record";
-      else cmd = "move";
+      if (!internalState.rec) return;
       worker.postMessage({
-        cmd: cmd,
+        cmd: internalState.act,
         buttons: buttons,
         x: x,
         y: y,
       });
     },
-    [internalState.selecting, internalState.painting, worker],
+    [worker, internalState.rec, internalState.act],
   );
 
   /**
@@ -311,28 +322,28 @@ const ContentEditor = ({
         icon: Sync,
         tooltip: "Sync Remote Display",
         hidden: () => false,
-        disabled: () => internalState.painting || internalState.selecting,
+        disabled: () => internalState.rec || internalState.act !== "move",
         callback: () => sm.transition("push"),
       },
       {
         icon: Map,
         tooltip: "Scene Backgrounds",
         hidden: () => false,
-        disabled: () => internalState.painting || internalState.selecting,
+        disabled: () => internalState.rec || internalState.act !== "move",
         callback: sceneManager,
       },
       {
         icon: Palette,
         tooltip: "Color Palette",
         hidden: () => false,
-        disabled: () => internalState.painting || internalState.selecting,
+        disabled: () => internalState.rec || internalState.act !== "move",
         callback: gmSelectColor,
       },
       {
         icon: LayersClear,
         tooltip: "Clear Overlay",
         hidden: () => false,
-        disabled: () => internalState.selecting || internalState.painting,
+        disabled: () => internalState.rec || internalState.act !== "move",
         callback: () => sm.transition("clear"),
       },
       {
@@ -360,50 +371,65 @@ const ContentEditor = ({
         icon: ZoomOut,
         tooltip: "Zoom Out",
         hidden: () => !internalState.zoom,
-        disabled: () => false,
+        disabled: () => internalState.rec || internalState.selected,
         callback: () => sm.transition("remoteZoomOut"),
       },
       {
         icon: Opacity,
         tooltip: "Opacity",
         hidden: () => false,
-        disabled: () => internalState.selecting || internalState.painting,
+        disabled: () => internalState.rec || internalState.act === "select",
         callback: (evt) => gmSelectOpacityMenu(evt),
       },
       {
         icon: RotateRight,
         tooltip: "Rotate",
         hidden: () => false,
-        disabled: () => internalState.selecting || internalState.painting,
+        disabled: () => internalState.rec || internalState.act === "select",
         callback: () => sm.transition("rotateClock"),
       },
       {
-        icon: Brush,
-        tooltip: "Paint",
-        hidden: () => internalState.painting,
-        disabled: () => internalState.selecting,
-        callback: () => sm.transition("paint"),
+        icon: EditOff,
+        tooltip: "Erase",
+        hidden: () => internalState.rec && internalState.act === "erase",
+        disabled: () => internalState.rec && internalState.act !== "erase",
+        callback: () => prepareRecording("erase"),
       },
       {
-        icon: Brush,
+        icon: EditOff,
+        tooltip: "Finish Erase",
+        emphasis: true,
+        hidden: () => !(internalState.rec && internalState.act === "erase"),
+        disabled: () => false,
+        callback: () => sm.transition("wait"),
+      },
+      {
+        icon: Edit,
+        tooltip: "Paint",
+        hidden: () => internalState.rec && internalState.act === "paint",
+        disabled: () => internalState.rec && internalState.act !== "paint",
+        callback: () => prepareRecording("paint"),
+      },
+      {
+        icon: Edit,
         tooltip: "Finish Paint",
         emphasis: true,
-        hidden: () => !internalState.painting,
+        hidden: () => !(internalState.rec && internalState.act === "paint"),
         disabled: () => false,
         callback: () => sm.transition("wait"),
       },
       {
         icon: Rectangle,
         tooltip: "Select",
-        hidden: () => internalState.selecting,
-        disabled: () => internalState.painting,
-        callback: () => sm.transition("select"),
+        hidden: () => internalState.rec && internalState.act === "select",
+        disabled: () => internalState.rec && internalState.act !== "select",
+        callback: () => prepareRecording("select"),
       },
       {
         icon: Rectangle,
         tooltip: "Finish Select",
         emphasis: true,
-        hidden: () => !internalState.selecting,
+        hidden: () => !(internalState.rec && internalState.act === "select"),
         disabled: () => false,
         callback: () => sm.transition("wait"),
       },
@@ -450,24 +476,23 @@ const ContentEditor = ({
       setShowBackgroundMenu(false);
       setShowOpacityMenu(false);
       // these ones update internal state - can't wait to fix that - doesn't feel right
-      updateSelecting(false);
+      updateRecording(false);
       // state machine for paint loops from complete back to paint to prevent having to click
       // the paint button every time. So, now we know we're *really* done, make sure the worker
       // knows too and stops recording mouse events
       worker.postMessage({ cmd: "wait" });
-      updatePainting(false);
-      updateSelected(false);
     });
 
     setCallback(sm, "record", () => {
+      // skip if we're already recording
+      if (internalState.rec) return;
       setShowBackgroundMenu(false);
       setShowOpacityMenu(false);
       setShowOpacitySlider(false);
-      updateSelected(false);
+      updateRecording(true);
     });
     setCallback(sm, "background_select", () => {
       sm.resetCoordinates();
-      updateSelecting(false);
       updateSelected(false);
       setShowBackgroundMenu(true);
     });
@@ -477,15 +502,16 @@ const ContentEditor = ({
     setCallback(sm, "background_upload", sceneManager);
     setCallback(sm, "obscure", () => {
       worker.postMessage({ cmd: "obscure", rect: selection });
-      sm.transition("select");
+      sm.transition("obscured");
     });
     setCallback(sm, "reveal", () => {
       worker.postMessage({ cmd: "reveal", rect: selection });
-      sm.transition("select");
+      sm.transition("revealed");
     });
     setCallback(sm, "remoteZoomIn", () => {
       if (!worker) return;
-      sm.transition("select");
+      sm.transition("zoomed");
+      updateSelected(false);
       worker.postMessage({ cmd: "zoom", rect: selection });
     });
     setCallback(sm, "remoteZoomOut", () => {
@@ -496,20 +522,30 @@ const ContentEditor = ({
       });
     });
     setCallback(sm, "complete", () => {
-      if (internalState.selecting) {
-        worker.postMessage({ cmd: "end_selecting" });
+      if (!internalState.rec) {
+        console.error(`complete CALLBACK in non-recording state`);
+        return;
+      }
+      if (internalState.act === "select") {
+        worker.postMessage({ cmd: "end_select" });
         updateSelected(true);
-      } else if (internalState.painting) {
-        worker.postMessage({ cmd: "end_painting" });
-        sm.transition("paint");
-      } else {
+      } else if (
+        internalState.act === "erase" ||
+        internalState.act === "paint"
+      ) {
+        worker.postMessage({ cmd: `end_${internalState.act}` });
+        sm.transition("record");
+      } else if (internalState.act === "move") {
         worker.postMessage({ cmd: "end_panning" });
         sm.transition("wait");
+      } else {
+        console.error(
+          `RECORDING COMPLETE IN INVALID STATE: ${internalState.act}`,
+        );
       }
     });
     setCallback(sm, "opacity_select", () => {
       sm.resetCoordinates();
-      updateSelecting(false);
       updateSelected(false);
       setShowOpacityMenu(true);
     });
@@ -537,19 +573,7 @@ const ContentEditor = ({
       worker.postMessage({ cmd: "clear" });
       sm.transition("done");
     });
-    setCallback(sm, "select", () => {
-      updateSelecting(true);
-      updateSelected(false);
-      updatePainting(false);
-    });
-    setCallback(sm, "paint", () => {
-      updateSelecting(false);
-      updateSelected(false);
-      updatePainting(true);
-    });
-    setCallback(sm, "painting", () => {
-      console.log("NOW PAINTING");
-    });
+    setCallback(sm, "select", () => updateSelected(false));
     setCallback(sm, "zoom", (args) => {
       sm.transition("wait");
       const e: WheelEvent = args[0] as WheelEvent;
@@ -560,7 +584,10 @@ const ContentEditor = ({
       }
     });
     setCallback(sm, "record_mouse_wheel", (args) => {
-      if (internalState.painting) {
+      if (
+        internalState.rec &&
+        (internalState.act === "erase" || internalState.act === "paint")
+      ) {
         sm.transition("done");
         const e: WheelEvent = args[0] as WheelEvent;
         if (e.deltaY > 0) {
@@ -582,14 +609,13 @@ const ContentEditor = ({
     imageSize,
     sceneManager,
     handleMouseMove,
-    updateSelecting,
-    updatePainting,
     updateSelected,
     scene,
     overlayCanvasRef,
     worker,
     internalState,
     selection,
+    updateRecording,
   ]);
 
   useEffect(() => {
@@ -784,7 +810,7 @@ const ContentEditor = ({
                 </li>
               </ul>
               <li>
-                <Brush sx={{ verticalAlign: "bottom" }} /> will allow you to
+                <Edit sx={{ verticalAlign: "bottom" }} /> will allow you to
                 paint.
               </li>
               <li>

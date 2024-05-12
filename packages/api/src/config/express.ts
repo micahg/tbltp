@@ -27,6 +27,7 @@ import {
 } from "../routes/scene";
 import { getFakeUser } from "../utils/auth";
 import { metrics } from "@opentelemetry/api";
+import { hrtime } from "process";
 
 function getJWTCheck(noauth: boolean) {
   const aud: string = process.env.AUDIENCE_URL || "http://localhost:3000/";
@@ -69,16 +70,25 @@ export function create(): Express {
   app.use(bodyParser.urlencoded({ extended: true }));
 
   const jwtCheck = getJWTCheck(noauth);
+  const meter = metrics.getMeter("ntt-api");
+  const requestCounter = meter.createCounter("request-count");
+  const latencyHistogram = meter.createHistogram("request-latency", {
+    unit: "ns",
+  });
 
   // add request logging
   app.use((req, res, next) => {
-    res.on("finish", () =>
-      log.info("processed", {
+    const start = hrtime.bigint();
+    res.on("finish", () => {
+      const latency = Number(hrtime.bigint() - start);
+      const attribs = {
         method: req.method,
-        path: req.path,
+        path: req.route ? req.route.path : req.baseUrl,
         status: res.statusCode,
-      }),
-    );
+      };
+      latencyHistogram.record(latency, attribs);
+      requestCounter.add(1, attribs);
+    });
     next();
   });
 
@@ -118,14 +128,9 @@ export function create(): Express {
   //   limits: { fileSize: 8388608 },
   // });
 
-  const meter = metrics.getMeter("ntt-api", "0.2.0");
-  const counter = meter.createCounter("ntt-api.noauth.counter");
-
-  app.get(NO_AUTH_ASSET, (_req, res) => {
-    counter.add(1);
-    log.info("asdf");
-    return res.status(200).send({ noauth: noauth });
-  });
+  app.get(NO_AUTH_ASSET, (_req, res) =>
+    res.status(200).send({ noauth: noauth }),
+  );
   app.get(STATE_ASSET, jwtCheck, getState);
   app.put(STATE_ASSET, jwtCheck, updateState);
   app.put(SCENE_VIEWPORT_PATH, jwtCheck, updateSceneViewport);
