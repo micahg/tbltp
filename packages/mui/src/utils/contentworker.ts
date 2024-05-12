@@ -537,7 +537,7 @@ self.onmessage = (evt) => {
       break;
     }
     case "wait":
-    case "end_panning": {
+    case "end_move": {
       panning = false;
       recording = false;
       lastAnimX = -1;
@@ -555,7 +555,7 @@ self.onmessage = (evt) => {
       storeOverlay();
       break;
     }
-    case "end_painting": {
+    case "end_paint": {
       recording = false;
       panning = false;
       storeOverlay();

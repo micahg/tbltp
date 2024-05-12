@@ -54,14 +54,11 @@ interface ContentEditorProps {
   manageScene?: () => void;
 }
 
-// enum RecordingAction {
-//   None,
-//   Select,
-//   Paint,
-//   Erase,
-// }
-
-type RecordingAction = "none" | "select" | "paint" | "erase";
+const SELECT_ACTIONS = ["select"] as const;
+const BRUSH_ACTIONS = ["paint", "erase"] as const;
+type BrushAction = (typeof BRUSH_ACTIONS)[number];
+type SelectAction = (typeof SELECT_ACTIONS)[number];
+type RecordingAction = "move" | SelectAction | BrushAction;
 
 // hack around rerendering -- keep one object in state and update properties
 // so that the object itself remains unchanged.
@@ -70,7 +67,7 @@ interface InternalState {
   selecting: boolean;
   selected: boolean;
   zoom: boolean;
-  painting: boolean;
+  // painting: boolean;
   recording: RecordingAction;
   isRecording: boolean;
 }
@@ -91,8 +88,7 @@ const ContentEditor = ({
     selecting: false,
     selected: false,
     color: createRef(),
-    painting: false,
-    recording: "none",
+    recording: "move",
     isRecording: false,
   });
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
@@ -159,22 +155,12 @@ const ContentEditor = ({
     [internalState, redrawToolbar],
   );
 
-  const updatePainting = useCallback(
-    (value: boolean) => {
-      if (internalState.painting !== value && redrawToolbar) {
-        internalState.painting = value;
-        redrawToolbar();
-      }
-    },
-    [internalState, redrawToolbar],
-  );
-
   const updateRecording = useCallback(
     (value: boolean) => {
       if (internalState.isRecording !== value && redrawToolbar) {
         internalState.isRecording = value;
         if (!value) {
-          internalState.recording = "none";
+          internalState.recording = "move";
         }
         redrawToolbar();
       }
@@ -186,10 +172,7 @@ const ContentEditor = ({
     (action: RecordingAction) => {
       internalState.isRecording = false;
       internalState.recording = action;
-      if (action === "erase") {
-        // TODO MICAH THIS SHOULD BECOME "record"
-        sm.transition("paint");
-      }
+      sm.transition("record");
     },
     [internalState],
   );
@@ -248,11 +231,10 @@ const ContentEditor = ({
     (buttons: number, x: number, y: number) => {
       if (!worker) return;
       let cmd;
-      if (internalState.painting) cmd = "paint";
-      else if (internalState.selecting) cmd = "record";
+      if (internalState.selecting) cmd = "record";
       else if (internalState.isRecording) {
         cmd = internalState.recording;
-      } else cmd = "move";
+      }
       worker.postMessage({
         cmd: cmd,
         buttons: buttons,
@@ -262,7 +244,6 @@ const ContentEditor = ({
     },
     [
       worker,
-      internalState.painting,
       internalState.selecting,
       internalState.isRecording,
       internalState.recording,
@@ -358,28 +339,28 @@ const ContentEditor = ({
         icon: Sync,
         tooltip: "Sync Remote Display",
         hidden: () => false,
-        disabled: () => internalState.painting || internalState.selecting,
+        disabled: () => internalState.selecting,
         callback: () => sm.transition("push"),
       },
       {
         icon: Map,
         tooltip: "Scene Backgrounds",
         hidden: () => false,
-        disabled: () => internalState.painting || internalState.selecting,
+        disabled: () => internalState.selecting,
         callback: sceneManager,
       },
       {
         icon: Palette,
         tooltip: "Color Palette",
         hidden: () => false,
-        disabled: () => internalState.painting || internalState.selecting,
+        disabled: () => internalState.selecting,
         callback: gmSelectColor,
       },
       {
         icon: LayersClear,
         tooltip: "Clear Overlay",
         hidden: () => false,
-        disabled: () => internalState.selecting || internalState.painting,
+        disabled: () => internalState.selecting,
         callback: () => sm.transition("clear"),
       },
       {
@@ -414,45 +395,49 @@ const ContentEditor = ({
         icon: Opacity,
         tooltip: "Opacity",
         hidden: () => false,
-        disabled: () => internalState.selecting || internalState.painting,
+        disabled: () => internalState.selecting,
         callback: (evt) => gmSelectOpacityMenu(evt),
       },
       {
         icon: RotateRight,
         tooltip: "Rotate",
         hidden: () => false,
-        disabled: () => internalState.selecting || internalState.painting,
+        disabled: () => internalState.selecting,
         callback: () => sm.transition("rotateClock"),
       },
       {
         icon: EditOff,
         tooltip: "Erase",
-        hidden: () => internalState.isRecording,
+        hidden: () =>
+          internalState.isRecording && internalState.recording === "erase",
         disabled: () =>
-          internalState.painting ||
-          (internalState.isRecording && internalState.recording !== "erase"),
+          internalState.isRecording && internalState.recording !== "erase",
         callback: () => prepareRecording("erase"),
       },
       {
         icon: EditOff,
         tooltip: "Finish Erase",
         emphasis: true,
-        hidden: () => !internalState.isRecording,
+        hidden: () =>
+          !(internalState.isRecording && internalState.recording === "erase"),
         disabled: () => false,
         callback: () => sm.transition("wait"),
       },
       {
         icon: Edit,
         tooltip: "Paint",
-        hidden: () => internalState.painting,
-        disabled: () => internalState.selecting,
-        callback: () => sm.transition("paint"),
+        hidden: () =>
+          internalState.isRecording && internalState.recording === "paint",
+        disabled: () =>
+          internalState.isRecording && internalState.recording !== "paint",
+        callback: () => prepareRecording("paint"),
       },
       {
         icon: Edit,
         tooltip: "Finish Paint",
         emphasis: true,
-        hidden: () => !internalState.painting,
+        hidden: () =>
+          !(internalState.isRecording && internalState.recording === "paint"),
         disabled: () => false,
         callback: () => sm.transition("wait"),
       },
@@ -460,7 +445,8 @@ const ContentEditor = ({
         icon: Rectangle,
         tooltip: "Select",
         hidden: () => internalState.selecting,
-        disabled: () => internalState.painting,
+        disabled: () =>
+          internalState.isRecording && internalState.recording !== "select",
         callback: () => sm.transition("select"),
       },
       {
@@ -520,7 +506,6 @@ const ContentEditor = ({
       // the paint button every time. So, now we know we're *really* done, make sure the worker
       // knows too and stops recording mouse events
       worker.postMessage({ cmd: "wait" });
-      updatePainting(false);
       updateSelected(false);
     });
 
@@ -529,6 +514,7 @@ const ContentEditor = ({
       setShowOpacityMenu(false);
       setShowOpacitySlider(false);
       updateSelected(false);
+      updateRecording(true);
     });
     setCallback(sm, "background_select", () => {
       sm.resetCoordinates();
@@ -564,13 +550,9 @@ const ContentEditor = ({
       if (internalState.selecting) {
         worker.postMessage({ cmd: "end_selecting" });
         updateSelected(true);
-      } else if (internalState.painting) {
-        worker.postMessage({ cmd: "end_painting" });
-        sm.transition("paint");
       } else if (internalState.isRecording) {
         worker.postMessage({ cmd: `end_${internalState.recording}` });
-        // TODO MICAH MAKE THIS RECORDING
-        sm.transition("paint");
+        sm.transition(internalState.recording === "move" ? "wait" : "record");
       } else {
         worker.postMessage({ cmd: "end_panning" });
         sm.transition("wait");
@@ -609,18 +591,6 @@ const ContentEditor = ({
     setCallback(sm, "select", () => {
       updateSelecting(true);
       updateSelected(false);
-      updatePainting(false);
-    });
-    // TODO MICAH THIS SHOULD BE RECORD
-    setCallback(sm, "paint", () => {
-      updateSelecting(false);
-      updateSelected(false);
-      if (internalState.recording === "erase") {
-        updateRecording(true);
-      } else updatePainting(true);
-    });
-    setCallback(sm, "painting", () => {
-      console.log("NOW PAINTING");
     });
     setCallback(sm, "zoom", (args) => {
       sm.transition("wait");
@@ -632,7 +602,11 @@ const ContentEditor = ({
       }
     });
     setCallback(sm, "record_mouse_wheel", (args) => {
-      if (internalState.painting) {
+      if (
+        internalState.isRecording &&
+        (internalState.recording === "erase" ||
+          internalState.recording === "paint")
+      ) {
         sm.transition("done");
         const e: WheelEvent = args[0] as WheelEvent;
         if (e.deltaY > 0) {
@@ -655,7 +629,6 @@ const ContentEditor = ({
     sceneManager,
     handleMouseMove,
     updateSelecting,
-    updatePainting,
     updateSelected,
     scene,
     overlayCanvasRef,

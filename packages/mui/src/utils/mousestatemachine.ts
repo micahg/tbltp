@@ -31,7 +31,7 @@ export class MouseStateMachine implements StateMachine {
         // recording -- it should probably be a "record" state and then track what the recording means
         // in the component.
         select: "select",
-        paint: "paint",
+        record: "record_mouse",
         /**********************/
         opacity: "opacity_select",
         rotateClock: "rotate_clock",
@@ -42,7 +42,7 @@ export class MouseStateMachine implements StateMachine {
         down: "record_mouse", // canvas interaction with no tool selected (pan/zoom)
         background: "background_select",
         select: "select",
-        paint: "paint",
+        record: "record_mouse",
         obscure: "obscure",
         reveal: "reveal",
         remoteZoomIn: "remoteZoomIn",
@@ -101,15 +101,6 @@ export class MouseStateMachine implements StateMachine {
       selecting: {
         move: "record_mouse",
         up: "wait",
-      },
-      paint: {
-        wait: "wait",
-        down: "painting",
-        move: "record_mouse",
-      },
-      painting: {
-        move: "record_mouse",
-        up: "wait", // use paint instead of wait if you want to enable multiple strokes
       },
       opacity_select: {
         display: "opacity_display",
