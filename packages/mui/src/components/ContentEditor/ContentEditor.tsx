@@ -64,7 +64,6 @@ type RecordingAction = "move" | SelectAction | BrushAction;
 // so that the object itself remains unchanged.
 interface InternalState {
   color: RefObject<HTMLInputElement>;
-  selecting: boolean;
   selected: boolean;
   zoom: boolean;
   rec: RecordingAction;
@@ -84,7 +83,6 @@ const ContentEditor = ({
 
   const [internalState] = useState<InternalState>({
     zoom: false,
-    selecting: false,
     selected: false,
     color: createRef(),
     rec: "move",
@@ -135,15 +133,6 @@ const ContentEditor = ({
     (state: AppReducerState) => state.content.pushTime,
   );
 
-  const updateSelecting = useCallback(
-    (value: boolean) => {
-      if (internalState.selecting !== value && redrawToolbar) {
-        internalState.selecting = value;
-        redrawToolbar();
-      }
-    },
-    [internalState, redrawToolbar],
-  );
   const updateSelected = useCallback(
     (value: boolean) => {
       if (internalState.selected !== value && redrawToolbar) {
@@ -333,28 +322,28 @@ const ContentEditor = ({
         icon: Sync,
         tooltip: "Sync Remote Display",
         hidden: () => false,
-        disabled: () => internalState.selecting,
+        disabled: () => internalState.isRec || internalState.rec !== "move",
         callback: () => sm.transition("push"),
       },
       {
         icon: Map,
         tooltip: "Scene Backgrounds",
         hidden: () => false,
-        disabled: () => internalState.selecting,
+        disabled: () => internalState.isRec || internalState.rec !== "move",
         callback: sceneManager,
       },
       {
         icon: Palette,
         tooltip: "Color Palette",
         hidden: () => false,
-        disabled: () => internalState.selecting,
+        disabled: () => internalState.isRec || internalState.rec !== "move",
         callback: gmSelectColor,
       },
       {
         icon: LayersClear,
         tooltip: "Clear Overlay",
         hidden: () => false,
-        disabled: () => internalState.selecting,
+        disabled: () => internalState.isRec || internalState.rec !== "move",
         callback: () => sm.transition("clear"),
       },
       {
@@ -389,14 +378,14 @@ const ContentEditor = ({
         icon: Opacity,
         tooltip: "Opacity",
         hidden: () => false,
-        disabled: () => internalState.selecting,
+        disabled: () => internalState.isRec || internalState.rec === "select",
         callback: (evt) => gmSelectOpacityMenu(evt),
       },
       {
         icon: RotateRight,
         tooltip: "Rotate",
         hidden: () => false,
-        disabled: () => internalState.selecting,
+        disabled: () => internalState.isRec || internalState.rec === "select",
         callback: () => sm.transition("rotateClock"),
       },
       {
@@ -487,7 +476,6 @@ const ContentEditor = ({
       setShowBackgroundMenu(false);
       setShowOpacityMenu(false);
       // these ones update internal state - can't wait to fix that - doesn't feel right
-      updateSelecting(false);
       updateRecording(false);
       // state machine for paint loops from complete back to paint to prevent having to click
       // the paint button every time. So, now we know we're *really* done, make sure the worker
@@ -506,7 +494,6 @@ const ContentEditor = ({
     });
     setCallback(sm, "background_select", () => {
       sm.resetCoordinates();
-      updateSelecting(false);
       updateSelected(false);
       setShowBackgroundMenu(true);
     });
@@ -535,29 +522,30 @@ const ContentEditor = ({
       });
     });
     setCallback(sm, "complete", () => {
-      if (internalState.isRec) {
-        if (internalState.rec === "select") {
-          worker.postMessage({ cmd: "end_select" });
-          updateSelected(true);
-        } else if (
-          internalState.rec === "erase" ||
-          internalState.rec === "paint"
-        ) {
-          worker.postMessage({ cmd: `end_${internalState.rec}` });
-          sm.transition("record");
-        } else {
-          console.error(
-            `RECORDING COMPLETE IN INVALID STATE: ${internalState.rec}`,
-          );
-        }
-      } else {
+      if (!internalState.isRec) {
+        console.error(`complete CALLBACK in non-recording state`);
+        return;
+      }
+      if (internalState.rec === "select") {
+        worker.postMessage({ cmd: "end_select" });
+        updateSelected(true);
+      } else if (
+        internalState.rec === "erase" ||
+        internalState.rec === "paint"
+      ) {
+        worker.postMessage({ cmd: `end_${internalState.rec}` });
+        sm.transition("record");
+      } else if (internalState.rec === "move") {
         worker.postMessage({ cmd: "end_panning" });
         sm.transition("wait");
+      } else {
+        console.error(
+          `RECORDING COMPLETE IN INVALID STATE: ${internalState.rec}`,
+        );
       }
     });
     setCallback(sm, "opacity_select", () => {
       sm.resetCoordinates();
-      updateSelecting(false);
       updateSelected(false);
       setShowOpacityMenu(true);
     });
@@ -585,10 +573,7 @@ const ContentEditor = ({
       worker.postMessage({ cmd: "clear" });
       sm.transition("done");
     });
-    setCallback(sm, "select", () => {
-      updateSelecting(true);
-      updateSelected(false);
-    });
+    setCallback(sm, "select", () => updateSelected(false));
     setCallback(sm, "zoom", (args) => {
       sm.transition("wait");
       const e: WheelEvent = args[0] as WheelEvent;
@@ -624,7 +609,6 @@ const ContentEditor = ({
     imageSize,
     sceneManager,
     handleMouseMove,
-    updateSelecting,
     updateSelected,
     scene,
     overlayCanvasRef,
