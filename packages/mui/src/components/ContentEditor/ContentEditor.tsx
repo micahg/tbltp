@@ -222,12 +222,9 @@ const ContentEditor = ({
   const handleMouseMove = useCallback(
     (buttons: number, x: number, y: number) => {
       if (!worker) return;
-      let cmd;
-      if (internalState.rec) {
-        cmd = internalState.act;
-      }
+      if (!internalState.rec) return;
       worker.postMessage({
-        cmd: cmd,
+        cmd: internalState.act,
         buttons: buttons,
         x: x,
         y: y,
@@ -484,7 +481,6 @@ const ContentEditor = ({
       // the paint button every time. So, now we know we're *really* done, make sure the worker
       // knows too and stops recording mouse events
       worker.postMessage({ cmd: "wait" });
-      // updateSelected(false);
     });
 
     setCallback(sm, "record", () => {
