@@ -371,7 +371,7 @@ const ContentEditor = ({
         icon: ZoomOut,
         tooltip: "Zoom Out",
         hidden: () => !internalState.zoom,
-        disabled: () => false,
+        disabled: () => internalState.isRec || internalState.selected,
         callback: () => sm.transition("remoteZoomOut"),
       },
       {
@@ -503,15 +503,16 @@ const ContentEditor = ({
     setCallback(sm, "background_upload", sceneManager);
     setCallback(sm, "obscure", () => {
       worker.postMessage({ cmd: "obscure", rect: selection });
-      sm.transition("select");
+      sm.transition("obscured");
     });
     setCallback(sm, "reveal", () => {
       worker.postMessage({ cmd: "reveal", rect: selection });
-      sm.transition("select");
+      sm.transition("revealed");
     });
     setCallback(sm, "remoteZoomIn", () => {
       if (!worker) return;
-      sm.transition("select");
+      sm.transition("zoomed");
+      updateSelected(false);
       worker.postMessage({ cmd: "zoom", rect: selection });
     });
     setCallback(sm, "remoteZoomOut", () => {
