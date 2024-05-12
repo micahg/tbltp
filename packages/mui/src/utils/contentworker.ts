@@ -517,21 +517,20 @@ self.onmessage = (evt) => {
       break;
     }
     case "move":
+    case "select":
     case "record": {
-      if (lastAnimX < 0) {
-        // less than 0 indicates a new recording so initialize the last
-        // animation x and y coordinates
-        lastAnimX = evt.data.x;
-        lastAnimY = evt.data.y;
-        startX = evt.data.x;
-        startY = evt.data.y;
-      }
       endX = evt.data.x;
       endY = evt.data.y;
       if (!recording) {
-        recording = true;
-        selecting = evt.data.cmd === "record";
+        selecting = evt.data.cmd === "select";
         panning = evt.data.cmd === "move";
+        recording = (selecting && evt.data.buttons === 1) || panning;
+        if (recording) {
+          lastAnimX = evt.data.x;
+          lastAnimY = evt.data.y;
+          startX = evt.data.x;
+          startY = evt.data.y;
+        }
         requestAnimationFrame(animateSelection);
       }
       break;
@@ -562,7 +561,7 @@ self.onmessage = (evt) => {
       renderImage(overlayCtx, fullCtx.canvas, _angle);
       break;
     }
-    case "end_selecting": {
+    case "end_select": {
       if (panning) {
         postMessage({ cmd: "pan_complete" });
       } else {

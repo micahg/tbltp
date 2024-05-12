@@ -200,7 +200,7 @@ const GameMasterComponent = () => {
           <Typography variant="h6" noWrap component="div">
             Network Table Top
           </Typography>
-          <GameMasterActionComponent actions={actions} />
+          <GameMasterActionComponent key={doot} actions={actions} />
         </Toolbar>
       </GameMasterAppBar>
       <Drawer
