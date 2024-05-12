@@ -64,10 +64,10 @@ export class MouseStateMachine implements StateMachine {
         done: "record_mouse",
       },
       obscure: {
-        select: "select",
+        obscured: "record_mouse",
       },
       reveal: {
-        select: "select",
+        revealed: "record_mouse",
       },
       // LOCAL EDITOR ZOOM
       zoom: {
@@ -75,7 +75,7 @@ export class MouseStateMachine implements StateMachine {
       },
       // REMOTE DISPLAY ZOOMS
       remoteZoomIn: {
-        select: "select",
+        zoomed: "record_mouse",
       },
       remoteZoomOut: {
         wait: "wait",

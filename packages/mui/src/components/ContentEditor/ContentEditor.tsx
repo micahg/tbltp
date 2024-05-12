@@ -485,11 +485,11 @@ const ContentEditor = ({
     });
 
     setCallback(sm, "record", () => {
-      // THIS GETS CALLED WAY TOO MUCH
+      // skip if we're already recording
+      if (internalState.isRec) return;
       setShowBackgroundMenu(false);
       setShowOpacityMenu(false);
       setShowOpacitySlider(false);
-      console.log(`PROBABLE UNNECESSARY CALL TO record`);
       updateRecording(true);
     });
     setCallback(sm, "background_select", () => {
