@@ -156,6 +156,9 @@ const ContentEditor = ({
     [internalState, redrawToolbar],
   );
 
+  /**
+   * Set the action in preparation of recording callbacks from the state machine
+   */
   const prepareRecording = useCallback(
     (action: RecordingAction) => {
       internalState.rec = false;
