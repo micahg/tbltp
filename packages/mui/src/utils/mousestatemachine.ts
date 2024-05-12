@@ -18,6 +18,27 @@ export class MouseStateMachine implements StateMachine {
   constructor() {
     this.current = "wait";
     this.actions = {};
+    /**
+     * DO NOT ADD STATES...
+     *
+     * Or at least think long and hard before you do. First of all, most of the activity here happens
+     * between wait (nothing happening), recording (mouse is moving and we care what it does), and done
+     * (selection complete).
+     *
+     * Stuff like obscure, reveal, zoom, etc probably don't need to be here, but we'll keep it for now.
+     *
+     * Also, remember that selection needs "complete" because reveal, obscure, zoom in should only happen
+     * with a selection on screen. When the "end select" button is pressed, we'll go from complete to
+     * wait, and those select-dependent actions are disabled.
+     *
+     * Finally, there is some finicky behavior around recording. Typically we're always recording movement
+     * but the other state machines (the internal state of the content editor, for example) choose if
+     * they will listen to the events or not. For example, while painting, we render a translucent cursor
+     * when no mouse buttons are pressed. So when the paint tool is selected, the editor always uses the
+     * event. Selecting, however, really only wants events while the mouse button is down. When no buttons
+     * are depressed, the record events are ignored. This class will never know that though - it just records
+     * until its told to stop.
+     */
     this.states = {
       // before anything happens
       wait: {
@@ -25,14 +46,8 @@ export class MouseStateMachine implements StateMachine {
         background: "background_select",
         remoteZoomOut: "remoteZoomOut",
         clear: "clear",
-        down: "record_mouse", // canvas interaction with no tool selected (pan/zoom)
-        /**********************/
-        // don't add more of these -- these (paint, select, whatever else) are just instances of
-        // recording -- it should probably be a "record" state and then track what the recording means
-        // in the component.
-        select: "select",
+        down: "record_mouse",
         record: "record_mouse",
-        /**********************/
         opacity: "opacity_select",
         rotateClock: "rotate_clock",
         wheel: "zoom",
@@ -41,7 +56,6 @@ export class MouseStateMachine implements StateMachine {
       complete: {
         down: "record_mouse", // canvas interaction with no tool selected (pan/zoom)
         background: "background_select",
-        select: "select",
         record: "record_mouse",
         obscure: "obscure",
         reveal: "reveal",
@@ -93,14 +107,6 @@ export class MouseStateMachine implements StateMachine {
       },
       clear: {
         done: "wait",
-      },
-      select: {
-        wait: "wait",
-        down: "selecting",
-      },
-      selecting: {
-        move: "record_mouse",
-        up: "wait",
       },
       opacity_select: {
         display: "opacity_display",
