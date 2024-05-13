@@ -22,6 +22,7 @@ let backgroundImage: ImageBitmap;
 let backgroundCtx: OffscreenCanvasRenderingContext2D;
 let overlayCtx: OffscreenCanvasRenderingContext2D;
 let fullCtx: OffscreenCanvasRenderingContext2D;
+let thingCtx: OffscreenCanvasRenderingContext2D;
 let recording = false;
 let selecting = false;
 let panning = false;
@@ -72,7 +73,7 @@ function trimPanning() {
 
 function renderImage(
   ctx: OffscreenCanvasRenderingContext2D,
-  img: CanvasImageSource | OffscreenCanvas,
+  img: CanvasImageSource[] | OffscreenCanvas[],
   angle: number,
 ) {
   // if (debug) {
@@ -90,20 +91,22 @@ function renderImage(
   ctx.save();
   ctx.translate(ctx.canvas.width / 2, ctx.canvas.height / 2);
   ctx.rotate((angle * Math.PI) / 180);
-  ctx.drawImage(
-    img,
-    // we ctx.rotate above, so REMEMBER: the actual source image SHOULD NOT BE ROTATED
-    _img.x,
-    _img.y,
-    _img.width,
-    _img.height,
-    // the viewport, on the other hand, does need to accommodate that rotation since
-    // we are on a mostly statically sized canvas but width and height might be rotated
-    -_vp.width / 2,
-    -_vp.height / 2,
-    _vp.width,
-    _vp.height,
-  );
+  img.forEach((src) => {
+    ctx.drawImage(
+      src,
+      // we ctx.rotate above, so REMEMBER: the actual source image SHOULD NOT BE ROTATED
+      _img.x,
+      _img.y,
+      _img.width,
+      _img.height,
+      // the viewport, on the other hand, does need to accommodate that rotation since
+      // we are on a mostly statically sized canvas but width and height might be rotated
+      -_vp.width / 2,
+      -_vp.height / 2,
+      _vp.width,
+      _vp.height,
+    );
+  });
   ctx.restore();
 }
 
@@ -156,15 +159,15 @@ function loadAllImages(bearer: string, background: string, overlay?: string) {
 }
 
 function renderVisibleCanvasses() {
-  renderImage(backgroundCtx, backgroundImage, _angle);
-  renderImage(overlayCtx, fullCtx.canvas, _angle);
+  renderImage(backgroundCtx, [backgroundImage], _angle);
+  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
 }
 
 function renderAllCanvasses(background: ImageBitmap | null) {
   if (background) {
     sizeVisibleCanvasses(_canvas.width, _canvas.height);
-    renderImage(backgroundCtx, background, _angle);
-    renderImage(overlayCtx, fullCtx.canvas, _angle);
+    renderImage(backgroundCtx, [background], _angle);
+    renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
   }
 }
 
@@ -233,7 +236,7 @@ function eraseBrush(x: number, y: number, radius: number, full = true) {
   fullCtx.drawImage(img, 0, 0);
   fullCtx.restore();
   img.close();
-  renderImage(overlayCtx, fullCtx.canvas, _angle);
+  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
 }
 
 function renderBrush(x: number, y: number, radius: number, full = true) {
@@ -256,7 +259,7 @@ function renderBrush(x: number, y: number, radius: number, full = true) {
   fullCtx.fill();
   fullCtx.restore();
   // dump to visible canvas
-  renderImage(overlayCtx, fullCtx.canvas, _angle);
+  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
 }
 
 function renderBox(
@@ -280,7 +283,30 @@ function renderBox(
   fullCtx.fillStyle = style;
   fullCtx.fillRect(x, y, w, h);
   fullCtx.restore();
-  renderImage(overlayCtx, fullCtx.canvas, _angle);
+  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+}
+
+function renderDottedBox(rect: Rect, ctx: OffscreenCanvasRenderingContext2D) {
+  const [x, y] = [rect.x, rect.y];
+  const [x1, y1] = [x + rect.width, y + rect.height];
+  ctx.beginPath();
+  ctx.lineWidth = 10;
+  ctx.strokeStyle = "black";
+  ctx.setLineDash([]);
+  ctx.moveTo(x, y);
+  ctx.lineTo(x1, y);
+  ctx.lineTo(x1, y1);
+  ctx.lineTo(x, y1);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+  ctx.strokeStyle = "white";
+  ctx.setLineDash([10, 10]);
+  ctx.moveTo(x, y);
+  ctx.lineTo(x1, y);
+  ctx.lineTo(x1, y1);
+  ctx.lineTo(x, y1);
+  ctx.lineTo(x, y);
+  ctx.stroke();
 }
 
 function clearBox(x1: number, y1: number, x2: number, y2: number) {
@@ -333,7 +359,7 @@ const storeOverlay = () =>
 
 function animateBrush(x: number, y: number) {
   if (!recording) return;
-  renderImage(overlayCtx, fullCtx.canvas, _angle);
+  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
   renderBrush(x, y, brush, false);
   _frame = requestAnimationFrame(() => animateBrush(x, y));
 }
@@ -341,7 +367,7 @@ function animateBrush(x: number, y: number) {
 function animateSelection() {
   if (!recording) return;
   if (selecting) {
-    renderImage(overlayCtx, fullCtx.canvas, _angle);
+    renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
     renderBox(startX, startY, endX, endY, GUIDE_FILL, false);
   } else if (panning) {
     // calculate the (rotated) movement since the last frame and update for the next
@@ -421,6 +447,12 @@ self.onmessage = (evt) => {
             // this *should* be the one and only place we load the offscreen canvas
             fullCtx.canvas.width = bgImg.width;
             fullCtx.canvas.height = bgImg.height;
+
+            const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
+            thingCtx = thingCanvas.getContext("2d", {
+              alpha: true,
+            }) as OffscreenCanvasRenderingContext2D;
+
             if (ovImg) {
               fullCtx.drawImage(ovImg, 0, 0);
               ovImg.close();
@@ -550,7 +582,7 @@ self.onmessage = (evt) => {
     case "end_erase": {
       recording = false;
       panning = false;
-      renderImage(overlayCtx, fullCtx.canvas, _angle);
+      renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
       storeOverlay();
       break;
     }
@@ -558,7 +590,7 @@ self.onmessage = (evt) => {
       recording = false;
       panning = false;
       storeOverlay();
-      renderImage(overlayCtx, fullCtx.canvas, _angle);
+      renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
       break;
     }
     case "end_select": {
@@ -630,8 +662,16 @@ self.onmessage = (evt) => {
           ),
         ),
       );
+
       // post back the full viewport
       postMessage({ cmd: "viewport", viewport: fullVp });
+      break;
+    }
+    case "set_highlighted_rect": {
+      const rect = evt.data.rect;
+      thingCtx.clearRect(0, 0, thingCtx.canvas.width, thingCtx.canvas.height);
+      if (rect) renderDottedBox(rect, thingCtx);
+      renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
       break;
     }
     case "zoom_in": {

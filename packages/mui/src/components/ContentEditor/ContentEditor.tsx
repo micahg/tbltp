@@ -440,7 +440,7 @@ const ContentEditor = ({
 
   useEffect(() => {
     if (!scene || !scene.viewport || !scene.backgroundSize) return;
-    // if (!viewport) return;
+    if (!worker) return;
     if (!viewportSize) return;
     if (!redrawToolbar) return;
 
@@ -452,11 +452,14 @@ const ContentEditor = ({
       v.y === bg.y &&
       v.width === bg.width &&
       v.height === bg.height;
+    if (!zoomedOut) {
+      worker.postMessage({ cmd: "set_highlighted_rect", rect: v });
+    }
     if (zoomedOut !== internalState.zoom) return;
     internalState.zoom = !zoomedOut;
     redrawToolbar();
     sm.transition("wait");
-  }, [scene, viewportSize, internalState, redrawToolbar]);
+  }, [scene, viewportSize, internalState, redrawToolbar, worker]);
 
   useEffect(() => {
     /**
@@ -516,6 +519,7 @@ const ContentEditor = ({
     });
     setCallback(sm, "remoteZoomOut", () => {
       const imgRect = getRect(0, 0, imageSize[0], imageSize[1]);
+      worker.postMessage({ cmd: "set_highlighted_rect" });
       dispatch({
         type: "content/zoom",
         payload: { backgroundSize: imgRect, viewport: imgRect },
