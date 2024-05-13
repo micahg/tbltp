@@ -599,6 +599,9 @@ const ContentEditor = ({
         } else if (e.deltaY < 0) {
           worker.postMessage({ cmd: "brush_dec", x: e.offsetX, y: e.offsetY });
         }
+      } else if (internalState.rec && internalState.act === "select") {
+        // ignore wheel on select
+        sm.transition("done");
       }
     });
     setCallback(sm, "rotate_clock", () => {
