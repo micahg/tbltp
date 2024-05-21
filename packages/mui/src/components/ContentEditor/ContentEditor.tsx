@@ -91,6 +91,7 @@ const ContentEditor = ({
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
   const [showOpacitySlider, setShowOpacitySlider] = useState<boolean>(false);
+  const [opacitySliderVal, setOpacitySliderVal] = useState<number>(1);
   const [viewportSize, setViewportSize] = useState<number[] | null>(null);
   const [imageSize, setImageSize] = useState<number[] | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -555,10 +556,16 @@ const ContentEditor = ({
     });
     setCallback(sm, "opacity_display", () => {
       setShowOpacityMenu(false);
+      if (overlayCanvasRef.current) {
+        const style = getComputedStyle(overlayCanvasRef.current);
+        setOpacitySliderVal(Number(style.opacity) || 1);
+      }
       setShowOpacitySlider(true);
     });
     setCallback(sm, "opacity_render", () => {
       setShowOpacityMenu(false);
+      // update default opacity to render opacity... might take more effort
+      setOpacitySliderVal(1);
       setShowOpacitySlider(true);
     });
     setCallback(sm, "update_display_opacity", (args) => {
@@ -877,7 +884,7 @@ const ContentEditor = ({
                 min={0}
                 max={1}
                 step={0.01}
-                defaultValue={1}
+                defaultValue={opacitySliderVal}
                 aria-label="Default"
                 valueLabelDisplay="auto"
                 onChange={gmSetOpacity}
