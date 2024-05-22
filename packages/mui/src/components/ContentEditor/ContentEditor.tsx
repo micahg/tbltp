@@ -91,6 +91,7 @@ const ContentEditor = ({
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
   const [showOpacitySlider, setShowOpacitySlider] = useState<boolean>(false);
+  const [opacitySliderVal, setOpacitySliderVal] = useState<number>(1);
   const [viewportSize, setViewportSize] = useState<number[] | null>(null);
   const [imageSize, setImageSize] = useState<number[] | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -440,7 +441,7 @@ const ContentEditor = ({
 
   useEffect(() => {
     if (!scene || !scene.viewport || !scene.backgroundSize) return;
-    // if (!viewport) return;
+    if (!worker) return;
     if (!viewportSize) return;
     if (!redrawToolbar) return;
 
@@ -452,11 +453,14 @@ const ContentEditor = ({
       v.y === bg.y &&
       v.width === bg.width &&
       v.height === bg.height;
+    if (!zoomedOut) {
+      worker.postMessage({ cmd: "set_highlighted_rect", rect: v });
+    }
     if (zoomedOut !== internalState.zoom) return;
     internalState.zoom = !zoomedOut;
     redrawToolbar();
     sm.transition("wait");
-  }, [scene, viewportSize, internalState, redrawToolbar]);
+  }, [scene, viewportSize, internalState, redrawToolbar, worker]);
 
   useEffect(() => {
     /**
@@ -516,6 +520,7 @@ const ContentEditor = ({
     });
     setCallback(sm, "remoteZoomOut", () => {
       const imgRect = getRect(0, 0, imageSize[0], imageSize[1]);
+      worker.postMessage({ cmd: "set_highlighted_rect" });
       dispatch({
         type: "content/zoom",
         payload: { backgroundSize: imgRect, viewport: imgRect },
@@ -551,10 +556,16 @@ const ContentEditor = ({
     });
     setCallback(sm, "opacity_display", () => {
       setShowOpacityMenu(false);
+      if (overlayCanvasRef.current) {
+        const style = getComputedStyle(overlayCanvasRef.current);
+        setOpacitySliderVal(Number(style.opacity) || 1);
+      }
       setShowOpacitySlider(true);
     });
     setCallback(sm, "opacity_render", () => {
       setShowOpacityMenu(false);
+      // update default opacity to render opacity... might take more effort
+      setOpacitySliderVal(1);
       setShowOpacitySlider(true);
     });
     setCallback(sm, "update_display_opacity", (args) => {
@@ -595,6 +606,9 @@ const ContentEditor = ({
         } else if (e.deltaY < 0) {
           worker.postMessage({ cmd: "brush_dec", x: e.offsetX, y: e.offsetY });
         }
+      } else if (internalState.rec && internalState.act === "select") {
+        // ignore wheel on select
+        sm.transition("done");
       }
     });
     setCallback(sm, "rotate_clock", () => {
@@ -870,7 +884,7 @@ const ContentEditor = ({
                 min={0}
                 max={1}
                 step={0.01}
-                defaultValue={1}
+                defaultValue={opacitySliderVal}
                 aria-label="Default"
                 valueLabelDisplay="auto"
                 onChange={gmSetOpacity}
