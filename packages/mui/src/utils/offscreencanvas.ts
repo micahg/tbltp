@@ -1,3 +1,5 @@
+import { Rect } from "./geometry";
+
 let worker: Worker;
 
 export function setupOffscreenCanvas(
@@ -11,6 +13,7 @@ export function setupOffscreenCanvas(
   screenHeight: number,
   background?: string,
   overlay?: string,
+  viewport?: Rect,
 ): Worker {
   const values = {
     bearer: bearer,
@@ -19,6 +22,7 @@ export function setupOffscreenCanvas(
     overlay: overlay,
     background: background,
     angle: angle,
+    viewport: viewport,
   };
   // only create a web worker if we don't have one already
   if (!worker) {

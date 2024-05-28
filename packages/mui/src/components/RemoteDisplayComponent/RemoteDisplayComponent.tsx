@@ -218,83 +218,10 @@ const RemoteDisplayComponent = () => {
         height,
         backgroundUri,
         overlayUri,
+        viewport,
       );
       setWorker(wrkr);
       wrkr.onmessage = handleWorkerMessage;
-      // const data = content.getImageData(
-      //   0,
-      //   0,
-      //   content.canvas.width,
-      //   content.canvas.height,
-      // );
-      // content.filter = "blur(5px)";
-      // const d = content.getImageData();
-      // content.drawImage(data, 0, 0);
-      // TODO add visual queue changes are coming
-
-      /**
-       * I hate this so much... if someone ever does contribute to this
-       * project and your js game is better than mine, see if you can make this
-       * less insane. The point is to calculate the expanded the selection to
-       * fill the screen (based on the aspect ratio of the map) then draw the
-       * overlay, then the background. If there is no overlay then just draw
-       * background with expanded selection if there is one.
-       */
-      // createImageBitmap(content).then((img) => {
-      //     content.filter = "blur(5px)";
-      //     content.drawImage(img, 0, 0);
-      //   return loadImage(backgroundUri, bearer);
-      //   })
-      // loadImage(backgroundUri, bearer)
-      //   .then((bgImg) => {
-      //     // the untainted one is not dealing with the silkScale (more on that in geometry.ts)
-      //     // since we can safely assume (for now) that the overlay isn't downscaled due to
-      //     // memory constraints, then we can get our ratios using the intended background size
-      //     // instead of the actual
-      //     // const bgVPnoTaint = fillToAspect(viewport, tableBGSize, tableBGSize.width, tableBGSize.height);
-      //     // const bgVP = fillToAspect(viewport, tableBGSize, bgImg.width, bgImg.height);
-      //     const oDimensions = [tableBGSize.width, tableBGSize.height];
-      //     const bgVP = fillRotatedViewport(
-      //       [width, height],
-      //       [bgImg.width, bgImg.height],
-      //       oDimensions,
-      //       angle,
-      //       viewport,
-      //     );
-      //     if (overlayUri) {
-      //       loadImage(overlayUri, bearer)
-      //         .then((ovrImg) => {
-      //           const ovVP = fillRotatedViewport(
-      //             [width, height],
-      //             [ovrImg.width, ovrImg.height],
-      //             oDimensions,
-      //             angle,
-      //             viewport,
-      //           );
-      //           renderViewPort(overlay, ovrImg, angle, ovVP);
-      //           content.filter = "blur(0px)";
-      //           renderViewPort(content, bgImg, angle, bgVP);
-      //           bgImg.close();
-      //           ovrImg.close();
-      //         })
-      //         .catch((err) =>
-      //           console.error(
-      //             `Error loading overlay image ${overlayUri}: ${JSON.stringify(
-      //               err,
-      //             )}`,
-      //           ),
-      //         );
-      //     } else {
-      //       content.filter = "blur(0px)";
-      //       renderViewPort(content, bgImg, angle, bgVP);
-      //       bgImg.close();
-      //     }
-      //   })
-      //   .catch((err) =>
-      //     console.error(
-      //       `Error loading background image: ${JSON.stringify(err)}`,
-      //     ),
-      //   );
     },
     [],
   );
