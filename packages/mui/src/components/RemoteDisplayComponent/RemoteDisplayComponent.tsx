@@ -14,6 +14,7 @@ import styles from "./RemoteDisplayComponent.module.css";
 import { useNavigate } from "react-router-dom";
 import { Box } from "@mui/material";
 import { loadImage } from "../../utils/content";
+import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 
 /**
  * Table state sent to display client by websocket. A partial Scene.
@@ -38,6 +39,7 @@ const RemoteDisplayComponent = () => {
   const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
+  const fullCanvasRef = createRef<HTMLCanvasElement>();
   const apiUrl: string | undefined = useSelector(
     (state: AppReducerState) => state.environment.api,
   );
@@ -64,6 +66,9 @@ const RemoteDisplayComponent = () => {
   const [authTimer, setAuthTimer] = useState<NodeJS.Timer>();
   const [wsTimer, setWSTimer] = useState<NodeJS.Timer>();
   const [serverInfo, setServerInfo] = useState<string>();
+  const [canvassesTransferred, setCanvassesTransferred] =
+    useState<boolean>(false); // avoid transfer errors
+  const [worker, setWorker] = useState<Worker>();
 
   /**
    * Process a websocket message with table data
@@ -99,6 +104,62 @@ const RemoteDisplayComponent = () => {
     }
   };
 
+  const handleWorkerMessage = useCallback((evt: MessageEvent<unknown>) => {
+    // bump the overlay version so it gets sent
+    if (!evt.data || typeof evt.data !== "object") return;
+    if (!("cmd" in evt.data)) return;
+    if (evt.data.cmd === "initialized") {
+      if (!("width" in evt.data) || typeof evt.data.width !== "number") {
+        console.error("Invalid width in worker initialized message");
+        return;
+      }
+      if (!("height" in evt.data) || typeof evt.data.height !== "number") {
+        console.error("Invalid height in worker initialized message");
+        return;
+      }
+      if (
+        !("fullWidth" in evt.data) ||
+        typeof evt.data.fullWidth !== "number"
+      ) {
+        console.error("Invalid fullWidth in worker initialized message");
+        return;
+      }
+      if (
+        !("fullHeight" in evt.data) ||
+        typeof evt.data.fullHeight !== "number"
+      ) {
+        console.error("Invalid fullHeight in worker initialized message");
+        return;
+      }
+      // setViewportSize([evt.data.width, evt.data.height]);
+      // setImageSize([evt.data.fullWidth, evt.data.fullHeight]);
+    }
+    /* else if (evt.data.cmd === "pan_complete") {
+      // after panning is done, we can go back to waiting state
+      sm.transition("wait");
+    } else if (evt.data.cmd === "select_complete") {
+      if ("rect" in evt.data) setSelection(evt.data.rect as unknown as Rect);
+      else console.error(`No rect in ${evt.data.cmd}`);
+    } else if (evt.data.cmd === "progress") {
+      if ("evt" in evt.data) {
+        const e = evt.data.evt as LoadProgress;
+
+        // on complete (progress of 1) remove the download
+        if (e.progress === 1) delete downloads[e.img];
+        else downloads[e.img] = e.progress;
+
+        // with nothing left we're fully loaded
+        const length = Object.keys(downloads).length;
+        if (length === 0) return setDownloadProgress(100);
+
+        // otherwise, tally the totals and set progress
+        let value = 0;
+        for (const [, v] of Object.entries(downloads)) value += v;
+        setDownloadProgress((value * 100) / length);
+      }
+    }*/
+  }, []);
+
   /**
    * Render table data
    */
@@ -106,8 +167,9 @@ const RemoteDisplayComponent = () => {
     (
       js: WSStateMessage,
       apiUrl: string,
-      content: CanvasRenderingContext2D,
-      overlay: CanvasRenderingContext2D,
+      content: HTMLCanvasElement,
+      overlay: HTMLCanvasElement,
+      full: HTMLCanvasElement,
       bearer: string,
     ) => {
       // ignore null state -- happens when server has no useful state loaded yet
@@ -128,7 +190,7 @@ const RemoteDisplayComponent = () => {
       const angle = js.state.angle || 0;
 
       const ts: number = new Date().getTime();
-      let overlayUri: string | null = null;
+      let overlayUri: string | undefined;
       if ("overlay" in js.state && js.state.overlay) {
         overlayUri = `${apiUrl}/${js.state.overlay}?${ts}`;
       }
@@ -143,70 +205,96 @@ const RemoteDisplayComponent = () => {
         return;
       }
 
-      // const screen = getWidthAndHeight();
       const [width, height] = getWidthAndHeight();
-      content.canvas.width = width;
-      content.canvas.height = height;
-      content.canvas.style.width = `${width}px`;
-      content.canvas.style.height = `${height}px`;
-      overlay.canvas.width = width;
-      overlay.canvas.height = height;
-      overlay.canvas.style.width = `${width}px`;
-      overlay.canvas.style.height = `${height}px`;
+      setCanvassesTransferred(true);
+      const wrkr = setupOffscreenCanvas(
+        bearer,
+        content,
+        overlay,
+        full,
+        canvassesTransferred,
+        angle,
+        width,
+        height,
+        backgroundUri,
+        overlayUri,
+      );
+      setWorker(wrkr);
+      wrkr.onmessage = handleWorkerMessage;
+      // const data = content.getImageData(
+      //   0,
+      //   0,
+      //   content.canvas.width,
+      //   content.canvas.height,
+      // );
+      // content.filter = "blur(5px)";
+      // const d = content.getImageData();
+      // content.drawImage(data, 0, 0);
+      // TODO add visual queue changes are coming
 
       /**
        * I hate this so much... if someone ever does contribute to this
        * project and your js game is better than mine, see if you can make this
-       * less isane. The point is to calculate the expanded the selection to
+       * less insane. The point is to calculate the expanded the selection to
        * fill the screen (based on the aspect ratio of the map) then draw the
        * overlay, then the background. If there is no overlay then just draw
        * background with expanded selection if there is one.
        */
-      loadImage(backgroundUri, bearer)
-        .then((bgImg) => {
-          // the untainted one is not dealing with the silkScale (more on that in geometry.ts)
-          // since we can safely assume (for now) that the overlay isn't downscaled due to
-          // memory constraints, then we can get our ratios using the intended background size
-          // instead of the actual
-          // const bgVPnoTaint = fillToAspect(viewport, tableBGSize, tableBGSize.width, tableBGSize.height);
-          // const bgVP = fillToAspect(viewport, tableBGSize, bgImg.width, bgImg.height);
-          const oDimensions = [tableBGSize.width, tableBGSize.height];
-          const bgVP = fillRotatedViewport(
-            [width, height],
-            [bgImg.width, bgImg.height],
-            oDimensions,
-            angle,
-            viewport,
-          );
-          if (overlayUri) {
-            loadImage(overlayUri, bearer)
-              .then((ovrImg) => {
-                const ovVP = fillRotatedViewport(
-                  [width, height],
-                  [ovrImg.width, ovrImg.height],
-                  oDimensions,
-                  angle,
-                  viewport,
-                );
-                renderViewPort(overlay, ovrImg, angle, ovVP);
-                renderViewPort(content, bgImg, angle, bgVP);
-              })
-              .catch((err) =>
-                console.error(
-                  `Error loading overlay image ${overlayUri}: ${JSON.stringify(
-                    err,
-                  )}`,
-                ),
-              );
-          } else {
-            renderViewPort(content, bgImg, angle, bgVP);
-          }
-        })
-        .catch((err) =>
-          console.error(
-            `Error loading background image: ${JSON.stringify(err)}`,
-          ),
-        );
+      // createImageBitmap(content).then((img) => {
+      //     content.filter = "blur(5px)";
+      //     content.drawImage(img, 0, 0);
+      //   return loadImage(backgroundUri, bearer);
+      //   })
+      // loadImage(backgroundUri, bearer)
+      //   .then((bgImg) => {
+      //     // the untainted one is not dealing with the silkScale (more on that in geometry.ts)
+      //     // since we can safely assume (for now) that the overlay isn't downscaled due to
+      //     // memory constraints, then we can get our ratios using the intended background size
+      //     // instead of the actual
+      //     // const bgVPnoTaint = fillToAspect(viewport, tableBGSize, tableBGSize.width, tableBGSize.height);
+      //     // const bgVP = fillToAspect(viewport, tableBGSize, bgImg.width, bgImg.height);
+      //     const oDimensions = [tableBGSize.width, tableBGSize.height];
+      //     const bgVP = fillRotatedViewport(
+      //       [width, height],
+      //       [bgImg.width, bgImg.height],
+      //       oDimensions,
+      //       angle,
+      //       viewport,
+      //     );
+      //     if (overlayUri) {
+      //       loadImage(overlayUri, bearer)
+      //         .then((ovrImg) => {
+      //           const ovVP = fillRotatedViewport(
+      //             [width, height],
+      //             [ovrImg.width, ovrImg.height],
+      //             oDimensions,
+      //             angle,
+      //             viewport,
+      //           );
+      //           renderViewPort(overlay, ovrImg, angle, ovVP);
+      //           content.filter = "blur(0px)";
+      //           renderViewPort(content, bgImg, angle, bgVP);
+      //           bgImg.close();
+      //           ovrImg.close();
+      //         })
+      //         .catch((err) =>
+      //           console.error(
+      //             `Error loading overlay image ${overlayUri}: ${JSON.stringify(
+      //               err,
+      //             )}`,
+      //           ),
+      //         );
+      //     } else {
+      //       content.filter = "blur(0px)";
+      //       renderViewPort(content, bgImg, angle, bgVP);
+      //       bgImg.close();
+      //     }
+      //   })
+      //   .catch((err) =>
+      //     console.error(
+      //       `Error loading background image: ${JSON.stringify(err)}`,
+      //     ),
+      //   );
     },
     [],
   );
@@ -229,15 +317,51 @@ const RemoteDisplayComponent = () => {
       );
   };
 
-  useEffect(() => {
-    if (!contentCanvasRef.current || contentCtx != null) return;
-    setContentCtx(contentCanvasRef.current.getContext("2d", { alpha: false }));
-  }, [contentCanvasRef, contentCtx]);
+  // useEffect(() => {
+  //   if (!contentCanvasRef.current || contentCtx != null) return;
+  //   setContentCtx(contentCanvasRef.current.getContext("2d", { alpha: false }));
+  // }, [contentCanvasRef, contentCtx]);
 
-  useEffect(() => {
-    if (!overlayCanvasRef.current || overlayCtx != null) return;
-    setOverlayCtx(overlayCanvasRef.current.getContext("2d", { alpha: true }));
-  }, [overlayCanvasRef, overlayCtx]);
+  // useEffect(() => {
+  //   if (!overlayCanvasRef.current || overlayCtx != null) return;
+  //   setOverlayCtx(overlayCanvasRef.current.getContext("2d", { alpha: true }));
+  // }, [overlayCanvasRef, overlayCtx]);
+
+  // useEffect(() => {
+  //   const content = contentCanvasRef.current;
+  //   const overlay = overlayCanvasRef.current;
+  //   const full = fullCanvasRef.current;
+  //   if (!content || !overlay || !full) return;
+  //   if (!token) return;
+  //   const [width, height] = getWidthAndHeight();
+
+  //   content.width = width;
+  //   content.height = height;
+  //   content.style.width = `${width}px`;
+  //   content.style.height = `${height}px`;
+  //   overlay.width = width;
+  //   overlay.height = height;
+  //   overlay.style.width = `${width}px`;
+  //   overlay.style.height = `${height}px`;
+
+  //   // henceforth canvas is transferred -- this doesn't take effect until the next render
+  //   // so the on this pass it is false when passed to setCanvassesTransferred even if set
+  //   setCanvassesTransferred(true);
+  //   const wrkr = setupOffscreenCanvas(
+  //     token,
+  //     content,
+  //     overlay,
+  //     full,
+  //     canvassesTransferred,
+  //     0,
+  //     width,
+  //     height,
+  //     bgUrl,
+  //     ovUrl,
+  //   );
+  //   setWorker(wrkr);
+  //   wrkr.onmessage = handleWorkerMessage;
+  // }, [overlayCanvasRef, contentCanvasRef, fullCanvasRef]);
 
   /**
    * Things learned the ... difficult way ... we do not need to really cleanup
@@ -337,14 +461,30 @@ const RemoteDisplayComponent = () => {
    * With all necessary components and some table data, trigger drawing
    */
   useEffect(() => {
-    if (!overlayCtx) return;
-    if (!contentCtx) return;
+    if (!overlayCanvasRef.current) return;
+    if (!contentCanvasRef.current) return;
+    if (!fullCanvasRef.current) return;
     if (!apiUrl) return;
     if (!tableData) return;
     if (!token) return;
 
-    processTableData(tableData, apiUrl, contentCtx, overlayCtx, token);
-  }, [contentCtx, overlayCtx, apiUrl, tableData, token, processTableData]);
+    processTableData(
+      tableData,
+      apiUrl,
+      contentCanvasRef.current,
+      overlayCanvasRef.current,
+      fullCanvasRef.current,
+      token,
+    );
+  }, [
+    contentCanvasRef,
+    overlayCanvasRef,
+    fullCanvasRef,
+    apiUrl,
+    tableData,
+    token,
+    processTableData,
+  ]);
 
   return (
     <div className={styles.map}>
@@ -371,6 +511,7 @@ const RemoteDisplayComponent = () => {
         Sorry, your browser does not support canvas.
       </canvas>
       <canvas className={styles.OverlayCanvas} ref={overlayCanvasRef} />
+      <canvas hidden ref={fullCanvasRef} />
     </div>
   );
 };

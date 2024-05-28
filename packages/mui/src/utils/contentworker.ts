@@ -413,10 +413,13 @@ self.onmessage = (evt) => {
       _angle = evt.data.values.angle;
       // _bearer = evt.data.values.bearer;
 
+      _canvas.width = evt.data.values.screenWidth;
+      _canvas.height = evt.data.values.screenHeight;
+
       if (evt.data.background) {
         const bgCanvas = evt.data.background;
-        _canvas.width = Math.round(bgCanvas.width);
-        _canvas.height = Math.round(bgCanvas.height);
+        // _canvas.width = Math.round(bgCanvas.width);
+        // _canvas.height = Math.round(bgCanvas.height);
         backgroundCtx = bgCanvas.getContext("2d", {
           alpha: false,
         }) as OffscreenCanvasRenderingContext2D;
