@@ -13,7 +13,6 @@ import Stack from "@mui/material/Stack";
 import styles from "./RemoteDisplayComponent.module.css";
 import { useNavigate } from "react-router-dom";
 import { Box } from "@mui/material";
-import { loadImage } from "../../utils/content";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 
 /**
@@ -55,6 +54,7 @@ const RemoteDisplayComponent = () => {
   const token: string | undefined = useSelector(
     (state: AppReducerState) => state.environment.deviceCodeToken,
   );
+  // TODO REMOVE THESE CONTEXTS?
   const [contentCtx, setContentCtx] = useState<CanvasRenderingContext2D | null>(
     null,
   );
@@ -104,6 +104,7 @@ const RemoteDisplayComponent = () => {
     }
   };
 
+  // TODO this doesn't seem to have dependencies, why are we using a callback?
   const handleWorkerMessage = useCallback((evt: MessageEvent<unknown>) => {
     // bump the overlay version so it gets sent
     if (!evt.data || typeof evt.data !== "object") return;
@@ -207,23 +208,28 @@ const RemoteDisplayComponent = () => {
 
       const [width, height] = getWidthAndHeight();
       setCanvassesTransferred(true);
-      const wrkr = setupOffscreenCanvas(
-        bearer,
-        content,
-        overlay,
-        full,
-        canvassesTransferred,
-        angle,
-        width,
-        height,
-        backgroundUri,
-        overlayUri,
-        viewport,
-      );
-      setWorker(wrkr);
-      wrkr.onmessage = handleWorkerMessage;
+      if (!canvassesTransferred) {
+        console.log("TRANSFERRING CANVAS");
+        const wrkr = setupOffscreenCanvas(
+          bearer,
+          content,
+          overlay,
+          full,
+          canvassesTransferred,
+          angle,
+          width,
+          height,
+          backgroundUri,
+          overlayUri,
+          viewport,
+        );
+        setWorker(wrkr);
+        wrkr.onmessage = handleWorkerMessage;
+      } else {
+        // update the images/viewport
+      }
     },
-    [],
+    [canvassesTransferred, handleWorkerMessage],
   );
 
   /**

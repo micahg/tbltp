@@ -408,6 +408,7 @@ function adjustZoom(zoom: number, x: number, y: number) {
 }
 // eslint-disable-next-line no-restricted-globals
 self.onmessage = (evt) => {
+  console.log(evt.data.cmd);
   switch (evt.data.cmd) {
     case "init": {
       _angle = evt.data.values.angle;
@@ -445,41 +446,28 @@ self.onmessage = (evt) => {
               _img.y = evt.data.values.viewport.y;
               _img.width = evt.data.values.viewport.width;
               _img.height = evt.data.values.viewport.height;
-              /**
-               *  const [cW, cH] = rotatedWidthAndHeight(_angle, _canvas.width, _canvas.height);
-                  const p = unrotatePoints(_angle, _vp, _canvas, createPoints([x, y]))[0];
-                  const q = scalePoints([p], _zoom)[0];
-                  q.x += _img.x;
-                  q.y += _img.y;
-                  _zoom = zoom;
-                  console.log(_zoom);
-                  calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
-                  // calculate any offsets for where we are completely zoomed in in one dimension
-                  // note that we accommodate for the rotation
-                  const yOffset = _vp.height < cH ? cH - _vp.height : 0;
-                  const xOffset = _vp.width < cW ? cW - _vp.width : 0;
-                  // calculate point relative to new viewport
-                  const newX = p.x - xOffset;
-                  const newY = p.y - yOffset;
-                  _img.x = q.x - _zoom * newX;
-                  _img.y = q.y - _zoom * newY; */
-              /**
-               *  const [cw, ch] = [containerWidth, containerHeight];
-                  [_vp.width, _vp.height] = rotatedWidthAndHeight(-angle, cw, ch);
-                  [_img.width, _img.height] = [zoom * _vp.width, zoom * _vp.height];
-                  if (_img.width > backgroundImage.width) {
-                    _img.width = backgroundImage.width;
-                    _vp.width = Math.round((_vp.height * _img.width) / _img.height);
-                  } else if (_img.height > backgroundImage.height) {
-                    _img.height = backgroundImage.height;
-                    _vp.height = Math.round((_vp.width * _img.height) / _img.width);
-                  } */
-              // zoom - 1 is pixel to pixel
-              // ~2 is fully zoomed out
-              // 0.5 is zoomed in i guess
-              _zoom = _img.width / backgroundImage.width;
+
+              // unrotate canvas
+              const [cW, cH] = rotatedWidthAndHeight(
+                -_angle,
+                _canvas.width,
+                _canvas.height,
+              );
+              const zW = _img.width / cW;
+              const zH = _img.height / cH;
+
+              // set zoom and offset x or y to compensate for viewport
+              // aspect ratios that are different from the screen
+              if (zH > zW) {
+                _zoom = zH;
+                _img.x -= (cW * _zoom - _img.width) / 2;
+              } else {
+                _zoom = zW;
+                _img.y -= (cH * _zoom - _img.height) / 2;
+              }
             }
 
+            // TODO this is called in fullRender -- probably don't need it here.
             calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
             trimPanning();
 
