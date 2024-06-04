@@ -209,7 +209,6 @@ const RemoteDisplayComponent = () => {
       const [width, height] = getWidthAndHeight();
       setCanvassesTransferred(true);
       if (!canvassesTransferred) {
-        console.log("TRANSFERRING CANVAS");
         const wrkr = setupOffscreenCanvas(
           bearer,
           content,
@@ -226,6 +225,7 @@ const RemoteDisplayComponent = () => {
         setWorker(wrkr);
         wrkr.onmessage = handleWorkerMessage;
       } else {
+        console.log(`MICAH`);
         // update the images/viewport
       }
     },
@@ -353,6 +353,8 @@ const RemoteDisplayComponent = () => {
   useEffect(() => {
     if (connected === undefined) return;
     if (connected) return;
+    if (!token) return;
+    if (!wsUrl) return;
 
     const scheduleConnection = () => {
       console.log(`Connection closed`);
@@ -379,16 +381,7 @@ const RemoteDisplayComponent = () => {
     return () => {
       if (wsTimer) clearTimeout(wsTimer);
     };
-  }, [
-    apiUrl,
-    contentCtx,
-    overlayCtx,
-    connected,
-    noauth,
-    token,
-    wsUrl,
-    wsTimer,
-  ]);
+  }, [connected, noauth, token, wsUrl, wsTimer]);
 
   /**
    * With all necessary components and some table data, trigger drawing
@@ -401,6 +394,7 @@ const RemoteDisplayComponent = () => {
     if (!tableData) return;
     if (!token) return;
 
+    console.log(tableData);
     processTableData(
       tableData,
       apiUrl,
