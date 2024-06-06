@@ -26,6 +26,11 @@ export interface TableState {
   backgroundSize?: Rect;
 }
 
+// TODO UNION MICAH DON"T SKIP NOW
+export type TableUpdate = TableState & {
+  bearer: string;
+};
+
 interface WSStateMessage {
   method?: string;
   info?: string;
@@ -168,9 +173,9 @@ const RemoteDisplayComponent = () => {
     (
       js: WSStateMessage,
       apiUrl: string,
-      content: HTMLCanvasElement,
-      overlay: HTMLCanvasElement,
-      full: HTMLCanvasElement,
+      contentCanvas: HTMLCanvasElement,
+      overlayCanvas: HTMLCanvasElement,
+      fullCanvas: HTMLCanvasElement,
       bearer: string,
     ) => {
       // ignore null state -- happens when server has no useful state loaded yet
@@ -191,17 +196,17 @@ const RemoteDisplayComponent = () => {
       const angle = js.state.angle || 0;
 
       const ts: number = new Date().getTime();
-      let overlayUri: string | undefined;
+      let overlay: string | undefined;
       if ("overlay" in js.state && js.state.overlay) {
-        overlayUri = `${apiUrl}/${js.state.overlay}?${ts}`;
+        overlay = `${apiUrl}/${js.state.overlay}?${ts}`;
       }
 
-      let backgroundUri: string | null = null;
+      let background: string | null = null;
       if ("background" in js.state && js.state.background) {
-        backgroundUri = `${apiUrl}/${js.state.background}?${ts}`;
+        background = `${apiUrl}/${js.state.background}?${ts}`;
       }
 
-      if (!backgroundUri) {
+      if (!background) {
         console.error(`Unable to determine background URL`);
         return;
       }
@@ -211,22 +216,30 @@ const RemoteDisplayComponent = () => {
       if (!canvassesTransferred) {
         const wrkr = setupOffscreenCanvas(
           bearer,
-          content,
-          overlay,
-          full,
+          contentCanvas,
+          overlayCanvas,
+          fullCanvas,
           canvassesTransferred,
           angle,
           width,
           height,
-          backgroundUri,
-          overlayUri,
+          background,
+          overlay,
           viewport,
         );
         setWorker(wrkr);
         wrkr.onmessage = handleWorkerMessage;
-      } else {
-        console.log(`MICAH`);
+      } else if (worker) {
         // update the images/viewport
+        worker.postMessage({
+          cmd: "update",
+          values: {
+            background,
+            overlay,
+            viewport,
+            bearer,
+          },
+        });
       }
     },
     [canvassesTransferred, handleWorkerMessage],

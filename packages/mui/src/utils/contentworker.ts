@@ -1,3 +1,5 @@
+import { imageListClasses } from "@mui/material";
+import { TableUpdate } from "../components/RemoteDisplayComponent/RemoteDisplayComponent";
 import { LoadProgress, loadImage } from "./content";
 import {
   Point,
@@ -129,6 +131,44 @@ function calculateViewport(
 }
 
 /**
+ * Given a desired viewport, set our current viewport accordingly, set the zoom,
+ * and then center the request viewport within our screen, extending its short
+ * side to fit our screen.
+ */
+function adjustZoomFromViewport(viewport: Rect) {
+  // set our viewport to the initial value requested
+  _img.x = viewport.x;
+  _img.y = viewport.y;
+  _img.width = viewport.width;
+  _img.height = viewport.height;
+
+  // unrotate canvas
+  const [cW, cH] = rotatedWidthAndHeight(
+    -_angle,
+    _canvas.width,
+    _canvas.height,
+  );
+  const zW = _img.width / cW;
+  const zH = _img.height / cH;
+
+  // set zoom and offset x or y to compensate for viewport
+  // aspect ratios that are different from the screen
+  if (zH > zW) {
+    _zoom = zH;
+    const adj = cW * _zoom;
+    if (adj < _fullRotW) {
+      _img.x -= (adj - _img.width) / 2;
+    }
+  } else {
+    _zoom = zW;
+    const adj = cH * _zoom;
+    if (adj < _fullRotH) {
+      _img.y -= (adj - _img.height) / 2;
+    }
+  }
+}
+
+/**
  * Resize all visible canvasses.
  *
  * @param angle
@@ -154,6 +194,11 @@ function loadAllImages(bearer: string, background: string, overlay?: string) {
   return Promise.all([bgP, ovP]).then(([bgImg, ovImg]) => {
     // keep a copy of these to prevent having to recreate them from the image buffer
     backgroundImage = bgImg;
+    [_fullRotW, _fullRotH] = rotatedWidthAndHeight(
+      _angle,
+      bgImg.width,
+      bgImg.height,
+    );
     return [bgImg, ovImg];
   });
 }
@@ -325,11 +370,6 @@ function fullRerender(zoomOut = false) {
    * Full render is called when the image, angle or zoom changes - hence the
    * recalculation of rotated width and height, zoom, and viewports
    */
-  [_fullRotW, _fullRotH] = rotatedWidthAndHeight(
-    _angle,
-    backgroundImage.width,
-    backgroundImage.height,
-  );
   _max_zoom = Math.max(_fullRotW / _canvas.width, _fullRotH / _canvas.height);
   _first_zoom_step = firstZoomStep(_max_zoom, _zoom_step);
   // this might get weird for rotation -- maybe it belongs in calculateCanvasses...
@@ -406,8 +446,41 @@ function adjustZoom(zoom: number, x: number, y: number) {
   trimPanning();
   renderAllCanvasses(backgroundImage);
 }
+
+async function update(values: TableUpdate) {
+  const { bearer, background, overlay, viewport } = values;
+  if (!background) {
+    console.error(`Ignoring update without background`);
+    return;
+  }
+  if (viewport) {
+    adjustZoomFromViewport(viewport);
+  }
+  try {
+    const [bgImg, ovImg] = await loadAllImages(bearer, background, overlay);
+    if (!bgImg) return;
+    // this *should* be the one and only place we load the offscreen canvas
+    fullCtx.canvas.width = bgImg.width;
+    fullCtx.canvas.height = bgImg.height;
+
+    const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
+    thingCtx = thingCanvas.getContext("2d", {
+      alpha: true,
+    }) as OffscreenCanvasRenderingContext2D;
+
+    if (ovImg) {
+      fullCtx.drawImage(ovImg, 0, 0);
+      ovImg.close();
+    } else {
+      clearCanvas();
+    }
+    fullRerender(!viewport);
+  } catch (err) {
+    console.error(`Unable to load iamges on update: ${JSON.stringify(err)}`);
+  }
+}
 // eslint-disable-next-line no-restricted-globals
-self.onmessage = (evt) => {
+self.onmessage = async (evt) => {
   console.log(evt.data.cmd);
   switch (evt.data.cmd) {
     case "init": {
@@ -442,34 +515,12 @@ self.onmessage = (evt) => {
         .then(([bgImg, ovImg]) => {
           if (bgImg) {
             if (evt.data.values.viewport) {
-              _img.x = evt.data.values.viewport.x;
-              _img.y = evt.data.values.viewport.y;
-              _img.width = evt.data.values.viewport.width;
-              _img.height = evt.data.values.viewport.height;
-
-              // unrotate canvas
-              const [cW, cH] = rotatedWidthAndHeight(
-                -_angle,
-                _canvas.width,
-                _canvas.height,
-              );
-              const zW = _img.width / cW;
-              const zH = _img.height / cH;
-
-              // set zoom and offset x or y to compensate for viewport
-              // aspect ratios that are different from the screen
-              if (zH > zW) {
-                _zoom = zH;
-                _img.x -= (cW * _zoom - _img.width) / 2;
-              } else {
-                _zoom = zW;
-                _img.y -= (cH * _zoom - _img.height) / 2;
-              }
+              adjustZoomFromViewport(evt.data.values.viewport);
             }
 
             // TODO this is called in fullRender -- probably don't need it here.
-            calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
-            trimPanning();
+            // calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
+            // trimPanning();
 
             // this *should* be the one and only place we load the offscreen canvas
             fullCtx.canvas.width = bgImg.width;
@@ -503,6 +554,14 @@ self.onmessage = (evt) => {
             `Unable to load image ${evt.data.url}: ${JSON.stringify(err)}`,
           );
         });
+      break;
+    }
+    case "update": {
+      try {
+        await update(evt.data.values);
+      } catch (err) {
+        console.error(`Unable to update: ${JSON.stringify(err)}`);
+      }
       break;
     }
     case "resize": {
