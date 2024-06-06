@@ -134,6 +134,10 @@ function calculateViewport(
  * Given a desired viewport, set our current viewport accordingly, set the zoom,
  * and then center the request viewport within our screen, extending its short
  * side to fit our screen.
+ *
+ * This is used when the remote client is told which region to display, rather
+ * than in the editor, where (iirc) you calculate the viewpoint given a point,
+ * a zoom level and the canvas size.
  */
 function adjustZoomFromViewport(viewport: Rect) {
   // set our viewport to the initial value requested
@@ -448,21 +452,25 @@ function adjustZoom(zoom: number, x: number, y: number) {
 }
 
 async function update(values: TableUpdate) {
-  const { bearer, background, overlay, viewport } = values;
+  const { angle, bearer, background, overlay, viewport } = values;
   if (!background) {
     console.error(`Ignoring update without background`);
     return;
   }
-  if (viewport) {
-    adjustZoomFromViewport(viewport);
-  }
+  _angle = angle;
   try {
     const [bgImg, ovImg] = await loadAllImages(bearer, background, overlay);
     if (!bgImg) return;
+
+    if (viewport) {
+      adjustZoomFromViewport(viewport);
+    }
+
     // this *should* be the one and only place we load the offscreen canvas
     fullCtx.canvas.width = bgImg.width;
     fullCtx.canvas.height = bgImg.height;
 
+    // TODO this probably only needs to happen during init
     const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
     thingCtx = thingCanvas.getContext("2d", {
       alpha: true,
@@ -479,12 +487,12 @@ async function update(values: TableUpdate) {
     console.error(`Unable to load iamges on update: ${JSON.stringify(err)}`);
   }
 }
+
 // eslint-disable-next-line no-restricted-globals
 self.onmessage = async (evt) => {
   console.log(evt.data.cmd);
   switch (evt.data.cmd) {
     case "init": {
-      _angle = evt.data.values.angle;
       _canvas.width = evt.data.values.screenWidth;
       _canvas.height = evt.data.values.screenHeight;
 
@@ -501,59 +509,28 @@ self.onmessage = async (evt) => {
         }) as OffscreenCanvasRenderingContext2D;
       }
 
+      // TODO do we really need to pass this canvas in or can we create it like we do the
+      // thingCanvas
       if (evt.data.fullOverlay) {
         fullCtx = evt.data.fullOverlay.getContext("2d", {
           alpha: true,
         }) as OffscreenCanvasRenderingContext2D;
       }
 
-      loadAllImages(
-        evt.data.values.bearer,
-        evt.data.values.background,
-        evt.data.values.overlay,
-      )
-        .then(([bgImg, ovImg]) => {
-          if (bgImg) {
-            if (evt.data.values.viewport) {
-              adjustZoomFromViewport(evt.data.values.viewport);
-            }
-
-            // TODO this is called in fullRender -- probably don't need it here.
-            // calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
-            // trimPanning();
-
-            // this *should* be the one and only place we load the offscreen canvas
-            fullCtx.canvas.width = bgImg.width;
-            fullCtx.canvas.height = bgImg.height;
-
-            const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
-            thingCtx = thingCanvas.getContext("2d", {
-              alpha: true,
-            }) as OffscreenCanvasRenderingContext2D;
-
-            if (ovImg) {
-              fullCtx.drawImage(ovImg, 0, 0);
-              ovImg.close();
-            } else {
-              clearCanvas();
-            }
-            fullRerender(!evt.data.values.viewport);
-          }
-        })
-        .then(() => {
-          postMessage({
-            cmd: "initialized",
-            width: _vp.width,
-            height: _vp.height,
-            fullWidth: backgroundImage.width,
-            fullHeight: backgroundImage.height,
-          });
-        })
-        .catch((err) => {
-          console.error(
-            `Unable to load image ${evt.data.url}: ${JSON.stringify(err)}`,
-          );
+      try {
+        await update(evt.data.values);
+        postMessage({
+          cmd: "initialized",
+          width: _vp.width,
+          height: _vp.height,
+          fullWidth: backgroundImage.width,
+          fullHeight: backgroundImage.height,
         });
+      } catch (err) {
+        console.error(
+          `Unable to load image ${evt.data.url}: ${JSON.stringify(err)}`,
+        );
+      }
       break;
     }
     case "update": {

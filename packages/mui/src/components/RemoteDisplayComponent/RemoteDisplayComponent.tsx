@@ -238,6 +238,7 @@ const RemoteDisplayComponent = () => {
             overlay,
             viewport,
             bearer,
+            angle,
           },
         });
       }
