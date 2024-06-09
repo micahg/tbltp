@@ -6,7 +6,6 @@ export function setupOffscreenCanvas(
   bearer: string,
   backgroundCanvas: HTMLCanvasElement,
   overlayCanvas: HTMLCanvasElement,
-  fullOverlayCanvas: HTMLCanvasElement,
   alreadyTransferred: boolean,
   angle: number,
   background?: string,
@@ -29,16 +28,14 @@ export function setupOffscreenCanvas(
     try {
       const background = backgroundCanvas.transferControlToOffscreen();
       const overlay = overlayCanvas.transferControlToOffscreen();
-      const fullOverlay = fullOverlayCanvas.transferControlToOffscreen();
       worker.postMessage(
         {
           cmd: "init",
           background: background,
           overlay: overlay,
-          fullOverlay: fullOverlay,
           values: values,
         },
-        [background, overlay, fullOverlay],
+        [background, overlay],
       );
     } catch (err) {
       /**

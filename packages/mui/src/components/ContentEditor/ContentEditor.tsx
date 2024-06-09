@@ -78,7 +78,6 @@ const ContentEditor = ({
   const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
-  const fullCanvasRef = createRef<HTMLCanvasElement>();
   const colorInputRef = createRef<HTMLInputElement>();
 
   const [internalState] = useState<InternalState>({
@@ -673,8 +672,7 @@ const ContentEditor = ({
       !scene ||
       !bearer ||
       !contentCanvasRef?.current ||
-      !overlayCanvasRef?.current ||
-      !fullCanvasRef?.current
+      !overlayCanvasRef?.current
     )
       return;
 
@@ -689,7 +687,6 @@ const ContentEditor = ({
     ];
     const backgroundCanvas: HTMLCanvasElement = contentCanvasRef.current;
     const overlayCanvas: HTMLCanvasElement = overlayCanvasRef.current;
-    const fullCanvas: HTMLCanvasElement = fullCanvasRef.current;
 
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
@@ -724,7 +721,6 @@ const ContentEditor = ({
         bearer,
         backgroundCanvas,
         overlayCanvas,
-        fullCanvas,
         canvassesTransferred,
         angle,
         bgUrl,
@@ -739,7 +735,6 @@ const ContentEditor = ({
     bgRev,
     canvassesTransferred,
     contentCanvasRef,
-    fullCanvasRef,
     handleWorkerMessage,
     ovRev,
     overlayCanvasRef,
@@ -861,7 +856,6 @@ const ContentEditor = ({
             Sorry, your browser does not support canvas.
           </canvas>
           <canvas className={styles.OverlayCanvas} ref={overlayCanvasRef} />
-          <canvas hidden ref={fullCanvasRef} />
           <input
             ref={colorInputRef}
             type="color"

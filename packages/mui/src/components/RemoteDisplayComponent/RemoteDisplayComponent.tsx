@@ -39,7 +39,6 @@ const RemoteDisplayComponent = () => {
   const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
-  const fullCanvasRef = createRef<HTMLCanvasElement>();
   const apiUrl: string | undefined = useSelector(
     (state: AppReducerState) => state.environment.api,
   );
@@ -179,7 +178,6 @@ const RemoteDisplayComponent = () => {
       apiUrl: string,
       contentCanvas: HTMLCanvasElement,
       overlayCanvas: HTMLCanvasElement,
-      fullCanvas: HTMLCanvasElement,
       bearer: string,
     ) => {
       // ignore null state -- happens when server has no useful state loaded yet
@@ -221,7 +219,6 @@ const RemoteDisplayComponent = () => {
           bearer,
           contentCanvas,
           overlayCanvas,
-          fullCanvas,
           canvassesTransferred,
           angle,
           background,
@@ -413,7 +410,6 @@ const RemoteDisplayComponent = () => {
   useEffect(() => {
     if (!overlayCanvasRef.current) return;
     if (!contentCanvasRef.current) return;
-    if (!fullCanvasRef.current) return;
     if (!apiUrl) return;
     if (!tableData) return;
     if (!token) return;
@@ -424,13 +420,11 @@ const RemoteDisplayComponent = () => {
       apiUrl,
       contentCanvasRef.current,
       overlayCanvasRef.current,
-      fullCanvasRef.current,
       token,
     );
   }, [
     contentCanvasRef,
     overlayCanvasRef,
-    fullCanvasRef,
     apiUrl,
     tableData,
     token,
@@ -462,7 +456,6 @@ const RemoteDisplayComponent = () => {
         Sorry, your browser does not support canvas.
       </canvas>
       <canvas className={styles.OverlayCanvas} ref={overlayCanvasRef} />
-      <canvas hidden ref={fullCanvasRef} />
     </div>
   );
 };

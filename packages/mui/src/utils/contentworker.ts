@@ -466,13 +466,13 @@ async function update(values: TableUpdate) {
       adjustZoomFromViewport(viewport);
     }
 
-    // this *should* be the one and only place we load the offscreen canvas
-    fullCtx.canvas.width = bgImg.width;
-    fullCtx.canvas.height = bgImg.height;
-
-    // TODO this probably only needs to happen during init
     const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
     thingCtx = thingCanvas.getContext("2d", {
+      alpha: true,
+    }) as OffscreenCanvasRenderingContext2D;
+
+    const fullCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
+    fullCtx = fullCanvas.getContext("2d", {
       alpha: true,
     }) as OffscreenCanvasRenderingContext2D;
 
@@ -484,7 +484,7 @@ async function update(values: TableUpdate) {
     }
     fullRerender(!viewport);
   } catch (err) {
-    console.error(`Unable to load iamges on update: ${JSON.stringify(err)}`);
+    console.error(`Unable to load images on update: ${JSON.stringify(err)}`);
   }
 }
 
@@ -521,14 +521,6 @@ self.onmessage = async (evt) => {
       overlayCtx = evt.data.overlay.getContext("2d", {
         alpha: true,
       }) as OffscreenCanvasRenderingContext2D;
-
-      // TODO do we really need to pass this canvas in or can we create it like we do the
-      // thingCanvas
-      if (evt.data.fullOverlay) {
-        fullCtx = evt.data.fullOverlay.getContext("2d", {
-          alpha: true,
-        }) as OffscreenCanvasRenderingContext2D;
-      }
 
       try {
         await update(evt.data.values);
