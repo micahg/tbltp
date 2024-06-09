@@ -9,7 +9,7 @@ import React, {
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { getRect } from "../../utils/drawing";
-import { Rect, getWidthAndHeight } from "../../utils/geometry";
+import { Rect } from "../../utils/geometry";
 import { MouseStateMachine } from "../../utils/mousestatemachine";
 import { setCallback } from "../../utils/statemachine";
 import styles from "./ContentEditor.module.css";
@@ -644,16 +644,23 @@ const ContentEditor = ({
       e.preventDefault();
       e.stopPropagation();
     };
+
+    // TODO remove event listener
     canvas.addEventListener("mousedown", (e) => sm.transition("down", e));
     canvas.addEventListener("mouseup", (e) => sm.transition("up", e));
     canvas.addEventListener("mousemove", (e) => sm.transition("move", e));
     canvas.addEventListener("wheel", (e) => sm.transition("wheel", e));
 
     // watch for canvas size changes and report to worker
-    new ResizeObserver((e) => handleResizeEvent(e)).observe(canvas);
+    const observer = new ResizeObserver((e) => handleResizeEvent(e));
+    observer.observe(canvas);
 
     // make sure we don't come back
     setCanvasListening(true);
+
+    return () => {
+      observer.unobserve(canvas);
+    };
   }, [canvasListening, handleResizeEvent, overlayCanvasRef, worker]);
 
   /**
@@ -709,7 +716,6 @@ const ContentEditor = ({
       const bgUrl = drawBG ? `${apiUrl}/${bContent}` : undefined;
 
       const angle = scene.angle || 0;
-      const [scrW, scrH] = getWidthAndHeight();
 
       // henceforth canvas is transferred -- this doesn't take effect until the next render
       // so the on this pass it is false when passed to setCanvassesTransferred even if set
@@ -721,8 +727,6 @@ const ContentEditor = ({
         fullCanvas,
         canvassesTransferred,
         angle,
-        scrW,
-        scrH,
         bgUrl,
         ovUrl,
       );

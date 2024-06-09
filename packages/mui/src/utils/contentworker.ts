@@ -1,4 +1,3 @@
-import { imageListClasses } from "@mui/material";
 import { TableUpdate } from "../components/RemoteDisplayComponent/RemoteDisplayComponent";
 import { LoadProgress, loadImage } from "./content";
 import {
@@ -190,6 +189,7 @@ function sizeVisibleCanvasses(width: number, height: number) {
 function loadAllImages(bearer: string, background: string, overlay?: string) {
   const progress = (p: LoadProgress) =>
     postMessage({ cmd: "progress", evt: p });
+  /*********** TODO test to see if we reload the same image twice */
   const bgP = loadImage(background, bearer, progress);
   const ovP = overlay
     ? loadImage(overlay, bearer, progress)
@@ -490,24 +490,37 @@ async function update(values: TableUpdate) {
 
 // eslint-disable-next-line no-restricted-globals
 self.onmessage = async (evt) => {
-  console.log(evt.data.cmd);
+  // console.log(evt.data.cmd);
   switch (evt.data.cmd) {
     case "init": {
-      _canvas.width = evt.data.values.screenWidth;
-      _canvas.height = evt.data.values.screenHeight;
-
-      if (evt.data.background) {
-        const bgCanvas = evt.data.background;
-        backgroundCtx = bgCanvas.getContext("2d", {
-          alpha: false,
-        }) as OffscreenCanvasRenderingContext2D;
+      console.log(`init values are ${JSON.stringify(evt.data.values)}`);
+      // ensure the background canvas is valid
+      const bgCanvas = evt.data.background;
+      if (!bgCanvas) {
+        console.error(
+          `ERROR: PORK CHOP SANDWHICHES - no background canvas in contentworker init`,
+        );
+        return;
       }
 
-      if (evt.data.overlay) {
-        overlayCtx = evt.data.overlay.getContext("2d", {
-          alpha: true,
-        }) as OffscreenCanvasRenderingContext2D;
+      const ovCanvas = evt.data.overlay;
+      if (!ovCanvas) {
+        console.error(
+          `ERROR: PORK CHOP SANDWICHES - no overlay canvas in contentworker init`,
+        );
+        return;
       }
+
+      _canvas.width = bgCanvas.width;
+      _canvas.height = bgCanvas.height;
+
+      backgroundCtx = bgCanvas.getContext("2d", {
+        alpha: false,
+      }) as OffscreenCanvasRenderingContext2D;
+
+      overlayCtx = evt.data.overlay.getContext("2d", {
+        alpha: true,
+      }) as OffscreenCanvasRenderingContext2D;
 
       // TODO do we really need to pass this canvas in or can we create it like we do the
       // thingCanvas

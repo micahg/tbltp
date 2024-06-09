@@ -1,12 +1,7 @@
 import { createRef, useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { renderViewPort } from "../../utils/drawing";
-import {
-  Rect,
-  getWidthAndHeight,
-  fillRotatedViewport,
-} from "../../utils/geometry";
+import { Rect } from "../../utils/geometry";
 import Alert from "@mui/material/Alert";
 import Stack from "@mui/material/Stack";
 
@@ -14,6 +9,7 @@ import styles from "./RemoteDisplayComponent.module.css";
 import { useNavigate } from "react-router-dom";
 import { Box } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
+import { debounce } from "lodash";
 
 /**
  * Table state sent to display client by websocket. A partial Scene.
@@ -74,6 +70,12 @@ const RemoteDisplayComponent = () => {
   const [canvassesTransferred, setCanvassesTransferred] =
     useState<boolean>(false); // avoid transfer errors
   const [worker, setWorker] = useState<Worker>();
+
+  const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
+    const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
+    if (w === 0 && h === 0) return; // when the component is hidden or destroyed
+    if (worker) worker.postMessage({ cmd: "resize", width: w, height: h });
+  }, 250);
 
   /**
    * Process a websocket message with table data
@@ -168,6 +170,8 @@ const RemoteDisplayComponent = () => {
 
   /**
    * Render table data
+   *
+   * TODO decouple setup (canvases, etc) from table state updates!  worker shouldn't be a dep of the setup routine
    */
   const processTableData = useCallback(
     (
@@ -211,7 +215,6 @@ const RemoteDisplayComponent = () => {
         return;
       }
 
-      const [width, height] = getWidthAndHeight();
       setCanvassesTransferred(true);
       if (!canvassesTransferred) {
         const wrkr = setupOffscreenCanvas(
@@ -221,8 +224,6 @@ const RemoteDisplayComponent = () => {
           fullCanvas,
           canvassesTransferred,
           angle,
-          width,
-          height,
           background,
           overlay,
           viewport,
@@ -397,6 +398,15 @@ const RemoteDisplayComponent = () => {
     };
   }, [connected, noauth, token, wsUrl, wsTimer]);
 
+  useEffect(() => {
+    const canvas = overlayCanvasRef.current;
+    if (!canvas) return;
+    const observer = new ResizeObserver((e) => handleResizeEvent(e));
+    observer.observe(canvas);
+    return () => {
+      observer.unobserve(canvas);
+    };
+  }, [handleResizeEvent, overlayCanvasRef]);
   /**
    * With all necessary components and some table data, trigger drawing
    */

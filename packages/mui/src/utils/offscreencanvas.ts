@@ -9,16 +9,12 @@ export function setupOffscreenCanvas(
   fullOverlayCanvas: HTMLCanvasElement,
   alreadyTransferred: boolean,
   angle: number,
-  screenWidth: number,
-  screenHeight: number,
   background?: string,
   overlay?: string,
   viewport?: Rect,
 ): Worker {
   const values = {
     bearer: bearer,
-    screenWidth: screenWidth,
-    screenHeight: screenHeight,
     overlay: overlay,
     background: background,
     angle: angle,
