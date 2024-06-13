@@ -746,6 +746,18 @@ const ContentEditor = ({
     }, 250);
     const observer = new ResizeObserver((e) => handleResizeEvent(e));
     observer.observe(ov);
+
+    // no matter what we seem to be unable to do this... once the canvas is transferred, destroying the
+    // worker prevents us from using it since we cannot transfer it twice.
+    // return () => {
+    //   ov.removeEventListener("mousedown", mouseDownTransition);
+    //   ov.removeEventListener("mouseup", mouseUpTransition);
+    //   ov.removeEventListener("mousemove", mouseMoveTransition);
+    //   ov.removeEventListener("wheel", mouseWheelTransition);
+    //   observer.unobserve(ov);
+    //   wrkr.terminate();
+    //   console.log(`MICAH WORKER TERMINATED`);
+    // };
   }, [
     canvassesTransferred,
     contentCanvasRef,
