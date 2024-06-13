@@ -91,6 +91,7 @@ const ContentEditor = ({
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
   const [showOpacitySlider, setShowOpacitySlider] = useState<boolean>(false);
   const [opacitySliderVal, setOpacitySliderVal] = useState<number>(1);
+  // todo remove viewportSize
   const [viewportSize, setViewportSize] = useState<number[] | null>(null);
   const [imageSize, setImageSize] = useState<number[] | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -98,6 +99,7 @@ const ContentEditor = ({
   const [ovRev, setOvRev] = useState<number>(0);
   const [sceneId, setSceneId] = useState<string>(); // used to track flipping between scenes
   const [worker, setWorker] = useState<Worker>();
+  // todo remove canvasListening
   const [canvasListening, setCanvasListening] = useState<boolean>(false);
   const [canvassesTransferred, setCanvassesTransferred] =
     useState<boolean>(false); // avoid transfer errors
@@ -213,14 +215,6 @@ const ContentEditor = ({
     worker.postMessage({ cmd: "colour", red: red, green: green, blue: blue });
   };
 
-  const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
-    const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
-    if (w === 0 && h === 0) return; // when the component is hidden or destroyed
-    if (!worker) return;
-    console.log(`CALLING RESIZE`);
-    worker.postMessage({ cmd: "resize", width: w, height: h });
-  }, 250);
-
   const handleMouseMove = useCallback(
     (buttons: number, x: number, y: number) => {
       if (!worker) return;
@@ -254,7 +248,7 @@ const ContentEditor = ({
           const vp = evt.data.viewport;
           dispatch({ type: "content/zoom", payload: { viewport: vp } });
         } else console.error("No viewport in worker message");
-      } else if (evt.data.cmd === "initialized") {
+      } else if (evt.data.cmd === "resized") {
         if (!("width" in evt.data) || typeof evt.data.width !== "number") {
           console.error("Invalid width in worker initialized message");
           return;
@@ -633,38 +627,6 @@ const ContentEditor = ({
     updateRecording,
   ]);
 
-  useEffect(() => {
-    /**
-     * We avoid adding listeners or resize observers on every rerender,
-     * otherwise, you start stacking up the same event multiple times.
-     */
-    const canvas = overlayCanvasRef.current;
-    // TODO MICAH canvasListening is the problem -- once its set to true, we never readd the event listeners
-    if (!worker || !canvas || canvasListening) return;
-    // prevent right click context menu on canvas
-    canvas.oncontextmenu = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    // TODO remove event listener
-    canvas.addEventListener("mousedown", (e) => sm.transition("down", e));
-    canvas.addEventListener("mouseup", (e) => sm.transition("up", e));
-    canvas.addEventListener("mousemove", (e) => sm.transition("move", e));
-    canvas.addEventListener("wheel", (e) => sm.transition("wheel", e));
-
-    // watch for canvas size changes and report to worker
-    const observer = new ResizeObserver((e) => handleResizeEvent(e));
-    observer.observe(canvas);
-
-    // make sure we don't come back
-    setCanvasListening(true);
-
-    return () => {
-      observer.unobserve(canvas);
-    };
-  }, [canvasListening, handleResizeEvent, overlayCanvasRef, worker]);
-
   /**
    * This is the main rendering loop. Its a bit odd looking but we're working really hard to avoid repainting
    * when we don't have to. We should only repaint when a scene changes OR an asset version has changed
@@ -728,20 +690,6 @@ const ContentEditor = ({
           angle,
         },
       });
-      // // henceforth canvas is transferred -- this doesn't take effect until the next render
-      // // so the on this pass it is false when passed to setCanvassesTransferred even if set
-      // setCanvassesTransferred(true);
-      // const wrkr = setupOffscreenCanvas(
-      //   bearer,
-      //   backgroundCanvas,
-      //   overlayCanvas,
-      //   canvassesTransferred,
-      //   angle,
-      //   bgUrl,
-      //   ovUrl,
-      // );
-      // setWorker(wrkr);
-      // wrkr.onmessage = handleWorkerMessage;
     }
   }, [
     apiUrl,
@@ -775,6 +723,29 @@ const ContentEditor = ({
     );
     setWorker(wrkr);
     wrkr.onmessage = handleWorkerMessage;
+    ov.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const mouseDownTransition = (e: MouseEvent) => sm.transition("down", e);
+    const mouseUpTransition = (e: MouseEvent) => sm.transition("up", e);
+    const mouseMoveTransition = (e: MouseEvent) => sm.transition("move", e);
+    const mouseWheelTransition = (e: WheelEvent) => sm.transition("wheel", e);
+
+    ov.addEventListener("mousedown", mouseDownTransition);
+    ov.addEventListener("mouseup", mouseUpTransition);
+    ov.addEventListener("mousemove", mouseMoveTransition);
+    ov.addEventListener("wheel", mouseWheelTransition);
+
+    // watch for canvas size changes and report to worker
+    const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
+      const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
+      if (w === 0 && h === 0) return; // when the component is hidden or destroyed
+      wrkr.postMessage({ cmd: "resize", width: w, height: h });
+    }, 250);
+    const observer = new ResizeObserver((e) => handleResizeEvent(e));
+    observer.observe(ov);
   }, [
     canvassesTransferred,
     contentCanvasRef,
