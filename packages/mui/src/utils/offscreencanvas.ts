@@ -6,7 +6,7 @@ export function setupOffscreenCanvas(
   bearer: string,
   backgroundCanvas: HTMLCanvasElement,
   overlayCanvas: HTMLCanvasElement,
-  alreadyTransferred: boolean,
+  alreadyTransferred: boolean, // TODO I SHOULD NOT NEED THIS
   angle: number,
   background?: string,
   overlay?: string,

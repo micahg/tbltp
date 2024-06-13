@@ -47,6 +47,14 @@ import { debounce } from "lodash";
 import { LoadProgress } from "../../utils/content";
 
 const sm = new MouseStateMachine();
+// define event listener transitions so we can remove them
+const mouseDownTransition = (e: MouseEvent) => sm.transition("down", e);
+const mouseUpTransition = (e: MouseEvent) => sm.transition("up", e);
+const mouseMoveTransition = (e: MouseEvent) => sm.transition("move", e);
+const mouseWheelTransition = (e: WheelEvent) => {
+  console.log(`wheely`);
+  sm.transition("wheel", e);
+};
 
 interface ContentEditorProps {
   populateToolbar?: (actions: GameMasterAction[]) => void;
@@ -213,11 +221,15 @@ const ContentEditor = ({
     worker.postMessage({ cmd: "colour", red: red, green: green, blue: blue });
   };
 
-  const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
-    const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
-    if (w === 0 && h === 0) return; // when the component is hidden or destroyed
-    if (worker) worker.postMessage({ cmd: "resize", width: w, height: h });
-  }, 250);
+  const handleResizeEvent = debounce(
+    async (e: ResizeObserverEntry[], wrkr: Worker) => {
+      console.log(`Resize event: ${JSON.stringify(e[0])}`);
+      const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
+      if (w === 0 && h === 0) return; // when the component is hidden or destroyed
+      wrkr.postMessage({ cmd: "resize", width: w, height: h });
+    },
+    250,
+  );
 
   const handleMouseMove = useCallback(
     (buttons: number, x: number, y: number) => {
@@ -636,45 +648,94 @@ const ContentEditor = ({
      * We avoid adding listeners or resize observers on every rerender,
      * otherwise, you start stacking up the same event multiple times.
      */
-    const canvas = overlayCanvasRef.current;
-    if (!worker || !canvas || canvasListening) return;
+    const ov = overlayCanvasRef.current;
+    const bg = contentCanvasRef.current;
+    if (worker || !ov || !bg || canvasListening) {
+      return;
+    }
     // prevent right click context menu on canvas
-    canvas.oncontextmenu = (e) => {
+    ov.oncontextmenu = (e) => {
       e.preventDefault();
       e.stopPropagation();
     };
 
-    // TODO remove event listener
-    canvas.addEventListener("mousedown", (e) => sm.transition("down", e));
-    canvas.addEventListener("mouseup", (e) => sm.transition("up", e));
-    canvas.addEventListener("mousemove", (e) => sm.transition("move", e));
-    canvas.addEventListener("wheel", (e) => sm.transition("wheel", e));
-
-    // watch for canvas size changes and report to worker
-    const observer = new ResizeObserver((e) => handleResizeEvent(e));
-    observer.observe(canvas);
+    ov.addEventListener("mousedown", (e) => sm.transition("down", e));
+    ov.addEventListener("mouseup", (e) => sm.transition("up", e));
+    ov.addEventListener("mousemove", (e) => sm.transition("move", e));
+    ov.addEventListener("wheel", (e) => sm.transition("wheel", e));
+    /*// define event listener transitions so we can remove them
+const mouseDownTransition = (e: MouseEvent) => sm.transition("down", e);
+const mouseUpTransition = (e: MouseEvent) => sm.transition("up", e);
+const mouseMoveTransition = (e: MouseEvent) => sm.transition("move", e);
+const mouseWheelTransition = (e: WheelEvent) => {
+  console.log(`wheely`);
+  sm.transition("wheel", e);
+};*/
+    // ov.addEventListener("mousedown", (e) => sm.transition("down", e));
+    // ov.addEventListener("mouseup", (e) => sm.transition("up", e));
+    // ov.addEventListener("mousemove", (e) => sm.transition("move", e));
+    // ov.addEventListener("wheel", (e) => {
+    //   console.log(`wheely`);
+    //   sm.transition("wheel", e);
+    // });
 
     // make sure we don't come back
     setCanvasListening(true);
 
-    return () => {
-      observer.unobserve(canvas);
+    // henceforth canvas is transferred -- this doesn't take effect until the next render
+    // so the on this pass it is false when passed to setCanvassesTransferred even if set
+    setCanvassesTransferred(true);
+    const wrkr = setupOffscreenCanvas(
+      "bearer",
+      bg,
+      ov,
+      canvassesTransferred,
+      0,
+      "bgUrl",
+      "ovUrl",
+    );
+    setWorker(wrkr);
+    wrkr.onmessage = handleWorkerMessage;
+    wrkr.onerror = (ev) => {
+      console.error(`WORKER ERROR: ${JSON.stringify(ev)}`);
     };
-  }, [canvasListening, handleResizeEvent, overlayCanvasRef, worker]);
+    console.log(`MICAH WORKER CREATED`);
+
+    // watch for canvas size changes and report to worker
+    const observer = new ResizeObserver((e) => handleResizeEvent(e, wrkr));
+    // const observer = new ResizeObserver((e) => {
+    //   wrkr.postMessage({ cmd: "resize", event: e });
+    // });
+    observer.observe(ov);
+    console.log(`OBSERVING RESIZE`);
+
+    // return () => {
+    //   ov.removeEventListener("mousedown", mouseDownTransition);
+    //   ov.removeEventListener("mouseup", mouseUpTransition);
+    //   ov.removeEventListener("mousemove", mouseMoveTransition);
+    //   ov.removeEventListener("wheel", mouseWheelTransition);
+    //   // observer.unobserve(ov);
+    //   // wrkr.terminate();
+    //   console.log(`MICAH WORKER TERMINATED`);
+    // };
+  }, [
+    canvasListening,
+    canvassesTransferred,
+    contentCanvasRef,
+    handleResizeEvent,
+    handleWorkerMessage,
+    overlayCanvasRef,
+    worker,
+  ]);
+
+  useEffect(() => console.log(`WORKER IS ${worker}`), [worker]);
 
   /**
    * This is the main rendering loop. Its a bit odd looking but we're working really hard to avoid repainting
    * when we don't have to. We should only repaint when a scene changes OR an asset version has changed
    */
   useEffect(() => {
-    if (
-      !apiUrl ||
-      !scene ||
-      !bearer ||
-      !contentCanvasRef?.current ||
-      !overlayCanvasRef?.current
-    )
-      return;
+    if (!apiUrl || !worker || !scene || !bearer || !canvasListening) return;
 
     // get the detailed or player content
     const [bRev, bContent] = [
@@ -685,8 +746,6 @@ const ContentEditor = ({
       scene.overlayContentRev || 0,
       scene.overlayContent,
     ];
-    const backgroundCanvas: HTMLCanvasElement = contentCanvasRef.current;
-    const overlayCanvas: HTMLCanvasElement = overlayCanvasRef.current;
 
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
@@ -709,30 +768,25 @@ const ContentEditor = ({
     if (!drawBG && !drawOV) return;
 
     if (drawBG) {
-      const ovUrl = drawOV ? `${apiUrl}/${oContent}` : undefined;
-      const bgUrl = drawBG ? `${apiUrl}/${bContent}` : undefined;
-
+      const overlay = drawOV ? `${apiUrl}/${oContent}` : undefined;
+      const background = drawBG ? `${apiUrl}/${bContent}` : undefined;
       const angle = scene.angle || 0;
 
-      // henceforth canvas is transferred -- this doesn't take effect until the next render
-      // so the on this pass it is false when passed to setCanvassesTransferred even if set
-      setCanvassesTransferred(true);
-      const wrkr = setupOffscreenCanvas(
-        bearer,
-        backgroundCanvas,
-        overlayCanvas,
-        canvassesTransferred,
-        angle,
-        bgUrl,
-        ovUrl,
-      );
-      setWorker(wrkr);
-      wrkr.onmessage = handleWorkerMessage;
+      worker.postMessage({
+        cmd: "update",
+        values: {
+          background,
+          overlay,
+          bearer,
+          angle,
+        },
+      });
     }
   }, [
     apiUrl,
     bearer,
     bgRev,
+    canvasListening,
     canvassesTransferred,
     contentCanvasRef,
     handleWorkerMessage,
@@ -740,6 +794,7 @@ const ContentEditor = ({
     overlayCanvasRef,
     scene,
     sceneId,
+    worker,
   ]);
 
   // make sure we end the push state when we get a successful push time update
