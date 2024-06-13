@@ -490,10 +490,9 @@ async function update(values: TableUpdate) {
 
 // eslint-disable-next-line no-restricted-globals
 self.onmessage = async (evt) => {
-  // console.log(evt.data.cmd);
+  console.log(evt.data.cmd);
   switch (evt.data.cmd) {
     case "init": {
-      console.log(`init values are ${JSON.stringify(evt.data.values)}`);
       // ensure the background canvas is valid
       const bgCanvas = evt.data.background;
       if (!bgCanvas) {
@@ -522,20 +521,6 @@ self.onmessage = async (evt) => {
         alpha: true,
       }) as OffscreenCanvasRenderingContext2D;
 
-      try {
-        await update(evt.data.values);
-        postMessage({
-          cmd: "initialized",
-          width: _vp.width,
-          height: _vp.height,
-          fullWidth: backgroundImage.width,
-          fullHeight: backgroundImage.height,
-        });
-      } catch (err) {
-        console.error(
-          `Unable to load image ${evt.data.url}: ${JSON.stringify(err)}`,
-        );
-      }
       break;
     }
     case "update": {

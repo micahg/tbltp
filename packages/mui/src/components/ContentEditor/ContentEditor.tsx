@@ -216,7 +216,9 @@ const ContentEditor = ({
   const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
     const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
     if (w === 0 && h === 0) return; // when the component is hidden or destroyed
-    if (worker) worker.postMessage({ cmd: "resize", width: w, height: h });
+    if (!worker) return;
+    console.log(`CALLING RESIZE`);
+    worker.postMessage({ cmd: "resize", width: w, height: h });
   }, 250);
 
   const handleMouseMove = useCallback(
@@ -637,6 +639,7 @@ const ContentEditor = ({
      * otherwise, you start stacking up the same event multiple times.
      */
     const canvas = overlayCanvasRef.current;
+    // TODO MICAH canvasListening is the problem -- once its set to true, we never readd the event listeners
     if (!worker || !canvas || canvasListening) return;
     // prevent right click context menu on canvas
     canvas.oncontextmenu = (e) => {
@@ -671,8 +674,10 @@ const ContentEditor = ({
       !apiUrl ||
       !scene ||
       !bearer ||
+      !worker ||
+      !canvassesTransferred /*||
       !contentCanvasRef?.current ||
-      !overlayCanvasRef?.current
+      !overlayCanvasRef?.current*/
     )
       return;
 
@@ -685,8 +690,8 @@ const ContentEditor = ({
       scene.overlayContentRev || 0,
       scene.overlayContent,
     ];
-    const backgroundCanvas: HTMLCanvasElement = contentCanvasRef.current;
-    const overlayCanvas: HTMLCanvasElement = overlayCanvasRef.current;
+    // const backgroundCanvas: HTMLCanvasElement = contentCanvasRef.current;
+    // const overlayCanvas: HTMLCanvasElement = overlayCanvasRef.current;
 
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
@@ -709,37 +714,72 @@ const ContentEditor = ({
     if (!drawBG && !drawOV) return;
 
     if (drawBG) {
-      const ovUrl = drawOV ? `${apiUrl}/${oContent}` : undefined;
-      const bgUrl = drawBG ? `${apiUrl}/${bContent}` : undefined;
+      const overlay = drawOV ? `${apiUrl}/${oContent}` : undefined;
+      const background = drawBG ? `${apiUrl}/${bContent}` : undefined;
 
       const angle = scene.angle || 0;
 
-      // henceforth canvas is transferred -- this doesn't take effect until the next render
-      // so the on this pass it is false when passed to setCanvassesTransferred even if set
-      setCanvassesTransferred(true);
-      const wrkr = setupOffscreenCanvas(
-        bearer,
-        backgroundCanvas,
-        overlayCanvas,
-        canvassesTransferred,
-        angle,
-        bgUrl,
-        ovUrl,
-      );
-      setWorker(wrkr);
-      wrkr.onmessage = handleWorkerMessage;
+      worker.postMessage({
+        cmd: "update",
+        values: {
+          background,
+          overlay,
+          bearer,
+          angle,
+        },
+      });
+      // // henceforth canvas is transferred -- this doesn't take effect until the next render
+      // // so the on this pass it is false when passed to setCanvassesTransferred even if set
+      // setCanvassesTransferred(true);
+      // const wrkr = setupOffscreenCanvas(
+      //   bearer,
+      //   backgroundCanvas,
+      //   overlayCanvas,
+      //   canvassesTransferred,
+      //   angle,
+      //   bgUrl,
+      //   ovUrl,
+      // );
+      // setWorker(wrkr);
+      // wrkr.onmessage = handleWorkerMessage;
     }
   }, [
     apiUrl,
     bearer,
     bgRev,
     canvassesTransferred,
-    contentCanvasRef,
-    handleWorkerMessage,
     ovRev,
-    overlayCanvasRef,
     scene,
     sceneId,
+    worker,
+  ]);
+
+  useEffect(() => {
+    const bg = contentCanvasRef.current;
+    const ov = overlayCanvasRef.current;
+    // todo get rid of canvassesTransferred
+    if (!bg || !ov || canvassesTransferred) {
+      return;
+    }
+    // henceforth canvas is transferred -- this doesn't take effect until the next render
+    // so the on this pass it is false when passed to setCanvassesTransferred even if set
+    setCanvassesTransferred(true);
+    const wrkr = setupOffscreenCanvas(
+      "",
+      bg,
+      ov,
+      canvassesTransferred,
+      0,
+      "",
+      "",
+    );
+    setWorker(wrkr);
+    wrkr.onmessage = handleWorkerMessage;
+  }, [
+    canvassesTransferred,
+    contentCanvasRef,
+    handleWorkerMessage,
+    overlayCanvasRef,
   ]);
 
   // make sure we end the push state when we get a successful push time update
