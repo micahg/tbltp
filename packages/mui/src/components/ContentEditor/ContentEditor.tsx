@@ -68,6 +68,7 @@ interface InternalState {
   zoom: boolean;
   act: RecordingAction;
   rec: boolean;
+  transferred: boolean;
 }
 
 const ContentEditor = ({
@@ -86,6 +87,7 @@ const ContentEditor = ({
     color: createRef(),
     act: "move",
     rec: false,
+    transferred: false,
   });
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
@@ -99,10 +101,6 @@ const ContentEditor = ({
   const [ovRev, setOvRev] = useState<number>(0);
   const [sceneId, setSceneId] = useState<string>(); // used to track flipping between scenes
   const [worker, setWorker] = useState<Worker>();
-  // todo remove canvasListening
-  const [canvasListening, setCanvasListening] = useState<boolean>(false);
-  const [canvassesTransferred, setCanvassesTransferred] =
-    useState<boolean>(false); // avoid transfer errors
   const [downloads] = useState<Record<string, number>>({});
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [selection, setSelection] = useState<Rect | null>(null);
@@ -632,16 +630,7 @@ const ContentEditor = ({
    * when we don't have to. We should only repaint when a scene changes OR an asset version has changed
    */
   useEffect(() => {
-    if (
-      !apiUrl ||
-      !scene ||
-      !bearer ||
-      !worker ||
-      !canvassesTransferred /*||
-      !contentCanvasRef?.current ||
-      !overlayCanvasRef?.current*/
-    )
-      return;
+    if (!apiUrl || !scene || !bearer || !worker) return;
 
     // get the detailed or player content
     const [bRev, bContent] = [
@@ -691,37 +680,18 @@ const ContentEditor = ({
         },
       });
     }
-  }, [
-    apiUrl,
-    bearer,
-    bgRev,
-    canvassesTransferred,
-    ovRev,
-    scene,
-    sceneId,
-    worker,
-  ]);
+  }, [apiUrl, bearer, bgRev, ovRev, scene, sceneId, worker]);
 
   useEffect(() => {
     const bg = contentCanvasRef.current;
     const ov = overlayCanvasRef.current;
-    // todo get rid of canvassesTransferred
-    if (!bg || !ov || canvassesTransferred) {
+    if (!bg || !ov || internalState.transferred) {
       return;
     }
-    // henceforth canvas is transferred -- this doesn't take effect until the next render
-    // so the on this pass it is false when passed to setCanvassesTransferred even if set
-    setCanvassesTransferred(true);
-    const wrkr = setupOffscreenCanvas(
-      "",
-      bg,
-      ov,
-      canvassesTransferred,
-      0,
-      "",
-      "",
-    );
+
+    const wrkr = setupOffscreenCanvas("", bg, ov, false, 0, "", "");
     setWorker(wrkr);
+    internalState.transferred = true;
     wrkr.onmessage = handleWorkerMessage;
     ov.oncontextmenu = (e) => {
       e.preventDefault();
@@ -747,23 +717,15 @@ const ContentEditor = ({
     const observer = new ResizeObserver((e) => handleResizeEvent(e));
     observer.observe(ov);
 
-    // no matter what we seem to be unable to do this... once the canvas is transferred, destroying the
-    // worker prevents us from using it since we cannot transfer it twice.
-    // return () => {
-    //   ov.removeEventListener("mousedown", mouseDownTransition);
-    //   ov.removeEventListener("mouseup", mouseUpTransition);
-    //   ov.removeEventListener("mousemove", mouseMoveTransition);
-    //   ov.removeEventListener("wheel", mouseWheelTransition);
-    //   observer.unobserve(ov);
-    //   wrkr.terminate();
-    //   console.log(`MICAH WORKER TERMINATED`);
-    // };
-  }, [
-    canvassesTransferred,
-    contentCanvasRef,
-    handleWorkerMessage,
-    overlayCanvasRef,
-  ]);
+    /**
+     * Good form would have us cleanup our worker and event listeners -- but here is the
+     * thing Micah will almost certainly forget in a month. Once we create the worker, it
+     * basically lives forever until our window or tab is closed. This has been tested
+     * using a counter that increments every "init" -- it goes up. So basically we just
+     * pass these canvasses over once, and make sure we dont' setup their events more than
+     * once and we're good
+     */
+  }, [contentCanvasRef, handleWorkerMessage, internalState, overlayCanvasRef]);
 
   // make sure we end the push state when we get a successful push time update
   useEffect(() => sm.transition("done"), [pushTime]);
