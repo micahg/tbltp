@@ -688,7 +688,7 @@ const ContentEditor = ({
       return;
     }
 
-    const wrkr = setupOffscreenCanvas("", bg, ov, false, 0, "", "");
+    const wrkr = setupOffscreenCanvas(bg, ov);
     setWorker(wrkr);
     internalState.transferred = true;
     wrkr.onmessage = handleWorkerMessage;
