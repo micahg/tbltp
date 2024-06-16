@@ -93,8 +93,6 @@ const ContentEditor = ({
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
   const [showOpacitySlider, setShowOpacitySlider] = useState<boolean>(false);
   const [opacitySliderVal, setOpacitySliderVal] = useState<number>(1);
-  // todo remove viewportSize
-  const [viewportSize, setViewportSize] = useState<number[] | null>(null);
   const [imageSize, setImageSize] = useState<number[] | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [bgRev, setBgRev] = useState<number>(0);
@@ -269,7 +267,6 @@ const ContentEditor = ({
           console.error("Invalid fullHeight in worker initialized message");
           return;
         }
-        setViewportSize([evt.data.width, evt.data.height]);
         setImageSize([evt.data.fullWidth, evt.data.fullHeight]);
       } else if (evt.data.cmd === "pan_complete") {
         // after panning is done, we can go back to waiting state
@@ -435,9 +432,7 @@ const ContentEditor = ({
   useEffect(() => {
     if (!scene || !scene.viewport || !scene.backgroundSize) return;
     if (!worker) return;
-    if (!viewportSize) return;
     if (!redrawToolbar) return;
-
     const v = scene.viewport;
     const bg = scene.backgroundSize;
     // need to ignore rotation
@@ -453,7 +448,7 @@ const ContentEditor = ({
     internalState.zoom = !zoomedOut;
     redrawToolbar();
     sm.transition("wait");
-  }, [scene, viewportSize, internalState, redrawToolbar, worker]);
+  }, [scene, internalState, redrawToolbar, worker]);
 
   useEffect(() => {
     /**
@@ -461,7 +456,6 @@ const ContentEditor = ({
      * updated state for some of the callbacks (eg: rotation).
      */
     if (!overlayCanvasRef.current) return;
-    if (!viewportSize || !viewportSize.length) return;
     if (!imageSize || !imageSize.length) return;
     if (!scene || !worker) return;
 
@@ -611,7 +605,6 @@ const ContentEditor = ({
       sm.transition("done");
     });
   }, [
-    viewportSize,
     dispatch,
     imageSize,
     sceneManager,
@@ -683,6 +676,12 @@ const ContentEditor = ({
   }, [apiUrl, bearer, bgRev, ovRev, scene, sceneId, worker]);
 
   useEffect(() => {
+    /**
+     * the canvas refs are not really reliable indicators of our state. They
+     * change more than once after we are setup. To avoid setting up duplicate
+     * event listeners and handlers, we're using the internal state to exit if
+     * the canvas has already been transferred.
+     */
     const bg = contentCanvasRef.current;
     const ov = overlayCanvasRef.current;
     if (!bg || !ov || internalState.transferred) {
@@ -722,8 +721,8 @@ const ContentEditor = ({
      * thing Micah will almost certainly forget in a month. Once we create the worker, it
      * basically lives forever until our window or tab is closed. This has been tested
      * using a counter that increments every "init" -- it goes up. So basically we just
-     * pass these canvasses over once, and make sure we dont' setup their events more than
-     * once and we're good
+     * pass these canvasses over once, and make sure we don't setup their event listeners
+     * more than once.
      */
   }, [contentCanvasRef, handleWorkerMessage, internalState, overlayCanvasRef]);
 
