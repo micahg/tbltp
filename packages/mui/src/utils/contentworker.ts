@@ -493,7 +493,6 @@ self.onmessage = async (evt) => {
   // console.log(evt.data.cmd);
   switch (evt.data.cmd) {
     case "init": {
-      console.log(`init values are ${JSON.stringify(evt.data.values)}`);
       // ensure the background canvas is valid
       const bgCanvas = evt.data.background;
       if (!bgCanvas) {
@@ -522,25 +521,19 @@ self.onmessage = async (evt) => {
         alpha: true,
       }) as OffscreenCanvasRenderingContext2D;
 
-      try {
-        await update(evt.data.values);
-        postMessage({
-          cmd: "initialized",
-          width: _vp.width,
-          height: _vp.height,
-          fullWidth: backgroundImage.width,
-          fullHeight: backgroundImage.height,
-        });
-      } catch (err) {
-        console.error(
-          `Unable to load image ${evt.data.url}: ${JSON.stringify(err)}`,
-        );
-      }
       break;
     }
     case "update": {
       try {
         await update(evt.data.values);
+        // technically, because the background changed, we've resized due to the image changing size
+        postMessage({
+          cmd: "resized",
+          width: _vp.width,
+          height: _vp.height,
+          fullWidth: backgroundImage.width,
+          fullHeight: backgroundImage.height,
+        });
       } catch (err) {
         console.error(`Unable to update: ${JSON.stringify(err)}`);
       }
@@ -553,6 +546,13 @@ self.onmessage = async (evt) => {
         calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
         trimPanning();
         fullRerender();
+        postMessage({
+          cmd: "resized",
+          width: _vp.width,
+          height: _vp.height,
+          fullWidth: backgroundImage.width,
+          fullHeight: backgroundImage.height,
+        });
       }
       break;
     }

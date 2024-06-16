@@ -68,6 +68,7 @@ interface InternalState {
   zoom: boolean;
   act: RecordingAction;
   rec: boolean;
+  transferred: boolean;
 }
 
 const ContentEditor = ({
@@ -86,21 +87,18 @@ const ContentEditor = ({
     color: createRef(),
     act: "move",
     rec: false,
+    transferred: false,
   });
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
   const [showOpacitySlider, setShowOpacitySlider] = useState<boolean>(false);
   const [opacitySliderVal, setOpacitySliderVal] = useState<number>(1);
-  const [viewportSize, setViewportSize] = useState<number[] | null>(null);
   const [imageSize, setImageSize] = useState<number[] | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [bgRev, setBgRev] = useState<number>(0);
   const [ovRev, setOvRev] = useState<number>(0);
   const [sceneId, setSceneId] = useState<string>(); // used to track flipping between scenes
   const [worker, setWorker] = useState<Worker>();
-  const [canvasListening, setCanvasListening] = useState<boolean>(false);
-  const [canvassesTransferred, setCanvassesTransferred] =
-    useState<boolean>(false); // avoid transfer errors
   const [downloads] = useState<Record<string, number>>({});
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [selection, setSelection] = useState<Rect | null>(null);
@@ -213,12 +211,6 @@ const ContentEditor = ({
     worker.postMessage({ cmd: "colour", red: red, green: green, blue: blue });
   };
 
-  const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
-    const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
-    if (w === 0 && h === 0) return; // when the component is hidden or destroyed
-    if (worker) worker.postMessage({ cmd: "resize", width: w, height: h });
-  }, 250);
-
   const handleMouseMove = useCallback(
     (buttons: number, x: number, y: number) => {
       if (!worker) return;
@@ -252,7 +244,7 @@ const ContentEditor = ({
           const vp = evt.data.viewport;
           dispatch({ type: "content/zoom", payload: { viewport: vp } });
         } else console.error("No viewport in worker message");
-      } else if (evt.data.cmd === "initialized") {
+      } else if (evt.data.cmd === "resized") {
         if (!("width" in evt.data) || typeof evt.data.width !== "number") {
           console.error("Invalid width in worker initialized message");
           return;
@@ -275,7 +267,6 @@ const ContentEditor = ({
           console.error("Invalid fullHeight in worker initialized message");
           return;
         }
-        setViewportSize([evt.data.width, evt.data.height]);
         setImageSize([evt.data.fullWidth, evt.data.fullHeight]);
       } else if (evt.data.cmd === "pan_complete") {
         // after panning is done, we can go back to waiting state
@@ -441,9 +432,7 @@ const ContentEditor = ({
   useEffect(() => {
     if (!scene || !scene.viewport || !scene.backgroundSize) return;
     if (!worker) return;
-    if (!viewportSize) return;
     if (!redrawToolbar) return;
-
     const v = scene.viewport;
     const bg = scene.backgroundSize;
     // need to ignore rotation
@@ -459,7 +448,7 @@ const ContentEditor = ({
     internalState.zoom = !zoomedOut;
     redrawToolbar();
     sm.transition("wait");
-  }, [scene, viewportSize, internalState, redrawToolbar, worker]);
+  }, [scene, internalState, redrawToolbar, worker]);
 
   useEffect(() => {
     /**
@@ -467,7 +456,6 @@ const ContentEditor = ({
      * updated state for some of the callbacks (eg: rotation).
      */
     if (!overlayCanvasRef.current) return;
-    if (!viewportSize || !viewportSize.length) return;
     if (!imageSize || !imageSize.length) return;
     if (!scene || !worker) return;
 
@@ -617,7 +605,6 @@ const ContentEditor = ({
       sm.transition("done");
     });
   }, [
-    viewportSize,
     dispatch,
     imageSize,
     sceneManager,
@@ -631,50 +618,12 @@ const ContentEditor = ({
     updateRecording,
   ]);
 
-  useEffect(() => {
-    /**
-     * We avoid adding listeners or resize observers on every rerender,
-     * otherwise, you start stacking up the same event multiple times.
-     */
-    const canvas = overlayCanvasRef.current;
-    if (!worker || !canvas || canvasListening) return;
-    // prevent right click context menu on canvas
-    canvas.oncontextmenu = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    // TODO remove event listener
-    canvas.addEventListener("mousedown", (e) => sm.transition("down", e));
-    canvas.addEventListener("mouseup", (e) => sm.transition("up", e));
-    canvas.addEventListener("mousemove", (e) => sm.transition("move", e));
-    canvas.addEventListener("wheel", (e) => sm.transition("wheel", e));
-
-    // watch for canvas size changes and report to worker
-    const observer = new ResizeObserver((e) => handleResizeEvent(e));
-    observer.observe(canvas);
-
-    // make sure we don't come back
-    setCanvasListening(true);
-
-    return () => {
-      observer.unobserve(canvas);
-    };
-  }, [canvasListening, handleResizeEvent, overlayCanvasRef, worker]);
-
   /**
    * This is the main rendering loop. Its a bit odd looking but we're working really hard to avoid repainting
    * when we don't have to. We should only repaint when a scene changes OR an asset version has changed
    */
   useEffect(() => {
-    if (
-      !apiUrl ||
-      !scene ||
-      !bearer ||
-      !contentCanvasRef?.current ||
-      !overlayCanvasRef?.current
-    )
-      return;
+    if (!apiUrl || !scene || !bearer || !worker) return;
 
     // get the detailed or player content
     const [bRev, bContent] = [
@@ -685,8 +634,6 @@ const ContentEditor = ({
       scene.overlayContentRev || 0,
       scene.overlayContent,
     ];
-    const backgroundCanvas: HTMLCanvasElement = contentCanvasRef.current;
-    const overlayCanvas: HTMLCanvasElement = overlayCanvasRef.current;
 
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
@@ -709,38 +656,68 @@ const ContentEditor = ({
     if (!drawBG && !drawOV) return;
 
     if (drawBG) {
-      const ovUrl = drawOV ? `${apiUrl}/${oContent}` : undefined;
-      const bgUrl = drawBG ? `${apiUrl}/${bContent}` : undefined;
+      const overlay = drawOV ? `${apiUrl}/${oContent}` : undefined;
+      const background = drawBG ? `${apiUrl}/${bContent}` : undefined;
 
       const angle = scene.angle || 0;
 
-      // henceforth canvas is transferred -- this doesn't take effect until the next render
-      // so the on this pass it is false when passed to setCanvassesTransferred even if set
-      setCanvassesTransferred(true);
-      const wrkr = setupOffscreenCanvas(
-        bearer,
-        backgroundCanvas,
-        overlayCanvas,
-        canvassesTransferred,
-        angle,
-        bgUrl,
-        ovUrl,
-      );
-      setWorker(wrkr);
-      wrkr.onmessage = handleWorkerMessage;
+      worker.postMessage({
+        cmd: "update",
+        values: {
+          background,
+          overlay,
+          bearer,
+          angle,
+        },
+      });
     }
-  }, [
-    apiUrl,
-    bearer,
-    bgRev,
-    canvassesTransferred,
-    contentCanvasRef,
-    handleWorkerMessage,
-    ovRev,
-    overlayCanvasRef,
-    scene,
-    sceneId,
-  ]);
+  }, [apiUrl, bearer, bgRev, ovRev, scene, sceneId, worker]);
+
+  useEffect(() => {
+    /**
+     * the canvas refs are not really reliable indicators of our state. They
+     * change more than once after we are setup. To avoid setting up duplicate
+     * event listeners and handlers, we're using the internal state to exit if
+     * the canvas has already been transferred.
+     */
+    const bg = contentCanvasRef.current;
+    const ov = overlayCanvasRef.current;
+    if (!bg || !ov || internalState.transferred) {
+      return;
+    }
+
+    const wrkr = setupOffscreenCanvas(bg, ov);
+    setWorker(wrkr);
+    internalState.transferred = true;
+    wrkr.onmessage = handleWorkerMessage;
+    ov.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    ov.addEventListener("mousedown", (e) => sm.transition("down", e));
+    ov.addEventListener("mouseup", (e) => sm.transition("up", e));
+    ov.addEventListener("mousemove", (e) => sm.transition("move", e));
+    ov.addEventListener("wheel", (e) => sm.transition("wheel", e));
+
+    // watch for canvas size changes and report to worker
+    const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
+      const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
+      if (w === 0 && h === 0) return; // when the component is hidden or destroyed
+      wrkr.postMessage({ cmd: "resize", width: w, height: h });
+    }, 250);
+    const observer = new ResizeObserver((e) => handleResizeEvent(e));
+    observer.observe(ov);
+
+    /**
+     * Good form would have us cleanup our worker and event listeners -- but here is the
+     * thing Micah will almost certainly forget in a month. Once we create the worker, it
+     * basically lives forever until our window or tab is closed. This has been tested
+     * using a counter that increments every "init" -- it goes up. So basically we just
+     * pass these canvasses over once, and make sure we don't setup their event listeners
+     * more than once.
+     */
+  }, [contentCanvasRef, handleWorkerMessage, internalState, overlayCanvasRef]);
 
   // make sure we end the push state when we get a successful push time update
   useEffect(() => sm.transition("done"), [pushTime]);

@@ -34,11 +34,18 @@ interface WSStateMessage {
   tsLocal?: number;
 }
 
+interface InternalState {
+  transferred: boolean;
+}
+
 const RemoteDisplayComponent = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
+  const [internalState] = useState<InternalState>({
+    transferred: false,
+  });
   const apiUrl: string | undefined = useSelector(
     (state: AppReducerState) => state.environment.api,
   );
@@ -54,27 +61,12 @@ const RemoteDisplayComponent = () => {
   const token: string | undefined = useSelector(
     (state: AppReducerState) => state.environment.deviceCodeToken,
   );
-  // TODO REMOVE THESE CONTEXTS?
-  const [contentCtx, setContentCtx] = useState<CanvasRenderingContext2D | null>(
-    null,
-  );
-  const [overlayCtx, setOverlayCtx] = useState<CanvasRenderingContext2D | null>(
-    null,
-  );
   const [connected, setConnected] = useState<boolean | undefined>();
   const [tableData, setTableData] = useState<WSStateMessage>();
   const [authTimer, setAuthTimer] = useState<NodeJS.Timer>();
   const [wsTimer, setWSTimer] = useState<NodeJS.Timer>();
   const [serverInfo, setServerInfo] = useState<string>();
-  const [canvassesTransferred, setCanvassesTransferred] =
-    useState<boolean>(false); // avoid transfer errors
   const [worker, setWorker] = useState<Worker>();
-
-  const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
-    const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
-    if (w === 0 && h === 0) return; // when the component is hidden or destroyed
-    if (worker) worker.postMessage({ cmd: "resize", width: w, height: h });
-  }, 250);
 
   /**
    * Process a websocket message with table data
@@ -110,76 +102,17 @@ const RemoteDisplayComponent = () => {
     }
   };
 
-  // TODO this doesn't seem to have dependencies, why are we using a callback?
-  const handleWorkerMessage = useCallback((evt: MessageEvent<unknown>) => {
-    // bump the overlay version so it gets sent
-    if (!evt.data || typeof evt.data !== "object") return;
-    if (!("cmd" in evt.data)) return;
-    if (evt.data.cmd === "initialized") {
-      if (!("width" in evt.data) || typeof evt.data.width !== "number") {
-        console.error("Invalid width in worker initialized message");
-        return;
-      }
-      if (!("height" in evt.data) || typeof evt.data.height !== "number") {
-        console.error("Invalid height in worker initialized message");
-        return;
-      }
-      if (
-        !("fullWidth" in evt.data) ||
-        typeof evt.data.fullWidth !== "number"
-      ) {
-        console.error("Invalid fullWidth in worker initialized message");
-        return;
-      }
-      if (
-        !("fullHeight" in evt.data) ||
-        typeof evt.data.fullHeight !== "number"
-      ) {
-        console.error("Invalid fullHeight in worker initialized message");
-        return;
-      }
-      // setViewportSize([evt.data.width, evt.data.height]);
-      // setImageSize([evt.data.fullWidth, evt.data.fullHeight]);
-    }
-    /* else if (evt.data.cmd === "pan_complete") {
-      // after panning is done, we can go back to waiting state
-      sm.transition("wait");
-    } else if (evt.data.cmd === "select_complete") {
-      if ("rect" in evt.data) setSelection(evt.data.rect as unknown as Rect);
-      else console.error(`No rect in ${evt.data.cmd}`);
-    } else if (evt.data.cmd === "progress") {
-      if ("evt" in evt.data) {
-        const e = evt.data.evt as LoadProgress;
-
-        // on complete (progress of 1) remove the download
-        if (e.progress === 1) delete downloads[e.img];
-        else downloads[e.img] = e.progress;
-
-        // with nothing left we're fully loaded
-        const length = Object.keys(downloads).length;
-        if (length === 0) return setDownloadProgress(100);
-
-        // otherwise, tally the totals and set progress
-        let value = 0;
-        for (const [, v] of Object.entries(downloads)) value += v;
-        setDownloadProgress((value * 100) / length);
-      }
-    }*/
-  }, []);
-
   /**
    * Render table data
    *
    * TODO decouple setup (canvases, etc) from table state updates!  worker shouldn't be a dep of the setup routine
    */
   const processTableData = useCallback(
-    (
-      js: WSStateMessage,
-      apiUrl: string,
-      contentCanvas: HTMLCanvasElement,
-      overlayCanvas: HTMLCanvasElement,
-      bearer: string,
-    ) => {
+    (js: WSStateMessage, apiUrl: string, bearer: string) => {
+      if (!worker) {
+        console.error(`Received state before worker ready`);
+        return;
+      }
       // ignore null state -- happens when server has no useful state loaded yet
       if (!js.state) return;
 
@@ -193,7 +126,6 @@ const RemoteDisplayComponent = () => {
         console.error("Unable to render without background size");
         return;
       }
-      const tableBGSize: Rect = js.state.backgroundSize;
 
       const angle = js.state.angle || 0;
 
@@ -213,35 +145,19 @@ const RemoteDisplayComponent = () => {
         return;
       }
 
-      setCanvassesTransferred(true);
-      if (!canvassesTransferred) {
-        const wrkr = setupOffscreenCanvas(
-          bearer,
-          contentCanvas,
-          overlayCanvas,
-          canvassesTransferred,
-          angle,
+      // update the images/viewport
+      worker.postMessage({
+        cmd: "update",
+        values: {
           background,
           overlay,
           viewport,
-        );
-        setWorker(wrkr);
-        wrkr.onmessage = handleWorkerMessage;
-      } else if (worker) {
-        // update the images/viewport
-        worker.postMessage({
-          cmd: "update",
-          values: {
-            background,
-            overlay,
-            viewport,
-            bearer,
-            angle,
-          },
-        });
-      }
+          bearer,
+          angle,
+        },
+      });
     },
-    [canvassesTransferred, handleWorkerMessage],
+    [worker],
   );
 
   /**
@@ -261,52 +177,6 @@ const RemoteDisplayComponent = () => {
         console.error(`Unable to get wakelock: ${JSON.stringify(err)}`),
       );
   };
-
-  // useEffect(() => {
-  //   if (!contentCanvasRef.current || contentCtx != null) return;
-  //   setContentCtx(contentCanvasRef.current.getContext("2d", { alpha: false }));
-  // }, [contentCanvasRef, contentCtx]);
-
-  // useEffect(() => {
-  //   if (!overlayCanvasRef.current || overlayCtx != null) return;
-  //   setOverlayCtx(overlayCanvasRef.current.getContext("2d", { alpha: true }));
-  // }, [overlayCanvasRef, overlayCtx]);
-
-  // useEffect(() => {
-  //   const content = contentCanvasRef.current;
-  //   const overlay = overlayCanvasRef.current;
-  //   const full = fullCanvasRef.current;
-  //   if (!content || !overlay || !full) return;
-  //   if (!token) return;
-  //   const [width, height] = getWidthAndHeight();
-
-  //   content.width = width;
-  //   content.height = height;
-  //   content.style.width = `${width}px`;
-  //   content.style.height = `${height}px`;
-  //   overlay.width = width;
-  //   overlay.height = height;
-  //   overlay.style.width = `${width}px`;
-  //   overlay.style.height = `${height}px`;
-
-  //   // henceforth canvas is transferred -- this doesn't take effect until the next render
-  //   // so the on this pass it is false when passed to setCanvassesTransferred even if set
-  //   setCanvassesTransferred(true);
-  //   const wrkr = setupOffscreenCanvas(
-  //     token,
-  //     content,
-  //     overlay,
-  //     full,
-  //     canvassesTransferred,
-  //     0,
-  //     width,
-  //     height,
-  //     bgUrl,
-  //     ovUrl,
-  //   );
-  //   setWorker(wrkr);
-  //   wrkr.onmessage = handleWorkerMessage;
-  // }, [overlayCanvasRef, contentCanvasRef, fullCanvasRef]);
 
   /**
    * Things learned the ... difficult way ... we do not need to really cleanup
@@ -396,40 +266,30 @@ const RemoteDisplayComponent = () => {
   }, [connected, noauth, token, wsUrl, wsTimer]);
 
   useEffect(() => {
-    const canvas = overlayCanvasRef.current;
-    if (!canvas) return;
+    const bg = contentCanvasRef.current;
+    const ov = overlayCanvasRef.current;
+    if (!ov || !bg || internalState.transferred) return;
+    const wrkr = setupOffscreenCanvas(bg, ov);
+    setWorker(wrkr);
+    internalState.transferred = true;
+    const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
+      const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
+      if (w === 0 && h === 0) return; // when the component is hidden or destroyed
+      if (wrkr) wrkr.postMessage({ cmd: "resize", width: w, height: h });
+      else console.warn(`Resize event before web worker created`);
+    }, 250);
     const observer = new ResizeObserver((e) => handleResizeEvent(e));
-    observer.observe(canvas);
-    return () => {
-      observer.unobserve(canvas);
-    };
-  }, [handleResizeEvent, overlayCanvasRef]);
+    observer.observe(ov);
+  }, [overlayCanvasRef, contentCanvasRef, internalState]);
+
   /**
    * With all necessary components and some table data, trigger drawing
    */
   useEffect(() => {
-    if (!overlayCanvasRef.current) return;
-    if (!contentCanvasRef.current) return;
-    if (!apiUrl) return;
-    if (!tableData) return;
-    if (!token) return;
-
+    if (!worker || !apiUrl || !tableData || !token) return;
     console.log(tableData);
-    processTableData(
-      tableData,
-      apiUrl,
-      contentCanvasRef.current,
-      overlayCanvasRef.current,
-      token,
-    );
-  }, [
-    contentCanvasRef,
-    overlayCanvasRef,
-    apiUrl,
-    tableData,
-    token,
-    processTableData,
-  ]);
+    processTableData(tableData, apiUrl, token);
+  }, [apiUrl, tableData, token, processTableData, worker]);
 
   return (
     <div className={styles.map}>
