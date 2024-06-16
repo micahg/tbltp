@@ -634,8 +634,6 @@ const ContentEditor = ({
       scene.overlayContentRev || 0,
       scene.overlayContent,
     ];
-    // const backgroundCanvas: HTMLCanvasElement = contentCanvasRef.current;
-    // const overlayCanvas: HTMLCanvasElement = overlayCanvasRef.current;
 
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
@@ -697,15 +695,10 @@ const ContentEditor = ({
       e.stopPropagation();
     };
 
-    const mouseDownTransition = (e: MouseEvent) => sm.transition("down", e);
-    const mouseUpTransition = (e: MouseEvent) => sm.transition("up", e);
-    const mouseMoveTransition = (e: MouseEvent) => sm.transition("move", e);
-    const mouseWheelTransition = (e: WheelEvent) => sm.transition("wheel", e);
-
-    ov.addEventListener("mousedown", mouseDownTransition);
-    ov.addEventListener("mouseup", mouseUpTransition);
-    ov.addEventListener("mousemove", mouseMoveTransition);
-    ov.addEventListener("wheel", mouseWheelTransition);
+    ov.addEventListener("mousedown", (e) => sm.transition("down", e));
+    ov.addEventListener("mouseup", (e) => sm.transition("up", e));
+    ov.addEventListener("mousemove", (e) => sm.transition("move", e));
+    ov.addEventListener("wheel", (e) => sm.transition("wheel", e));
 
     // watch for canvas size changes and report to worker
     const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {

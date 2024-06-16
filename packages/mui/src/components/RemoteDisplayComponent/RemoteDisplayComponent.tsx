@@ -126,7 +126,6 @@ const RemoteDisplayComponent = () => {
         console.error("Unable to render without background size");
         return;
       }
-      // const tableBGSize: Rect = js.state.backgroundSize;
 
       const angle = js.state.angle || 0;
 
