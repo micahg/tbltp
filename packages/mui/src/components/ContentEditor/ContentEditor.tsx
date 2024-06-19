@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { getRect } from "../../utils/drawing";
+import { getRect, newSelectedRegion } from "../../utils/drawing";
 import { Rect } from "../../utils/geometry";
 import { MouseStateMachine } from "../../utils/mousestatemachine";
 import { setCallback } from "../../utils/statemachine";
@@ -660,6 +660,7 @@ const ContentEditor = ({
       const background = drawBG ? `${apiUrl}/${bContent}` : undefined;
 
       const angle = scene.angle || 0;
+      const things = scene.viewport ? [newSelectedRegion(scene.viewport)] : [];
 
       worker.postMessage({
         cmd: "update",
@@ -668,6 +669,7 @@ const ContentEditor = ({
           overlay,
           bearer,
           angle,
+          things,
         },
       });
     }

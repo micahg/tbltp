@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { Box } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
+import { Thing } from "../../utils/drawing";
 
 /**
  * Table state sent to display client by websocket. A partial Scene.
@@ -25,6 +26,7 @@ export interface TableState {
 // TODO UNION MICAH DON"T SKIP NOW
 export type TableUpdate = TableState & {
   bearer: string;
+  things?: Thing[];
 };
 
 interface WSStateMessage {

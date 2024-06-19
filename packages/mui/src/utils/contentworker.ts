@@ -1,5 +1,6 @@
 import { TableUpdate } from "../components/RemoteDisplayComponent/RemoteDisplayComponent";
 import { LoadProgress, loadImage } from "./content";
+import { Drawable, newDrawableThing } from "./drawing";
 import {
   Point,
   Rect,
@@ -42,6 +43,8 @@ const _img: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
 // viewport
 const _vp: Rect = { x: 0, y: 0, width: 0, height: 0 };
+
+const _things: Drawable[] = [];
 
 // rotated image width and height - cached to avoid recalculation after load
 let _fullRotW: number;
@@ -216,7 +219,8 @@ function renderAllCanvasses(background: ImageBitmap | null) {
   if (background) {
     sizeVisibleCanvasses(_canvas.width, _canvas.height);
     renderImage(backgroundCtx, [background], _angle);
-    renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+    renderThings(thingCtx);
+    renderImage(overlayCtx, [thingCtx.canvas, fullCtx.canvas], _angle);
   }
 }
 
@@ -335,27 +339,15 @@ function renderBox(
   renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
 }
 
-function renderDottedBox(rect: Rect, ctx: OffscreenCanvasRenderingContext2D) {
-  const [x, y] = [rect.x, rect.y];
-  const [x1, y1] = [x + rect.width, y + rect.height];
-  ctx.beginPath();
-  ctx.lineWidth = 10;
-  ctx.strokeStyle = "black";
-  ctx.setLineDash([]);
-  ctx.moveTo(x, y);
-  ctx.lineTo(x1, y);
-  ctx.lineTo(x1, y1);
-  ctx.lineTo(x, y1);
-  ctx.lineTo(x, y);
-  ctx.stroke();
-  ctx.strokeStyle = "white";
-  ctx.setLineDash([10, 10]);
-  ctx.moveTo(x, y);
-  ctx.lineTo(x1, y);
-  ctx.lineTo(x1, y1);
-  ctx.lineTo(x, y1);
-  ctx.lineTo(x, y);
-  ctx.stroke();
+function renderThings(ctx: OffscreenCanvasRenderingContext2D) {
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  for (const thing of _things) {
+    try {
+      thing.draw(ctx);
+    } catch (err) {
+      console.error(err);
+    }
+  }
 }
 
 function clearBox(x1: number, y1: number, x2: number, y2: number) {
@@ -452,12 +444,20 @@ function adjustZoom(zoom: number, x: number, y: number) {
 }
 
 async function update(values: TableUpdate) {
-  const { angle, bearer, background, overlay, viewport } = values;
+  const { angle, bearer, background, overlay, viewport, things } = values;
   if (!background) {
     console.error(`Ignoring update without background`);
     return;
   }
   _angle = angle;
+  _things.length = 0;
+  if (things) {
+    things
+      .map((thing) => newDrawableThing(thing))
+      .filter((thing) => thing)
+      .forEach((thing) => (thing ? _things.push(thing) : null));
+  }
+
   try {
     const [bgImg, ovImg] = await loadAllImages(bearer, background, overlay);
     if (!bgImg) return;
@@ -735,13 +735,14 @@ self.onmessage = async (evt) => {
       postMessage({ cmd: "viewport", viewport: fullVp });
       break;
     }
-    case "set_highlighted_rect": {
-      const rect = evt.data.rect;
-      thingCtx.clearRect(0, 0, thingCtx.canvas.width, thingCtx.canvas.height);
-      if (rect) renderDottedBox(rect, thingCtx);
-      renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
-      break;
-    }
+    // case "set_highlighted_rect": {
+    //   _things.push(new SelectedRegion(evt.data.rect));
+    //   if (thingCtx) {
+    //     renderThings(thingCtx);
+    //     renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+    //   }
+    //   break;
+    // }
     case "zoom_in": {
       let zoom = _zoom;
       if (!_zoom) zoom = _max_zoom;
