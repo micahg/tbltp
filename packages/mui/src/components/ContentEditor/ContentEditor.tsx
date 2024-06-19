@@ -9,7 +9,7 @@ import React, {
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { getRect, newSelectedRegion } from "../../utils/drawing";
-import { Rect } from "../../utils/geometry";
+import { Rect, equalRects } from "../../utils/geometry";
 import { MouseStateMachine } from "../../utils/mousestatemachine";
 import { setCallback } from "../../utils/statemachine";
 import styles from "./ContentEditor.module.css";
@@ -101,6 +101,7 @@ const ContentEditor = ({
   const [worker, setWorker] = useState<Worker>();
   const [downloads] = useState<Record<string, number>>({});
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
+  // selection is sized relative to the visible canvas size -- not the full background size
   const [selection, setSelection] = useState<Rect | null>(null);
 
   /**
@@ -441,9 +442,6 @@ const ContentEditor = ({
       v.y === bg.y &&
       v.width === bg.width &&
       v.height === bg.height;
-    if (!zoomedOut) {
-      worker.postMessage({ cmd: "set_highlighted_rect", rect: v });
-    }
     if (zoomedOut !== internalState.zoom) return;
     internalState.zoom = !zoomedOut;
     redrawToolbar();
@@ -507,7 +505,6 @@ const ContentEditor = ({
     });
     setCallback(sm, "remoteZoomOut", () => {
       const imgRect = getRect(0, 0, imageSize[0], imageSize[1]);
-      worker.postMessage({ cmd: "set_highlighted_rect" });
       dispatch({
         type: "content/zoom",
         payload: { backgroundSize: imgRect, viewport: imgRect },
@@ -638,6 +635,7 @@ const ContentEditor = ({
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
     let drawOV = oRev > ovRev;
+    let drawTH = false;
     if (drawBG) setBgRev(bRev); // takes effect next render cycle
     if (drawOV) setOvRev(oRev); // takes effect next render cycle
 
@@ -652,15 +650,23 @@ const ContentEditor = ({
       drawOV = scene.overlayContent !== undefined;
     }
 
-    // if we have nothing new to draw then cheese it
-    if (!drawBG && !drawOV) return;
+    if (scene.viewport) drawTH = true;
 
-    if (drawBG) {
+    // if we have nothing new to draw then cheese it
+    if (!drawBG && !drawOV && !drawTH) return;
+
+    if (drawBG || drawTH) {
       const overlay = drawOV ? `${apiUrl}/${oContent}` : undefined;
       const background = drawBG ? `${apiUrl}/${bContent}` : undefined;
 
       const angle = scene.angle || 0;
-      const things = scene.viewport ? [newSelectedRegion(scene.viewport)] : [];
+      // add the viewport as a selected region if it exists and isn't just the entire background
+      const things =
+        scene.viewport &&
+        scene.backgroundSize &&
+        !equalRects(scene.viewport, scene.backgroundSize)
+          ? [newSelectedRegion(scene.viewport)]
+          : [];
 
       worker.postMessage({
         cmd: "update",

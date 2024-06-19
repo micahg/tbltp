@@ -1,6 +1,6 @@
 import { TableUpdate } from "../components/RemoteDisplayComponent/RemoteDisplayComponent";
 import { LoadProgress, loadImage } from "./content";
-import { Drawable, newDrawableThing } from "./drawing";
+import { Drawable, Thing, newDrawableThing } from "./drawing";
 import {
   Point,
   Rect,
@@ -443,20 +443,34 @@ function adjustZoom(zoom: number, x: number, y: number) {
   renderAllCanvasses(backgroundImage);
 }
 
+function updateThings(things?: Thing[], render = false) {
+  // clear the existing thing list
+  _things.length = 0;
+
+  // cheese it if there are no things to render
+  if (!things) return;
+
+  // map things to drawable things
+  things
+    .map((thing) => newDrawableThing(thing))
+    .filter((thing) => thing)
+    .forEach((thing) => (thing ? _things.push(thing) : null));
+
+  // render if we're asked (avoided in cases of subsequent full renders)
+  if (!render) return;
+  renderThings(thingCtx);
+  renderImage(overlayCtx, [thingCtx.canvas, fullCtx.canvas], _angle);
+}
+
 async function update(values: TableUpdate) {
   const { angle, bearer, background, overlay, viewport, things } = values;
   if (!background) {
+    if (things) return updateThings(things, true);
     console.error(`Ignoring update without background`);
     return;
   }
   _angle = angle;
-  _things.length = 0;
-  if (things) {
-    things
-      .map((thing) => newDrawableThing(thing))
-      .filter((thing) => thing)
-      .forEach((thing) => (thing ? _things.push(thing) : null));
-  }
+  updateThings(things);
 
   try {
     const [bgImg, ovImg] = await loadAllImages(bearer, background, overlay);
