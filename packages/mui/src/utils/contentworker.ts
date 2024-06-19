@@ -749,14 +749,6 @@ self.onmessage = async (evt) => {
       postMessage({ cmd: "viewport", viewport: fullVp });
       break;
     }
-    // case "set_highlighted_rect": {
-    //   _things.push(new SelectedRegion(evt.data.rect));
-    //   if (thingCtx) {
-    //     renderThings(thingCtx);
-    //     renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
-    //   }
-    //   break;
-    // }
     case "zoom_in": {
       let zoom = _zoom;
       if (!_zoom) zoom = _max_zoom;
