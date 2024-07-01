@@ -3,6 +3,7 @@ let worker: Worker;
 export function setupOffscreenCanvas(
   backgroundCanvas: HTMLCanvasElement,
   overlayCanvas: HTMLCanvasElement,
+  thingsOnTop = false,
 ): Worker {
   // only create a web worker if we don't have one already
   if (!worker) {
@@ -15,6 +16,7 @@ export function setupOffscreenCanvas(
     worker.postMessage(
       {
         cmd: "init",
+        thingsOnTop: thingsOnTop,
         background: background,
         overlay: overlay,
       },

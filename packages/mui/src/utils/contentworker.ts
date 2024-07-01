@@ -27,6 +27,7 @@ let backgroundCtx: OffscreenCanvasRenderingContext2D;
 let overlayCtx: OffscreenCanvasRenderingContext2D;
 let fullCtx: OffscreenCanvasRenderingContext2D;
 let thingCtx: OffscreenCanvasRenderingContext2D;
+let imageCanvasses: CanvasImageSource[] = [];
 let recording = false;
 let selecting = false;
 let panning = false;
@@ -36,6 +37,7 @@ const _zoom_step = 0.5;
 let _max_zoom: number;
 let _first_zoom_step: number;
 let _frame: number;
+let _things_on_top_of_overlay = false;
 
 // canvas width and height (sent from main thread)
 const _canvas: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -80,7 +82,7 @@ function trimPanning() {
 
 function renderImage(
   ctx: OffscreenCanvasRenderingContext2D,
-  img: CanvasImageSource[] | OffscreenCanvas[],
+  img: CanvasImageSource[],
   angle: number,
 ) {
   // if (debug) {
@@ -215,7 +217,7 @@ function loadAllImages(bearer: string, background: string, overlay?: string) {
 
 function renderVisibleCanvasses() {
   renderImage(backgroundCtx, [backgroundImage], _angle);
-  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+  renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
 function renderAllCanvasses(background: ImageBitmap | null) {
@@ -223,7 +225,7 @@ function renderAllCanvasses(background: ImageBitmap | null) {
     sizeVisibleCanvasses(_canvas.width, _canvas.height);
     renderImage(backgroundCtx, [background], _angle);
     renderThings(thingCtx);
-    renderImage(overlayCtx, [thingCtx.canvas, fullCtx.canvas], _angle);
+    renderImage(overlayCtx, imageCanvasses, _angle);
   }
 }
 
@@ -292,7 +294,7 @@ function eraseBrush(x: number, y: number, radius: number, full = true) {
   fullCtx.drawImage(img, 0, 0);
   fullCtx.restore();
   img.close();
-  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+  renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
 function renderBrush(x: number, y: number, radius: number, full = true) {
@@ -315,7 +317,7 @@ function renderBrush(x: number, y: number, radius: number, full = true) {
   fullCtx.fill();
   fullCtx.restore();
   // dump to visible canvas
-  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+  renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
 function renderBox(
@@ -339,7 +341,7 @@ function renderBox(
   fullCtx.fillStyle = style;
   fullCtx.fillRect(x, y, w, h);
   fullCtx.restore();
-  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+  renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
 function renderThings(ctx: OffscreenCanvasRenderingContext2D) {
@@ -399,7 +401,7 @@ const storeOverlay = () =>
 
 function animateBrush(x: number, y: number) {
   if (!recording) return;
-  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+  renderImage(overlayCtx, imageCanvasses, _angle);
   renderBrush(x, y, brush, false);
   _frame = requestAnimationFrame(() => animateBrush(x, y));
 }
@@ -407,7 +409,7 @@ function animateBrush(x: number, y: number) {
 function animateSelection() {
   if (!recording) return;
   if (selecting) {
-    renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+    renderImage(overlayCtx, imageCanvasses, _angle);
     renderBox(startX, startY, endX, endY, GUIDE_FILL, false);
   } else if (panning) {
     // calculate the (rotated) movement since the last frame and update for the next
@@ -463,7 +465,7 @@ function updateThings(things?: Thing[], render = false) {
   // render if we're asked (avoided in cases of subsequent full renders)
   if (!render) return;
   renderThings(thingCtx);
-  renderImage(overlayCtx, [thingCtx.canvas, fullCtx.canvas], _angle);
+  renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
 async function update(values: TableUpdate) {
@@ -493,6 +495,11 @@ async function update(values: TableUpdate) {
     fullCtx = fullCanvas.getContext("2d", {
       alpha: true,
     }) as OffscreenCanvasRenderingContext2D;
+
+    // set the image rendering order (in reverse, things on top => things draw last)
+    imageCanvasses = _things_on_top_of_overlay
+      ? [fullCtx.canvas, thingCtx.canvas]
+      : [thingCtx.canvas, fullCtx.canvas];
 
     if (ovImg) {
       fullCtx.drawImage(ovImg, 0, 0);
@@ -538,6 +545,9 @@ self.onmessage = async (evt) => {
       overlayCtx = evt.data.overlay.getContext("2d", {
         alpha: true,
       }) as OffscreenCanvasRenderingContext2D;
+
+      // indicate if things should be rendered on top of the overlay
+      _things_on_top_of_overlay = !!evt.data.thingsOnTop;
 
       break;
     }
@@ -669,7 +679,7 @@ self.onmessage = async (evt) => {
     case "end_erase": {
       recording = false;
       panning = false;
-      renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+      renderImage(overlayCtx, imageCanvasses, _angle);
       storeOverlay();
       break;
     }
@@ -677,7 +687,7 @@ self.onmessage = async (evt) => {
       recording = false;
       panning = false;
       storeOverlay();
-      renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+      renderImage(overlayCtx, imageCanvasses, _angle);
       break;
     }
     case "end_select": {
