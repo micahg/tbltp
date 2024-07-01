@@ -18,6 +18,7 @@ export type SelectedRegion = {
 
 export type Marker = {
   base: "Marker";
+  // TODO this should be a URL along with a point
   value: "hi";
 };
 
