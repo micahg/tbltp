@@ -1,19 +1,16 @@
 import { createRef, useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { renderViewPort } from "../../utils/drawing";
-import {
-  Rect,
-  getWidthAndHeight,
-  fillRotatedViewport,
-} from "../../utils/geometry";
+import { Rect } from "../../utils/geometry";
 import Alert from "@mui/material/Alert";
 import Stack from "@mui/material/Stack";
 
 import styles from "./RemoteDisplayComponent.module.css";
 import { useNavigate } from "react-router-dom";
 import { Box } from "@mui/material";
-import { loadImage } from "../../utils/content";
+import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
+import { debounce } from "lodash";
+import { Thing } from "../../utils/drawing";
 
 /**
  * Table state sent to display client by websocket. A partial Scene.
@@ -26,6 +23,12 @@ export interface TableState {
   backgroundSize?: Rect;
 }
 
+// TODO UNION MICAH DON"T SKIP NOW
+export type TableUpdate = TableState & {
+  bearer: string;
+  things?: Thing[];
+};
+
 interface WSStateMessage {
   method?: string;
   info?: string;
@@ -33,11 +36,18 @@ interface WSStateMessage {
   tsLocal?: number;
 }
 
+interface InternalState {
+  transferred: boolean;
+}
+
 const RemoteDisplayComponent = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
+  const [internalState] = useState<InternalState>({
+    transferred: false,
+  });
   const apiUrl: string | undefined = useSelector(
     (state: AppReducerState) => state.environment.api,
   );
@@ -53,17 +63,12 @@ const RemoteDisplayComponent = () => {
   const token: string | undefined = useSelector(
     (state: AppReducerState) => state.environment.deviceCodeToken,
   );
-  const [contentCtx, setContentCtx] = useState<CanvasRenderingContext2D | null>(
-    null,
-  );
-  const [overlayCtx, setOverlayCtx] = useState<CanvasRenderingContext2D | null>(
-    null,
-  );
   const [connected, setConnected] = useState<boolean | undefined>();
   const [tableData, setTableData] = useState<WSStateMessage>();
   const [authTimer, setAuthTimer] = useState<NodeJS.Timer>();
   const [wsTimer, setWSTimer] = useState<NodeJS.Timer>();
   const [serverInfo, setServerInfo] = useState<string>();
+  const [worker, setWorker] = useState<Worker>();
 
   /**
    * Process a websocket message with table data
@@ -101,15 +106,15 @@ const RemoteDisplayComponent = () => {
 
   /**
    * Render table data
+   *
+   * TODO decouple setup (canvases, etc) from table state updates!  worker shouldn't be a dep of the setup routine
    */
   const processTableData = useCallback(
-    (
-      js: WSStateMessage,
-      apiUrl: string,
-      content: CanvasRenderingContext2D,
-      overlay: CanvasRenderingContext2D,
-      bearer: string,
-    ) => {
+    (js: WSStateMessage, apiUrl: string, bearer: string) => {
+      if (!worker) {
+        console.error(`Received state before worker ready`);
+        return;
+      }
       // ignore null state -- happens when server has no useful state loaded yet
       if (!js.state) return;
 
@@ -123,92 +128,38 @@ const RemoteDisplayComponent = () => {
         console.error("Unable to render without background size");
         return;
       }
-      const tableBGSize: Rect = js.state.backgroundSize;
 
       const angle = js.state.angle || 0;
 
       const ts: number = new Date().getTime();
-      let overlayUri: string | null = null;
+      let overlay: string | undefined;
       if ("overlay" in js.state && js.state.overlay) {
-        overlayUri = `${apiUrl}/${js.state.overlay}?${ts}`;
+        overlay = `${apiUrl}/${js.state.overlay}?${ts}`;
       }
 
-      let backgroundUri: string | null = null;
+      let background: string | null = null;
       if ("background" in js.state && js.state.background) {
-        backgroundUri = `${apiUrl}/${js.state.background}?${ts}`;
+        background = `${apiUrl}/${js.state.background}?${ts}`;
       }
 
-      if (!backgroundUri) {
+      if (!background) {
         console.error(`Unable to determine background URL`);
         return;
       }
 
-      // const screen = getWidthAndHeight();
-      const [width, height] = getWidthAndHeight();
-      content.canvas.width = width;
-      content.canvas.height = height;
-      content.canvas.style.width = `${width}px`;
-      content.canvas.style.height = `${height}px`;
-      overlay.canvas.width = width;
-      overlay.canvas.height = height;
-      overlay.canvas.style.width = `${width}px`;
-      overlay.canvas.style.height = `${height}px`;
-
-      /**
-       * I hate this so much... if someone ever does contribute to this
-       * project and your js game is better than mine, see if you can make this
-       * less isane. The point is to calculate the expanded the selection to
-       * fill the screen (based on the aspect ratio of the map) then draw the
-       * overlay, then the background. If there is no overlay then just draw
-       * background with expanded selection if there is one.
-       */
-      loadImage(backgroundUri, bearer)
-        .then((bgImg) => {
-          // the untainted one is not dealing with the silkScale (more on that in geometry.ts)
-          // since we can safely assume (for now) that the overlay isn't downscaled due to
-          // memory constraints, then we can get our ratios using the intended background size
-          // instead of the actual
-          // const bgVPnoTaint = fillToAspect(viewport, tableBGSize, tableBGSize.width, tableBGSize.height);
-          // const bgVP = fillToAspect(viewport, tableBGSize, bgImg.width, bgImg.height);
-          const oDimensions = [tableBGSize.width, tableBGSize.height];
-          const bgVP = fillRotatedViewport(
-            [width, height],
-            [bgImg.width, bgImg.height],
-            oDimensions,
-            angle,
-            viewport,
-          );
-          if (overlayUri) {
-            loadImage(overlayUri, bearer)
-              .then((ovrImg) => {
-                const ovVP = fillRotatedViewport(
-                  [width, height],
-                  [ovrImg.width, ovrImg.height],
-                  oDimensions,
-                  angle,
-                  viewport,
-                );
-                renderViewPort(overlay, ovrImg, angle, ovVP);
-                renderViewPort(content, bgImg, angle, bgVP);
-              })
-              .catch((err) =>
-                console.error(
-                  `Error loading overlay image ${overlayUri}: ${JSON.stringify(
-                    err,
-                  )}`,
-                ),
-              );
-          } else {
-            renderViewPort(content, bgImg, angle, bgVP);
-          }
-        })
-        .catch((err) =>
-          console.error(
-            `Error loading background image: ${JSON.stringify(err)}`,
-          ),
-        );
+      // update the images/viewport
+      worker.postMessage({
+        cmd: "update",
+        values: {
+          background,
+          overlay,
+          viewport,
+          bearer,
+          angle,
+        },
+      });
     },
-    [],
+    [worker],
   );
 
   /**
@@ -228,16 +179,6 @@ const RemoteDisplayComponent = () => {
         console.error(`Unable to get wakelock: ${JSON.stringify(err)}`),
       );
   };
-
-  useEffect(() => {
-    if (!contentCanvasRef.current || contentCtx != null) return;
-    setContentCtx(contentCanvasRef.current.getContext("2d", { alpha: false }));
-  }, [contentCanvasRef, contentCtx]);
-
-  useEffect(() => {
-    if (!overlayCanvasRef.current || overlayCtx != null) return;
-    setOverlayCtx(overlayCanvasRef.current.getContext("2d", { alpha: true }));
-  }, [overlayCanvasRef, overlayCtx]);
 
   /**
    * Things learned the ... difficult way ... we do not need to really cleanup
@@ -296,6 +237,8 @@ const RemoteDisplayComponent = () => {
   useEffect(() => {
     if (connected === undefined) return;
     if (connected) return;
+    if (!token) return;
+    if (!wsUrl) return;
 
     const scheduleConnection = () => {
       console.log(`Connection closed`);
@@ -322,29 +265,33 @@ const RemoteDisplayComponent = () => {
     return () => {
       if (wsTimer) clearTimeout(wsTimer);
     };
-  }, [
-    apiUrl,
-    contentCtx,
-    overlayCtx,
-    connected,
-    noauth,
-    token,
-    wsUrl,
-    wsTimer,
-  ]);
+  }, [connected, noauth, token, wsUrl, wsTimer]);
+
+  useEffect(() => {
+    const bg = contentCanvasRef.current;
+    const ov = overlayCanvasRef.current;
+    if (!ov || !bg || internalState.transferred) return;
+    const wrkr = setupOffscreenCanvas(bg, ov);
+    setWorker(wrkr);
+    internalState.transferred = true;
+    const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
+      const [w, h] = [e[0].contentRect.width, e[0].contentRect.height];
+      if (w === 0 && h === 0) return; // when the component is hidden or destroyed
+      if (wrkr) wrkr.postMessage({ cmd: "resize", width: w, height: h });
+      else console.warn(`Resize event before web worker created`);
+    }, 250);
+    const observer = new ResizeObserver((e) => handleResizeEvent(e));
+    observer.observe(ov);
+  }, [overlayCanvasRef, contentCanvasRef, internalState]);
 
   /**
    * With all necessary components and some table data, trigger drawing
    */
   useEffect(() => {
-    if (!overlayCtx) return;
-    if (!contentCtx) return;
-    if (!apiUrl) return;
-    if (!tableData) return;
-    if (!token) return;
-
-    processTableData(tableData, apiUrl, contentCtx, overlayCtx, token);
-  }, [contentCtx, overlayCtx, apiUrl, tableData, token, processTableData]);
+    if (!worker || !apiUrl || !tableData || !token) return;
+    console.log(tableData);
+    processTableData(tableData, apiUrl, token);
+  }, [apiUrl, tableData, token, processTableData, worker]);
 
   return (
     <div className={styles.map}>

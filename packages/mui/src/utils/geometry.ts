@@ -48,25 +48,6 @@ export function rectFromPoints(points: Point[]): Rect {
   };
 }
 
-/**
- * Get the screen width and height, taking into consideration the offsets.
- * @returns an array of two numbers: width & height.
- */
-export function getWidthAndHeight(): number[] {
-  const width = Math.max(
-    document.documentElement.clientWidth || 0,
-    document.documentElement.offsetWidth || 0,
-    window.innerWidth || 0,
-  );
-  const height = Math.max(
-    document.documentElement.clientHeight || 0,
-    document.documentElement.offsetHeight || 0,
-    window.innerHeight || 0,
-  );
-
-  return [width, height];
-}
-
 export function calculateBounds(
   canvasWidth: number,
   canvasHeight: number,
@@ -291,4 +272,19 @@ export function fillRotatedViewport(
     width: w * silkScale,
     height: h * silkScale,
   };
+}
+
+export function copyRect(source: Rect, destination: Rect) {
+  destination.x = source.x;
+  destination.y = source.y;
+  destination.width = source.width;
+  destination.height = source.height;
+}
+export function equalRects(r1: Rect, r2: Rect): boolean {
+  return (
+    r1.x === r2.x &&
+    r1.y === r2.y &&
+    r1.width === r2.width &&
+    r1.height === r2.height
+  );
 }

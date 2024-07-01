@@ -1,4 +1,7 @@
+// - test with brand new scene (that wont have a viewport)
+import { TableUpdate } from "../components/RemoteDisplayComponent/RemoteDisplayComponent";
 import { LoadProgress, loadImage } from "./content";
+import { Drawable, Thing, newDrawableThing } from "./drawing";
 import {
   Point,
   Rect,
@@ -13,6 +16,7 @@ import {
   unrotatePoints,
   scalePoints,
   translatePoints,
+  copyRect,
 } from "./geometry";
 
 /**
@@ -23,6 +27,7 @@ let backgroundCtx: OffscreenCanvasRenderingContext2D;
 let overlayCtx: OffscreenCanvasRenderingContext2D;
 let fullCtx: OffscreenCanvasRenderingContext2D;
 let thingCtx: OffscreenCanvasRenderingContext2D;
+let imageCanvasses: CanvasImageSource[] = [];
 let recording = false;
 let selecting = false;
 let panning = false;
@@ -32,15 +37,19 @@ const _zoom_step = 0.5;
 let _max_zoom: number;
 let _first_zoom_step: number;
 let _frame: number;
+let _things_on_top_of_overlay = false;
 
 // canvas width and height (sent from main thread)
 const _canvas: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
 // region of images to display
 const _img: Rect = { x: 0, y: 0, width: 0, height: 0 };
+const _img_orig: Rect = { x: -1, y: -1, width: -1, height: -1 };
 
 // viewport
 const _vp: Rect = { x: 0, y: 0, width: 0, height: 0 };
+
+const _things: Drawable[] = [];
 
 // rotated image width and height - cached to avoid recalculation after load
 let _fullRotW: number;
@@ -73,7 +82,7 @@ function trimPanning() {
 
 function renderImage(
   ctx: OffscreenCanvasRenderingContext2D,
-  img: CanvasImageSource[] | OffscreenCanvas[],
+  img: CanvasImageSource[],
   angle: number,
 ) {
   // if (debug) {
@@ -129,6 +138,48 @@ function calculateViewport(
 }
 
 /**
+ * Given a desired viewport, set our current viewport accordingly, set the zoom,
+ * and then center the request viewport within our screen, extending its short
+ * side to fit our screen.
+ *
+ * This is used when the remote client is told which region to display, rather
+ * than in the editor, where (iirc) you calculate the viewpoint given a point,
+ * a zoom level and the canvas size.
+ */
+function adjustZoomFromViewport() {
+  // if we do not have a requested image region to view then exit this method
+  if (_img_orig.x < 0) return;
+
+  // set our viewport to the initial value requested
+  copyRect(_img_orig, _img);
+
+  // unrotate canvas
+  const [cW, cH] = rotatedWidthAndHeight(
+    -_angle,
+    _canvas.width,
+    _canvas.height,
+  );
+  const zW = _img.width / cW;
+  const zH = _img.height / cH;
+
+  // set zoom and offset x or y to compensate for viewport
+  // aspect ratios that are different from the screen
+  if (zH > zW) {
+    _zoom = zH;
+    const adj = cW * _zoom;
+    if (adj < _fullRotW) {
+      _img.x -= (adj - _img.width) / 2;
+    }
+  } else {
+    _zoom = zW;
+    const adj = cH * _zoom;
+    if (adj < _fullRotH) {
+      _img.y -= (adj - _img.height) / 2;
+    }
+  }
+}
+
+/**
  * Resize all visible canvasses.
  *
  * @param angle
@@ -146,6 +197,7 @@ function sizeVisibleCanvasses(width: number, height: number) {
 function loadAllImages(bearer: string, background: string, overlay?: string) {
   const progress = (p: LoadProgress) =>
     postMessage({ cmd: "progress", evt: p });
+  /*********** TODO test to see if we reload the same image twice */
   const bgP = loadImage(background, bearer, progress);
   const ovP = overlay
     ? loadImage(overlay, bearer, progress)
@@ -154,20 +206,26 @@ function loadAllImages(bearer: string, background: string, overlay?: string) {
   return Promise.all([bgP, ovP]).then(([bgImg, ovImg]) => {
     // keep a copy of these to prevent having to recreate them from the image buffer
     backgroundImage = bgImg;
+    [_fullRotW, _fullRotH] = rotatedWidthAndHeight(
+      _angle,
+      bgImg.width,
+      bgImg.height,
+    );
     return [bgImg, ovImg];
   });
 }
 
 function renderVisibleCanvasses() {
   renderImage(backgroundCtx, [backgroundImage], _angle);
-  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+  renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
 function renderAllCanvasses(background: ImageBitmap | null) {
   if (background) {
     sizeVisibleCanvasses(_canvas.width, _canvas.height);
     renderImage(backgroundCtx, [background], _angle);
-    renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+    renderThings(thingCtx);
+    renderImage(overlayCtx, imageCanvasses, _angle);
   }
 }
 
@@ -236,7 +294,7 @@ function eraseBrush(x: number, y: number, radius: number, full = true) {
   fullCtx.drawImage(img, 0, 0);
   fullCtx.restore();
   img.close();
-  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+  renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
 function renderBrush(x: number, y: number, radius: number, full = true) {
@@ -259,7 +317,7 @@ function renderBrush(x: number, y: number, radius: number, full = true) {
   fullCtx.fill();
   fullCtx.restore();
   // dump to visible canvas
-  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+  renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
 function renderBox(
@@ -283,30 +341,18 @@ function renderBox(
   fullCtx.fillStyle = style;
   fullCtx.fillRect(x, y, w, h);
   fullCtx.restore();
-  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+  renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
-function renderDottedBox(rect: Rect, ctx: OffscreenCanvasRenderingContext2D) {
-  const [x, y] = [rect.x, rect.y];
-  const [x1, y1] = [x + rect.width, y + rect.height];
-  ctx.beginPath();
-  ctx.lineWidth = 10;
-  ctx.strokeStyle = "black";
-  ctx.setLineDash([]);
-  ctx.moveTo(x, y);
-  ctx.lineTo(x1, y);
-  ctx.lineTo(x1, y1);
-  ctx.lineTo(x, y1);
-  ctx.lineTo(x, y);
-  ctx.stroke();
-  ctx.strokeStyle = "white";
-  ctx.setLineDash([10, 10]);
-  ctx.moveTo(x, y);
-  ctx.lineTo(x1, y);
-  ctx.lineTo(x1, y1);
-  ctx.lineTo(x, y1);
-  ctx.lineTo(x, y);
-  ctx.stroke();
+function renderThings(ctx: OffscreenCanvasRenderingContext2D) {
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  for (const thing of _things) {
+    try {
+      thing.draw(ctx);
+    } catch (err) {
+      console.error(err);
+    }
+  }
 }
 
 function clearBox(x1: number, y1: number, x2: number, y2: number) {
@@ -325,11 +371,6 @@ function fullRerender(zoomOut = false) {
    * Full render is called when the image, angle or zoom changes - hence the
    * recalculation of rotated width and height, zoom, and viewports
    */
-  [_fullRotW, _fullRotH] = rotatedWidthAndHeight(
-    _angle,
-    backgroundImage.width,
-    backgroundImage.height,
-  );
   _max_zoom = Math.max(_fullRotW / _canvas.width, _fullRotH / _canvas.height);
   _first_zoom_step = firstZoomStep(_max_zoom, _zoom_step);
   // this might get weird for rotation -- maybe it belongs in calculateCanvasses...
@@ -338,6 +379,7 @@ function fullRerender(zoomOut = false) {
     _img.x = 0;
     _img.y = 0;
   }
+  adjustZoomFromViewport();
   calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
   renderAllCanvasses(backgroundImage);
 }
@@ -359,7 +401,7 @@ const storeOverlay = () =>
 
 function animateBrush(x: number, y: number) {
   if (!recording) return;
-  renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+  renderImage(overlayCtx, imageCanvasses, _angle);
   renderBrush(x, y, brush, false);
   _frame = requestAnimationFrame(() => animateBrush(x, y));
 }
@@ -367,7 +409,7 @@ function animateBrush(x: number, y: number) {
 function animateSelection() {
   if (!recording) return;
   if (selecting) {
-    renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+    renderImage(overlayCtx, imageCanvasses, _angle);
     renderBox(startX, startY, endX, endY, GUIDE_FILL, false);
   } else if (panning) {
     // calculate the (rotated) movement since the last frame and update for the next
@@ -406,85 +448,140 @@ function adjustZoom(zoom: number, x: number, y: number) {
   trimPanning();
   renderAllCanvasses(backgroundImage);
 }
+
+function updateThings(things?: Thing[], render = false) {
+  // clear the existing thing list
+  _things.length = 0;
+
+  // cheese it if there are no things to render
+  if (!things) return;
+
+  // map things to drawable things
+  things
+    .map((thing) => newDrawableThing(thing))
+    .filter((thing) => thing)
+    .forEach((thing) => (thing ? _things.push(thing) : null));
+
+  // render if we're asked (avoided in cases of subsequent full renders)
+  if (!render) return;
+  renderThings(thingCtx);
+  renderImage(overlayCtx, imageCanvasses, _angle);
+}
+
+async function update(values: TableUpdate) {
+  const { angle, bearer, background, overlay, viewport, things } = values;
+  if (!background) {
+    if (things) return updateThings(things, true);
+    console.error(`Ignoring update without background`);
+    return;
+  }
+  _angle = angle;
+  updateThings(things);
+
+  if (viewport) {
+    copyRect(viewport, _img_orig);
+  }
+
+  try {
+    const [bgImg, ovImg] = await loadAllImages(bearer, background, overlay);
+    if (!bgImg) return;
+
+    const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
+    thingCtx = thingCanvas.getContext("2d", {
+      alpha: true,
+    }) as OffscreenCanvasRenderingContext2D;
+
+    const fullCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
+    fullCtx = fullCanvas.getContext("2d", {
+      alpha: true,
+    }) as OffscreenCanvasRenderingContext2D;
+
+    // set the image rendering order (in reverse, things on top => things draw last)
+    imageCanvasses = _things_on_top_of_overlay
+      ? [fullCtx.canvas, thingCtx.canvas]
+      : [thingCtx.canvas, fullCtx.canvas];
+
+    if (ovImg) {
+      fullCtx.drawImage(ovImg, 0, 0);
+      ovImg.close();
+    } else {
+      clearCanvas();
+    }
+    fullRerender(!viewport);
+  } catch (err) {
+    console.error(`Unable to load images on update: ${JSON.stringify(err)}`);
+  }
+}
+
 // eslint-disable-next-line no-restricted-globals
-self.onmessage = (evt) => {
+self.onmessage = async (evt) => {
+  // console.log(evt.data.cmd);
   switch (evt.data.cmd) {
     case "init": {
-      _angle = evt.data.values.angle;
-      // _bearer = evt.data.values.bearer;
-
-      if (evt.data.background) {
-        const bgCanvas = evt.data.background;
-        _canvas.width = Math.round(bgCanvas.width);
-        _canvas.height = Math.round(bgCanvas.height);
-        backgroundCtx = bgCanvas.getContext("2d", {
-          alpha: false,
-        }) as OffscreenCanvasRenderingContext2D;
+      // ensure the background canvas is valid
+      const bgCanvas = evt.data.background;
+      if (!bgCanvas) {
+        console.error(
+          `ERROR: PORK CHOP SANDWHICHES - no background canvas in contentworker init`,
+        );
+        return;
       }
 
-      if (evt.data.overlay) {
-        overlayCtx = evt.data.overlay.getContext("2d", {
-          alpha: true,
-        }) as OffscreenCanvasRenderingContext2D;
+      const ovCanvas = evt.data.overlay;
+      if (!ovCanvas) {
+        console.error(
+          `ERROR: PORK CHOP SANDWICHES - no overlay canvas in contentworker init`,
+        );
+        return;
       }
 
-      if (evt.data.fullOverlay) {
-        fullCtx = evt.data.fullOverlay.getContext("2d", {
-          alpha: true,
-        }) as OffscreenCanvasRenderingContext2D;
-      }
+      _canvas.width = bgCanvas.width;
+      _canvas.height = bgCanvas.height;
 
-      loadAllImages(
-        evt.data.values.bearer,
-        evt.data.values.background,
-        evt.data.values.overlay,
-      )
-        .then(([bgImg, ovImg]) => {
-          if (bgImg) {
-            calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
-            trimPanning();
+      backgroundCtx = bgCanvas.getContext("2d", {
+        alpha: false,
+      }) as OffscreenCanvasRenderingContext2D;
 
-            // this *should* be the one and only place we load the offscreen canvas
-            fullCtx.canvas.width = bgImg.width;
-            fullCtx.canvas.height = bgImg.height;
+      overlayCtx = evt.data.overlay.getContext("2d", {
+        alpha: true,
+      }) as OffscreenCanvasRenderingContext2D;
 
-            const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
-            thingCtx = thingCanvas.getContext("2d", {
-              alpha: true,
-            }) as OffscreenCanvasRenderingContext2D;
+      // indicate if things should be rendered on top of the overlay
+      _things_on_top_of_overlay = !!evt.data.thingsOnTop;
 
-            if (ovImg) {
-              fullCtx.drawImage(ovImg, 0, 0);
-              ovImg.close();
-            } else {
-              clearCanvas();
-            }
-            fullRerender(true);
-          }
-        })
-        .then(() => {
-          postMessage({
-            cmd: "initialized",
-            width: _vp.width,
-            height: _vp.height,
-            fullWidth: backgroundImage.width,
-            fullHeight: backgroundImage.height,
-          });
-        })
-        .catch((err) => {
-          console.error(
-            `Unable to load image ${evt.data.url}: ${JSON.stringify(err)}`,
-          );
+      break;
+    }
+    case "update": {
+      try {
+        await update(evt.data.values);
+        // technically, because the background changed, we've resized due to the image changing size
+        postMessage({
+          cmd: "resized",
+          width: _vp.width,
+          height: _vp.height,
+          fullWidth: backgroundImage.width,
+          fullHeight: backgroundImage.height,
         });
+      } catch (err) {
+        console.error(`Unable to update: ${JSON.stringify(err)}`);
+      }
       break;
     }
     case "resize": {
       _canvas.width = evt.data.width;
       _canvas.height = evt.data.height;
       if (backgroundImage) {
+        adjustZoomFromViewport();
         calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
         trimPanning();
         fullRerender();
+        postMessage({
+          cmd: "resized",
+          width: _vp.width,
+          height: _vp.height,
+          fullWidth: backgroundImage.width,
+          fullHeight: backgroundImage.height,
+        });
       }
       break;
     }
@@ -582,7 +679,7 @@ self.onmessage = (evt) => {
     case "end_erase": {
       recording = false;
       panning = false;
-      renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+      renderImage(overlayCtx, imageCanvasses, _angle);
       storeOverlay();
       break;
     }
@@ -590,7 +687,7 @@ self.onmessage = (evt) => {
       recording = false;
       panning = false;
       storeOverlay();
-      renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
+      renderImage(overlayCtx, imageCanvasses, _angle);
       break;
     }
     case "end_select": {
@@ -665,13 +762,6 @@ self.onmessage = (evt) => {
 
       // post back the full viewport
       postMessage({ cmd: "viewport", viewport: fullVp });
-      break;
-    }
-    case "set_highlighted_rect": {
-      const rect = evt.data.rect;
-      thingCtx.clearRect(0, 0, thingCtx.canvas.width, thingCtx.canvas.height);
-      if (rect) renderDottedBox(rect, thingCtx);
-      renderImage(overlayCtx, [fullCtx.canvas, thingCtx.canvas], _angle);
       break;
     }
     case "zoom_in": {
