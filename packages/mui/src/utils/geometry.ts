@@ -274,6 +274,12 @@ export function fillRotatedViewport(
   };
 }
 
+export function copyRect(source: Rect, destination: Rect) {
+  destination.x = source.x;
+  destination.y = source.y;
+  destination.width = source.width;
+  destination.height = source.height;
+}
 export function equalRects(r1: Rect, r2: Rect): boolean {
   return (
     r1.x === r2.x &&

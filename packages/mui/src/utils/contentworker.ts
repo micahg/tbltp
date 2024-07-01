@@ -1,3 +1,5 @@
+// BEFORE YOU COMMIT
+// - test with brand new scene (that wont have a viewport)
 import { TableUpdate } from "../components/RemoteDisplayComponent/RemoteDisplayComponent";
 import { LoadProgress, loadImage } from "./content";
 import { Drawable, Thing, newDrawableThing } from "./drawing";
@@ -15,6 +17,7 @@ import {
   unrotatePoints,
   scalePoints,
   translatePoints,
+  copyRect,
 } from "./geometry";
 
 /**
@@ -40,6 +43,7 @@ const _canvas: Rect = { x: 0, y: 0, width: 0, height: 0 };
 
 // region of images to display
 const _img: Rect = { x: 0, y: 0, width: 0, height: 0 };
+const _img_orig: Rect = { x: -1, y: -1, width: -1, height: -1 };
 
 // viewport
 const _vp: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -141,12 +145,12 @@ function calculateViewport(
  * than in the editor, where (iirc) you calculate the viewpoint given a point,
  * a zoom level and the canvas size.
  */
-function adjustZoomFromViewport(viewport: Rect) {
+function adjustZoomFromViewport() {
+  // if we do not have a requested image region to view then exit this method
+  if (_img_orig.x < 0) return;
+
   // set our viewport to the initial value requested
-  _img.x = viewport.x;
-  _img.y = viewport.y;
-  _img.width = viewport.width;
-  _img.height = viewport.height;
+  copyRect(_img_orig, _img);
 
   // unrotate canvas
   const [cW, cH] = rotatedWidthAndHeight(
@@ -374,6 +378,7 @@ function fullRerender(zoomOut = false) {
     _img.x = 0;
     _img.y = 0;
   }
+  adjustZoomFromViewport();
   calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
   renderAllCanvasses(backgroundImage);
 }
@@ -472,34 +477,39 @@ async function update(values: TableUpdate) {
   _angle = angle;
   updateThings(things);
 
+  let bgImg: ImageBitmap | null = null;
+  let ovImg: ImageBitmap | null = null;
   try {
-    const [bgImg, ovImg] = await loadAllImages(bearer, background, overlay);
-    if (!bgImg) return;
-
-    if (viewport) {
-      adjustZoomFromViewport(viewport);
-    }
-
-    const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
-    thingCtx = thingCanvas.getContext("2d", {
-      alpha: true,
-    }) as OffscreenCanvasRenderingContext2D;
-
-    const fullCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
-    fullCtx = fullCanvas.getContext("2d", {
-      alpha: true,
-    }) as OffscreenCanvasRenderingContext2D;
-
-    if (ovImg) {
-      fullCtx.drawImage(ovImg, 0, 0);
-      ovImg.close();
-    } else {
-      clearCanvas();
-    }
-    fullRerender(!viewport);
+    [bgImg, ovImg] = await loadAllImages(bearer, background, overlay);
   } catch (err) {
     console.error(`Unable to load images on update: ${JSON.stringify(err)}`);
   }
+  if (!bgImg) return;
+
+  if (viewport) {
+    copyRect(viewport, _img_orig);
+  }
+
+  const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
+  thingCtx = thingCanvas.getContext("2d", {
+    alpha: true,
+  }) as OffscreenCanvasRenderingContext2D;
+
+  const fullCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
+  fullCtx = fullCanvas.getContext("2d", {
+    alpha: true,
+  }) as OffscreenCanvasRenderingContext2D;
+
+  if (ovImg) {
+    fullCtx.drawImage(ovImg, 0, 0);
+    ovImg.close();
+  } else {
+    clearCanvas();
+  }
+  fullRerender(!viewport);
+  // } catch (err) {
+  //   console.error(`Unable to load images on update: ${JSON.stringify(err)}`);
+  // }
 }
 
 // eslint-disable-next-line no-restricted-globals
@@ -557,6 +567,7 @@ self.onmessage = async (evt) => {
       _canvas.width = evt.data.width;
       _canvas.height = evt.data.height;
       if (backgroundImage) {
+        adjustZoomFromViewport();
         calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
         trimPanning();
         fullRerender();
