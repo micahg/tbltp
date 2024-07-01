@@ -1,4 +1,3 @@
-// BEFORE YOU COMMIT
 // - test with brand new scene (that wont have a viewport)
 import { TableUpdate } from "../components/RemoteDisplayComponent/RemoteDisplayComponent";
 import { LoadProgress, loadImage } from "./content";
@@ -477,39 +476,34 @@ async function update(values: TableUpdate) {
   _angle = angle;
   updateThings(things);
 
-  let bgImg: ImageBitmap | null = null;
-  let ovImg: ImageBitmap | null = null;
-  try {
-    [bgImg, ovImg] = await loadAllImages(bearer, background, overlay);
-  } catch (err) {
-    console.error(`Unable to load images on update: ${JSON.stringify(err)}`);
-  }
-  if (!bgImg) return;
-
   if (viewport) {
     copyRect(viewport, _img_orig);
   }
 
-  const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
-  thingCtx = thingCanvas.getContext("2d", {
-    alpha: true,
-  }) as OffscreenCanvasRenderingContext2D;
+  try {
+    const [bgImg, ovImg] = await loadAllImages(bearer, background, overlay);
+    if (!bgImg) return;
 
-  const fullCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
-  fullCtx = fullCanvas.getContext("2d", {
-    alpha: true,
-  }) as OffscreenCanvasRenderingContext2D;
+    const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
+    thingCtx = thingCanvas.getContext("2d", {
+      alpha: true,
+    }) as OffscreenCanvasRenderingContext2D;
 
-  if (ovImg) {
-    fullCtx.drawImage(ovImg, 0, 0);
-    ovImg.close();
-  } else {
-    clearCanvas();
+    const fullCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);
+    fullCtx = fullCanvas.getContext("2d", {
+      alpha: true,
+    }) as OffscreenCanvasRenderingContext2D;
+
+    if (ovImg) {
+      fullCtx.drawImage(ovImg, 0, 0);
+      ovImg.close();
+    } else {
+      clearCanvas();
+    }
+    fullRerender(!viewport);
+  } catch (err) {
+    console.error(`Unable to load images on update: ${JSON.stringify(err)}`);
   }
-  fullRerender(!viewport);
-  // } catch (err) {
-  //   console.error(`Unable to load images on update: ${JSON.stringify(err)}`);
-  // }
 }
 
 // eslint-disable-next-line no-restricted-globals
