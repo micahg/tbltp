@@ -1,5 +1,6 @@
 import { Request } from "express";
-import { cp, rm, createWriteStream } from "node:fs";
+import { createWriteStream } from "node:fs";
+import { cp, rm } from "node:fs/promises";
 
 import { IncomingMessage } from "node:http";
 import { get } from "node:https";
@@ -90,7 +91,25 @@ export function updateAssetFromLink(
   });
 }
 
-export function updateAssetFromUpload(
+async function copyAndDelete(src: string, dest: string) {
+  // log.info(`Copying ${src} to ${dest}`);
+  try {
+    await cp(src, dest, { force: true, preserveTimestamps: true });
+  } catch (err) {
+    const msg = `Error copying ${src} to ${dest}`;
+    log.error(msg, err);
+    throw new Error(msg, { cause: 500 });
+  }
+
+  try {
+    // log.info(`Deleting ${src}`);
+    await rm(src, { force: true });
+  } catch (err) {
+    log.warn(`Unable to delete ${src}`, err);
+  }
+}
+
+export async function updateAssetFromUpload(
   scene: IScene,
   layer: string,
   req: Request,
@@ -102,24 +121,12 @@ export function updateAssetFromUpload(
   const fileName = `${layer}.${ext}`;
   const dest = `${DEST_FOLDER}/${scene.user}/scene/${scene._id}/${fileName}`;
 
-  return new Promise((resolve) => {
-    cp(src, dest, { force: true, preserveTimestamps: true }, (err) => {
-      if (err)
-        throw new Error(`Unable to copy ${src} to ${dest}`, { cause: 500 });
+  // do not catch (let exception through)
+  await copyAndDelete(src, dest);
 
-      // log.info(`Updated ${dest}`);
-      const update: LayerUpdate = {
-        id: scene._id.toString(),
-        layer: layer,
-        path: dest,
-      };
-      // updateTableState(layer, fileName);
-      rm(src, { force: true }, (err) => {
-        if (err) {
-          log.error(`Unable to delete ${src}`);
-        }
-        resolve(update);
-      });
-    });
-  });
+  return {
+    id: scene._id.toString(),
+    layer: layer,
+    path: dest,
+  };
 }
