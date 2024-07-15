@@ -399,11 +399,11 @@ const storeOverlay = () =>
       console.error(`Unable to post blob: ${JSON.stringify(err)}`),
     );
 
-function animateBrush(x: number, y: number) {
+function animateBrush() {
   if (!recording) return;
   renderImage(overlayCtx, imageCanvasses, _angle);
-  renderBrush(x, y, brush, false);
-  _frame = requestAnimationFrame(() => animateBrush(x, y));
+  renderBrush(startX, startY, brush, false);
+  _frame = requestAnimationFrame(() => animateBrush());
 }
 
 function animateSelection() {
@@ -425,7 +425,7 @@ function animateSelection() {
 
     renderVisibleCanvasses();
   }
-  requestAnimationFrame(animateSelection);
+  _frame = requestAnimationFrame(animateSelection);
 }
 
 function adjustZoom(zoom: number, x: number, y: number) {
@@ -597,27 +597,26 @@ self.onmessage = async (evt) => {
       break;
     }
     case "erase": {
+      startX = evt.data.x;
+      startY = evt.data.y;
       if (evt.data.buttons === 0) {
         // here we don't draw BUT if you look at animateBrush, you'll see that we'll just repaint the
         // overlay and then render the translucent brush
         if (!recording) {
           overlayCtx.fillStyle = GUIDE_FILL;
           recording = true;
+          requestAnimationFrame(animateBrush);
         }
-        // IS this even necessary? I guess if the mouse moves faster than the screen refresh it might cut some
-        // old frames out of the list
-        cancelAnimationFrame(_frame);
-        requestAnimationFrame(() => animateBrush(evt.data.x, evt.data.y));
       } else if (evt.data.buttons === 1) {
         /* nop */
-        if (recording) {
-          recording = false;
-        }
+        recording = false;
         eraseBrush(evt.data.x, evt.data.y, brush);
       }
       break;
     }
     case "paint": {
+      startX = evt.data.x;
+      startY = evt.data.y;
       // here we do not turn recording on or off (thats handled by the move/record/end events elsewhere)
       // also "recording" is not "painting" TODO MICAH COME BACK HERE AND CONFIRM ITS ABOUT CANVAS ANIMATION
       // where we do not paint (painting is separate from drawing the selection or the translucent brush)
@@ -627,11 +626,8 @@ self.onmessage = async (evt) => {
         if (!recording) {
           overlayCtx.fillStyle = GUIDE_FILL;
           recording = true;
+          requestAnimationFrame(animateBrush);
         }
-        // IS this even necessary? I guess if the mouse moves faster than the screen refresh it might cut some
-        // old frames out of the list
-        cancelAnimationFrame(_frame);
-        requestAnimationFrame(() => animateBrush(evt.data.x, evt.data.y));
       } else if (evt.data.buttons === 1) {
         // here however we just update the canvas with the actual brush. It seems that the fill call
         // in renderBrush will force the canvas to update so there isn't much point in using animation
