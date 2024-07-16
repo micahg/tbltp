@@ -36,7 +36,6 @@ let _zoom: number;
 const _zoom_step = 0.5;
 let _max_zoom: number;
 let _first_zoom_step: number;
-let _frame: number;
 let _things_on_top_of_overlay = false;
 
 // canvas width and height (sent from main thread)
@@ -403,7 +402,7 @@ function animateBrush() {
   if (!recording) return;
   renderImage(overlayCtx, imageCanvasses, _angle);
   renderBrush(startX, startY, brush, false);
-  _frame = requestAnimationFrame(() => animateBrush());
+  requestAnimationFrame(() => animateBrush());
 }
 
 function animateSelection() {
@@ -425,7 +424,7 @@ function animateSelection() {
 
     renderVisibleCanvasses();
   }
-  _frame = requestAnimationFrame(animateSelection);
+  requestAnimationFrame(animateSelection);
 }
 
 function adjustZoom(zoom: number, x: number, y: number) {
