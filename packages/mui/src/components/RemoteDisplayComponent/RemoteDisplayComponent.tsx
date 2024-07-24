@@ -14,10 +14,14 @@ import { Thing } from "../../utils/drawing";
 
 /**
  * Table state sent to display client by websocket. A partial Scene.
+ *
+ * TODO do not redefine this - move models somewhere neutral.
  */
 export interface TableState {
   overlay?: string;
+  overlayRev?: number;
   background?: string;
+  backgroundRev?: number;
   viewport: Rect;
   angle: number;
   backgroundSize?: Rect;
@@ -134,12 +138,14 @@ const RemoteDisplayComponent = () => {
       const ts: number = new Date().getTime();
       let overlay: string | undefined;
       if ("overlay" in js.state && js.state.overlay) {
-        overlay = `${apiUrl}/${js.state.overlay}?${ts}`;
+        // overlay = `${apiUrl}/${js.state.overlay}?${ts}`;
+        overlay = `${apiUrl}/${js.state.overlay}`;
       }
 
       let background: string | null = null;
       if ("background" in js.state && js.state.background) {
-        background = `${apiUrl}/${js.state.background}?${ts}`;
+        // background = `${apiUrl}/${js.state.background}?${ts}`;
+        background = `${apiUrl}/${js.state.background}`;
       }
 
       if (!background) {
@@ -147,12 +153,17 @@ const RemoteDisplayComponent = () => {
         return;
       }
 
+      const backgroundRev = js.state.backgroundRev;
+      const overlayRev = js.state.overlayRev;
+
       // update the images/viewport
       worker.postMessage({
         cmd: "update",
         values: {
           background,
+          backgroundRev,
           overlay,
+          overlayRev,
           viewport,
           bearer,
           angle,
