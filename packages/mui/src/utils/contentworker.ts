@@ -487,7 +487,7 @@ function updateThings(things?: Thing[], render = false) {
 }
 
 async function update(values: TableUpdate) {
-  const { angle, bearer, background, overlay, viewport, things } = values;
+  const { angle, background, viewport, things } = values;
   if (!background) {
     if (things) return updateThings(things, true);
     console.error(`Ignoring update without background`);

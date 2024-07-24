@@ -135,16 +135,13 @@ const RemoteDisplayComponent = () => {
 
       const angle = js.state.angle || 0;
 
-      const ts: number = new Date().getTime();
       let overlay: string | undefined;
       if ("overlay" in js.state && js.state.overlay) {
-        // overlay = `${apiUrl}/${js.state.overlay}?${ts}`;
         overlay = `${apiUrl}/${js.state.overlay}`;
       }
 
       let background: string | null = null;
       if ("background" in js.state && js.state.background) {
-        // background = `${apiUrl}/${js.state.background}?${ts}`;
         background = `${apiUrl}/${js.state.background}`;
       }
 
