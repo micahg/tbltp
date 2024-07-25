@@ -1,6 +1,6 @@
 import { IScene, Scene } from "../models/scene";
 import { IUser } from "../models/user";
-import { Rect } from "./tablestate";
+import { Rect } from "@micahg/tbltp-common";
 
 export function getSceneById(id: string, userId: string) {
   return Scene.findOne({ _id: id, user: userId });

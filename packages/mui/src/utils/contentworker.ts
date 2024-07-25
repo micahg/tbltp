@@ -4,7 +4,6 @@ import { LoadProgress, loadImage } from "./content";
 import { Drawable, Thing, newDrawableThing } from "./drawing";
 import {
   Point,
-  Rect,
   createPoints,
   firstZoomStep,
   normalizeRect,
@@ -18,13 +17,18 @@ import {
   translatePoints,
   copyRect,
 } from "./geometry";
+import { Rect } from "@micahg/tbltp-common";
 
 /**
  * Worker for offscreen drawing in the content editor.
  */
 let backgroundImage: ImageBitmap;
+let backgroundImageRev: number;
+let backgroundImageSrc: string;
 let backgroundCtx: OffscreenCanvasRenderingContext2D;
 let overlayCtx: OffscreenCanvasRenderingContext2D;
+let overlayImageSrc: string;
+let overlayImageRev: number;
 let fullCtx: OffscreenCanvasRenderingContext2D;
 let thingCtx: OffscreenCanvasRenderingContext2D;
 let imageCanvasses: CanvasImageSource[] = [];
@@ -193,23 +197,38 @@ function sizeVisibleCanvasses(width: number, height: number) {
   overlayCtx.canvas.height = height;
 }
 
-function loadAllImages(bearer: string, background: string, overlay?: string) {
+function loadAllImages(update: TableUpdate) {
+  const { bearer, background, backgroundRev, overlay, overlayRev } = update;
   const progress = (p: LoadProgress) =>
     postMessage({ cmd: "progress", evt: p });
-  /*********** TODO test to see if we reload the same image twice */
-  const bgP = loadImage(background, bearer, progress);
+
+  // gross - if we have a background image, only load it if the revision changed...
+  // so here if we see no change we don't bother pulling the new image
+  const bgsame =
+    background === backgroundImageSrc && backgroundRev === backgroundImageRev;
+  const bgP = background
+    ? bgsame
+      ? Promise.resolve(backgroundImage)
+      : loadImage(background, bearer, progress)
+    : Promise.resolve(null);
+  backgroundImageSrc = background || backgroundImageSrc;
+  backgroundImageRev = backgroundRev || backgroundImageRev;
   const ovP = overlay
-    ? loadImage(overlay, bearer, progress)
+    ? overlay === overlayImageSrc && overlayRev === overlayImageRev
+      ? overlayCtx.canvas.transferToImageBitmap()
+      : loadImage(overlay, bearer, progress)
     : Promise.resolve(null);
   // TODO signal an error if either promise fails
   return Promise.all([bgP, ovP]).then(([bgImg, ovImg]) => {
     // keep a copy of these to prevent having to recreate them from the image buffer
-    backgroundImage = bgImg;
-    [_fullRotW, _fullRotH] = rotatedWidthAndHeight(
-      _angle,
-      bgImg.width,
-      bgImg.height,
-    );
+    if (bgImg) {
+      backgroundImage = bgImg;
+      [_fullRotW, _fullRotH] = rotatedWidthAndHeight(
+        _angle,
+        bgImg.width,
+        bgImg.height,
+      );
+    }
     return [bgImg, ovImg];
   });
 }
@@ -468,7 +487,7 @@ function updateThings(things?: Thing[], render = false) {
 }
 
 async function update(values: TableUpdate) {
-  const { angle, bearer, background, overlay, viewport, things } = values;
+  const { angle, background, viewport, things } = values;
   if (!background) {
     if (things) return updateThings(things, true);
     console.error(`Ignoring update without background`);
@@ -482,7 +501,7 @@ async function update(values: TableUpdate) {
   }
 
   try {
-    const [bgImg, ovImg] = await loadAllImages(bearer, background, overlay);
+    const [bgImg, ovImg] = await loadAllImages(values);
     if (!bgImg) return;
 
     const thingCanvas = new OffscreenCanvas(bgImg.width, bgImg.height);

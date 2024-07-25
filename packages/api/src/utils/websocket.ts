@@ -11,7 +11,7 @@ import {
 } from "./constants";
 
 import { log } from "./logger";
-import { TableState } from "./tablestate";
+import { TableState } from "@micahg/tbltp-common";
 import { getFakeUser } from "./auth";
 import { IScene } from "../models/scene";
 import { getUserByID } from "./user";
@@ -95,7 +95,9 @@ function verifyConnection(sock: WebSocket, req: IncomingMessage) {
     .then((scene) => {
       const state: TableState = {
         overlay: scene.overlayContent,
+        overlayRev: scene.overlayContentRev,
         background: scene.playerContent,
+        backgroundRev: scene.playerContentRev,
         viewport: scene.viewport,
         backgroundSize: scene.backgroundSize,
         angle: scene.angle || 0,
@@ -140,7 +142,9 @@ export function startWSServer(
     if (!SOCKET_SESSIONS.has(userID)) return;
     const tableState: TableState = {
       overlay: update.overlayContent,
+      overlayRev: update.overlayContentRev,
       background: update.playerContent,
+      backgroundRev: update.playerContentRev,
       viewport: update.viewport,
       backgroundSize: update.backgroundSize,
       angle: update.angle || 0,

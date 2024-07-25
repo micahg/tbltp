@@ -3,7 +3,7 @@ import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { getToken } from "../utils/auth";
 import { ContentReducerError, Scene } from "../reducers/ContentReducer";
-import { Rect } from "../utils/geometry";
+import { Rect } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 

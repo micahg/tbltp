@@ -1,7 +1,6 @@
 import { createRef, useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { Rect } from "../../utils/geometry";
 import Alert from "@mui/material/Alert";
 import Stack from "@mui/material/Stack";
 
@@ -11,17 +10,7 @@ import { Box } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { Thing } from "../../utils/drawing";
-
-/**
- * Table state sent to display client by websocket. A partial Scene.
- */
-export interface TableState {
-  overlay?: string;
-  background?: string;
-  viewport: Rect;
-  angle: number;
-  backgroundSize?: Rect;
-}
+import { Rect, TableState } from "@micahg/tbltp-common";
 
 // TODO UNION MICAH DON"T SKIP NOW
 export type TableUpdate = TableState & {
@@ -131,15 +120,14 @@ const RemoteDisplayComponent = () => {
 
       const angle = js.state.angle || 0;
 
-      const ts: number = new Date().getTime();
       let overlay: string | undefined;
       if ("overlay" in js.state && js.state.overlay) {
-        overlay = `${apiUrl}/${js.state.overlay}?${ts}`;
+        overlay = `${apiUrl}/${js.state.overlay}`;
       }
 
       let background: string | null = null;
       if ("background" in js.state && js.state.background) {
-        background = `${apiUrl}/${js.state.background}?${ts}`;
+        background = `${apiUrl}/${js.state.background}`;
       }
 
       if (!background) {
@@ -147,12 +135,17 @@ const RemoteDisplayComponent = () => {
         return;
       }
 
+      const backgroundRev = js.state.backgroundRev;
+      const overlayRev = js.state.overlayRev;
+
       // update the images/viewport
       worker.postMessage({
         cmd: "update",
         values: {
           background,
+          backgroundRev,
           overlay,
+          overlayRev,
           viewport,
           bearer,
           angle,
