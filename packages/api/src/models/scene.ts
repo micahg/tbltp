@@ -1,5 +1,5 @@
 import { Schema, model } from "mongoose";
-import { Rect } from "../utils/tablestate";
+import { Rect } from "@micahg/tbltp-common";
 
 /**
  * Student Interface.

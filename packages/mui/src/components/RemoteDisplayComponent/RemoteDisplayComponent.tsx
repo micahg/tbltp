@@ -1,7 +1,6 @@
 import { createRef, useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { Rect } from "../../utils/geometry";
 import Alert from "@mui/material/Alert";
 import Stack from "@mui/material/Stack";
 
@@ -11,21 +10,7 @@ import { Box } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { Thing } from "../../utils/drawing";
-
-/**
- * Table state sent to display client by websocket. A partial Scene.
- *
- * TODO do not redefine this - move models somewhere neutral.
- */
-export interface TableState {
-  overlay?: string;
-  overlayRev?: number;
-  background?: string;
-  backgroundRev?: number;
-  viewport: Rect;
-  angle: number;
-  backgroundSize?: Rect;
-}
+import { Rect, TableState } from "@micahg/tbltp-common";
 
 // TODO UNION MICAH DON"T SKIP NOW
 export type TableUpdate = TableState & {

@@ -11,6 +11,7 @@
     "@auth0/auth0-spa-js": "^2.1.1",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
+    "@micahg/tbltp-common": "file:../common",
     "@mui/icons-material": "^5.14.1",
     "@mui/material": "^5.15.8",
     "@reduxjs/toolkit": "^1.9.5",

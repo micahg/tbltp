@@ -1,4 +1,4 @@
-import { Rect } from "./tablestate";
+import { Rect } from "@micahg/tbltp-common";
 
 export function validateViewPort(viewport: Rect): boolean {
   if (!viewport) return false;

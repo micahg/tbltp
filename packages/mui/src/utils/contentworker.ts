@@ -4,7 +4,6 @@ import { LoadProgress, loadImage } from "./content";
 import { Drawable, Thing, newDrawableThing } from "./drawing";
 import {
   Point,
-  Rect,
   createPoints,
   firstZoomStep,
   normalizeRect,
@@ -18,6 +17,7 @@ import {
   translatePoints,
   copyRect,
 } from "./geometry";
+import { Rect } from "@micahg/tbltp-common";
 
 /**
  * Worker for offscreen drawing in the content editor.

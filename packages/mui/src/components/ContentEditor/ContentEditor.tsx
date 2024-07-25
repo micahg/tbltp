@@ -9,7 +9,7 @@ import React, {
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { getRect, newSelectedRegion } from "../../utils/drawing";
-import { Rect, equalRects } from "../../utils/geometry";
+import { equalRects } from "../../utils/geometry";
 import { MouseStateMachine } from "../../utils/mousestatemachine";
 import { setCallback } from "../../utils/statemachine";
 import styles from "./ContentEditor.module.css";
@@ -45,6 +45,7 @@ import {
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { LoadProgress } from "../../utils/content";
+import { Rect } from "@micahg/tbltp-common";
 
 const sm = new MouseStateMachine();
 

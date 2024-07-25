@@ -11,7 +11,7 @@ import {
 } from "./constants";
 
 import { log } from "./logger";
-import { TableState } from "./tablestate";
+import { TableState } from "@micahg/tbltp-common";
 import { getFakeUser } from "./auth";
 import { IScene } from "../models/scene";
 import { getUserByID } from "./user";

@@ -1,5 +1,5 @@
 import { PayloadAction } from "@reduxjs/toolkit";
-import { Rect } from "../utils/geometry";
+import { Rect } from "@micahg/tbltp-common";
 
 // copied from api
 export interface Scene {

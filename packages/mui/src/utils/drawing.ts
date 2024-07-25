@@ -1,4 +1,4 @@
-import { Rect } from "./geometry";
+import { Rect } from "@micahg/tbltp-common";
 
 export type DrawContext = CanvasDrawPath &
   CanvasPathDrawingStyles &

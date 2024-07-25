@@ -18,7 +18,7 @@ import {
   updateAssetFromUpload,
 } from "../utils/localstore";
 import { validateAngle, validateViewPort } from "../utils/viewport";
-import { Rect } from "../utils/tablestate";
+import { Rect } from "@micahg/tbltp-common";
 
 const NAME_REGEX = /^[\w\s]{1,64}$/;
 
