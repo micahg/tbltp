@@ -591,8 +591,11 @@ const ContentEditor = ({
         } else if (e.deltaY < 0) {
           worker.postMessage({ cmd: "brush_dec", x: e.offsetX, y: e.offsetY });
         }
-      } else if (internalState.rec && internalState.act === "select") {
-        // ignore wheel on select
+      } else if (
+        internalState.rec &&
+        (internalState.act === "select" || internalState.act === "move")
+      ) {
+        // ignore wheel on select or while panning (move)
         sm.transition("done");
       }
     });
