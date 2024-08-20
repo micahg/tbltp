@@ -1,3 +1,12 @@
+# Upgrading OpenTelemetry
+
+Dependencies seem to be problematic -- I once got into a situation where `@opentelemetry/api` version `@1.9.0` was in my package.json but `1.8.0` was getting installed as the dependency of the other otel dependencies, causing conflicts.  Cleaning up the packages seemed to help:
+
+```
+npm i --package-lock-only
+npm dedup
+```
+
 # Running with OpenTelemetry
 
 ## Collector Setup
