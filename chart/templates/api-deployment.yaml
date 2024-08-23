@@ -129,13 +129,6 @@ spec:
     - ports:
       - port: "{{ .Values.mongoPort }}"
         protocol: TCP
-  - toEndpoints:
-    -matchLabels:
-      "app": {{ .Values.otelAppName }}
-    toPorts:
-    - ports:
-      - port: "{{ .Values.otelPort }}"
-        protocol: TCP
   - toService:
     - k8sService:
         serviceName: grafana-k8s-monitoring-alloy
