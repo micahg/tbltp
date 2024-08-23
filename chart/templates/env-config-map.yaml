@@ -15,5 +15,4 @@ data:
   ws.sendTimeout: "{{ .Values.wsSendTimeout }}"
   issuer.url: https://{{ .Values.issuerDomain }}
   auth.redirect: https://{{ .Values.uiDomain }}/edit
-  otel.url: http://{{ .Values.otelAppName }}-service:{{ .Values.otelPort }}
-  #otel.url: http://grafana-k8s-monitoring-alloy.grafana.svc.cluster.local:{{ .Values.otelPort }}
+  otel.url: http://{{ .Values.otelDomain }}:{{ .Values.otelPort }}
