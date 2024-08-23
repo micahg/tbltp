@@ -136,6 +136,10 @@ spec:
     - ports:
       - port: "{{ .Values.otelPort }}"
         protocol: TCP
+  - toService:
+    - k8sService:
+        serviceName: grafana-k8s-monitoring-alloy
+        namespace: grafana
   # add mongo egress
   ingress:
   - fromEndpoints:

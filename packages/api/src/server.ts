@@ -19,7 +19,7 @@ import mongoose from "mongoose";
 import { WebSocketServer } from "ws";
 import { ValueType, metrics } from "@opentelemetry/api";
 
-// mongoose.set('debug', true);
+// mongoose.set('debug', true); //
 
 log.info(`System starting in ${process.env.NODE_ENV}`);
 
@@ -31,6 +31,7 @@ let mongoConnectedFlag = false;
 let storageConnectedFlag = false;
 
 startInstrumentation();
+log.info("Instrumnentation started");
 
 // ts-prune-ignore-next used in unit tests
 export const app = expressConfig.create();
