@@ -129,10 +129,6 @@ spec:
     - ports:
       - port: "{{ .Values.mongoPort }}"
         protocol: TCP
-  - toService:
-    - k8sService:
-        serviceName: grafana-k8s-monitoring-alloy
-        namespace: grafana
   # add mongo egress
   ingress:
   - fromEndpoints:
@@ -142,3 +138,18 @@ spec:
     - ports:
       - port: "3000"
         protocol: TCP
+---
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ .Values.apiAppName }}-allow-outbound-otel
+  namespace: {{ .Values.namespace }}
+spec:
+  endpointSelector:
+    matchLabels:
+      app: {{ .Values.apiAppName }}
+  egress:
+  - toService:
+    - k8sService:
+        serviceName: grafana-k8s-monitoring-alloy
+        namespace: grafana
