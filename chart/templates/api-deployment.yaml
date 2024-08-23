@@ -149,7 +149,7 @@ spec:
     matchLabels:
       app: {{ .Values.apiAppName }}
   egress:
-  - toService:
+  - toServices:
     - k8sService:
         serviceName: grafana-k8s-monitoring-alloy
         namespace: grafana
