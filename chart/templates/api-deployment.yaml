@@ -132,7 +132,7 @@ spec:
   # add mongo egress
 {{- if .Values.mongoConnectionString }}
   - toFQDNs:
-    - matchName: "*.mongodb.net"
+    - matchPattern: "*.mongodb.net"
 {{- else }}
   - toEndpoints:
     - matchLabels:
