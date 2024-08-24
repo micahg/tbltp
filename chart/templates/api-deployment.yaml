@@ -133,6 +133,7 @@ spec:
 {{- if .Values.mongoConnectionString }}
   - toFQDNs:
     - matchName: "*.mongodb.net"
+{{- else }}
   - toEndpoints:
     - matchLabels:
       "app": {{ .Values.mongoName }}
