@@ -130,7 +130,7 @@ spec:
       - port: "{{ .Values.otelPort }}"
         protocol: TCP
   - toEndpoints:
-    -matchLabels:
+    - matchLabels:
       "app": {{ .Values.mongoName }}
     toPorts:
     - ports:
