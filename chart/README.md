@@ -10,7 +10,7 @@ certificate issuers here because they live in the another chart.
 
 Testing:
 
-```helm upgrade --dry-run --debug --install -f chart/values.yaml -f chart/values-dev.yaml ntt-infra chart```
+```helm upgrade --dry-run --debug --install -f chart/values.yaml -f chart/values-dev.yaml --set releaseVersion=0.20.0 --set deployEnv=development ntt-infra chart```
 
 Rollback:
 
