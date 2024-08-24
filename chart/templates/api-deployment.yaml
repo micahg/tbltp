@@ -111,12 +111,6 @@ spec:
     - ports:
       - port: "443"
         protocol: TCP
-  - toFQDNs:
-    - matchName: {{ .Values.otelDomain }}
-    toPorts:
-    - ports:
-      - port: "{{ .Values.otelPort }}"
-        protocol: TCP
   - toEndpoints:
     - matchLabels:
         "k8s:io.kubernetes.pod.namespace": kube-system
@@ -128,6 +122,13 @@ spec:
       rules:
         dns:
         - matchPattern: "*"
+  - toEndpoints:
+    - matchLabels:
+        "k8s:io.kubernetes.pod.namespace": grafana
+    toPorts:
+    - ports:
+      - port: "{{ .Values.otelPort }}"
+        protocol: TCP
   - toEndpoints:
     -matchLabels:
       "app": {{ .Values.mongoName }}
@@ -144,18 +145,3 @@ spec:
     - ports:
       - port: "3000"
         protocol: TCP
----
-apiVersion: "cilium.io/v2"
-kind: CiliumNetworkPolicy
-metadata:
-  name: {{ .Values.apiAppName }}-allow-outbound-otel
-  namespace: {{ .Values.namespace }}
-spec:
-  endpointSelector:
-    matchLabels:
-      app: {{ .Values.apiAppName }}
-  egress:
-  - toServices:
-    - k8sService:
-        serviceName: grafana-k8s-monitoring-alloy
-        namespace: grafana
