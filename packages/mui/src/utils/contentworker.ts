@@ -136,9 +136,6 @@ function calculateViewport() {
     _vp,
     _img,
   );
-  console.log(`MICAH vp is ${JSON.stringify(_vp)}`);
-  console.log(`MICAH img is ${JSON.stringify(_img)}`);
-  console.log(`MICAH bg ${backgroundImage.width},${backgroundImage.height}`);
   return;
 }
 
