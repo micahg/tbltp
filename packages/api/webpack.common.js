@@ -25,7 +25,6 @@ module.exports = {
   resolve: {
     extensions: [".webpack.js", ".web.js", ".ts", ".js"],
   },
-  devtool: "eval-source-map",
   module: {
     rules: [
       {
@@ -34,7 +33,6 @@ module.exports = {
       },
     ],
   },
-  externals: nodeModules,
   ignoreWarnings: [
     {
       module: /opentelemetry/,
