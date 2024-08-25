@@ -11,3 +11,7 @@ module.exports = merge(common, {
     }),
   ],
 });
+
+// build the prod js with tree shaking node modules
+// to avoid installing in the docker image
+delete module.exports.externals;
