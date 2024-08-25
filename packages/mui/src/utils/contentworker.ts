@@ -17,6 +17,7 @@ import {
   translatePoints,
   copyRect,
   zoomFromViewport,
+  adjustImageToViewport,
 } from "./geometry";
 import { Rect } from "@micahg/tbltp-common";
 
@@ -123,39 +124,45 @@ function renderImage(
   ctx.restore();
 }
 
-function calculateViewport(
-  angle: number,
-  zoom: number,
-  containerWidth: number,
-  containerHeight: number,
-) {
-  // screen w/h
-  const [cw, ch] = [containerWidth, containerHeight];
+// // unrotate canvas
+// const [cW, cH] = rotatedWidthAndHeight(
+//   -_angle,
+//   _canvas.width,
+//   _canvas.height,
+// );
+// const zW = _img.width / cW;
+// const zH = _img.height / cH;
 
-  // vp = rotated screen w/h
-  [_vp.width, _vp.height] = rotatedWidthAndHeight(-angle, cw, ch);
-
-  // multiply viewport by zoom factor WHICH CAN LEAD TO IMAGE SIZES GREATER THAN ACTUAL IMAGE SIZE
-  [_img.width, _img.height] = [zoom * _vp.width, zoom * _vp.height];
-  if (_img.width > backgroundImage.width) {
-    // img (scaled viewport) greater than actual image, so shrink it down and adjust the viewport to fit it
-    _img.width = backgroundImage.width;
-    _vp.width = Math.round((_vp.height * _img.width) / _img.height);
-  } else if (_img.height > backgroundImage.height) {
-    // one side of the displayed image region fits into our viewport
-    _img.height = backgroundImage.height;
-    _vp.height = Math.round((_vp.width * _img.height) / _img.width);
-  } else if (_img.y < 0) {
-    // remember, our "image" dimensions are based on our viewport and zoom so if we're off the page, just slide and we'll still fit
-    _img.y = 0;
-  } else if (_img.x < 0) {
-    // remember, our "image" dimensions are based on our viewport and zoom so if we're off the page, just slide and we'll still fit
-    _img.x = 0;
-  } else if (_img.x + _img.width > backgroundImage.width) {
-    _img.x = backgroundImage.width - _img.width;
-  } else if (_img.y + _img.height > backgroundImage.height) {
-    _img.y = backgroundImage.height - _img.height;
-  }
+// // set zoom and offset x or y to compensate for viewport
+// // aspect ratios that are different from the screen
+// if (zH > zW) {
+//   _zoom = zH;
+//   const adj = cW * _zoom;
+//   if (adj < _fullRotW) {
+//     // its fucked to let x go negative, but calculateViewport compensates... on the other hand,
+//     // we only call this in display mode, so we could move the logic to calculateViewport
+//     _img.x -= (adj - _img.width) / 2;
+//   }
+// } else {
+//   _zoom = zW;
+//   const adj = cH * _zoom;
+//   if (adj < _fullRotH) {
+//     // its fucked to let y go negative, but calculateViewport compensates... on the other hand,
+//     // we only call this in display mode, so we could move the logic to calculateViewport
+//     _img.y -= (adj - _img.height) / 2;
+//   }
+// }
+function calculateViewport() {
+  adjustImageToViewport(
+    _angle,
+    _zoom,
+    _canvas.width,
+    _canvas.height,
+    backgroundImage.width,
+    backgroundImage.height,
+    _vp,
+    _img,
+  );
   console.log(`MICAH vp is ${JSON.stringify(_vp)}`);
   console.log(`MICAH img is ${JSON.stringify(_img)}`);
   console.log(`MICAH bg ${backgroundImage.width},${backgroundImage.height}`);
@@ -397,7 +404,7 @@ function fullRerender(zoomOut = false) {
     _img.y = 0;
   }
   adjustZoomFromViewport();
-  calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
+  calculateViewport();
   renderAllCanvasses(backgroundImage);
 }
 
@@ -452,7 +459,7 @@ function adjustZoom(zoom: number, x: number, y: number) {
   q.x += _img.x;
   q.y += _img.y;
   _zoom = zoom;
-  calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
+  calculateViewport();
   // calculate any offsets for where we are completely zoomed in in one dimension
   // note that we accommodate for the rotation
   const yOffset = _vp.height < cH ? cH - _vp.height : 0;
@@ -589,7 +596,7 @@ self.onmessage = async (evt) => {
       _canvas.height = evt.data.height;
       if (backgroundImage) {
         adjustZoomFromViewport();
-        calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
+        calculateViewport();
         trimPanning();
         fullRerender();
         postMessage({

@@ -210,7 +210,7 @@ export function translatePoints(points: Point[], x: number, y: number) {
  * side to fit our screen.
  *
  * This is used when the remote client is told which region to display, rather
- * than in the editor, where (iirc) you calculate the viewpoint given a point,
+ * than in the editor, where (IIRC) you calculate the viewpoint given a point,
  * a zoom level and the canvas size.
  */
 export function zoomFromViewport(
@@ -228,6 +228,45 @@ export function zoomFromViewport(
   const zW = img.width / cW;
   const zH = img.height / cH;
   return Math.max(zW, zH);
+}
+
+export function adjustImageToViewport(
+  angle: number,
+  zoom: number,
+  containerWidth: number,
+  containerHeight: number,
+  backgroundWidth: number,
+  backgroundHeight: number,
+  viewport: Rect,
+  image: Rect,
+) {
+  // screen w/h
+  const [cw, ch] = [containerWidth, containerHeight];
+
+  // vp = rotated screen w/h
+  [viewport.width, viewport.height] = rotatedWidthAndHeight(-angle, cw, ch);
+
+  // multiply viewport by zoom factor WHICH CAN LEAD TO IMAGE SIZES GREATER THAN ACTUAL IMAGE SIZE
+  [image.width, image.height] = [zoom * viewport.width, zoom * viewport.height];
+  if (image.width > backgroundWidth) {
+    // img (scaled viewport) greater than actual image, so shrink it down and adjust the viewport to fit it
+    image.width = backgroundWidth;
+    viewport.width = Math.round((viewport.height * image.width) / image.height);
+  } else if (image.height > backgroundHeight) {
+    // one side of the displayed image region fits into our viewport
+    image.height = backgroundHeight;
+    viewport.height = Math.round((viewport.width * image.height) / image.width);
+  } else if (image.y < 0) {
+    // remember, our "image" dimensions are based on our viewport and zoom so if we're off the page, just slide and we'll still fit
+    image.y = 0;
+  } else if (image.x < 0) {
+    // remember, our "image" dimensions are based on our viewport and zoom so if we're off the page, just slide and we'll still fit
+    image.x = 0;
+  } else if (image.x + image.width > backgroundWidth) {
+    image.x = backgroundWidth - image.width;
+  } else if (image.y + image.height > backgroundHeight) {
+    image.y = backgroundHeight - image.height;
+  }
 }
 
 /**
