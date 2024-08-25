@@ -16,6 +16,7 @@ apiDomain: "api.tbltp.dev"
 apiStorageClass: do-block-storage
 apiStorageClassSize: 10Gi
 mongoName: "mongo"
+mongoSuffix: "lrmrxki.mongodb.net"
 mongoImagePath: mongo
 mongoImageVers: 7.0.0
 mongoPort: 27017
