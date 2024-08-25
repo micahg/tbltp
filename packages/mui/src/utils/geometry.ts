@@ -230,6 +230,34 @@ export function zoomFromViewport(
   return Math.max(zW, zH);
 }
 
+// // unrotate canvas
+// const [cW, cH] = rotatedWidthAndHeight(
+//   -_angle,
+//   _canvas.width,
+//   _canvas.height,
+// );
+// const zW = _img.width / cW;
+// const zH = _img.height / cH;
+
+// // set zoom and offset x or y to compensate for viewport
+// // aspect ratios that are different from the screen
+// if (zH > zW) {
+//   _zoom = zH;
+//   const adj = cW * _zoom;
+//   if (adj < _fullRotW) {
+//     // its fucked to let x go negative, but calculateViewport compensates... on the other hand,
+//     // we only call this in display mode, so we could move the logic to calculateViewport
+//     _img.x -= (adj - _img.width) / 2;
+//   }
+// } else {
+//   _zoom = zW;
+//   const adj = cH * _zoom;
+//   if (adj < _fullRotH) {
+//     // its fucked to let y go negative, but calculateViewport compensates... on the other hand,
+//     // we only call this in display mode, so we could move the logic to calculateViewport
+//     _img.y -= (adj - _img.height) / 2;
+//   }
+// }
 export function adjustImageToViewport(
   angle: number,
   zoom: number,
@@ -242,6 +270,26 @@ export function adjustImageToViewport(
 ) {
   // screen w/h
   const [cw, ch] = [containerWidth, containerHeight];
+  const [rw, rh] = rotatedWidthAndHeight(
+    angle,
+    backgroundWidth,
+    backgroundHeight,
+  );
+
+  // center the image - this can put the image x and y into the negatives or
+  // increase them so x + width or y + height are greater than the source image
+  // the following if block down below corrects those over/under adjustments
+  if (image.height / containerHeight > image.width / containerWidth) {
+    const adj = cw * zoom;
+    if (adj < rw) {
+      image.x -= (adj - image.width) / 2;
+    }
+  } else {
+    const adj = ch * zoom;
+    if (adj < rh) {
+      image.y -= (adj - image.height) / 2;
+    }
+  }
 
   // vp = rotated screen w/h
   [viewport.width, viewport.height] = rotatedWidthAndHeight(-angle, cw, ch);

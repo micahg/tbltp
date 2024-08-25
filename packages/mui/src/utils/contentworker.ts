@@ -124,35 +124,8 @@ function renderImage(
   ctx.restore();
 }
 
-// // unrotate canvas
-// const [cW, cH] = rotatedWidthAndHeight(
-//   -_angle,
-//   _canvas.width,
-//   _canvas.height,
-// );
-// const zW = _img.width / cW;
-// const zH = _img.height / cH;
-
-// // set zoom and offset x or y to compensate for viewport
-// // aspect ratios that are different from the screen
-// if (zH > zW) {
-//   _zoom = zH;
-//   const adj = cW * _zoom;
-//   if (adj < _fullRotW) {
-//     // its fucked to let x go negative, but calculateViewport compensates... on the other hand,
-//     // we only call this in display mode, so we could move the logic to calculateViewport
-//     _img.x -= (adj - _img.width) / 2;
-//   }
-// } else {
-//   _zoom = zW;
-//   const adj = cH * _zoom;
-//   if (adj < _fullRotH) {
-//     // its fucked to let y go negative, but calculateViewport compensates... on the other hand,
-//     // we only call this in display mode, so we could move the logic to calculateViewport
-//     _img.y -= (adj - _img.height) / 2;
-//   }
-// }
 function calculateViewport() {
+  // REMEMBER THIS METHOD UPDATES THE _vp and the _img
   adjustImageToViewport(
     _angle,
     _zoom,
