@@ -16,6 +16,7 @@ import {
   scalePoints,
   translatePoints,
   copyRect,
+  zoomFromViewport,
 } from "./geometry";
 import { Rect } from "@micahg/tbltp-common";
 
@@ -177,30 +178,7 @@ function adjustZoomFromViewport() {
   // set our viewport to the initial value requested
   copyRect(_img_orig, _img);
 
-  // unrotate canvas
-  const [cW, cH] = rotatedWidthAndHeight(
-    -_angle,
-    _canvas.width,
-    _canvas.height,
-  );
-  const zW = _img.width / cW;
-  const zH = _img.height / cH;
-
-  // set zoom and offset x or y to compensate for viewport
-  // aspect ratios that are different from the screen
-  if (zH > zW) {
-    _zoom = zH;
-    const adj = cW * _zoom;
-    if (adj < _fullRotW) {
-      _img.x -= (adj - _img.width) / 2;
-    }
-  } else {
-    _zoom = zW;
-    const adj = cH * _zoom;
-    if (adj < _fullRotH) {
-      _img.y -= (adj - _img.height) / 2;
-    }
-  }
+  _zoom = zoomFromViewport(_angle, _canvas.width, _canvas.height, _img);
 }
 
 /**

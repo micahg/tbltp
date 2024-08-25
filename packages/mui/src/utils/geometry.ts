@@ -205,6 +205,32 @@ export function translatePoints(points: Point[], x: number, y: number) {
 }
 
 /**
+ * Given a desired viewport, set our current viewport accordingly, set the zoom,
+ * and then center the request viewport within our screen, extending its short
+ * side to fit our screen.
+ *
+ * This is used when the remote client is told which region to display, rather
+ * than in the editor, where (iirc) you calculate the viewpoint given a point,
+ * a zoom level and the canvas size.
+ */
+export function zoomFromViewport(
+  angle: number,
+  containerWidth: number,
+  containerHeight: number,
+  img: Rect,
+) {
+  // un-rotate canvas
+  const [cW, cH] = rotatedWidthAndHeight(
+    -angle,
+    containerWidth,
+    containerHeight,
+  );
+  const zW = img.width / cW;
+  const zH = img.height / cH;
+  return Math.max(zW, zH);
+}
+
+/**
  * rotate and fill viewport to fit screen/window/canvas
  * @param screen screen [width, height]
  * @param image image [width, height] (actual -- might get shrunk by browser)
