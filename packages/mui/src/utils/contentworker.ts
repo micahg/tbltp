@@ -128,16 +128,37 @@ function calculateViewport(
   containerWidth: number,
   containerHeight: number,
 ) {
+  // screen w/h
   const [cw, ch] = [containerWidth, containerHeight];
+
+  // vp = rotated screen w/h
   [_vp.width, _vp.height] = rotatedWidthAndHeight(-angle, cw, ch);
+
+  // multiply viewport by zoom factor WHICH CAN LEAD TO IMAGE SIZES GREATER THAN ACTUAL IMAGE SIZE
   [_img.width, _img.height] = [zoom * _vp.width, zoom * _vp.height];
   if (_img.width > backgroundImage.width) {
+    // img (scaled viewport) greater than actual image, so shrink it down and adjust the viewport to fit it
     _img.width = backgroundImage.width;
     _vp.width = Math.round((_vp.height * _img.width) / _img.height);
   } else if (_img.height > backgroundImage.height) {
+    // one side of the displayed image region fits into our viewport
     _img.height = backgroundImage.height;
     _vp.height = Math.round((_vp.width * _img.height) / _img.width);
+  } else if (_img.y < 0) {
+    // remember, our "image" dimensions are based on our viewport and zoom so if we're off the page, just slide and we'll still fit
+    _img.y = 0;
+  } else if (_img.x < 0) {
+    // remember, our "image" dimensions are based on our viewport and zoom so if we're off the page, just slide and we'll still fit
+    _img.x = 0;
+  } else if (_img.x + _img.width > backgroundImage.width) {
+    _img.x = backgroundImage.width - _img.width;
+  } else if (_img.y + _img.height > backgroundImage.height) {
+    _img.y = backgroundImage.height - _img.height;
   }
+  console.log(`MICAH vp is ${JSON.stringify(_vp)}`);
+  console.log(`MICAH img is ${JSON.stringify(_img)}`);
+  console.log(`MICAH bg ${backgroundImage.width},${backgroundImage.height}`);
+  return;
 }
 
 /**
