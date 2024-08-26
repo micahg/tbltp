@@ -1,4 +1,3 @@
-import { getRect } from "./drawing";
 import { Rect } from "@micahg/tbltp-common";
 
 export interface Point {
