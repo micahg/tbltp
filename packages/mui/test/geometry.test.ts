@@ -6,10 +6,10 @@ import {
   calculateBounds,
   rotatedWidthAndHeight,
   rotateBackToBackgroundOrientation,
-  fillRotatedViewport,
   normalizeRect,
   createRect,
   Point,
+  adjustImageToViewport,
 } from "../src/utils/geometry";
 
 describe("Geometry", () => {
@@ -124,53 +124,42 @@ describe("Geometry", () => {
     });
   });
 
-  describe("Rotate and Fill Viewport", () => {
-    it("Should rotate and fill the viewport horizontally", () => {
-      const screen = [960, 540];
-      const image = [2008, 4160];
-      const angle = 90;
-      const viewport = { x: 100, y: 100, width: 100, height: 100 };
-      const result = fillRotatedViewport(screen, image, image, angle, viewport);
-      expect(result.width).toBe(100);
-      expect(result.height).toBe(178);
-      expect(result.x).toBe(100);
-      expect(result.y).toBe(61);
-    });
-
-    it("Should rotate and fill the viewport", () => {
-      const screen = [960, 540];
-      const image = [2008, 4160];
-      const angle = 90;
-      const viewport = { x: 100, y: 100, width: 100, height: 10 };
-      const result = fillRotatedViewport(screen, image, image, angle, viewport);
-      expect(result.width).toBe(100);
-      expect(result.height).toBe(178);
-      expect(result.x).toBe(100);
-      expect(result.y).toBe(16);
-    });
-
-    it("BRAIN MELTING", () => {
-      const screen = [1420, 641];
-      const image = [2008, 4160];
-      const angle = 90;
-      const viewport = { x: 300, y: 1294, width: 72, height: 448 };
-      const result = fillRotatedViewport(screen, image, image, angle, viewport);
-      expect(result.width).toBe(202);
-      expect(result.height).toBe(448);
-      expect(result.x).toBe(235);
-      expect(result.y).toBe(1294);
-    });
-
-    it("should retain viewport when not zoomed", () => {
-      const screen = [1420, 642];
-      const image = [2888, 1838];
+  describe("Adjust image and viewport to screen and background image size", () => {
+    it("Should not extend past the background width", () => {
       const angle = 0;
-      const viewport = { x: 0, y: 0, width: 2888, height: 1838 };
-      const result = fillRotatedViewport(screen, image, image, angle, viewport);
-      expect(result.width).toBe(2888);
-      expect(result.height).toBe(1838);
-      expect(result.x).toBe(0);
-      expect(result.y).toBe(0);
+      const zoom = 0.41371241501522343;
+      const [cw, ch] = [2037, 1162];
+      const [bw, bh] = [2888, 1839];
+      const vp = { x: 0, y: 0, width: 0, height: 0 };
+      const img = { x: 2773, y: 1341, width: 95, height: 480 };
+      adjustImageToViewport(angle, zoom, cw, ch, bw, bh, vp, img);
+      expect(vp.x).toBe(0);
+      expect(vp.y).toBe(0);
+      expect(vp.width).toBe(2037);
+      expect(vp.height).toBe(1162);
+      expect(img.x).toBe(2045);
+      expect(img.y).toBe(1341);
+      expect(img.width).toBe(843);
+      expect(img.height).toBe(481);
+      return;
+    });
+    it("Should extend before 0,0", () => {
+      const angle = 90;
+      const zoom = 0.3603392688134574;
+      const [cw, ch] = [2037, 1162];
+      const [bw, bh] = [2888, 1839];
+      const vp = { x: 0, y: 0, width: 0, height: 0 };
+      const img = { x: 16, y: 1097, width: 27, height: 734 };
+      adjustImageToViewport(angle, zoom, cw, ch, bw, bh, vp, img);
+      expect(vp.x).toBe(0);
+      expect(vp.y).toBe(0);
+      expect(vp.width).toBe(1162);
+      expect(vp.height).toBe(2037);
+      expect(img.x).toBe(0);
+      expect(img.y).toBe(1097);
+      expect(img.width).toBe(419);
+      expect(img.height).toBe(734);
+      return;
     });
   });
 
