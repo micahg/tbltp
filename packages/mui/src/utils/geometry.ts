@@ -1,4 +1,3 @@
-import { getRect } from "./drawing";
 import { Rect } from "@micahg/tbltp-common";
 
 export interface Point {
@@ -205,67 +204,104 @@ export function translatePoints(points: Point[], x: number, y: number) {
 }
 
 /**
- * rotate and fill viewport to fit screen/window/canvas
- * @param screen screen [width, height]
- * @param image image [width, height] (actual -- might get shrunk by browser)
- * @param oImage image [width, height] (original -- as the editor saw it -- possibly shrunk but we don't handle that yet)
- * @param angle angle of rotation
- * @param viewport viewport withing the original image {x, y, w, h}
- * @returns
+ * Given a desired viewport, set our current viewport accordingly, set the zoom,
+ * and then center the request viewport within our screen, extending its short
+ * side to fit our screen.
+ *
+ * This is used when the remote client is told which region to display, rather
+ * than in the editor, where (IIRC) you calculate the viewpoint given a point,
+ * a zoom level and the canvas size.
  */
-export function fillRotatedViewport(
-  screen: number[],
-  image: number[],
-  oImage: number[],
+export function zoomFromViewport(
   angle: number,
-  viewport: Rect,
+  containerWidth: number,
+  containerHeight: number,
+  img: Rect,
 ) {
-  if (
-    viewport.x === 0 &&
-    viewport.y === 0 &&
-    viewport.width === oImage[0] &&
-    viewport.height === oImage[1]
-  ) {
-    return getRect(0, 0, image[0], image[1]);
-  }
-  const rScreen = rotatedWidthAndHeight(angle, screen[0], screen[1]);
-  const selR = viewport.width / viewport.height;
-  const scrR = rScreen[0] / rScreen[1];
-  let { x, y, width: w, height: h } = viewport;
+  // un-rotate canvas
+  const [cW, cH] = rotatedWidthAndHeight(
+    -angle,
+    containerWidth,
+    containerHeight,
+  );
+  const zW = img.width / cW;
+  const zH = img.height / cH;
+  return Math.max(zW, zH);
+}
 
-  // const newVP = { x: viewport.x, y: viewport.y, width: viewport.width, height: viewport.height };
-  if (scrR > selR) {
-    const offset = Math.round((h * scrR - w) / 2);
-    w = Math.round(h * scrR);
-    if (x - offset < 0)
-      x = 0; // shunt to left screen bound rather than render a partial image
-    else if (x + w > oImage[0]) x = oImage[0] - w;
-    // shunt to right screen bound rather than render a partial image
-    else x -= offset;
+/**
+ * Given an angle of rotation, zoom factor, container (canvas) size, and requested image,
+ * set the viewport to the same aspect of the screen and adjust the image to fill that viewport.
+ * @param angle the angle of rotation
+ * @param zoom the zoom factor
+ * @param containerWidth container (canvas) width
+ * @param containerHeight container (canvas) height
+ * @param backgroundWidth background image width
+ * @param backgroundHeight background image height
+ * @param viewport viewport (will be updated)
+ * @param image image area (will be updated)
+ */
+export function adjustImageToViewport(
+  angle: number,
+  zoom: number,
+  containerWidth: number,
+  containerHeight: number,
+  backgroundWidth: number,
+  backgroundHeight: number,
+  viewport: Rect,
+  image: Rect,
+) {
+  // screen w/h
+  const [cw, ch] = [containerWidth, containerHeight];
+  const [rw, rh] = rotatedWidthAndHeight(
+    angle,
+    backgroundWidth,
+    backgroundHeight,
+  );
+
+  // center the image - this can put the image x and y into the negatives or
+  // increase them so x + width or y + height are greater than the source image
+  // the following if block down below corrects those over/under adjustments
+  if (image.height / containerHeight > image.width / containerWidth) {
+    const adj = cw * zoom;
+    if (adj < rw) {
+      image.x -= (adj - image.width) / 2;
+    }
   } else {
-    const offset = Math.round((w / scrR - h) / 2);
-    h = Math.round(w / scrR);
-    if (y - offset < 0) y = 0;
-    else if (y + h + offset > oImage[1]) y = oImage[1] - h;
-    else y -= offset;
+    const adj = ch * zoom;
+    if (adj < rh) {
+      image.y -= (adj - image.height) / 2;
+    }
   }
-  // calculate coefficient for browser-resized images
-  // We shouldn't need to square (**2) the scaling value; however, I
-  // think due to a browser bug, squaring silkScale below is what works.
-  // FWIW, the bug was filed here:
-  // https://bugs.chromium.org/p/chromium/issues/detail?id=1494756
-  //
-  // Some time before the end of March of 2024, the workaround stopped being
-  // necessary
-  //
-  // const silkScale = (image[0] / oImage[0]) ** 2;
-  const silkScale = image[0] / oImage[0];
-  return {
-    x: x * silkScale,
-    y: y * silkScale,
-    width: w * silkScale,
-    height: h * silkScale,
-  };
+
+  // vp = rotated screen w/h
+  [viewport.width, viewport.height] = rotatedWidthAndHeight(-angle, cw, ch);
+
+  // multiply viewport by zoom factor WHICH CAN LEAD TO IMAGE SIZES GREATER THAN ACTUAL IMAGE SIZE
+  [image.width, image.height] = [zoom * viewport.width, zoom * viewport.height];
+  if (image.width > backgroundWidth) {
+    // img (scaled viewport) greater than actual image, so shrink it down and adjust the viewport to fit it
+    image.width = backgroundWidth;
+    viewport.width = Math.round((viewport.height * image.width) / image.height);
+  } else if (image.height > backgroundHeight) {
+    // one side of the displayed image region fits into our viewport
+    image.height = backgroundHeight;
+    viewport.height = Math.round((viewport.width * image.height) / image.width);
+  } else if (image.y < 0) {
+    // remember, our "image" dimensions are based on our viewport and zoom so if we're off the page, just slide and we'll still fit
+    image.y = 0;
+  } else if (image.x < 0) {
+    // remember, our "image" dimensions are based on our viewport and zoom so if we're off the page, just slide and we'll still fit
+    image.x = 0;
+  } else if (image.x + image.width > backgroundWidth) {
+    image.x = backgroundWidth - image.width;
+  } else if (image.y + image.height > backgroundHeight) {
+    image.y = backgroundHeight - image.height;
+  }
+  image.x = Math.round(image.x);
+  image.y = Math.round(image.y);
+  image.width = Math.round(image.width);
+  image.height = Math.round(image.height);
 }
 
 export function copyRect(source: Rect, destination: Rect) {

@@ -16,6 +16,8 @@ import {
   scalePoints,
   translatePoints,
   copyRect,
+  zoomFromViewport,
+  adjustImageToViewport,
 } from "./geometry";
 import { Rect } from "@micahg/tbltp-common";
 
@@ -122,22 +124,19 @@ function renderImage(
   ctx.restore();
 }
 
-function calculateViewport(
-  angle: number,
-  zoom: number,
-  containerWidth: number,
-  containerHeight: number,
-) {
-  const [cw, ch] = [containerWidth, containerHeight];
-  [_vp.width, _vp.height] = rotatedWidthAndHeight(-angle, cw, ch);
-  [_img.width, _img.height] = [zoom * _vp.width, zoom * _vp.height];
-  if (_img.width > backgroundImage.width) {
-    _img.width = backgroundImage.width;
-    _vp.width = Math.round((_vp.height * _img.width) / _img.height);
-  } else if (_img.height > backgroundImage.height) {
-    _img.height = backgroundImage.height;
-    _vp.height = Math.round((_vp.width * _img.height) / _img.width);
-  }
+function calculateViewport() {
+  // REMEMBER THIS METHOD UPDATES THE _vp and the _img
+  adjustImageToViewport(
+    _angle,
+    _zoom,
+    _canvas.width,
+    _canvas.height,
+    backgroundImage.width,
+    backgroundImage.height,
+    _vp,
+    _img,
+  );
+  return;
 }
 
 /**
@@ -156,30 +155,7 @@ function adjustZoomFromViewport() {
   // set our viewport to the initial value requested
   copyRect(_img_orig, _img);
 
-  // unrotate canvas
-  const [cW, cH] = rotatedWidthAndHeight(
-    -_angle,
-    _canvas.width,
-    _canvas.height,
-  );
-  const zW = _img.width / cW;
-  const zH = _img.height / cH;
-
-  // set zoom and offset x or y to compensate for viewport
-  // aspect ratios that are different from the screen
-  if (zH > zW) {
-    _zoom = zH;
-    const adj = cW * _zoom;
-    if (adj < _fullRotW) {
-      _img.x -= (adj - _img.width) / 2;
-    }
-  } else {
-    _zoom = zW;
-    const adj = cH * _zoom;
-    if (adj < _fullRotH) {
-      _img.y -= (adj - _img.height) / 2;
-    }
-  }
+  _zoom = zoomFromViewport(_angle, _canvas.width, _canvas.height, _img);
 }
 
 /**
@@ -398,7 +374,7 @@ function fullRerender(zoomOut = false) {
     _img.y = 0;
   }
   adjustZoomFromViewport();
-  calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
+  calculateViewport();
   renderAllCanvasses(backgroundImage);
 }
 
@@ -453,7 +429,7 @@ function adjustZoom(zoom: number, x: number, y: number) {
   q.x += _img.x;
   q.y += _img.y;
   _zoom = zoom;
-  calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
+  calculateViewport();
   // calculate any offsets for where we are completely zoomed in in one dimension
   // note that we accommodate for the rotation
   const yOffset = _vp.height < cH ? cH - _vp.height : 0;
@@ -590,7 +566,7 @@ self.onmessage = async (evt) => {
       _canvas.height = evt.data.height;
       if (backgroundImage) {
         adjustZoomFromViewport();
-        calculateViewport(_angle, _zoom, _canvas.width, _canvas.height);
+        calculateViewport();
         trimPanning();
         fullRerender();
         postMessage({
