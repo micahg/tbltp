@@ -26,3 +26,6 @@ And then everything should be available on http://localhost:8080/.
 | ------------ | ---------------- |
 |[![Installing tbltp](https://img.youtube.com/vi/_ADo3CKNORU/default.jpg)](https://youtu.be/_ADo3CKNORU)|[![tbltp editor](https://img.youtube.com/vi/-1dxslmHktc/default.jpg)](https://youtu.be/-1dxslmHktc)|
 
+## Development
+
+See [Contributing](CONTRIBUTING.md)

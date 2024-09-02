@@ -56,6 +56,12 @@ TABLESTATE ||--|| SCENE : shows
 
 GAME ||--o{ SCENE : contains
 
+SCENE ||--o{ ENTITY : contains
+
+ENTITY ||--o| TOKEN : draws
+
+COMBAT ||--o{ ENTITY : orders
+
 GM {
   guid id
 }
@@ -75,6 +81,14 @@ TABLESTATE {
 
 GAME {
   string name
+}
+
+ENTITY {
+  boolean visible
+}
+
+TOKEN {
+  sting url
 }
 ```
 
