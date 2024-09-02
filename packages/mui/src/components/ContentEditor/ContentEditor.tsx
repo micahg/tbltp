@@ -598,7 +598,9 @@ const ContentEditor = ({
     setCallback(sm, "record_mouse_wheel", (args) => {
       if (
         internalState.rec &&
-        (internalState.act === "erase" || internalState.act === "paint")
+        (internalState.act === "erase" ||
+          internalState.act === "paint" ||
+          internalState.act === "token")
       ) {
         sm.transition("done");
         const e: WheelEvent = args[0] as WheelEvent;
