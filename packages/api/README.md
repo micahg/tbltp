@@ -58,7 +58,7 @@ GAME ||--o{ SCENE : contains
 
 SCENE ||--o{ ENTITY : contains
 
-ENTITY ||--o| TOKEN : draws
+ENTITY ||--o| IMAGE_ASSET : draws
 
 COMBAT ||--o{ ENTITY : orders
 
@@ -87,7 +87,7 @@ ENTITY {
   boolean visible
 }
 
-TOKEN {
+IMAGE_ASSET {
   sting url
 }
 ```

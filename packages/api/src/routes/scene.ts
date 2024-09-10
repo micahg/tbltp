@@ -20,7 +20,7 @@ import {
 import { validateAngle, validateViewPort } from "../utils/viewport";
 import { Rect } from "@micahg/tbltp-common";
 
-const NAME_REGEX = /^[\w\s]{1,64}$/;
+export const NAME_REGEX = /^[\w\s]{1,64}$/;
 
 function sceneExistsOr404(scene: IScene) {
   if (!scene) throw new Error("No scene", { cause: 404 });
