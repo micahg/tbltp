@@ -39,6 +39,17 @@ curl -v -X PUT http://localhost:3000/viewport -H 'Content-Type: application/json
 
 Where image is actually located at ./image.png
 
+## Debugging Unit Tests
+
+Start the test:
+
+```
+npm -w packages/api run test:debug -- scene.test.ts
+```
+
+Then, use the VS Code Launch Configuration: `Attach to test:debug (tbltp)`. Attach to your node process when prompted.
+
+
 # Data Model
 
 This data model only applies when there is a database. In standalone (eg: basic docker) there is only a single tablestate shared across all connections.

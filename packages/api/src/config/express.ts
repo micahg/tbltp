@@ -32,6 +32,7 @@ import { hrtime } from "process";
 import { createAsset } from "../routes/asset";
 import { assetValidator } from "../utils/asset";
 import { validationResult } from "express-validator";
+import { sceneViewportValidator } from "../utils/scene";
 
 function getJWTCheck(noauth: boolean) {
   const aud: string = process.env.AUDIENCE_URL || "http://localhost:3000/";
@@ -149,7 +150,13 @@ export function create(): Express {
   );
   app.get(STATE_ASSET, jwtCheck, getState);
   app.put(STATE_ASSET, jwtCheck, updateState);
-  app.put(SCENE_VIEWPORT_PATH, jwtCheck, updateSceneViewport);
+  app.put(
+    SCENE_VIEWPORT_PATH,
+    jwtCheck,
+    sceneViewportValidator(),
+    schemaErrorCheck,
+    updateSceneViewport,
+  );
   app.get(SCENE_PATH, jwtCheck, getScene);
   app.delete(SCENE_PATH, jwtCheck, deleteScene);
   app.get(ALL_SCENES_PATH, jwtCheck, getScenes);

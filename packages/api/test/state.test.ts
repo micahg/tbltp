@@ -114,4 +114,14 @@ describe("scene", () => {
     expect(resp.statusCode).toBe(200);
     expect(resp.body.overlayContentRev).toBe(2);
   });
-});  
+
+  it("should fail if the viewport is missing data", async () => {
+    const resp0 = await request(app).get("/scene");
+    u0DefScene = resp0.body[0];
+    const resp = await request(app)
+      .put(`/scene/${u0DefScene._id}/viewport`)
+      // x is missing
+      .send({ backgroundSize: { y: 0, width: 1, height: 1 } });
+    expect(resp.statusCode).toBe(400);
+  });
+});

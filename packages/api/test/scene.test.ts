@@ -138,12 +138,13 @@ describe("scene", () => {
   });
 
   it("Should update the viewport", async () => {
+    const scene = await request(app).get("/scene");
+    const url = `/scene/${scene.body[0]._id}/viewport`;
     const resp = await request(app)
-      .put(`/scene/${u0DefScene._id}/viewport`)
-      .send({viewport: { x: 0, y: 0, width: 0, height: 0}});
-      const vp = resp.body.viewport;
-      expect(resp.statusCode).toBe(200);
-      expect(resp.body.viewport.width).toBe(0);
+      .put(url)
+      .send({ viewport: { x: 0, y: 0, width: 0, height: 0 } });
+    expect(resp.statusCode).toBe(200);
+    expect(resp.body.viewport.width).toBe(0);
   });
 
   it("Should update the background", async () => {
@@ -167,11 +168,9 @@ describe("scene", () => {
   });
 
   it("Should update the angle", async () => {
-    const resp = await request(app)
-      .put(`/scene/${u0DefScene._id}/viewport`)
-      .send({
-        angle: 90,
-      });
+    const scene = await request(app).get("/scene");
+    const url = `/scene/${scene.body[0]._id}/viewport`;
+    const resp = await request(app).put(url).send({ angle: 90 });
     expect(resp.statusCode).toBe(200);
     expect(resp.body.angle).toBe(90);
   });
