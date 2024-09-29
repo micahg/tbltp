@@ -6,6 +6,12 @@
     "type": "git",
     "url": "git+https://github.com/micahg/tbltp.git"
   },
+  "scripts": {
+    "lint:api": "eslint packages/api/src",
+    "lint:api:fix": "eslint packages/api/src --fix",
+    "lint:mui": "eslint packages/mui/src",
+    "lint:mui:fix": "eslint packages/mui/src --fix"
+  },
   "author": "Micah Galizia <micahgalizia@gmail.com>",
   "license": "MIT",
   "bugs": {

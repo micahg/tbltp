@@ -21,7 +21,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/mui/**/*.tsx", "packages/mui/**/*.ts"],
+    files: ["packages/mui/src/**/*.tsx", "packages/mui/src/**/*.ts"],
     ...react.configs.flat.recommended,
     ...react.configs.flat['jsx-runtime'],
     languageOptions: {
