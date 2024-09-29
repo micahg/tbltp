@@ -24,8 +24,6 @@
     "packages/common"
   ],
   "devDependencies": {
-    "@stylistic/eslint-plugin-jsx": "^2.8.0",
-    "@stylistic/eslint-plugin-ts": "^2.8.0",
     "eslint": "^8.57.1",
     "eslint-config-standard": "^17.1.0",
     "eslint-plugin-import": "^2.30.0",
