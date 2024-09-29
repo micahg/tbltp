@@ -3,6 +3,7 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import react from 'eslint-plugin-react';
+import reacthooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 
 export default tseslint.config(
@@ -23,9 +24,6 @@ export default tseslint.config(
     files: ["packages/mui/**/*.tsx", "packages/mui/**/*.ts"],
     ...react.configs.flat.recommended,
     ...react.configs.flat['jsx-runtime'],
-    plugins: {
-      react,
-    },
     languageOptions: {
       ...react.configs.flat.recommended.languageOptions,
       parserOptions: {
@@ -40,6 +38,16 @@ export default tseslint.config(
           ...globals.browser,
         }
       },
-    }
+    },
+    plugins: {
+      react,
+      'react-hooks': reacthooks,
+    },
+    rules: {
+      ...react.configs.flat.recommended.rules,
+      // ...reacthooks.configs.recommended.rules
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "error",
+    },
   }
 );
