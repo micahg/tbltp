@@ -1,4 +1,8 @@
 {
+    // "eslint.workingDirectories": [{"mode": "auto"}],
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "always",
+    },
     "cSpell.languageSettings": [
         {
             "languageId": "javascript,typescript",

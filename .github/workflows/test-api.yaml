@@ -69,7 +69,7 @@ jobs:
       - name: Node Modules
         run: npm ci
       - name: Lint Code
-        run: npm run lint -w packages/api
+        run: npm run lint:api
       - name: Prune Dead Code
         run: npm run prune -w packages/api
       - name: Unit Test

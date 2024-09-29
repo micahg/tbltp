@@ -37,7 +37,7 @@ export function updateAssetFromLink(
   let source: URL;
   try {
     source = new URL(req.body.image);
-  } catch (err) {
+  } catch {
     throw new Error("Invalid URL in body", { cause: 400 });
   }
 
