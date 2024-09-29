@@ -45,9 +45,11 @@ export default tseslint.config(
     },
     rules: {
       ...react.configs.flat.recommended.rules,
-      // ...reacthooks.configs.recommended.rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "error",
+      // https://ru.legacy.reactjs.org/blog/2020/09/22/introducing-the-new-jsx-transform.html#eslint
+      "react/jsx-uses-react": "off",
+      "react/react-in-jsx-scope": "off",
     },
   }
 );
