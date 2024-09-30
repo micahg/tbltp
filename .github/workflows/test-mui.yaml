@@ -16,7 +16,9 @@ jobs:
         with:
           node-version: '18.x'
       - name: Node Modules
-        run: npm ci -w packages/mui
+        run: |
+          npm ci
+          npm ci -w packages/mui
       - name: Lint Code
         run: npm run lint:mui
       - name: Utils Unit Test
