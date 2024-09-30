@@ -310,7 +310,7 @@ function unrotateBox(x1: number, y1: number, x2: number, y2: number) {
   return [p1.x, p1.y, p2.x - p1.x, p2.y - p1.y];
 }
 
-function eraseBrush(x: number, y: number, radius: number, full = true) {
+function eraseBrush(x: number, y: number, radius: number) {
   // un-rotate and scale
   const p = unrotateAndScalePoints(createPoints([x, y]))[0];
 
