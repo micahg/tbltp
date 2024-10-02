@@ -33,6 +33,7 @@ import { createAsset } from "../routes/asset";
 import { assetValidator } from "../utils/asset";
 import { validationResult } from "express-validator";
 import { sceneViewportValidator } from "../utils/scene";
+import { stateValidator } from "../utils/state";
 
 function getJWTCheck(noauth: boolean) {
   const aud: string = process.env.AUDIENCE_URL || "http://localhost:3000/";
@@ -149,7 +150,13 @@ export function create(): Express {
     res.status(200).send({ noauth: noauth }),
   );
   app.get(STATE_ASSET, jwtCheck, getState);
-  app.put(STATE_ASSET, jwtCheck, updateState);
+  app.put(
+    STATE_ASSET,
+    jwtCheck,
+    stateValidator(),
+    schemaErrorCheck,
+    updateState,
+  );
   app.put(
     SCENE_VIEWPORT_PATH,
     jwtCheck,
