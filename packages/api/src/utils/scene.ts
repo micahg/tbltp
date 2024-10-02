@@ -32,6 +32,17 @@ export function getSceneValidator() {
   });
 }
 
+export function deleteSceneValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      isMongoId: {
+        errorMessage: "Invalid scene ID",
+      },
+    },
+  });
+}
+
 export function sceneViewportValidator() {
   return checkSchema({
     id: {

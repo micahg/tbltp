@@ -58,9 +58,6 @@ export function getScenes(req: Request, res: Response, next: NextFunction) {
 }
 
 export function deleteScene(req: Request, res: Response) {
-  // ensure the id is reasonable
-  if (req.params.id.length != OBJECT_ID_LEN) return res.sendStatus(400);
-
   return getUser(req.auth)
     .then((user) => userExistsOr401(user))
     .then((user) => deleteUserScene(user, req.params.id))
