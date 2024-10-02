@@ -21,6 +21,17 @@ function validateRect(value: Rect): boolean {
   return true;
 }
 
+export function getSceneValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      isMongoId: {
+        errorMessage: "Invalid scene ID",
+      },
+    },
+  });
+}
+
 export function sceneViewportValidator() {
   return checkSchema({
     id: {

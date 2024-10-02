@@ -32,7 +32,7 @@ import { hrtime } from "process";
 import { createAsset } from "../routes/asset";
 import { assetValidator } from "../utils/asset";
 import { validationResult } from "express-validator";
-import { sceneViewportValidator } from "../utils/scene";
+import { getSceneValidator, sceneViewportValidator } from "../utils/scene";
 import { stateValidator } from "../utils/state";
 
 function getJWTCheck(noauth: boolean) {
@@ -164,7 +164,13 @@ export function create(): Express {
     schemaErrorCheck,
     updateSceneViewport,
   );
-  app.get(SCENE_PATH, jwtCheck, getScene);
+  app.get(
+    SCENE_PATH,
+    jwtCheck,
+    getSceneValidator(),
+    schemaErrorCheck,
+    getScene,
+  );
   app.delete(SCENE_PATH, jwtCheck, deleteScene);
   app.get(ALL_SCENES_PATH, jwtCheck, getScenes);
   app.put(ALL_SCENES_PATH, jwtCheck, createScene);

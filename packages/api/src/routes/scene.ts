@@ -36,8 +36,6 @@ function validateScene(scene: IScene): IScene {
 }
 
 export function getScene(req: Request, res: Response, next: NextFunction) {
-  if (req.params.id.length != OBJECT_ID_LEN) return res.sendStatus(400);
-
   return (
     getUser(req.auth)
       // do 401 a non-existant user as they don't have access to any scenes
