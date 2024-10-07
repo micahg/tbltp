@@ -19,7 +19,7 @@ export default [
       parserOptions: {
         ecmaFeatures: { modules: true },
         ecmaVersion: "latest",
-        project: "./packages/api/tsconfig.json",
+        project: "packages/api/tsconfig.json",
       },
     },
   },
@@ -37,7 +37,7 @@ export default [
       ...react.configs.flat.recommended.languageOptions,
       parserOptions: {
         ecmaVersion: "latest",
-        project: "./packages/mui/tsconfig.json",
+        project: "packages/mui/tsconfig.json",
         ecmaFeatures: {
           modules: true,
           jsx: true,
