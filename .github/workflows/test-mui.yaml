@@ -18,7 +18,7 @@ jobs:
       - name: Node Modules
         run: npm ci
       - name: Lint Code
-        run: npm run lint:mui
+        run: npm -w packages/mui run lint
       - name: Utils Unit Test
         run: npm run test:utils -w packages/mui
       - name: Test Build

@@ -25,6 +25,7 @@
 			"tbltp",
 			"mui",
 			"common"
-		]
+		],
+		"eslint.workingDirectories":  [{"mode": "auto"}]
 	}
 }
