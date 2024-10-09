@@ -4,11 +4,13 @@ import { Asset } from "@micahg/tbltp-common";
 interface IAsset extends Asset {
   _id?: Schema.Types.ObjectId;
   user: Schema.Types.ObjectId;
+  location?: string;
 }
 
 const AssetSchema = new Schema<IAsset>(
   {
     name: { type: String, required: true },
+    location: { type: String },
   },
   { timestamps: true },
 );

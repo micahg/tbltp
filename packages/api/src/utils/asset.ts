@@ -23,8 +23,12 @@ export function assetValidator() {
   });
 }
 
-export function createUserAsset(user: IUser, asset: Asset): Promise<IAsset> {
+export function createUserAsset(user: IUser, asset: Asset) {
   const dbAsset = asset as IAsset;
   dbAsset.user = user._id;
   return AssetModel.create(dbAsset);
+}
+
+export async function setAssetLocation(asset: IAsset, location: string) {
+  return AssetModel.updateOne({ _id: asset._id }, { location: location });
 }

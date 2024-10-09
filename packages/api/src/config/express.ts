@@ -193,6 +193,7 @@ export function create(): Express {
   app.put(
     ASSET_ASSET,
     jwtCheck,
+    upload.single("asset"),
     assetValidator(),
     schemaErrorCheck,
     createAsset,

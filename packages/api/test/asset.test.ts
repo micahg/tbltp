@@ -65,22 +65,42 @@ describe("asset", () => {
     expect(resp.statusCode).toBe(400);
   });
 
-  it("Should return 400 when name is not provided", async () => {
+  it("Should 400 when name is not provided", async () => {
     let resp;
     try {
-      resp = await request(app).put("/asset").send({}); // Sending an empty object
+      resp = await request(app)
+        .put("/asset")
+        .attach("asset", "test/assets/1x1.png"); // Sending an empty object
     } catch (err) {
       fail(`Exception: ${JSON.stringify(err)}`);
     }
     expect(resp.statusCode).toBe(400);
   });
-  it("Should return succeed when a name is  provided", async () => {
+  it("Should 400 when file is not provided", async () => {
     let resp;
     try {
-      resp = await request(app).put("/asset").send({ name: "test" }); // Sending an empty object
+      resp = await request(app).put("/asset").field("name", "test"); // Sending an empty object
+    } catch (err) {
+      fail(`Exception: ${JSON.stringify(err)}`);
+    }
+    expect(resp.statusCode).toBe(400);
+  });
+  it("Should succeed when a name and file are provided", async () => {
+    const url = `/asset`;
+    let resp;
+    try {
+      resp = await request(app)
+        .put(url)
+        .field("name", "FIRST_ASSET")
+        .attach("asset", "test/assets/1x1.png");
     } catch (err) {
       fail(`Exception: ${JSON.stringify(err)}`);
     }
     expect(resp.statusCode).toBe(200);
+    expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+    expect(resp.body.name).toBe("FIRST_ASSET");
+    expect(resp.body.location).toMatch(
+      /public\/[a-f0-9]{24}\/assets\/[a-f0-9]{24}\.png/,
+    );
   });
 });
