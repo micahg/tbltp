@@ -33,9 +33,10 @@ import GameMasterActionComponent, {
 } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { ExpandLess, ExpandMore } from "@mui/icons-material";
+import { ExpandLess, ExpandMore, UploadFile } from "@mui/icons-material";
 import SceneComponent from "../SceneComponent/SceneComponent.lazy";
 import { Scene } from "../../reducers/ContentReducer";
+import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -43,6 +44,7 @@ const appBarHeight = 64;
 enum FocusedComponent {
   ContentEditor,
   Scene,
+  Assets,
 }
 
 const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
@@ -139,6 +141,10 @@ const GameMasterComponent = () => {
     setFocusedComponent(FocusedComponent.Scene);
   };
 
+  const handleViewAssets = () => {
+    setFocusedComponent(FocusedComponent.Assets);
+  };
+
   const handleEditScene = (scene?: Scene) => {
     if (scene) dispatch({ type: "content/currentscene", payload: scene });
     setFocusedComponent(FocusedComponent.ContentEditor);
@@ -176,7 +182,7 @@ const GameMasterComponent = () => {
   useEffect(() => {
     if (scenes.length === sceneCount) return;
 
-    // if we added a scene, increate the key so we redraw the scene component
+    // if we added a scene, increase the key so we redraw the scene component
     if (scenes.length > sceneCount) setSceneKey(sceneKey + 1);
 
     // keep the count in sync
@@ -227,6 +233,14 @@ const GameMasterComponent = () => {
         </DrawerHeader>
         <Divider />
         <List>
+          <ListItem key="Assets" disablePadding onClick={handleViewAssets}>
+            <ListItemButton>
+              <ListItemIcon>
+                <UploadFile />
+              </ListItemIcon>
+              <ListItemText primary="Assets" />
+            </ListItemButton>
+          </ListItem>
           <ListItem key="Campaigns" disablePadding>
             <ListItemButton>
               <ListItemIcon>
@@ -298,6 +312,9 @@ const GameMasterComponent = () => {
             scene={currentScene}
             editScene={handleEditScene}
           />
+        )}
+        {focusedComponent === FocusedComponent.Assets && (
+          <AssetsComponent></AssetsComponent>
         )}
       </Main>
     </Box>
