@@ -314,7 +314,7 @@ const GameMasterComponent = () => {
           />
         )}
         {focusedComponent === FocusedComponent.Assets && (
-          <AssetsComponent></AssetsComponent>
+          <AssetsComponent populateToolbar={handlePopulateToolbar} />
         )}
       </Main>
     </Box>
