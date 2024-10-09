@@ -27,12 +27,7 @@ interface SceneComponentProps {
 }
 
 // TODO use destructuring
-const SceneComponent = ({
-  populateToolbar,
-  redrawToolbar,
-  scene,
-  editScene,
-}: SceneComponentProps) => {
+const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   const dispatch = useDispatch();
 
   const playerCanvasRef = createRef<HTMLCanvasElement>();

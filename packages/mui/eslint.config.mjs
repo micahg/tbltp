@@ -1,6 +1,7 @@
 // @ts-check
 
 import eslint from "@eslint/js";
+import { fixupPluginRules } from "@eslint/compat";
 import tseslint from "typescript-eslint";
 import react from "eslint-plugin-react";
 import reacthooks from "eslint-plugin-react-hooks";
@@ -14,18 +15,8 @@ export default [
   // ...tseslint.configs.recommendedTypeChecked,
   prettierplugin,
   {
-    files: ["packages/api/src/server.ts", "packages/api/src/**/*.ts"],
-    languageOptions: {
-      parserOptions: {
-        ecmaFeatures: { modules: true },
-        ecmaVersion: "latest",
-        project: "./packages/api/tsconfig.json",
-      },
-    },
-  },
-  {
-    files: ["packages/mui/src/**/*.tsx", "packages/mui/src/**/*.ts"],
-    ignores: ["packages/mui/src/**/*.test.ts"],
+    files: ["src/**/*.tsx", "src/**/*.ts"],
+    ignores: ["src/**/*.test.ts"],
     ...react.configs.flat.recommended,
     ...react.configs.flat["jsx-runtime"],
     settings: {
@@ -37,7 +28,7 @@ export default [
       ...react.configs.flat.recommended.languageOptions,
       parserOptions: {
         ecmaVersion: "latest",
-        project: "./packages/mui/tsconfig.json",
+        project: "tsconfig.json",
         ecmaFeatures: {
           modules: true,
           jsx: true,
@@ -50,7 +41,7 @@ export default [
     },
     plugins: {
       react,
-      "react-hooks": reacthooks,
+      "react-hooks": fixupPluginRules(reacthooks),
     },
     rules: {
       ...react.configs.flat.recommended.rules,

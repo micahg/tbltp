@@ -13,6 +13,7 @@ import {
   SCENE_PATH,
   SCENE_CONTENT_PATH,
   SCENE_VIEWPORT_PATH,
+  ASSET_ASSET,
 } from "../utils/constants";
 import { getState, updateState } from "../routes/state";
 
@@ -28,6 +29,15 @@ import {
 import { getFakeUser } from "../utils/auth";
 import { metrics } from "@opentelemetry/api";
 import { hrtime } from "process";
+import { createAsset } from "../routes/asset";
+import { assetValidator } from "../utils/asset";
+import { validationResult } from "express-validator";
+import {
+  deleteSceneValidator,
+  getSceneValidator,
+  sceneViewportValidator,
+} from "../utils/scene";
+import { stateValidator } from "../utils/state";
 
 function getJWTCheck(noauth: boolean) {
   const aud: string = process.env.AUDIENCE_URL || "http://localhost:3000/";
@@ -56,6 +66,18 @@ function getJWTCheck(noauth: boolean) {
         issuerBaseURL: iss,
         tokenSigningAlg: "RS256",
       });
+}
+
+function schemaErrorCheck(
+  req: express.Request,
+  res: express.Response,
+  next: NextFunction,
+) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.sendStatus(400);
+  }
+  next();
 }
 
 /**
@@ -132,10 +154,34 @@ export function create(): Express {
     res.status(200).send({ noauth: noauth }),
   );
   app.get(STATE_ASSET, jwtCheck, getState);
-  app.put(STATE_ASSET, jwtCheck, updateState);
-  app.put(SCENE_VIEWPORT_PATH, jwtCheck, updateSceneViewport);
-  app.get(SCENE_PATH, jwtCheck, getScene);
-  app.delete(SCENE_PATH, jwtCheck, deleteScene);
+  app.put(
+    STATE_ASSET,
+    jwtCheck,
+    stateValidator(),
+    schemaErrorCheck,
+    updateState,
+  );
+  app.put(
+    SCENE_VIEWPORT_PATH,
+    jwtCheck,
+    sceneViewportValidator(),
+    schemaErrorCheck,
+    updateSceneViewport,
+  );
+  app.get(
+    SCENE_PATH,
+    jwtCheck,
+    getSceneValidator(),
+    schemaErrorCheck,
+    getScene,
+  );
+  app.delete(
+    SCENE_PATH,
+    jwtCheck,
+    deleteSceneValidator(),
+    schemaErrorCheck,
+    deleteScene,
+  );
   app.get(ALL_SCENES_PATH, jwtCheck, getScenes);
   app.put(ALL_SCENES_PATH, jwtCheck, createScene);
   app.put(
@@ -143,6 +189,14 @@ export function create(): Express {
     jwtCheck,
     upload.single("image"),
     updateSceneContent,
+  );
+  app.put(
+    ASSET_ASSET,
+    jwtCheck,
+    upload.single("asset"),
+    assetValidator(),
+    schemaErrorCheck,
+    createAsset,
   );
 
   // handle errors
