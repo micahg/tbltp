@@ -12,6 +12,22 @@ interface AssetsComponentProps {
 
 const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
   const dispatch = useDispatch();
+
+  const selectFile = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = false;
+    input.onchange = () => {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      if (!file) return;
+      // content / updateasset;
+      const payload = { asset: file, progress: () => {} };
+      dispatch({ type: "content/updateasset", payload: payload });
+    };
+    input.click();
+  };
+
   useEffect(() => {
     if (!populateToolbar) return;
     const actions: GameMasterAction[] = [
@@ -21,6 +37,7 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
         hidden: () => false,
         disabled: () => false,
         callback: () => {
+          selectFile();
           return;
         },
       },
@@ -31,6 +48,7 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
       dispatch({ type: "content/error" });
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return <Box>AssetsComponent Component</Box>;
 };
 

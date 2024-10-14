@@ -35,6 +35,26 @@ function isBlob(payload: URL | Blob): payload is File {
   return (payload as Blob).type !== undefined;
 }
 
+async function sendAsset(
+  state: AppReducerState,
+  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  asset: File,
+  progress?: (evt: LoadProgress) => void,
+): Promise<AxiosResponse> {
+  const url = `${state.environment.api}/asset`;
+  const formData = new FormData();
+  formData.append("name", "name");
+  formData.append("asset", asset as Blob);
+  const headers = await getToken(state, store, {
+    "Content-Type": "multipart/form-data",
+  });
+  const result = await axios.put(url, formData, {
+    headers: headers,
+    // TODO refactor without img
+    onUploadProgress: (e) => progress?.({ progress: e.progress || 0, img: "" }),
+  });
+  return result;
+}
 function sendFile(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
@@ -92,6 +112,19 @@ export const ContentMiddleware: Middleware = (store) => (next) => (action) => {
   }
 
   switch (action.type) {
+    case "content/updateasset":
+      {
+        const asset = action.payload;
+        if (!asset) return next(action);
+        sendAsset(state, store, action.payload.asset, action.payload.progress)
+          .then((value) => {
+            next({ type: action.type, payload: value.data });
+          })
+          .catch((err) =>
+            console.error(`Unable to update asset: ${JSON.stringify(err)}`),
+          );
+      }
+      break;
     case "content/push":
       {
         const scene: Scene = state.content.currentScene;
