@@ -23,6 +23,10 @@ export function assetValidator() {
   });
 }
 
+export function listUserAssets(user: IUser) {
+  return AssetModel.find({ user: user._id }).select("name location");
+}
+
 export function createUserAsset(user: IUser, asset: Asset) {
   const dbAsset = asset as IAsset;
   dbAsset.user = user._id;

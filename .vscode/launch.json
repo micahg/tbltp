@@ -58,7 +58,7 @@
       "request": "launch",
       "name": "Run API",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [
+      "runtimeArgs": [ // HEY FRIEND - don't use -w packages/api here - it screws up breakpoints
         "start"
       ],
       "outputCapture": "std",

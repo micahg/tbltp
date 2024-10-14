@@ -29,7 +29,7 @@ import {
 import { getFakeUser } from "../utils/auth";
 import { metrics } from "@opentelemetry/api";
 import { hrtime } from "process";
-import { createAsset } from "../routes/asset";
+import { createAsset, listAssets } from "../routes/asset";
 import { assetValidator } from "../utils/asset";
 import { validationResult } from "express-validator";
 import {
@@ -190,6 +190,8 @@ export function create(): Express {
     upload.single("image"),
     updateSceneContent,
   );
+  // fetched by user (jwt) -- no input validation
+  app.get(ASSET_ASSET, jwtCheck, listAssets);
   app.put(
     ASSET_ASSET,
     jwtCheck,

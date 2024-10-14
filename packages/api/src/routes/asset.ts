@@ -1,10 +1,24 @@
 import { log } from "../utils/logger";
 import { NextFunction, Request, Response } from "express";
 import { getOrCreateUser } from "../utils/user";
-import { createUserAsset } from "../utils/asset";
+import { createUserAsset, listUserAssets } from "../utils/asset";
 import { getValidExtension, updateAssetFromFile } from "../utils/localstore";
 import { Asset } from "@micahg/tbltp-common";
 
+export async function listAssets(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getOrCreateUser(req.auth);
+    const assets = await listUserAssets(user);
+    res.json(assets);
+  } catch (err) {
+    log.error("Unable to list user assets", err);
+    return next({ status: err.cause || 500 });
+  }
+}
 export async function createAsset(
   req: Request,
   res: Response,
