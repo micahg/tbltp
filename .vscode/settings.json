@@ -18,5 +18,5 @@
     ],
     "yaml.schemas": {
         "https://json.schemastore.org/github-workflow.json": "file:///home/micah/dev/nttinfra/.github/workflows/deploy.yaml"
-    }
+    },
 }

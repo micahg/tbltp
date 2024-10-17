@@ -318,3 +318,38 @@ export function equalRects(r1: Rect, r2: Rect): boolean {
     r1.height === r2.height
   );
 }
+
+/**
+ * @param delta the how much to add (or subtract if negative) to the dimensions
+ * @param ow original (and minimum) width of token
+ * @param oh original (and minimum) height of token
+ * @param cw: current width of token
+ * @param ch: current height of token
+ * @param mw: max width
+ * @param mh: max height
+ * @return array (width and height) of two numbers
+ */
+export function adjustTokenDimensions(
+  delta: number,
+  ow: number,
+  oh: number,
+  cw: number,
+  ch: number,
+  mw: number,
+  mh: number,
+): number[] {
+  let dh, dw;
+  if (ow > oh) {
+    dw = cw + delta;
+    dh = Math.round((dw * oh) / ow);
+  } else {
+    dh = ch + delta;
+    dw = Math.round((dh * ow) / oh);
+  }
+  // don't go passed that max width and height
+  if (dw < mw && dh < mh && dw >= ow && dh >= oh) {
+    cw = dw;
+    ch = dh;
+  }
+  return [cw, ch];
+}
