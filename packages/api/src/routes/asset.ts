@@ -3,7 +3,6 @@ import { NextFunction, Request, Response } from "express";
 import { getOrCreateUser } from "../utils/user";
 import { createUserAsset, getUserAsset, listUserAssets } from "../utils/asset";
 import { getValidExtension, updateAssetFromFile } from "../utils/localstore";
-import { Asset } from "@micahg/tbltp-common";
 
 export async function listAssets(
   req: Request,
