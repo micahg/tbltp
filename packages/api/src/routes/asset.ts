@@ -1,7 +1,7 @@
 import { log } from "../utils/logger";
 import { NextFunction, Request, Response } from "express";
 import { getOrCreateUser } from "../utils/user";
-import { createUserAsset, listUserAssets } from "../utils/asset";
+import { createUserAsset, getUserAsset, listUserAssets } from "../utils/asset";
 import { getValidExtension, updateAssetFromFile } from "../utils/localstore";
 import { Asset } from "@micahg/tbltp-common";
 
@@ -25,32 +25,48 @@ export async function createAsset(
   next: NextFunction,
 ) {
   try {
+    const user = await getOrCreateUser(req.auth);
+    const asset = await createUserAsset(user, req.body);
+    res.json(asset);
+  } catch (err) {
+    log.error("Unable to create asset", err);
+    return next({ status: err.cause || 500 });
+  }
+}
+
+export async function setAssetData(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
     // validator doesn't handle multer bits
     if (!("file" in req)) {
       return res.sendStatus(400);
     }
 
     const user = await getOrCreateUser(req.auth);
-    const asset: Asset = {
-      name: req.body.name,
-    };
 
     // this throws an exception with a cause if the extension is not supported... just let it through
     const ext = getValidExtension(req.file);
 
-    const dbAsset = await createUserAsset(user, asset);
+    // create or retrieve the asset
+    const asset = await getUserAsset(user, req.params.id);
+    if (!asset) {
+      throw new Error("No asset", { cause: 404 });
+    }
 
     // if there is an image upload, handle it
     const dest = await updateAssetFromFile(
       user,
       req.file,
-      dbAsset._id.toString(),
+      asset._id.toString(),
       ext,
     );
 
     // update the asset with the location
-    dbAsset.location = dest;
-    const result = await dbAsset.save();
+    asset.location = dest;
+    const result = await asset.save();
 
     res.json(result);
   } catch (err) {

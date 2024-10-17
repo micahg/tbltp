@@ -23,6 +23,18 @@ export function assetValidator() {
   });
 }
 
+export function assetDataValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      optional: false,
+      isMongoId: {
+        errorMessage: "Invalid asset ID",
+      },
+    },
+  });
+}
+
 export function listUserAssets(user: IUser) {
   return AssetModel.find({ user: user._id }).select("name location");
 }
@@ -31,6 +43,10 @@ export function createUserAsset(user: IUser, asset: Asset) {
   const dbAsset = asset as IAsset;
   dbAsset.user = user._id;
   return AssetModel.create(dbAsset);
+}
+
+export function getUserAsset(user: IUser, id: string) {
+  return AssetModel.findOne({ _id: id, user: user._id });
 }
 
 export async function setAssetLocation(asset: IAsset, location: string) {

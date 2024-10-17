@@ -13,7 +13,8 @@ import {
   SCENE_PATH,
   SCENE_CONTENT_PATH,
   SCENE_VIEWPORT_PATH,
-  ASSET_ASSET,
+  ASSET_PATH,
+  ASSET_DATA_PATH,
 } from "../utils/constants";
 import { getState, updateState } from "../routes/state";
 
@@ -29,8 +30,8 @@ import {
 import { getFakeUser } from "../utils/auth";
 import { metrics } from "@opentelemetry/api";
 import { hrtime } from "process";
-import { createAsset, listAssets } from "../routes/asset";
-import { assetValidator } from "../utils/asset";
+import { setAssetData, listAssets, createAsset } from "../routes/asset";
+import { assetDataValidator, assetValidator } from "../utils/asset";
 import { validationResult } from "express-validator";
 import {
   deleteSceneValidator,
@@ -191,14 +192,22 @@ export function create(): Express {
     updateSceneContent,
   );
   // fetched by user (jwt) -- no input validation
-  app.get(ASSET_ASSET, jwtCheck, listAssets);
+  app.get(ASSET_PATH, jwtCheck, listAssets);
   app.put(
-    ASSET_ASSET,
+    ASSET_PATH,
     jwtCheck,
-    upload.single("asset"),
     assetValidator(),
     schemaErrorCheck,
     createAsset,
+  );
+
+  app.put(
+    ASSET_DATA_PATH,
+    jwtCheck,
+    upload.single("asset"),
+    assetDataValidator(),
+    schemaErrorCheck,
+    setAssetData,
   );
 
   // handle errors

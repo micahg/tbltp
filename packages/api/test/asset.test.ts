@@ -56,7 +56,7 @@ describe("asset", () => {
     beforeEach(() => {
       (getFakeUser as jest.Mock).mockReturnValue(userZero);
     });
-    afterAll(async () => {
+    afterEach(async () => {
       await assetsCollection.deleteMany({}); // Clean up the database
       await usersCollection.deleteMany({}); // Clean up the database
     });
@@ -80,41 +80,111 @@ describe("asset", () => {
       }
       expect(resp.statusCode).toBe(400);
     });
-
     it("Should 400 when name is not provided", async () => {
       let resp;
       try {
-        resp = await request(app)
-          .put("/asset")
-          .attach("asset", "test/assets/1x1.png"); // Sending an empty object
+        resp = await request(app).put("/asset").send({});
       } catch (err) {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(400);
     });
-    it("Should 400 when file is not provided", async () => {
+    it("Should succeed when asset is created with name", async () => {
       let resp;
       try {
-        resp = await request(app).put("/asset").field("name", "test"); // Sending an empty object
-      } catch (err) {
-        fail(`Exception: ${JSON.stringify(err)}`);
-      }
-      expect(resp.statusCode).toBe(400);
-    });
-    it("Should succeed when a name and file are provided", async () => {
-      const url = `/asset`;
-      let resp;
-      try {
-        resp = await request(app)
-          .put(url)
-          .field("name", "FIRST_ASSET")
-          .attach("asset", "test/assets/1x1.png");
+        resp = await request(app).put("/asset").send({ name: "test" });
       } catch (err) {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(200);
       expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
-      expect(resp.body.name).toBe("FIRST_ASSET");
+      expect(resp.body.name).toBe("test");
+      const user = await usersCollection.findOne({ sub: userZero });
+      expect(user).toBeDefined();
+      expect(user).not.toBeNull();
+      const assets = await assetsCollection.find({ user: user!._id }).toArray();
+      expect(assets).toBeDefined();
+      expect(assets).not.toBeNull();
+      expect(assets).toHaveLength(1);
+    });
+    // it("Should 400 when name is not provided", async () => {
+    //   let resp;
+    //   try {
+    //     resp = await request(app)
+    //       .put("/asset")
+    //       .attach("asset", "test/assets/1x1.png"); // Sending an empty object
+    //   } catch (err) {
+    //     fail(`Exception: ${JSON.stringify(err)}`);
+    //   }
+    //   expect(resp.statusCode).toBe(400);
+    // });
+  });
+  describe("data upload", () => {
+    beforeEach(() => {
+      (getFakeUser as jest.Mock).mockReturnValue(userZero);
+    });
+    afterEach(async () => {
+      await assetsCollection.deleteMany({}); // Clean up the database
+      await usersCollection.deleteMany({}); // Clean up the database
+    });
+    it("Should 400 when file is not provided", async () => {
+      let resp;
+      try {
+        resp = await request(app).put("/asset").send({ name: "test" });
+      } catch (err) {
+        fail(`Asset Creation Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("test");
+      const url = `/asset/${resp.body._id}/data`;
+      try {
+        resp = await request(app).put(url).send();
+      } catch (err) {
+        fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(400);
+    });
+    it("Should 400 when id is invalid", async () => {
+      let resp;
+      try {
+        resp = await request(app)
+          .put("/asset/zzzzzzzzzzzzzzzzzzzzzzzz/data")
+          .attach("asset", "test/assets/1x1.png");
+      } catch (err) {
+        fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(400);
+    });
+    it("Should 404 when id is valid but does not exist", async () => {
+      let resp;
+      try {
+        resp = await request(app)
+          .put("/asset/aaaaaaaaaaaaaaaaaaaaaaaa/data")
+          .attach("asset", "test/assets/1x1.png");
+      } catch (err) {
+        fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(404);
+    });
+    it("Should succeed when a file is provided", async () => {
+      let resp;
+      try {
+        resp = await request(app).put("/asset").send({ name: "test" });
+      } catch (err) {
+        fail(`Asset Creation Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("test");
+      try {
+        resp = await request(app)
+          .put(`/asset/${resp.body._id}/data`)
+          .attach("asset", "test/assets/1x1.png");
+      } catch (err) {
+        fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
       expect(resp.body.location).toMatch(
         /public\/[a-f0-9]{24}\/assets\/[a-f0-9]{24}\.png/,
       );
@@ -139,19 +209,21 @@ describe("asset", () => {
       const url = `/asset`;
       let resp;
       try {
-        resp = await request(app)
-          .put("/asset")
-          .field("name", "FIRST_ASSET")
-          .attach("asset", "test/assets/1x1.png");
+        resp = await request(app).put("/asset").send({ name: "FIRST_ASSET" });
       } catch (err) {
         fail(`Exception creating asset: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(200);
       try {
         resp = await request(app)
-          .put("/asset")
-          .field("name", "SECOND_ASSET")
+          .put(`/asset/${resp.body._id}/data`)
           .attach("asset", "test/assets/1x1.png");
+      } catch (err) {
+        fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      try {
+        resp = await request(app).put("/asset").send({ name: "SECOND_ASSET" });
       } catch (err) {
         fail(`Exception creating asset: ${JSON.stringify(err)}`);
       }
@@ -163,6 +235,21 @@ describe("asset", () => {
       }
       expect(resp.statusCode).toBe(200);
       expect(resp.body.length).toBe(2);
+      expect(resp.body[0].name).toBe("FIRST_ASSET");
+      expect(resp.body[0].location).toMatch(
+        /public\/[a-f0-9]{24}\/assets\/[a-f0-9]{24}\.png/,
+      );
+      expect(resp.body[1].name).toBe("SECOND_ASSET");
+      expect(resp.body[1].location).not.toBeDefined();
+    });
+  });
+  describe("update", () => {
+    beforeEach(async () => {
+      (getFakeUser as jest.Mock).mockReturnValue(userZero);
+    });
+    afterEach(async () => {
+      await assetsCollection.deleteMany({}); // Clean up the database
+      await usersCollection.deleteMany({}); // Clean up the database
     });
   });
 });
