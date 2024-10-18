@@ -35,6 +35,51 @@ function isBlob(payload: URL | Blob): payload is File {
   return (payload as Blob).type !== undefined;
 }
 
+/***************************************************
+ * TODO: IT WOULD BE COOL TO ADD THE UPLOAD PROGRESS
+ * TO THE ACTUAL ASSET ON SCREEN SINCE THEY'RE
+ * CREATED AND UPLOADED SEPARATELY
+ */
+async function sendAsset(
+  state: AppReducerState,
+  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  asset: File,
+  progress?: (evt: LoadProgress) => void,
+): Promise<AxiosResponse> {
+  let a, r;
+  const headers = await getToken(state, store);
+
+  try {
+    a = await axios.put(
+      `${state.environment.api}/asset`,
+      {
+        name: "TEST_ASSET_DELETE_ME",
+      },
+      { headers: headers },
+    );
+  } catch (err) {
+    console.error(`Unable to create asset: ${JSON.stringify(err)}`);
+    throw new Error("Unable to create asset", { cause: err });
+  }
+  const formData = new FormData();
+  formData.append("asset", asset as Blob);
+  headers["Content-Type"] = "multipart/form-data";
+  try {
+    r = await axios.put(
+      `${state.environment.api}/asset/${a.data._id}/data`,
+      formData,
+      {
+        headers: headers,
+        onUploadProgress: (e) =>
+          progress?.({ progress: e.progress || 0, img: "" }),
+      },
+    );
+  } catch (err) {
+    console.error(`Unable to upload asset: ${JSON.stringify(err)}`);
+    throw new Error("Unable to upload asset", { cause: err });
+  }
+  return r;
+}
 function sendFile(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
@@ -92,6 +137,19 @@ export const ContentMiddleware: Middleware = (store) => (next) => (action) => {
   }
 
   switch (action.type) {
+    case "content/updateasset":
+      {
+        const asset = action.payload;
+        if (!asset) return next(action);
+        sendAsset(state, store, action.payload.asset, action.payload.progress)
+          .then((value) => {
+            next({ type: action.type, payload: value.data });
+          })
+          .catch((err) =>
+            console.error(`Unable to update asset: ${JSON.stringify(err)}`),
+          );
+      }
+      break;
     case "content/push":
       {
         const scene: Scene = state.content.currentScene;

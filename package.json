@@ -6,12 +6,6 @@
     "type": "git",
     "url": "git+https://github.com/micahg/tbltp.git"
   },
-  "scripts": {
-    "lint:api": "eslint packages/api/src",
-    "lint:api:fix": "eslint packages/api/src --fix",
-    "lint:mui": "eslint packages/mui/src",
-    "lint:mui:fix": "eslint packages/mui/src --fix"
-  },
   "author": "Micah Galizia <micahgalizia@gmail.com>",
   "license": "MIT",
   "bugs": {
@@ -22,18 +16,5 @@
     "packages/api",
     "packages/mui",
     "packages/common"
-  ],
-  "devDependencies": {
-    "eslint": "^8.57.1",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-config-standard": "^17.1.0",
-    "eslint-plugin-import": "^2.30.0",
-    "eslint-plugin-n": "^16.6.2",
-    "eslint-plugin-prettier": "^5.2.1",
-    "eslint-plugin-promise": "^6.6.0",
-    "eslint-plugin-react": "^7.37.0",
-    "eslint-plugin-react-hooks": "^4.6.2",
-    "prettier": "3.3.3",
-    "typescript-eslint": "^8.6.0"
-  }
+  ]
 }

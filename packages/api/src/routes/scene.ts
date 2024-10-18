@@ -20,7 +20,7 @@ import {
 import { validateAngle, validateViewPort } from "../utils/viewport";
 import { Rect } from "@micahg/tbltp-common";
 
-const NAME_REGEX = /^[\w\s]{1,64}$/;
+export const NAME_REGEX = /^[\w\s]{1,64}$/;
 
 function sceneExistsOr404(scene: IScene) {
   if (!scene) throw new Error("No scene", { cause: 404 });
@@ -36,8 +36,6 @@ function validateScene(scene: IScene): IScene {
 }
 
 export function getScene(req: Request, res: Response, next: NextFunction) {
-  if (req.params.id.length != OBJECT_ID_LEN) return res.sendStatus(400);
-
   return (
     getUser(req.auth)
       // do 401 a non-existant user as they don't have access to any scenes
@@ -60,9 +58,6 @@ export function getScenes(req: Request, res: Response, next: NextFunction) {
 }
 
 export function deleteScene(req: Request, res: Response) {
-  // ensure the id is reasonable
-  if (req.params.id.length != OBJECT_ID_LEN) return res.sendStatus(400);
-
   return getUser(req.auth)
     .then((user) => userExistsOr401(user))
     .then((user) => deleteUserScene(user, req.params.id))
