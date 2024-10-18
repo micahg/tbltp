@@ -35,25 +35,50 @@ function isBlob(payload: URL | Blob): payload is File {
   return (payload as Blob).type !== undefined;
 }
 
+/***************************************************
+ * TODO: IT WOULD BE COOL TO ADD THE UPLOAD PROGRESS
+ * TO THE ACTUAL ASSET ON SCREEN SINCE THEY'RE
+ * CREATED AND UPLOADED SEPARATELY
+ */
 async function sendAsset(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   asset: File,
   progress?: (evt: LoadProgress) => void,
 ): Promise<AxiosResponse> {
-  const url = `${state.environment.api}/asset`;
+  let a, r;
+  const headers = await getToken(state, store);
+
+  try {
+    a = await axios.put(
+      `${state.environment.api}/asset`,
+      {
+        name: "TEST_ASSET_DELETE_ME",
+      },
+      { headers: headers },
+    );
+  } catch (err) {
+    console.error(`Unable to create asset: ${JSON.stringify(err)}`);
+    throw new Error("Unable to create asset", { cause: err });
+  }
   const formData = new FormData();
-  formData.append("name", "name");
   formData.append("asset", asset as Blob);
-  const headers = await getToken(state, store, {
-    "Content-Type": "multipart/form-data",
-  });
-  const result = await axios.put(url, formData, {
-    headers: headers,
-    // TODO refactor without img
-    onUploadProgress: (e) => progress?.({ progress: e.progress || 0, img: "" }),
-  });
-  return result;
+  headers["Content-Type"] = "multipart/form-data";
+  try {
+    r = await axios.put(
+      `${state.environment.api}/asset/${a.data._id}/data`,
+      formData,
+      {
+        headers: headers,
+        onUploadProgress: (e) =>
+          progress?.({ progress: e.progress || 0, img: "" }),
+      },
+    );
+  } catch (err) {
+    console.error(`Unable to upload asset: ${JSON.stringify(err)}`);
+    throw new Error("Unable to upload asset", { cause: err });
+  }
+  return r;
 }
 function sendFile(
   state: AppReducerState,
