@@ -39,10 +39,18 @@ export function listUserAssets(user: IUser) {
   return AssetModel.find({ user: user._id }).select("name location");
 }
 
-export function createUserAsset(user: IUser, asset: Asset) {
-  const dbAsset = asset as IAsset;
-  dbAsset.user = user._id;
-  return AssetModel.create(dbAsset);
+export async function createUserAsset(user: IUser, asset: Asset) {
+  try {
+    const dbAsset = asset as IAsset;
+    dbAsset.user = user._id;
+    return await AssetModel.create(dbAsset);
+  } catch (err) {
+    if ("name" in err && err.name === "MongoServerError") {
+      if (err.code === 11000) {
+        throw new Error("Asset name already exists", { cause: 409 });
+      }
+    }
+  }
 }
 
 export function getUserAsset(user: IUser, id: string) {

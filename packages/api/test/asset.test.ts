@@ -107,17 +107,30 @@ describe("asset", () => {
       expect(assets).not.toBeNull();
       expect(assets).toHaveLength(1);
     });
-    // it("Should 400 when name is not provided", async () => {
-    //   let resp;
-    //   try {
-    //     resp = await request(app)
-    //       .put("/asset")
-    //       .attach("asset", "test/assets/1x1.png"); // Sending an empty object
-    //   } catch (err) {
-    //     fail(`Exception: ${JSON.stringify(err)}`);
-    //   }
-    //   expect(resp.statusCode).toBe(400);
-    // });
+    it("Should 409 when two asset are created with the same name", async () => {
+      let resp;
+      try {
+        resp = await request(app).put("/asset").send({ name: "test" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("test");
+      const user = await usersCollection.findOne({ sub: userZero });
+      expect(user).toBeDefined();
+      expect(user).not.toBeNull();
+      const assets = await assetsCollection.find({ user: user!._id }).toArray();
+      expect(assets).toBeDefined();
+      expect(assets).not.toBeNull();
+      expect(assets).toHaveLength(1);
+      try {
+        resp = await request(app).put("/asset").send({ name: "test" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(409);
+    });
   });
   describe("data upload", () => {
     beforeEach(() => {
@@ -243,13 +256,13 @@ describe("asset", () => {
       expect(resp.body[1].location).not.toBeDefined();
     });
   });
-  describe("update", () => {
-    beforeEach(async () => {
-      (getFakeUser as jest.Mock).mockReturnValue(userZero);
-    });
-    afterEach(async () => {
-      await assetsCollection.deleteMany({}); // Clean up the database
-      await usersCollection.deleteMany({}); // Clean up the database
-    });
-  });
+  // describe("update", () => {
+  //   beforeEach(async () => {
+  //     (getFakeUser as jest.Mock).mockReturnValue(userZero);
+  //   });
+  //   afterEach(async () => {
+  //     await assetsCollection.deleteMany({}); // Clean up the database
+  //     await usersCollection.deleteMany({}); // Clean up the database
+  //   });
+  // });
 });
