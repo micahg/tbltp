@@ -150,6 +150,17 @@ export const ContentMiddleware: Middleware = (store) => (next) => (action) => {
           );
       }
       break;
+    case "content/assets": {
+      const url = `${state.environment.api}/asset`;
+      getToken(state, store)
+        .then((headers) => axios.get(url, { headers: headers }))
+        .then((value) => next({ type: action.type, payload: value.data }))
+        .catch((err) =>
+          // TODO MICAH display error
+          console.error(`Unable to fetch assets: ${JSON.stringify(err)}`),
+        );
+      break;
+    }
     case "content/push":
       {
         const scene: Scene = state.content.currentScene;

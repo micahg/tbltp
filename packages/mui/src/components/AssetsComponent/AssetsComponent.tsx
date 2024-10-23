@@ -3,8 +3,9 @@
 import { Box } from "@mui/material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Upload } from "@mui/icons-material";
+import { AppReducerState } from "../../reducers/AppReducer";
 
 interface AssetsComponentProps {
   populateToolbar?: (actions: GameMasterAction[]) => void;
@@ -12,6 +13,7 @@ interface AssetsComponentProps {
 
 const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
   const dispatch = useDispatch();
+  const assets = useSelector((state: AppReducerState) => state.content.assets);
 
   const selectFile = () => {
     const input = document.createElement("input");
@@ -43,13 +45,20 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
       },
     ];
     populateToolbar(actions);
+    dispatch({ type: "content/assets" });
     return () => {
       // clear the error if there is one
       dispatch({ type: "content/error" });
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return <Box>AssetsComponent Component</Box>;
+  return (
+    <Box>
+      {assets.map((asset, idx) => {
+        return <Box key={idx}>{asset.name}</Box>;
+      })}
+    </Box>
+  );
 };
 
 export default AssetsComponent;
