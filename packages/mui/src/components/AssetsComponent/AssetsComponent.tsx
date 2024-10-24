@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Upload } from "@mui/icons-material";
 import { AppReducerState } from "../../reducers/AppReducer";
+import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 
 interface AssetsComponentProps {
   populateToolbar?: (actions: GameMasterAction[]) => void;
@@ -54,6 +55,7 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
 
   return (
     <Box>
+      <ErrorAlertComponent />
       {assets.map((asset, idx) => {
         return <Box key={idx}>{asset.name}</Box>;
       })}

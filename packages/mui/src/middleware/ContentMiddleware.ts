@@ -58,7 +58,6 @@ async function sendAsset(
       { headers: headers },
     );
   } catch (err) {
-    console.error(`Unable to create asset: ${JSON.stringify(err)}`);
     throw new Error("Unable to create asset", { cause: err });
   }
   const formData = new FormData();
@@ -129,188 +128,217 @@ function setViewport(
   );
 }
 
-export const ContentMiddleware: Middleware = (store) => (next) => (action) => {
-  const state = store.getState();
-  if (!state.environment.api) {
-    console.error("No API URL in environment state.");
-    return next(action);
-  }
-
-  switch (action.type) {
-    case "content/updateasset":
-      {
-        const asset = action.payload;
-        if (!asset) return next(action);
-        sendAsset(state, store, action.payload.asset, action.payload.progress)
-          .then((value) => {
-            next({ type: action.type, payload: value.data });
-          })
-          .catch((err) =>
-            console.error(`Unable to update asset: ${JSON.stringify(err)}`),
-          );
-      }
-      break;
-    case "content/assets": {
-      const url = `${state.environment.api}/asset`;
-      getToken(state, store)
-        .then((headers) => axios.get(url, { headers: headers }))
-        .then((value) => next({ type: action.type, payload: value.data }))
-        .catch((err) =>
-          // TODO MICAH display error
-          console.error(`Unable to fetch assets: ${JSON.stringify(err)}`),
-        );
-      break;
+export const ContentMiddleware: Middleware =
+  (store) => (next) => async (action) => {
+    const state = store.getState();
+    if (!state.environment.api) {
+      console.error("No API URL in environment state.");
+      return next(action);
     }
-    case "content/push":
-      {
-        const scene: Scene = state.content.currentScene;
-        if (!scene) return next(action);
-        const url = `${state.environment.api}/state`;
-        getToken(state, store)
-          .then((headers) =>
-            axios.put(url, { scene: scene._id }, { headers: headers }),
-          )
-          .then(() => {
-            action.payload = new Date().getTime();
-            next(action);
-          })
-          .catch((err) => {
-            // TODO MICAH DISPLAY ERROR
-            console.error(`Unable to update state: ${JSON.stringify(err)}`);
-            next(action);
-          });
-      }
-      break;
-    case "content/pull":
-      {
-        const url = `${state.environment.api}/state`;
+
+    switch (action.type) {
+      case "content/updateasset":
+        {
+          const asset = action.payload;
+          if (!asset) return next(action);
+          try {
+            const result = await sendAsset(
+              state,
+              store,
+              action.payload.asset,
+              action.payload.progress,
+            );
+            next({ type: action.type, payload: result.data });
+          } catch (error) {
+            let msg = "Unable to create asset";
+            if (error instanceof Error) {
+              if (axios.isAxiosError(error.cause)) {
+                console.log("Asset name already exists");
+                if (error.cause.response?.status === 409) {
+                  msg = "Asset name already exists";
+                }
+              }
+            }
+
+            const err: ContentReducerError = {
+              msg: msg,
+              success: false,
+            };
+            next({ type: "content/error", payload: err });
+          }
+        }
+        break;
+      case "content/assets": {
+        const url = `${state.environment.api}/asset`;
         getToken(state, store)
           .then((headers) => axios.get(url, { headers: headers }))
-          .then((value) => next({ ...action, payload: value.data }))
-          .catch((err) => {
+          .then((value) => next({ type: action.type, payload: value.data }))
+          .catch((err) =>
             // TODO MICAH display error
-            console.error(`Unable to get state: ${JSON.stringify(err)}`);
-          });
+            console.error(`Unable to fetch assets: ${JSON.stringify(err)}`),
+          );
+        break;
       }
-      break;
-    case "content/player":
-    case "content/detail":
-    case "content/overlay": {
-      // undefined means we're wiping the canvas... probably a new background
-      if (action.payload === undefined) return next(action);
-      let asset = action.payload;
-      let progress;
-      if (isAssetUpdate(action.payload)) {
-        asset = action.payload.asset;
-        progress = action.payload.progress;
-      } else {
-        asset = action.payload;
-      }
+      case "content/push":
+        {
+          const scene: Scene = state.content.currentScene;
+          if (!scene) return next(action);
+          const url = `${state.environment.api}/state`;
+          getToken(state, store)
+            .then((headers) =>
+              axios.put(url, { scene: scene._id }, { headers: headers }),
+            )
+            .then(() => {
+              action.payload = new Date().getTime();
+              next(action);
+            })
+            .catch((err) => {
+              // TODO MICAH DISPLAY ERROR
+              console.error(`Unable to update state: ${JSON.stringify(err)}`);
+              next(action);
+            });
+        }
+        break;
+      case "content/pull":
+        {
+          const url = `${state.environment.api}/state`;
+          getToken(state, store)
+            .then((headers) => axios.get(url, { headers: headers }))
+            .then((value) => next({ ...action, payload: value.data }))
+            .catch((err) => {
+              // TODO MICAH display error
+              console.error(`Unable to get state: ${JSON.stringify(err)}`);
+            });
+        }
+        break;
+      case "content/player":
+      case "content/detail":
+      case "content/overlay": {
+        // undefined means we're wiping the canvas... probably a new background
+        if (action.payload === undefined) return next(action);
+        let asset = action.payload;
+        let progress;
+        if (isAssetUpdate(action.payload)) {
+          asset = action.payload.asset;
+          progress = action.payload.progress;
+        } else {
+          asset = action.payload;
+        }
 
-      const scene: Scene = state.content.currentScene;
-      // if we have an overlay payload then send it
-      sendFile(state, store, scene, asset, action.type.split("/")[1], progress)
-        .then((value) => {
-          next({ type: "content/scene", payload: value.data });
-          const err: ContentReducerError = {
-            msg: "Update successful",
-            success: true,
-          };
-          next({ type: "content/error", payload: err });
-        })
-        .catch((err) => {
-          const error: ContentReducerError = {
-            msg: "Unkown error happened",
-            success: false,
-          };
-          if (err.response.status === 413) {
-            error.msg = "Asset too big";
-            next({ type: "content/error", payload: error });
-          }
-        });
-      break;
-    }
-    case "content/zoom": {
-      if (action.payload === undefined) return;
-      const scene = state.content.currentScene;
-      if (!scene) return next(action);
-      setViewport(state, store, scene, action.payload)
-        .then((value) => next({ type: "content/scene", payload: value.data }))
-        .catch((err) =>
-          console.error(`Unable to update viewport: ${JSON.stringify(err)}`),
-        );
-      break;
-    }
-    case "content/scenes": {
-      const url = `${state.environment.api}/scene`;
-      getToken(state, store)
-        .then((headers) => axios.get(url, { headers: headers }))
-        .then((value) => next({ type: action.type, payload: value.data }))
-        .catch((err) =>
-          console.error(`Unable to fetch scenes: ${JSON.stringify(err)}`),
-        );
-      break;
-    }
-    case "content/createscene": {
-      const url = `${state.environment.api}/scene`;
-      const bundle: NewSceneBundle = action.payload;
-      getToken(state, store)
-        .then((headers) => axios.put(url, bundle, { headers: headers }))
-        .then((data) => {
-          next({ type: "content/scene", payload: data.data });
-          const asset = bundle.player;
-          const progress = bundle.playerProgress;
-          return sendFile(state, store, data.data, asset, "player", progress);
-        })
-        .then((data) => {
-          if (!bundle.detail) return data; // skip if there is no detailed view
-          next({ type: "content/scene", payload: data.data });
-          const asset = bundle.detail;
-          const progress = bundle.detailProgress;
-          return sendFile(state, store, data.data, asset, "detail", progress);
-        })
-        .then((data) =>
-          bundle.viewport
-            ? setViewport(state, store, data.data, bundle.viewport)
-            : data,
+        const scene: Scene = state.content.currentScene;
+        // if we have an overlay payload then send it
+        sendFile(
+          state,
+          store,
+          scene,
+          asset,
+          action.type.split("/")[1],
+          progress,
         )
-        .then((data) => {
-          next({ type: "content/scene", payload: data.data });
-          const err: ContentReducerError = {
-            msg: "Update successful",
-            success: true,
-          };
-          next({ type: "content/error", payload: err });
-        })
-        .catch((err) => {
-          const error: ContentReducerError = {
-            msg: "Unkown error happened",
-            success: false,
-          };
-          if (err.response.status === 413) {
-            error.msg = "Asset too big";
-            next({ type: "content/error", payload: error });
-          }
-          if (err.scene) {
-            // delete the failed scene and set the current scene to nothing
-            store.dispatch({ type: "content/deletescene", payload: err.scene });
-            store.dispatch({ type: "content/currentscene" });
-          }
-        });
-      break;
+          .then((value) => {
+            next({ type: "content/scene", payload: value.data });
+            const err: ContentReducerError = {
+              msg: "Update successful",
+              success: true,
+            };
+            next({ type: "content/error", payload: err });
+          })
+          .catch((err) => {
+            const error: ContentReducerError = {
+              msg: "Unkown error happened",
+              success: false,
+            };
+            if (err.response.status === 413) {
+              error.msg = "Asset too big";
+              next({ type: "content/error", payload: error });
+            }
+          });
+        break;
+      }
+      case "content/zoom": {
+        if (action.payload === undefined) return;
+        const scene = state.content.currentScene;
+        if (!scene) return next(action);
+        setViewport(state, store, scene, action.payload)
+          .then((value) => next({ type: "content/scene", payload: value.data }))
+          .catch((err) =>
+            console.error(`Unable to update viewport: ${JSON.stringify(err)}`),
+          );
+        break;
+      }
+      case "content/scenes": {
+        const url = `${state.environment.api}/scene`;
+        getToken(state, store)
+          .then((headers) => axios.get(url, { headers: headers }))
+          .then((value) => next({ type: action.type, payload: value.data }))
+          .catch((err) =>
+            console.error(`Unable to fetch scenes: ${JSON.stringify(err)}`),
+          );
+        break;
+      }
+      case "content/createscene": {
+        const url = `${state.environment.api}/scene`;
+        const bundle: NewSceneBundle = action.payload;
+        getToken(state, store)
+          .then((headers) => axios.put(url, bundle, { headers: headers }))
+          .then((data) => {
+            next({ type: "content/scene", payload: data.data });
+            const asset = bundle.player;
+            const progress = bundle.playerProgress;
+            return sendFile(state, store, data.data, asset, "player", progress);
+          })
+          .then((data) => {
+            if (!bundle.detail) return data; // skip if there is no detailed view
+            next({ type: "content/scene", payload: data.data });
+            const asset = bundle.detail;
+            const progress = bundle.detailProgress;
+            return sendFile(state, store, data.data, asset, "detail", progress);
+          })
+          .then((data) =>
+            bundle.viewport
+              ? setViewport(state, store, data.data, bundle.viewport)
+              : data,
+          )
+          .then((data) => {
+            next({ type: "content/scene", payload: data.data });
+            const err: ContentReducerError = {
+              msg: "Update successful",
+              success: true,
+            };
+            next({ type: "content/error", payload: err });
+          })
+          .catch((err) => {
+            const error: ContentReducerError = {
+              msg: "Unkown error happened",
+              success: false,
+            };
+            if (err.response.status === 413) {
+              error.msg = "Asset too big";
+              next({ type: "content/error", payload: error });
+            }
+            if (err.scene) {
+              // delete the failed scene and set the current scene to nothing
+              store.dispatch({
+                type: "content/deletescene",
+                payload: err.scene,
+              });
+              store.dispatch({ type: "content/currentscene" });
+            }
+          });
+        break;
+      }
+      case "content/deletescene": {
+        const url = `${state.environment.api}/scene/${action.payload._id}`;
+        getToken(state, store)
+          .then((headers) => axios.delete(url, { headers: headers }))
+          .then(() => next(action))
+          .catch((err) =>
+            console.error(`Unable to delet scene: ${JSON.stringify(err)}`),
+          );
+        break;
+      }
+      default:
+        next(action);
+        break;
     }
-    case "content/deletescene": {
-      const url = `${state.environment.api}/scene/${action.payload._id}`;
-      getToken(state, store)
-        .then((headers) => axios.delete(url, { headers: headers }))
-        .then(() => next(action))
-        .catch((err) =>
-          console.error(`Unable to delet scene: ${JSON.stringify(err)}`),
-        );
-      break;
-    }
-    default:
-      next(action);
-      break;
-  }
-};
+  };

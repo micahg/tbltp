@@ -28,7 +28,7 @@ export async function createAsset(
     const asset = await createUserAsset(user, req.body);
     res.json(asset);
   } catch (err) {
-    log.error("Unable to create asset", err);
+    log.error(`Unable to create asset: ${err.message}`);
     return next({ status: err.cause || 500 });
   }
 }
