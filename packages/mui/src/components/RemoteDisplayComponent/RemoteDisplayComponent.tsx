@@ -244,9 +244,9 @@ const RemoteDisplayComponent = () => {
     const ws = new WebSocket(fullUrl);
     console.log("Attempting websocket connection");
     ws.onmessage = (event: MessageEvent) => processWSMessage(event.data);
-    ws.onclose = (event: Event) => scheduleConnection();
-    ws.onerror = (event: Event) => ws.close();
-    ws.onopen = (event: Event) => {
+    ws.onclose = () => scheduleConnection();
+    ws.onerror = () => ws.close();
+    ws.onopen = () => {
       if (wsTimer) {
         clearTimeout(wsTimer);
         setWSTimer(undefined);

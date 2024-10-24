@@ -1,5 +1,5 @@
 import { PayloadAction } from "@reduxjs/toolkit";
-import { Rect } from "@micahg/tbltp-common";
+import { Asset, Rect } from "@micahg/tbltp-common";
 
 // copied from api
 export interface Scene {
@@ -33,6 +33,7 @@ export type ContentReducerState = {
   readonly pushTime: number | undefined;
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
+  readonly assets: Asset[];
   readonly err?: ContentReducerError;
 };
 
@@ -40,6 +41,7 @@ const initialState: ContentReducerState = {
   pushTime: undefined,
   currentScene: undefined,
   scenes: [],
+  assets: [],
   err: undefined,
 };
 
@@ -64,6 +66,10 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     }
     case "content/zoom":
       return { ...state, scene: action.payload as unknown as Scene };
+    case "content/assets": {
+      const assets: Asset[] = action.payload as unknown as Asset[];
+      return { ...state, assets };
+    }
     case "content/scenes": {
       const scenes: Scene[] = action.payload as unknown as Scene[];
       if (!state.currentScene)
