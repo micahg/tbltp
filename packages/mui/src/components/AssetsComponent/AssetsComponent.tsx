@@ -46,11 +46,8 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
       },
     ];
     populateToolbar(actions);
+    // fetch assets
     dispatch({ type: "content/assets" });
-    return () => {
-      // clear the error if there is one
-      dispatch({ type: "content/error" });
-    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

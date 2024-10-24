@@ -2,10 +2,18 @@ import { Alert, Box, IconButton } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import CloseIcon from "@mui/icons-material/Close";
+import { useEffect } from "react";
 
 const ErrorAlertComponent = () => {
   const dispatch = useDispatch();
   const error = useSelector((state: AppReducerState) => state.content.err);
+
+  useEffect(() => {
+    // clear the error if there is one
+    return () => {
+      dispatch({ type: "content/error" });
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Box>
