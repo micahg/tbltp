@@ -30,7 +30,7 @@ import {
 import { getFakeUser } from "../utils/auth";
 import { metrics } from "@opentelemetry/api";
 import { hrtime } from "process";
-import { setAssetData, listAssets, createAsset } from "../routes/asset";
+import { setAssetData, listAssets, createOrUpdateAsset } from "../routes/asset";
 import { assetDataValidator, assetValidator } from "../utils/asset";
 import { validationResult } from "express-validator";
 import {
@@ -213,7 +213,7 @@ export function create(): Express {
     jwtCheck,
     assetValidator(),
     schemaErrorCheck,
-    createAsset,
+    createOrUpdateAsset,
   );
 
   app.put(

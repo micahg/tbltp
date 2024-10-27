@@ -96,7 +96,7 @@ describe("asset", () => {
       } catch (err) {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
-      expect(resp.statusCode).toBe(200);
+      expect(resp.statusCode).toBe(201);
       expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
       expect(resp.body.name).toBe("test");
       const user = await usersCollection.findOne({ sub: userZero });
@@ -114,7 +114,7 @@ describe("asset", () => {
       } catch (err) {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
-      expect(resp.statusCode).toBe(200);
+      expect(resp.statusCode).toBe(201);
       expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
       expect(resp.body.name).toBe("test");
       const user = await usersCollection.findOne({ sub: userZero });
@@ -147,7 +147,7 @@ describe("asset", () => {
       } catch (err) {
         fail(`Asset Creation Exception: ${JSON.stringify(err)}`);
       }
-      expect(resp.statusCode).toBe(200);
+      expect(resp.statusCode).toBe(201);
       expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
       expect(resp.body.name).toBe("test");
       const url = `/asset/${resp.body._id}/data`;
@@ -187,7 +187,7 @@ describe("asset", () => {
       } catch (err) {
         fail(`Asset Creation Exception: ${JSON.stringify(err)}`);
       }
-      expect(resp.statusCode).toBe(200);
+      expect(resp.statusCode).toBe(201);
       expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
       expect(resp.body.name).toBe("test");
       try {
@@ -226,7 +226,7 @@ describe("asset", () => {
       } catch (err) {
         fail(`Exception creating asset: ${JSON.stringify(err)}`);
       }
-      expect(resp.statusCode).toBe(200);
+      expect(resp.statusCode).toBe(201);
       try {
         resp = await request(app)
           .put(`/asset/${resp.body._id}/data`)
@@ -240,7 +240,7 @@ describe("asset", () => {
       } catch (err) {
         fail(`Exception creating asset: ${JSON.stringify(err)}`);
       }
-      expect(resp.statusCode).toBe(200);
+      expect(resp.statusCode).toBe(201);
       try {
         resp = await request(app).get(url);
       } catch (err) {
@@ -256,13 +256,46 @@ describe("asset", () => {
       expect(resp.body[1].location).not.toBeDefined();
     });
   });
-  // describe("update", () => {
-  //   beforeEach(async () => {
-  //     (getFakeUser as jest.Mock).mockReturnValue(userZero);
-  //   });
-  //   afterEach(async () => {
-  //     await assetsCollection.deleteMany({}); // Clean up the database
-  //     await usersCollection.deleteMany({}); // Clean up the database
-  //   });
-  // });
+  describe("update", () => {
+    beforeEach(async () => {
+      (getFakeUser as jest.Mock).mockReturnValue(userZero);
+    });
+    it("Should update the asset name", async () => {
+      let resp;
+      try {
+        resp = await request(app).put("/asset").send({ name: "test" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("test");
+      const user = await usersCollection.findOne({ sub: userZero });
+      expect(user).toBeDefined();
+      expect(user).not.toBeNull();
+      const assets = await assetsCollection.find({ user: user!._id }).toArray();
+      expect(assets).toBeDefined();
+      expect(assets).not.toBeNull();
+      expect(assets).toHaveLength(1);
+      try {
+        resp = await request(app)
+          .put("/asset")
+          .send({ _id: resp.body._id, name: "test2" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      const assets2 = await assetsCollection
+        .find({ user: user!._id })
+        .toArray();
+      expect(assets2).toBeDefined();
+      expect(assets2).not.toBeNull();
+      expect(assets2).toHaveLength(1);
+      expect(assets2[0].name).toBe("test2");
+    });
+    afterEach(async () => {
+      await assetsCollection.deleteMany({}); // Clean up the database
+      await usersCollection.deleteMany({}); // Clean up the database
+    });
+  });
 });

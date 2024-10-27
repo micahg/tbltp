@@ -20,6 +20,13 @@ export function assetValidator() {
         errorMessage: "Invalid asset name",
       },
     },
+    _id: {
+      in: ["body"],
+      optional: true,
+      isMongoId: {
+        errorMessage: "Invalid asset ID",
+      },
+    },
   });
 }
 

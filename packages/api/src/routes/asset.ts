@@ -18,15 +18,26 @@ export async function listAssets(
     return next({ status: err.cause || 500 });
   }
 }
-export async function createAsset(
+export async function createOrUpdateAsset(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
   try {
     const user = await getOrCreateUser(req.auth);
-    const asset = await createUserAsset(user, req.body);
-    res.json(asset);
+    if (!req.body._id) {
+      return res.status(201).json(await createUserAsset(user, req.body));
+    }
+    let updated = false;
+    const asset = await getUserAsset(user, req.body._id);
+    if (asset.name != req.body.name) {
+      asset.name = req.body.name;
+      updated = true;
+    }
+    if (updated) {
+      return res.json(await asset.save());
+    }
+    return res.status(204);
   } catch (err) {
     log.error(`Unable to create asset: ${err.message}`);
     return next({ status: err.cause || 500 });
