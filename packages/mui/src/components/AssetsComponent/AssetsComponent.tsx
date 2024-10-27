@@ -1,6 +1,6 @@
 // import styles from "./ContentEditor.module.css";
 
-import { Box } from "@mui/material";
+import { Box, TextField } from "@mui/material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -15,6 +15,10 @@ interface AssetsComponentProps {
 const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
   const dispatch = useDispatch();
   const assets = useSelector((state: AppReducerState) => state.content.assets);
+  const api = useSelector((state: AppReducerState) => state.environment.api);
+  const token = useSelector(
+    (state: AppReducerState) => state.environment.bearer,
+  );
 
   const selectFile = () => {
     const input = document.createElement("input");
@@ -54,7 +58,30 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
     <Box>
       <ErrorAlertComponent />
       {assets.map((asset, idx) => {
-        return <Box key={idx}>{asset.name}</Box>;
+        const imgUrl = `${api}/${asset.location}?token=${token}`;
+        return (
+          <Box
+            key={idx}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              boxShadow: 4,
+              borderRadius: 2,
+              padding: 1,
+              minHeight: "25vh",
+              width: "25vw",
+            }}
+          >
+            <img src={imgUrl} alt={asset.name} />
+            <TextField
+              id="name"
+              label="Name"
+              variant="standard"
+              defaultValue={asset.name}
+            />
+          </Box>
+        );
       })}
     </Box>
   );

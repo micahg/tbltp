@@ -40,6 +40,20 @@ import {
 } from "../utils/scene";
 import { stateValidator } from "../utils/state";
 
+/**
+ * Since we can't authorize img HTML tags, allow the token to be passed as a
+ * query parameter.
+ */
+function copyAuthParam(
+  req: express.Request,
+  _rs: express.Response,
+  next: NextFunction,
+) {
+  if (req.query.token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+}
 function getJWTCheck(noauth: boolean) {
   const aud: string = process.env.AUDIENCE_URL || "http://localhost:3000/";
   const iss: string = process.env.ISSUER_URL || "https://nttdev.us.auth0.com/";
@@ -139,6 +153,7 @@ export function create(): Express {
       if (req.method === "OPTIONS") res.sendStatus(200);
       else next();
     },
+    copyAuthParam,
     jwtCheck,
     express.static("public"),
   );
