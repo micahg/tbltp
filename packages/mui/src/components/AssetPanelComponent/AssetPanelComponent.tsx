@@ -1,6 +1,7 @@
 import { Asset } from "@micahg/tbltp-common";
 import { Box, Button, TextField, Tooltip } from "@mui/material";
-import { useSelector } from "react-redux";
+import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import styles from "./AssetPanelComponent.module.css";
 
@@ -15,11 +16,23 @@ const AssetPanelComponent = ({
   asset,
   readonly,
 }: AssetPanelComponentProps) => {
+  const dispatch = useDispatch();
   const api = useSelector((state: AppReducerState) => state.environment.api);
   const token = useSelector(
     (state: AppReducerState) => state.environment.bearer,
   );
   const imgUrl = `${api}/${asset.location}?token=${token}`;
+  const [changedAsset, setChangedAsset] = useState<Asset>(asset);
+  const saveDisabled = changedAsset.name === asset.name;
+
+  const updateAsset = () => {
+    const asset = { name: "NEW ASSET - CHANGE ME" };
+    // assetChanged being true and asset without ID should trigger creation
+    dispatch({
+      type: "content/updateasset",
+      payload: { asset, assetChanged: true },
+    });
+  };
 
   return (
     <Box
@@ -50,6 +63,10 @@ const AssetPanelComponent = ({
             label="Name"
             variant="standard"
             defaultValue={asset.name}
+            // TODO DEBOUNCE CHANGE
+            onChange={(e) =>
+              setChangedAsset({ ...asset, name: e.target.value })
+            }
           />
           <Box
             sx={{
@@ -61,7 +78,13 @@ const AssetPanelComponent = ({
           >
             <Tooltip title="Save your changes to the asset">
               <span>
-                <Button variant="text">Save</Button>
+                <Button
+                  variant="text"
+                  disabled={saveDisabled}
+                  onClick={updateAsset}
+                >
+                  Save
+                </Button>
               </span>
             </Tooltip>
           </Box>

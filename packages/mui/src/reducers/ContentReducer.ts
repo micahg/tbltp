@@ -33,7 +33,7 @@ export type ContentReducerState = {
   readonly pushTime: number | undefined;
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
-  readonly assets: Asset[];
+  readonly assets: (Asset & { _id: string })[];
   readonly err?: ContentReducerError;
 };
 
@@ -97,6 +97,13 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     case "content/currentscene": {
       const scene: Scene = action.payload as unknown as Scene;
       return { ...state, currentScene: scene };
+    }
+    case "content/updateasset": {
+      const asset = action.payload as unknown as Asset & { _id: string };
+      const idx = state.assets.findIndex((a) => a._id === asset._id);
+      if (idx < 0) return { ...state, assets: [...state.assets, asset] };
+      state.assets.splice(idx, 1, asset);
+      return { ...state, assets: state.assets };
     }
     case "content/error": {
       // important to let undefined through. This will clear the error

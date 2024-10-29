@@ -3,7 +3,7 @@ import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { getToken } from "../utils/auth";
 import { ContentReducerError, Scene } from "../reducers/ContentReducer";
-import { Rect } from "@micahg/tbltp-common";
+import { Asset, Rect } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 
@@ -40,32 +40,37 @@ function isBlob(payload: URL | Blob): payload is File {
  * TO THE ACTUAL ASSET ON SCREEN SINCE THEY'RE
  * CREATED AND UPLOADED SEPARATELY
  */
-async function sendAsset(
+async function updateAsset(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  asset: File,
-  progress?: (evt: LoadProgress) => void,
+  asset?: Asset & { _id: string },
 ): Promise<AxiosResponse> {
-  let a, r;
   const headers = await getToken(state, store);
 
   try {
-    a = await axios.put(
-      `${state.environment.api}/asset`,
-      {
-        name: "TEST_ASSET_DELETE_ME",
-      },
-      { headers: headers },
-    );
+    const resp = await axios.put(`${state.environment.api}/asset`, asset, {
+      headers: headers,
+    });
+    return resp;
   } catch (err) {
     throw new Error("Unable to create asset", { cause: err });
   }
+}
+
+async function updateAssetData(
+  state: AppReducerState,
+  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  id: string,
+  file: File,
+  progress?: (evt: LoadProgress) => void,
+): Promise<AxiosResponse> {
   const formData = new FormData();
-  formData.append("asset", asset as Blob);
+  formData.append("asset", file as Blob);
+  const headers = await getToken(state, store);
   headers["Content-Type"] = "multipart/form-data";
   try {
-    r = await axios.put(
-      `${state.environment.api}/asset/${a.data._id}/data`,
+    const resp = await axios.put(
+      `${state.environment.api}/asset/${id}/data`,
       formData,
       {
         headers: headers,
@@ -73,12 +78,13 @@ async function sendAsset(
           progress?.({ progress: e.progress || 0, img: "" }),
       },
     );
+    return resp;
   } catch (err) {
     console.error(`Unable to upload asset: ${JSON.stringify(err)}`);
     throw new Error("Unable to upload asset", { cause: err });
   }
-  return r;
 }
+
 function sendFile(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
@@ -139,15 +145,9 @@ export const ContentMiddleware: Middleware =
     switch (action.type) {
       case "content/updateasset":
         {
-          const asset = action.payload;
-          if (!asset) return next(action);
+          const { asset } = action.payload;
           try {
-            const result = await sendAsset(
-              state,
-              store,
-              action.payload.asset,
-              action.payload.progress,
-            );
+            const result = await updateAsset(state, store, asset);
             next({ type: action.type, payload: result.data });
           } catch (error) {
             let msg = "Unable to create asset";
@@ -159,11 +159,26 @@ export const ContentMiddleware: Middleware =
                 }
               }
             }
-
             const err: ContentReducerError = {
               msg: msg,
               success: false,
             };
+            next({ type: "content/error", payload: err });
+          }
+        }
+        break;
+      case "content/updateassetdata":
+        {
+          const { id, file } = action.payload;
+          try {
+            const result = await updateAssetData(state, store, id, file);
+            next({ type: action.type, payload: result.data });
+          } catch (error) {
+            console.error(
+              `Error updating asset data: ${JSON.stringify(error)}`,
+            );
+            const msg = "Unable to update asset data";
+            const err: ContentReducerError = { msg, success: false };
             next({ type: "content/error", payload: err });
           }
         }
