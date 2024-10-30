@@ -16,43 +16,7 @@ interface AssetsComponentProps {
 
 const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
   const dispatch = useDispatch();
-  const assets = useSelector((state: AppReducerState) => {
-    console.log(`MICAH assets are ${JSON.stringify(state.content.assets)}`);
-    return state.content.assets;
-  });
-
-  // const sceneManager = useCallback(() => {
-  //   if (manageScene) manageScene();
-  // }, [manageScene]);
-  // const createAsset = useCallback(() => {
-  //   console.log(`MICAH CALLBACK ${JSON.stringify(assets)}`);
-  //   const asset: Asset = {
-  //     name: `ASSET ${assets.length}`,
-  //   };
-  //   dispatch({ type: "content/updateasset", payload: { asset } });
-  // }, [assets, dispatch]);
-  const createAsset = useCallback(() => {
-    console.log(`MICAH CALLBACK ${JSON.stringify(assets)}`);
-    const asset: Asset = {
-      name: `ASSET ${assets.length}`,
-    };
-    dispatch({ type: "content/updateasset", payload: { asset } });
-  }, [assets, dispatch]);
-
-  // const selectFile = () => {
-  //   const input = document.createElement("input");
-  //   input.type = "file";
-  //   input.multiple = false;
-  //   input.onchange = () => {
-  //     if (!input.files || input.files.length === 0) return;
-  //     const file = input.files[0];
-  //     if (!file) return;
-  //     // content / updateasset;
-  //     const payload = { asset: file, progress: () => {} };
-  //     dispatch({ type: "content/updateasset", payload: payload });
-  //   };
-  //   input.click();
-  // };
+  const assets = useSelector((state: AppReducerState) => state.content.assets);
 
   useEffect(() => {
     if (!dispatch) return;
@@ -67,13 +31,25 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
         tooltip: "Upload Asset",
         hidden: () => false,
         disabled: () => false,
-        callback: () => createAsset(),
+        callback: () => {
+          const name = `ASSET ${assets.length}`;
+          const asset: Asset = { name };
+          dispatch({ type: "content/updateasset", payload: { asset } });
+        },
+      },
+      {
+        // work around infinite re-render (see the long blurb in
+        // handlePopulateToolbar from GameMasterComponent.tsx)
+        icon: Upload,
+        tooltip: JSON.stringify(assets),
+        hidden: () => true,
+        disabled: () => true,
+        callback: () => {},
       },
     ];
+
     populateToolbar(actions);
-    // fetch assets
-    dispatch({ type: "content/assets" });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [assets, dispatch, populateToolbar]);
 
   return (
     <Box>
@@ -81,16 +57,6 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
       {assets.map((asset, idx) => {
         return <AssetPanelComponent key={idx} asset={asset} readonly={false} />;
       })}
-      {/* <Dialog open={showCreateDialog}>
-        <DialogTitle>{"Use Google's location service?"}</DialogTitle>
-        <DialogContent>
-          <AssetPanelComponent key={-1} asset={empty} readonly={false} />
-          <DialogContentText id="alert-dialog-slide-description">
-            Let Google help apps determine location. This means sending
-            anonymous location data to Google, even when no apps are running.
-          </DialogContentText>
-        </DialogContent>
-      </Dialog> */}
     </Box>
   );
 };
