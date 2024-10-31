@@ -5,12 +5,12 @@ function createDefaultTableTop(user: IUser) {
   return TableTop.create({ user: user._id });
 }
 export function getTableTopByUser(user: IUser): Promise<ITableTop> {
-  return TableTop.findOne({ user: user._id });
+  return TableTop.findOne({ user: { $eq: user._id } });
 }
 
 export function setTableTopByScene(tableId: string, sceneId: string) {
   return TableTop.findOneAndUpdate(
-    { _id: tableId },
+    { _id: { $eq: tableId } },
     { scene: sceneId },
     { new: true },
   );

@@ -142,16 +142,16 @@ export function sceneViewportValidator() {
   });
 }
 export function getSceneById(id: string, userId: string) {
-  return Scene.findOne({ _id: id, user: userId });
+  return Scene.findOne({ _id: { $eq: id }, user: userId });
 }
 
 function getScenesByUser(user: IUser): Promise<IScene[]> {
-  return Scene.find({ user: user._id });
+  return Scene.find({ user: { $eq: user._id } });
 }
 
 export function setScenePlayerContent(id: string, path: string) {
   return Scene.findOneAndUpdate(
-    { _id: id },
+    { _id: { $eq: id } },
     { $set: { playerContent: path }, $inc: { playerContentRev: 1 } },
     { new: true },
   );
@@ -159,7 +159,7 @@ export function setScenePlayerContent(id: string, path: string) {
 
 export function setSceneDetailContent(id: string, path: string) {
   return Scene.findOneAndUpdate(
-    { _id: id },
+    { _id: { $eq: id } },
     { $set: { detailContent: path }, $inc: { detailContentRev: 1 } },
     { new: true },
   );
@@ -167,7 +167,7 @@ export function setSceneDetailContent(id: string, path: string) {
 
 export function setSceneOverlayContent(id: string, path: string) {
   return Scene.findOneAndUpdate(
-    { _id: id },
+    { _id: { $eq: id } },
     { $set: { overlayContent: path }, $inc: { overlayContentRev: 1 } },
     { new: true },
   );
@@ -187,7 +187,7 @@ export function createUserScene(user: IUser, scene: IScene): Promise<IScene> {
 }
 
 export function deleteUserScene(user: IUser, sceneId: string) {
-  return Scene.deleteOne({ _id: sceneId, user: user._id });
+  return Scene.deleteOne({ _id: { $eq: sceneId }, user: { $eq: user._id } });
 }
 
 /**
@@ -213,7 +213,7 @@ export function setSceneViewport(
   angle?: number,
 ) {
   return Scene.findOneAndUpdate(
-    { _id: id },
+    { _id: { $eq: id } },
     { backgroundSize: bg, viewport: vp, angle: angle },
     { new: true },
   );

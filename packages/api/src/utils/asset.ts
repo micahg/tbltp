@@ -2,7 +2,6 @@ import { Asset } from "@micahg/tbltp-common";
 import { AssetModel, IAsset } from "../models/asset";
 import { IUser } from "../models/user";
 import { NAME_REGEX } from "../routes/scene";
-// import { log } from "../utils/logger";
 import { checkSchema } from "express-validator";
 
 export function assetValidator() {
@@ -43,7 +42,7 @@ export function assetDataValidator() {
 }
 
 export function listUserAssets(user: IUser) {
-  return AssetModel.find({ user: user._id }).select("name location");
+  return AssetModel.find({ user: { $eq: user._id } }).select("name location");
 }
 
 export async function createUserAsset(user: IUser, asset: Asset) {
@@ -61,9 +60,12 @@ export async function createUserAsset(user: IUser, asset: Asset) {
 }
 
 export function getUserAsset(user: IUser, id: string) {
-  return AssetModel.findOne({ _id: id, user: user._id });
+  return AssetModel.findOne({ _id: { $eq: id }, user: { $eq: user._id } });
 }
 
 export async function setAssetLocation(asset: IAsset, location: string) {
-  return AssetModel.updateOne({ _id: asset._id }, { location: location });
+  return AssetModel.updateOne(
+    { _id: { $eq: asset._id } },
+    { location: location },
+  );
 }
