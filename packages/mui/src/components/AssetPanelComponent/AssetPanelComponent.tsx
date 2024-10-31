@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import styles from "./AssetPanelComponent.module.css";
+import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 
 interface AssetPanelComponentProps {
   key: number;
@@ -47,7 +48,11 @@ const AssetPanelComponent = ({
         width: "25vw",
       }}
     >
-      <img src={imgUrl} alt={asset.name} className={styles.asset} />
+      {asset.location ? (
+        <img src={imgUrl} alt={asset.name} className={styles.asset} />
+      ) : (
+        <ImageSearchIcon sx={{ width: "25vw", height: "25vw" }} />
+      )}
       {!readonly && (
         <Box
           sx={{
