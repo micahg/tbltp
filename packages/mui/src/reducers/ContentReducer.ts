@@ -1,5 +1,5 @@
 import { PayloadAction } from "@reduxjs/toolkit";
-import { Asset, Rect } from "@micahg/tbltp-common";
+import { Asset as CommonAsset, Rect } from "@micahg/tbltp-common";
 
 // copied from api
 export interface Scene {
@@ -29,11 +29,15 @@ export type ContentReducerError = {
   success: boolean;
 };
 
+export interface Asset extends CommonAsset {
+  _id?: string;
+}
+
 export type ContentReducerState = {
   readonly pushTime: number | undefined;
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
-  readonly assets: (Asset & { _id: string })[];
+  readonly assets: Asset[];
   readonly err?: ContentReducerError;
 };
 

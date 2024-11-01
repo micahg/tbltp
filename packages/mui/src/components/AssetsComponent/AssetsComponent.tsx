@@ -2,7 +2,7 @@
 
 import { Box } from "@mui/material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Upload } from "@mui/icons-material";
 import { AppReducerState } from "../../reducers/AppReducer";

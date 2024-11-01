@@ -3,7 +3,8 @@ import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { getToken } from "../utils/auth";
 import { ContentReducerError, Scene } from "../reducers/ContentReducer";
-import { Asset, Rect } from "@micahg/tbltp-common";
+import { Rect } from "@micahg/tbltp-common";
+import { Asset } from "../reducers/ContentReducer";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 
@@ -43,7 +44,7 @@ function isBlob(payload: URL | Blob): payload is File {
 async function updateAsset(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  asset?: Asset & { _id: string },
+  asset?: Asset,
 ): Promise<AxiosResponse> {
   const headers = await getToken(state, store);
 
@@ -169,9 +170,15 @@ export const ContentMiddleware: Middleware =
         break;
       case "content/updateassetdata":
         {
-          const { id, file } = action.payload;
+          const { id, file, progress } = action.payload;
           try {
-            const result = await updateAssetData(state, store, id, file);
+            const result = await updateAssetData(
+              state,
+              store,
+              id,
+              file,
+              progress,
+            );
             next({ type: action.type, payload: result.data });
           } catch (error) {
             console.error(

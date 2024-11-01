@@ -1,10 +1,11 @@
-import { Asset } from "@micahg/tbltp-common";
+import { Asset } from "../../reducers/ContentReducer";
 import { Box, Button, TextField, Tooltip } from "@mui/material";
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import styles from "./AssetPanelComponent.module.css";
 import ImageSearchIcon from "@mui/icons-material/ImageSearch";
+import { LoadProgress } from "../../utils/content";
 
 interface AssetPanelComponentProps {
   key: number;
@@ -22,17 +23,56 @@ const AssetPanelComponent = ({
   const token = useSelector(
     (state: AppReducerState) => state.environment.bearer,
   );
-  const imgUrl = `${api}/${asset.location}?token=${token}`;
-  const [changedAsset, setChangedAsset] = useState<Asset>(asset);
-  const saveDisabled = changedAsset.name === asset.name;
+  const [name, setName] = useState(asset.name);
+  const [file, setFile] = useState<File | null>(null);
+  const [imgUrl, setImgUrl] = useState<string | null>(
+    asset.location ? `${api}/${asset.location}?token=${token}` : null,
+  );
+  const saveDisabled = name === asset.name && !file;
+
+  const selectFile = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = false;
+    input.onchange = () => {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (!event.target) return;
+        const data = event.target.result;
+        if (typeof data !== "string") return;
+        setImgUrl(data);
+        setFile(file);
+      };
+      reader.readAsDataURL(file);
+      // const payload = { id: asset._id, file, progress: () => {} };
+      // dispatch({ type: "content/updateassetdata", payload: payload });
+    };
+    input.click();
+  };
 
   const updateAsset = () => {
-    const asset = { name: "NEW ASSET - CHANGE ME" };
-    // assetChanged being true and asset without ID should trigger creation
-    dispatch({
-      type: "content/updateasset",
-      payload: { asset, assetChanged: true },
-    });
+    // const asset = { name: "NEW ASSET - CHANGE ME" };
+    if (name !== asset.name) {
+      dispatch({
+        type: "content/updateasset",
+        payload: { asset: { ...asset, name } },
+      });
+    }
+    if (file) {
+      dispatch({
+        type: "content/updateassetdata",
+        payload: {
+          id: asset._id,
+          file,
+          progress: (p: LoadProgress) => {
+            console.error(`MICAH UPDATE THE PROGRESS ${p.progress}`);
+          },
+        },
+      });
+    }
   };
 
   return (
@@ -48,10 +88,18 @@ const AssetPanelComponent = ({
         width: "25vw",
       }}
     >
-      {asset.location ? (
-        <img src={imgUrl} alt={asset.name} className={styles.asset} />
+      {imgUrl ? (
+        <img
+          src={imgUrl}
+          alt={name}
+          className={styles.asset}
+          onClick={selectFile}
+        />
       ) : (
-        <ImageSearchIcon sx={{ width: "25vw", height: "25vw" }} />
+        <ImageSearchIcon
+          sx={{ width: "25vw", height: "25vw" }}
+          onClick={selectFile}
+        />
       )}
       {!readonly && (
         <Box
@@ -68,10 +116,7 @@ const AssetPanelComponent = ({
             label="Name"
             variant="standard"
             defaultValue={asset.name}
-            // TODO DEBOUNCE CHANGE
-            onChange={(e) =>
-              setChangedAsset({ ...asset, name: e.target.value })
-            }
+            onChange={(e) => setName(e.target.value)}
           />
           <Box
             sx={{

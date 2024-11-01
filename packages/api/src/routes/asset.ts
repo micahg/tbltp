@@ -37,7 +37,7 @@ export async function createOrUpdateAsset(
     if (updated) {
       return res.json(await asset.save());
     }
-    return res.status(204);
+    return res.status(204).send();
   } catch (err) {
     log.error(`Unable to create asset: ${err.message}`);
     return next({ status: err.cause || 500 });
