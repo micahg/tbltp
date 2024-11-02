@@ -160,3 +160,7 @@ export async function updateAssetFromUpload(
     path: dest,
   };
 }
+
+export async function deleteAssetFile(path: string) {
+  return rm(path, { force: true });
+}

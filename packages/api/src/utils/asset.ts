@@ -41,6 +41,18 @@ export function assetDataValidator() {
   });
 }
 
+export function assetDeleteValiator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      optional: false,
+      isMongoId: {
+        errorMessage: "Invalid asset ID",
+      },
+    },
+  });
+}
+
 export function listUserAssets(user: IUser) {
   return AssetModel.find({ user: { $eq: user._id } }).select("name location");
 }

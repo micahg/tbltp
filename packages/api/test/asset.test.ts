@@ -7,6 +7,7 @@ import { app, serverPromise, shutDown, startUp } from "../src/server";
 
 import * as request from "supertest";
 import { userZero } from "./assets/auth";
+import { stat } from "node:fs/promises";
 
 let mongodb: MongoMemoryServer;
 let mongocl: MongoClient;
@@ -296,6 +297,101 @@ describe("asset", () => {
     afterEach(async () => {
       await assetsCollection.deleteMany({}); // Clean up the database
       await usersCollection.deleteMany({}); // Clean up the database
+    });
+  });
+  describe("delete", () => {
+    beforeEach(async () => {
+      (getFakeUser as jest.Mock).mockReturnValue(userZero);
+    });
+    afterEach(async () => {
+      await assetsCollection.deleteMany({}); // Clean up the database
+      await usersCollection.deleteMany({}); // Clean up the database
+    });
+    it("Should 404 when asset does not exist", async () => {
+      let resp;
+      try {
+        resp = await request(app).delete("/asset/aaaaaaaaaaaaaaaaaaaaaaaa");
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(404);
+    });
+    it("Should delete the asset", async () => {
+      let resp;
+      try {
+        resp = await request(app).put("/asset").send({ name: "test" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("test");
+      const user = await usersCollection.findOne({ sub: userZero });
+      expect(user).toBeDefined();
+      expect(user).not.toBeNull();
+      const assets = await assetsCollection.find({ user: user!._id }).toArray();
+      expect(assets).toBeDefined();
+      expect(assets).not.toBeNull();
+      expect(assets).toHaveLength(1);
+      try {
+        resp = await request(app).delete(`/asset/${resp.body._id}`);
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(204);
+      const assets2 = await assetsCollection
+        .find({ user: user!._id })
+        .toArray();
+      expect(assets2).toBeDefined();
+      expect(assets2).not.toBeNull();
+      expect(assets2).toHaveLength(0);
+    });
+    it("Should delete the asset file", async () => {
+      let resp;
+      try {
+        resp = await request(app).put("/asset").send({ name: "test" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("test");
+      const user = await usersCollection.findOne({ sub: userZero });
+      expect(user).toBeDefined();
+      expect(user).not.toBeNull();
+      const assets = await assetsCollection.find({ user: user!._id }).toArray();
+      expect(assets).toBeDefined();
+      expect(assets).not.toBeNull();
+      expect(assets).toHaveLength(1);
+
+      try {
+        resp = await request(app)
+          .put(`/asset/${resp.body._id}/data`)
+          .attach("asset", "test/assets/1x1.png");
+      } catch (err) {
+        fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body.location).toMatch(
+        /public\/[a-f0-9]{24}\/assets\/[a-f0-9]{24}\.png/,
+      );
+
+      const filename = resp.body.location;
+      expect((await stat(filename)).isFile()).toBe(true);
+
+      try {
+        resp = await request(app).delete(`/asset/${resp.body._id}`);
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(204);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      try {
+        await stat(filename);
+        fail(`File should not exist: ${filename}`);
+      } catch {
+        // expected
+      }
     });
   });
 });

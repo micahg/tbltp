@@ -2,7 +2,11 @@ import { log } from "../utils/logger";
 import { NextFunction, Request, Response } from "express";
 import { getOrCreateUser } from "../utils/user";
 import { createUserAsset, getUserAsset, listUserAssets } from "../utils/asset";
-import { getValidExtension, updateAssetFromFile } from "../utils/localstore";
+import {
+  deleteAssetFile,
+  getValidExtension,
+  updateAssetFromFile,
+} from "../utils/localstore";
 
 export async function listAssets(
   req: Request,
@@ -43,6 +47,32 @@ export async function createOrUpdateAsset(
     return next({ status: err.cause || 500 });
   }
 }
+export async function deleteAsset(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  let path;
+  try {
+    const user = await getOrCreateUser(req.auth);
+    const asset = await getUserAsset(user, req.params.id);
+    if (!asset) {
+      return res.status(404).send();
+    }
+    await asset.deleteOne();
+    path = asset.location;
+    // don't return yet, we will delete after sending the response
+    res.status(204).send();
+  } catch (err) {
+    log.error(`Unable to delete asset ${err.message}`);
+    return next({ status: err.cause || 500 });
+  }
+  try {
+    if (path) await deleteAssetFile(path);
+  } catch (err) {
+    log.error(`Unable to delete asset file ${err.message}`);
+  }
+}
 
 export async function setAssetData(
   req: Request,
@@ -76,6 +106,7 @@ export async function setAssetData(
 
     // update the asset with the location
     asset.location = dest;
+    asset.revision = asset.revision + 1;
     const result = await asset.save();
 
     res.json(result);
