@@ -1,28 +1,32 @@
 import { Asset } from "../../reducers/ContentReducer";
-import { Box, Button, TextField, Tooltip } from "@mui/material";
-import { useState } from "react";
+import {
+  Box,
+  IconButton,
+  LinearProgress,
+  TextField,
+  Tooltip,
+} from "@mui/material";
+import { memo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import styles from "./AssetPanelComponent.module.css";
 import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 import { LoadProgress } from "../../utils/content";
+import SaveIcon from "@mui/icons-material/Save";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 interface AssetPanelComponentProps {
-  key: number;
   asset: Asset;
   readonly: boolean;
 }
 
-const AssetPanelComponent = ({
-  key,
-  asset,
-  readonly,
-}: AssetPanelComponentProps) => {
+const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const dispatch = useDispatch();
   const api = useSelector((state: AppReducerState) => state.environment.api);
   const token = useSelector(
     (state: AppReducerState) => state.environment.bearer,
   );
+  const [progress, setProgress] = useState(0);
   const [name, setName] = useState(asset.name);
   const [file, setFile] = useState<File | null>(null);
   const [imgUrl, setImgUrl] = useState<string | null>(
@@ -47,8 +51,6 @@ const AssetPanelComponent = ({
         setFile(file);
       };
       reader.readAsDataURL(file);
-      // const payload = { id: asset._id, file, progress: () => {} };
-      // dispatch({ type: "content/updateassetdata", payload: payload });
     };
     input.click();
   };
@@ -60,6 +62,7 @@ const AssetPanelComponent = ({
         type: "content/updateasset",
         payload: { asset: { ...asset, name } },
       });
+      setName(name);
     }
     if (file) {
       dispatch({
@@ -67,9 +70,7 @@ const AssetPanelComponent = ({
         payload: {
           id: asset._id,
           file,
-          progress: (p: LoadProgress) => {
-            console.error(`MICAH UPDATE THE PROGRESS ${p.progress}`);
-          },
+          progress: (p: LoadProgress) => setProgress(p.progress * 100),
         },
       });
     }
@@ -77,7 +78,6 @@ const AssetPanelComponent = ({
 
   return (
     <Box
-      key={key}
       sx={{
         display: "flex",
         flexDirection: "column",
@@ -100,6 +100,9 @@ const AssetPanelComponent = ({
           sx={{ width: "25vw", height: "25vw" }}
           onClick={selectFile}
         />
+      )}
+      {progress > 0 && progress < 100 && (
+        <LinearProgress variant="determinate" value={progress} />
       )}
       {!readonly && (
         <Box
@@ -128,13 +131,17 @@ const AssetPanelComponent = ({
           >
             <Tooltip title="Save your changes to the asset">
               <span>
-                <Button
-                  variant="text"
+                <IconButton
+                  aria-label="save"
+                  color="primary"
                   disabled={saveDisabled}
                   onClick={updateAsset}
                 >
-                  Save
-                </Button>
+                  <SaveIcon />
+                </IconButton>
+                <IconButton aria-label="delete" disabled color="primary">
+                  <DeleteIcon />
+                </IconButton>
               </span>
             </Tooltip>
           </Box>
@@ -144,4 +151,11 @@ const AssetPanelComponent = ({
   );
 };
 
-export default AssetPanelComponent;
+export default memo(AssetPanelComponent, (prev, next) => {
+  return (
+    prev.asset._id === next.asset._id &&
+    prev.asset.name === next.asset.name &&
+    prev.asset.location === next.asset.location &&
+    prev.asset.revision === next.asset.revision
+  );
+});

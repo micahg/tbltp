@@ -5,7 +5,6 @@ const LazyAssetPanelComponent = lazy(() => import("./AssetPanelComponent"));
 
 const AssetPanelComponent = (
   props: JSX.IntrinsicAttributes & {
-    key: number;
     asset: Asset;
     readonly: boolean;
     children?: React.ReactNode;

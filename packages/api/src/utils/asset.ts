@@ -54,7 +54,9 @@ export function assetDeleteValiator() {
 }
 
 export function listUserAssets(user: IUser) {
-  return AssetModel.find({ user: { $eq: user._id } }).select("name location");
+  return AssetModel.find({ user: { $eq: user._id } }).select(
+    "name location revision",
+  );
 }
 
 export async function createUserAsset(user: IUser, asset: Asset) {

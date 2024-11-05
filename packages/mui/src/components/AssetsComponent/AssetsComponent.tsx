@@ -8,7 +8,7 @@ import { Upload } from "@mui/icons-material";
 import { AppReducerState } from "../../reducers/AppReducer";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import AssetPanelComponent from "../AssetPanelComponent/AssetPanelComponent.lazy";
-import { Asset } from "@micahg/tbltp-common";
+import { Asset } from "../../reducers/ContentReducer";
 
 interface AssetsComponentProps {
   populateToolbar?: (actions: GameMasterAction[]) => void;
@@ -54,9 +54,11 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
   return (
     <Box>
       <ErrorAlertComponent />
-      {assets.map((asset, idx) => {
-        return <AssetPanelComponent key={idx} asset={asset} readonly={false} />;
-      })}
+      <ul>
+        {assets.map((asset: Asset) => (
+          <AssetPanelComponent key={asset._id} asset={asset} readonly={false} />
+        ))}
+      </ul>
     </Box>
   );
 };

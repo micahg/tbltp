@@ -107,7 +107,8 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const idx = state.assets.findIndex((a) => a._id === asset._id);
       if (idx < 0) return { ...state, assets: [...state.assets, asset] };
       state.assets.splice(idx, 1, asset);
-      return { ...state, assets: state.assets };
+      // [...] to create a new array, so that the component will rerender
+      return { ...state, assets: [...state.assets] };
     }
     case "content/error": {
       // important to let undefined through. This will clear the error
