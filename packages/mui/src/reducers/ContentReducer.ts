@@ -102,6 +102,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const scene: Scene = action.payload as unknown as Scene;
       return { ...state, currentScene: scene };
     }
+    case "content/updateassetdata":
     case "content/updateasset": {
       const asset = action.payload as unknown as Asset & { _id: string };
       const idx = state.assets.findIndex((a) => a._id === asset._id);

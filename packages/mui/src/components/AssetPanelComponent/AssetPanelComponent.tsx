@@ -56,7 +56,8 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   };
 
   const updateAsset = () => {
-    // const asset = { name: "NEW ASSET - CHANGE ME" };
+    // even though this component is memoized, after updating we need to clear name and file
+    // to prevent saveDisabled from being false (on account of File being truthy)
     if (name !== asset.name) {
       dispatch({
         type: "content/updateasset",
@@ -73,6 +74,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
           progress: (p: LoadProgress) => setProgress(p.progress * 100),
         },
       });
+      setFile(null);
     }
   };
 
