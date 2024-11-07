@@ -78,6 +78,13 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
     }
   };
 
+  const deleteAsset = () => {
+    dispatch({
+      type: "content/deleteasset",
+      payload: { asset },
+    });
+  };
+
   return (
     <Box
       sx={{
@@ -141,7 +148,11 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
                 >
                   <SaveIcon />
                 </IconButton>
-                <IconButton aria-label="delete" disabled color="primary">
+                <IconButton
+                  aria-label="delete"
+                  color="primary"
+                  onClick={deleteAsset}
+                >
                   <DeleteIcon />
                 </IconButton>
               </span>

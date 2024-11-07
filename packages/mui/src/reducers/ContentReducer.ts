@@ -104,12 +104,20 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     }
     case "content/updateassetdata":
     case "content/updateasset": {
-      const asset = action.payload as unknown as Asset & { _id: string };
+      const asset = action.payload as unknown as Asset;
       const idx = state.assets.findIndex((a) => a._id === asset._id);
       if (idx < 0) return { ...state, assets: [...state.assets, asset] };
-      state.assets.splice(idx, 1, asset);
-      // [...] to create a new array, so that the component will rerender
-      return { ...state, assets: [...state.assets] };
+      const newAssets = [...state.assets];
+      newAssets.splice(idx, 1, asset);
+      return { ...state, assets: newAssets };
+    }
+    case "content/deleteasset": {
+      const { asset } = action.payload as unknown as { asset: Asset };
+      const idx = state.assets.findIndex((a) => a._id === asset._id);
+      if (idx < 0) return state;
+      const assets = [...state.assets];
+      assets.splice(idx, 1);
+      return { ...state, assets: assets };
     }
     case "content/error": {
       // important to let undefined through. This will clear the error

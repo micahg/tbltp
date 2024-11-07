@@ -36,11 +36,6 @@ function isBlob(payload: URL | Blob): payload is File {
   return (payload as Blob).type !== undefined;
 }
 
-/***************************************************
- * TODO: IT WOULD BE COOL TO ADD THE UPLOAD PROGRESS
- * TO THE ACTUAL ASSET ON SCREEN SINCE THEY'RE
- * CREATED AND UPLOADED SEPARATELY
- */
 async function updateAsset(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
@@ -55,6 +50,21 @@ async function updateAsset(
     return resp;
   } catch (err) {
     throw new Error("Unable to create asset", { cause: err });
+  }
+}
+
+async function deleteAsset(
+  state: AppReducerState,
+  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  asset: Asset,
+): Promise<AxiosResponse> {
+  try {
+    const url = `${state.environment.api}/asset/${asset._id}`;
+    const headers = await getToken(state, store);
+    const resp = await axios.delete(url, { headers: headers });
+    return resp;
+  } catch (err) {
+    throw new Error("Unable to delete asset", { cause: err });
   }
 }
 
@@ -190,6 +200,19 @@ export const ContentMiddleware: Middleware =
           }
         }
         break;
+      case "content/deleteasset": {
+        try {
+          const { asset } = action.payload as { asset: Asset };
+          await deleteAsset(state, store, asset);
+          next(action);
+        } catch (error) {
+          console.error(`Error deleting asset: ${JSON.stringify(error)}`);
+          const msg = "Unable to delete asset";
+          const err: ContentReducerError = { msg, success: false };
+          next({ type: "content/error", payload: err });
+        }
+        break;
+      }
       case "content/assets": {
         const url = `${state.environment.api}/asset`;
         getToken(state, store)
