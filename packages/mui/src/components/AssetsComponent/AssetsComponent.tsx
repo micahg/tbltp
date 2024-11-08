@@ -1,6 +1,6 @@
 // import styles from "./ContentEditor.module.css";
 
-import { Box } from "@mui/material";
+import { Box, Grid } from "@mui/material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -54,11 +54,18 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
   return (
     <Box>
       <ErrorAlertComponent />
-      <ul>
+      <Grid
+        container
+        // spacing={{ xs: 2, md: 3 }}
+        // spacin={{0}}
+        columns={{ xs: 4, sm: 8, md: 12 }}
+      >
         {assets.map((asset: Asset) => (
-          <AssetPanelComponent key={asset._id} asset={asset} readonly={false} />
+          <Box key={asset._id} sx={{ margin: "12px" }}>
+            <AssetPanelComponent asset={asset} readonly={false} />
+          </Box>
         ))}
-      </ul>
+      </Grid>
     </Box>
   );
 };
