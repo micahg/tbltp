@@ -93,8 +93,9 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
         justifyContent: "center",
         boxShadow: 4,
         borderRadius: 2,
-        minHeight: "25vh",
         width: "25vw",
+        height: "100%",
+        WebkitJustifyContent: "space-between",
       }}
     >
       {imgUrl ? (
@@ -120,7 +121,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
             flexDirection: "column",
             justifyContent: "center",
             gap: "1em",
-            padding: 1,
+            padding: "1em",
           }}
         >
           <TextField

@@ -23,6 +23,10 @@
 		"jest.disabledWorkspaceFolders": [
 			"mui",
 			"common"
-		]
+		],
+		"eslint.workingDirectories":  [{"mode": "auto"}],
+		"editor.codeActionsOnSave": {
+			"source.fixAll.eslint": "always",
+		},
 	}
 }
