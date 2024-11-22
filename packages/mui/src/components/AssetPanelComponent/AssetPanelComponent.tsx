@@ -93,7 +93,6 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
         justifyContent: "center",
         boxShadow: 4,
         borderRadius: 2,
-        width: "25vw",
         height: "100%",
         WebkitJustifyContent: "space-between",
       }}
@@ -149,6 +148,10 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
                 >
                   <SaveIcon />
                 </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Delete this asset">
+              <span>
                 <IconButton
                   aria-label="delete"
                   color="primary"

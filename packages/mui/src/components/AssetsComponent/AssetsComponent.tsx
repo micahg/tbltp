@@ -50,16 +50,11 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
 
     populateToolbar(actions);
   }, [assets, dispatch, populateToolbar]);
-
   return (
-    <Box>
+    // 100vh - 64px for the toolbar - 8px for the paddings
+    <Box sx={{ overflow: "auto", height: `calc(100vh - 72px)` }}>
       <ErrorAlertComponent />
-      <Grid
-        container
-        // spacing={{ xs: 2, md: 3 }}
-        // spacin={{0}}
-        columns={{ xs: 4, sm: 8, md: 12 }}
-      >
+      <Grid container columns={{ xs: 2, sm: 2, md: 2 }}>
         {assets.map((asset: Asset) => (
           <Box key={asset._id} sx={{ margin: "12px" }}>
             <AssetPanelComponent asset={asset} readonly={false} />
