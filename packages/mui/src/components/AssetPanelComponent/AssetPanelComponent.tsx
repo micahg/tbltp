@@ -6,7 +6,7 @@ import {
   TextField,
   Tooltip,
 } from "@mui/material";
-import { memo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import styles from "./AssetPanelComponent.module.css";
@@ -14,6 +14,7 @@ import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 import { LoadProgress } from "../../utils/content";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
+import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 
 interface AssetPanelComponentProps {
   asset: Asset;
@@ -29,6 +30,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const [progress, setProgress] = useState(0);
   const [name, setName] = useState(asset.name);
   const [file, setFile] = useState<File | null>(null);
+  const [expand, setExpand] = useState(false);
   const [imgUrl, setImgUrl] = useState<string | null>(
     asset.location ? `${api}/${asset.location}?token=${token}` : null,
   );
@@ -54,6 +56,10 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
     };
     input.click();
   };
+
+  const toggleExpand = useCallback(() => {
+    setExpand(!expand);
+  }, [expand]);
 
   const updateAsset = () => {
     // even though this component is memoized, after updating we need to clear name and file
@@ -101,7 +107,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
         <img
           src={imgUrl}
           alt={name}
-          className={styles.asset}
+          className={expand ? styles.asset_wide : styles.asset}
           onClick={selectFile}
         />
       ) : (
@@ -138,6 +144,17 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
               gap: "1em",
             }}
           >
+            <Tooltip title="Expand">
+              <span>
+                <IconButton
+                  aria-label="expand"
+                  color="primary"
+                  onClick={toggleExpand}
+                >
+                  <OpenInFullIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
             <Tooltip title="Save your changes to the asset">
               <span>
                 <IconButton
