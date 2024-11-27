@@ -141,7 +141,6 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
               display: "flex",
               flexDirection: "row",
               justifyContent: "right",
-              gap: "1em",
             }}
           >
             <Tooltip title="Expand">
