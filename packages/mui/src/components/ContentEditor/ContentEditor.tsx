@@ -56,10 +56,6 @@ interface ContentEditorProps {
   manageScene?: () => void;
 }
 
-// const SELECT_ACTIONS = ["select"] as const;
-// const BRUSH_ACTIONS = ["paint", "erase", "token"] as const;
-// type BrushAction = (typeof BRUSH_ACTIONS)[number];
-// type SelectAction = (typeof SELECT_ACTIONS)[number];
 type SelectAction = "select";
 type BrushAction = "paint" | "erase" | "token";
 type RecordingAction = "move" | SelectAction | BrushAction;
