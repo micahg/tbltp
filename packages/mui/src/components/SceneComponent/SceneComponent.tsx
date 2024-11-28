@@ -3,12 +3,10 @@ import {
   Alert,
   Box,
   Button,
-  IconButton,
   LinearProgress,
   TextField,
   Tooltip,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
 import { createRef, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Scene } from "../../reducers/ContentReducer";
@@ -16,6 +14,7 @@ import { AppReducerState } from "../../reducers/AppReducer";
 import { NewSceneBundle } from "../../middleware/ContentMiddleware";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { LoadProgress, loadImage } from "../../utils/content";
+import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 
 const NAME_REGEX = /^[\w\s]{1,64}$/;
 
@@ -27,12 +26,7 @@ interface SceneComponentProps {
 }
 
 // TODO use destructuring
-const SceneComponent = ({
-  populateToolbar,
-  redrawToolbar,
-  scene,
-  editScene,
-}: SceneComponentProps) => {
+const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   const dispatch = useDispatch();
 
   const playerCanvasRef = createRef<HTMLCanvasElement>();
@@ -169,10 +163,6 @@ const SceneComponent = ({
     if (!populateToolbar) return;
     const actions: GameMasterAction[] = [];
     populateToolbar(actions);
-    return () => {
-      // clear the error if there is one
-      dispatch({ type: "content/error" });
-    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -240,44 +230,7 @@ const SceneComponent = ({
           Image resolution does not match (they must match).
         </Alert>
       )}
-      {error?.success === false && (
-        <Alert
-          severity="error"
-          action={
-            <IconButton
-              aria-label="close"
-              color="inherit"
-              size="small"
-              onClick={() => {
-                dispatch({ type: "content/error" });
-              }}
-            >
-              <CloseIcon fontSize="inherit" />
-            </IconButton>
-          }
-        >
-          {error.msg}
-        </Alert>
-      )}
-      {error?.success === true && (
-        <Alert
-          severity="success"
-          action={
-            <IconButton
-              aria-label="close"
-              color="inherit"
-              size="small"
-              onClick={() => {
-                dispatch({ type: "content/error" });
-              }}
-            >
-              <CloseIcon fontSize="inherit" />
-            </IconButton>
-          }
-        >
-          {error.msg}
-        </Alert>
-      )}
+      <ErrorAlertComponent />
       <TextField
         disabled={!!scene}
         id="standard-basic"

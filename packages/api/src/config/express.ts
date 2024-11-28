@@ -13,6 +13,9 @@ import {
   SCENE_PATH,
   SCENE_CONTENT_PATH,
   SCENE_VIEWPORT_PATH,
+  ALL_ASSETS_PATH,
+  ASSET_DATA_PATH,
+  ASSET_PATH,
 } from "../utils/constants";
 import { getState, updateState } from "../routes/state";
 
@@ -28,7 +31,35 @@ import {
 import { getFakeUser } from "../utils/auth";
 import { metrics } from "@opentelemetry/api";
 import { hrtime } from "process";
+import {
+  setAssetData,
+  listAssets,
+  createOrUpdateAsset,
+  deleteAsset,
+} from "../routes/asset";
+import { assetDataValidator, assetValidator } from "../utils/asset";
+import { validationResult } from "express-validator";
+import {
+  deleteSceneValidator,
+  getSceneValidator,
+  sceneViewportValidator,
+} from "../utils/scene";
+import { stateValidator } from "../utils/state";
 
+/**
+ * Since we can't authorize img HTML tags, allow the token to be passed as a
+ * query parameter.
+ */
+function copyAuthParam(
+  req: express.Request,
+  _rs: express.Response,
+  next: NextFunction,
+) {
+  if (req.query.token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+}
 function getJWTCheck(noauth: boolean) {
   const aud: string = process.env.AUDIENCE_URL || "http://localhost:3000/";
   const iss: string = process.env.ISSUER_URL || "https://nttdev.us.auth0.com/";
@@ -56,6 +87,18 @@ function getJWTCheck(noauth: boolean) {
         issuerBaseURL: iss,
         tokenSigningAlg: "RS256",
       });
+}
+
+function schemaErrorCheck(
+  req: express.Request,
+  res: express.Response,
+  next: NextFunction,
+) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.sendStatus(400);
+  }
+  next();
 }
 
 /**
@@ -116,6 +159,7 @@ export function create(): Express {
       if (req.method === "OPTIONS") res.sendStatus(200);
       else next();
     },
+    copyAuthParam,
     jwtCheck,
     express.static("public"),
   );
@@ -132,10 +176,34 @@ export function create(): Express {
     res.status(200).send({ noauth: noauth }),
   );
   app.get(STATE_ASSET, jwtCheck, getState);
-  app.put(STATE_ASSET, jwtCheck, updateState);
-  app.put(SCENE_VIEWPORT_PATH, jwtCheck, updateSceneViewport);
-  app.get(SCENE_PATH, jwtCheck, getScene);
-  app.delete(SCENE_PATH, jwtCheck, deleteScene);
+  app.put(
+    STATE_ASSET,
+    jwtCheck,
+    stateValidator(),
+    schemaErrorCheck,
+    updateState,
+  );
+  app.put(
+    SCENE_VIEWPORT_PATH,
+    jwtCheck,
+    sceneViewportValidator(),
+    schemaErrorCheck,
+    updateSceneViewport,
+  );
+  app.get(
+    SCENE_PATH,
+    jwtCheck,
+    getSceneValidator(),
+    schemaErrorCheck,
+    getScene,
+  );
+  app.delete(
+    SCENE_PATH,
+    jwtCheck,
+    deleteSceneValidator(),
+    schemaErrorCheck,
+    deleteScene,
+  );
   app.get(ALL_SCENES_PATH, jwtCheck, getScenes);
   app.put(ALL_SCENES_PATH, jwtCheck, createScene);
   app.put(
@@ -143,6 +211,30 @@ export function create(): Express {
     jwtCheck,
     upload.single("image"),
     updateSceneContent,
+  );
+  // fetched by user (jwt) -- no input validation
+  app.get(ALL_ASSETS_PATH, jwtCheck, listAssets);
+  app.put(
+    ALL_ASSETS_PATH,
+    jwtCheck,
+    assetValidator(),
+    schemaErrorCheck,
+    createOrUpdateAsset,
+  );
+  app.delete(
+    ASSET_PATH,
+    jwtCheck,
+    assetDataValidator(),
+    schemaErrorCheck,
+    deleteAsset,
+  );
+  app.put(
+    ASSET_DATA_PATH,
+    jwtCheck,
+    upload.single("asset"),
+    assetDataValidator(),
+    schemaErrorCheck,
+    setAssetData,
   );
 
   // handle errors

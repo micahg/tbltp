@@ -28,6 +28,7 @@ import {
   Visibility,
   Edit,
   EditOff,
+  Face,
 } from "@mui/icons-material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import {
@@ -55,10 +56,8 @@ interface ContentEditorProps {
   manageScene?: () => void;
 }
 
-const SELECT_ACTIONS = ["select"] as const;
-const BRUSH_ACTIONS = ["paint", "erase"] as const;
-type BrushAction = (typeof BRUSH_ACTIONS)[number];
-type SelectAction = (typeof SELECT_ACTIONS)[number];
+type SelectAction = "select";
+type BrushAction = "paint" | "erase" | "token";
 type RecordingAction = "move" | SelectAction | BrushAction;
 
 // hack around rerendering -- keep one object in state and update properties
@@ -382,6 +381,20 @@ const ContentEditor = ({
         callback: () => sm.transition("rotateClock"),
       },
       {
+        icon: Face,
+        tooltip: "Token",
+        hidden: () => internalState.rec && internalState.act === "token",
+        disabled: () => internalState.rec && internalState.act !== "token",
+        callback: () => prepareRecording("token"),
+      },
+      {
+        icon: Face,
+        tooltip: "Finish Token",
+        hidden: () => !(internalState.rec && internalState.act === "token"),
+        disabled: () => false,
+        callback: () => sm.transition("wait"),
+      },
+      {
         icon: EditOff,
         tooltip: "Erase",
         hidden: () => internalState.rec && internalState.act === "erase",
@@ -521,7 +534,8 @@ const ContentEditor = ({
         updateSelected(true);
       } else if (
         internalState.act === "erase" ||
-        internalState.act === "paint"
+        internalState.act === "paint" ||
+        internalState.act === "token"
       ) {
         worker.postMessage({ cmd: `end_${internalState.act}` });
         sm.transition("record");
@@ -582,7 +596,9 @@ const ContentEditor = ({
     setCallback(sm, "record_mouse_wheel", (args) => {
       if (
         internalState.rec &&
-        (internalState.act === "erase" || internalState.act === "paint")
+        (internalState.act === "erase" ||
+          internalState.act === "paint" ||
+          internalState.act === "token")
       ) {
         sm.transition("done");
         const e: WheelEvent = args[0] as WheelEvent;

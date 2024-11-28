@@ -3,6 +3,9 @@ export const STARTUP_DONE_SIG = "startup_done";
 export const ASSETS_UPDATED_SIG = "event_updated";
 
 export const NO_AUTH_ASSET = "/noauth";
+export const ALL_ASSETS_PATH = "/asset";
+export const ASSET_PATH = "/asset/:id";
+export const ASSET_DATA_PATH = "/asset/:id/data";
 export const STATE_ASSET = "/state";
 export const ALL_SCENES_PATH = "/scene";
 export const SCENE_PATH = "/scene/:id";

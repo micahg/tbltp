@@ -1,0 +1,14 @@
+.asset {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    width: 25vw;
+}
+
+.asset_wide {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    /* width: calc(100% - 16px); */
+    max-width: calc(100% - 16px);
+    /* 100vh - 64px for the toolbar - 8px for the paddings - 136 for the buttons that have to show below - some more to make it look good */
+    max-height: calc(100vh - 232px);
+}

@@ -1,0 +1,32 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "api",
+			"path": "packages/api"
+		},
+		{
+			"name": "mui",
+			"path": "packages/mui"
+		},
+		{
+			"name": "common",
+			"path": "packages/common"
+		}
+	],
+	"settings": {
+		"yaml.schemas": {
+			"https://json.schemastore.org/github-workflow.json": "file:///home/micah/dev/nttinfra/.github/workflows/deploy.yaml"
+		},
+		"jest.disabledWorkspaceFolders": [
+			"mui",
+			"common"
+		],
+		"eslint.workingDirectories":  [{"mode": "auto"}],
+		"editor.codeActionsOnSave": {
+			"source.fixAll.eslint": "always",
+		},
+	}
+}

@@ -33,9 +33,10 @@ import GameMasterActionComponent, {
 } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { ExpandLess, ExpandMore } from "@mui/icons-material";
+import { ExpandLess, ExpandMore, UploadFile } from "@mui/icons-material";
 import SceneComponent from "../SceneComponent/SceneComponent.lazy";
 import { Scene } from "../../reducers/ContentReducer";
+import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -43,6 +44,7 @@ const appBarHeight = 64;
 enum FocusedComponent {
   ContentEditor,
   Scene,
+  Assets,
 }
 
 const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
@@ -139,6 +141,10 @@ const GameMasterComponent = () => {
     setFocusedComponent(FocusedComponent.Scene);
   };
 
+  const handleViewAssets = () => {
+    setFocusedComponent(FocusedComponent.Assets);
+  };
+
   const handleEditScene = (scene?: Scene) => {
     if (scene) dispatch({ type: "content/currentscene", payload: scene });
     setFocusedComponent(FocusedComponent.ContentEditor);
@@ -154,8 +160,45 @@ const GameMasterComponent = () => {
 
   const handleLogout = () => dispatch({ type: "environment/logout" });
 
-  const handlePopulateToolbar = (newActions: GameMasterAction[]) =>
-    setActions(newActions);
+  const handlePopulateToolbar = (newActions: GameMasterAction[]) => {
+    /**************************************************************************
+     * OOOOOOhhh boy, lots to discuss here. OK, so, the issue with the toolbar
+     * and its state updates is that it can trigger an infinite render loop if
+     * we're not careful, which leads me to believe we're doing it wrong.......
+     *
+     * handlePopulateToolbar is passed to whichever component is on screen so
+     * it can add its bits to the toolbar. But, when they call back, we update
+     * actions, which triggers a rerender of the toolbar, which triggers a
+     * rerender of the component, which triggers a rerender of the toolbar, etc.
+     *
+     * To avoid this catastrophe, we only update when the deepish comparison of
+     * actions shows that they've changed.
+     *
+     * But what shall we do when the child components state changes but can't
+     * be represented by the action? The hack workaround is to create an
+     * invisible action (hidden=true, disabled=true) that with a tooltip
+     * that is the JSON.stringify of the state, so when we compare it to the
+     * old one its different.
+     *
+     * For an example of this, check out the AssetsComponent
+     **************************************************************************/
+    let updateRequired = false;
+    if (actions.length !== newActions.length) updateRequired = true;
+    for (let i = 0; i < actions.length && !updateRequired; i++) {
+      if (
+        actions[i].icon !== newActions[i].icon ||
+        actions[i].tooltip !== newActions[i].tooltip ||
+        actions[i].hidden.toString() !== newActions[i].hidden.toString() ||
+        actions[i].disabled.toString() !== newActions[i].disabled.toString() ||
+        actions[i].callback.toString() !== newActions[i].callback.toString()
+      ) {
+        updateRequired = true;
+      }
+    }
+    if (updateRequired) {
+      return setActions(newActions);
+    }
+  };
 
   const handleRedrawToolbar = () => setDoot(doot + 1);
 
@@ -176,7 +219,7 @@ const GameMasterComponent = () => {
   useEffect(() => {
     if (scenes.length === sceneCount) return;
 
-    // if we added a scene, increate the key so we redraw the scene component
+    // if we added a scene, increase the key so we redraw the scene component
     if (scenes.length > sceneCount) setSceneKey(sceneKey + 1);
 
     // keep the count in sync
@@ -227,6 +270,14 @@ const GameMasterComponent = () => {
         </DrawerHeader>
         <Divider />
         <List>
+          <ListItem key="Assets" disablePadding onClick={handleViewAssets}>
+            <ListItemButton>
+              <ListItemIcon>
+                <UploadFile />
+              </ListItemIcon>
+              <ListItemText primary="Assets" />
+            </ListItemButton>
+          </ListItem>
           <ListItem key="Campaigns" disablePadding>
             <ListItemButton>
               <ListItemIcon>
@@ -298,6 +349,9 @@ const GameMasterComponent = () => {
             scene={currentScene}
             editScene={handleEditScene}
           />
+        )}
+        {focusedComponent === FocusedComponent.Assets && (
+          <AssetsComponent populateToolbar={handlePopulateToolbar} />
         )}
       </Main>
     </Box>

@@ -1,18 +1,93 @@
+import { checkSchema } from "express-validator";
 import { IScene, Scene } from "../models/scene";
 import { IUser } from "../models/user";
 import { Rect } from "@micahg/tbltp-common";
 
+function validateRect(value: Rect): boolean {
+  if (!value) return false;
+  if (typeof value !== "object") return false;
+  if (!("x" in value)) return false;
+  if (!("y" in value)) return false;
+  if (!("width" in value)) return false;
+  if (!("height" in value)) return false;
+  if (
+    typeof value.x !== "number" ||
+    typeof value.y !== "number" ||
+    typeof value.width !== "number" ||
+    typeof value.height !== "number"
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function getSceneValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      isMongoId: {
+        errorMessage: "Invalid scene ID",
+      },
+    },
+  });
+}
+
+export function deleteSceneValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      isMongoId: {
+        errorMessage: "Invalid scene ID",
+      },
+    },
+  });
+}
+
+export function sceneViewportValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      isMongoId: {
+        errorMessage: "Invalid scene ID",
+      },
+    },
+    viewport: {
+      in: ["body"],
+      optional: true,
+      custom: {
+        options: (value) => validateRect(value),
+        errorMessage: "Invalid viewport",
+      },
+    },
+    backgroundSize: {
+      in: ["body"],
+      optional: true,
+      custom: {
+        options: (value) => validateRect(value),
+        errorMessage: "Invalid background size",
+      },
+    },
+    angle: {
+      in: ["body"],
+      optional: true,
+      isInt: {
+        options: { min: 0, max: 359 },
+        errorMessage: "Angle must be an integer between 0 and 359",
+      },
+    },
+  });
+}
 export function getSceneById(id: string, userId: string) {
-  return Scene.findOne({ _id: id, user: userId });
+  return Scene.findOne({ _id: { $eq: id }, user: userId });
 }
 
 function getScenesByUser(user: IUser): Promise<IScene[]> {
-  return Scene.find({ user: user._id });
+  return Scene.find({ user: { $eq: user._id } });
 }
 
 export function setScenePlayerContent(id: string, path: string) {
   return Scene.findOneAndUpdate(
-    { _id: id },
+    { _id: { $eq: id } },
     { $set: { playerContent: path }, $inc: { playerContentRev: 1 } },
     { new: true },
   );
@@ -20,7 +95,7 @@ export function setScenePlayerContent(id: string, path: string) {
 
 export function setSceneDetailContent(id: string, path: string) {
   return Scene.findOneAndUpdate(
-    { _id: id },
+    { _id: { $eq: id } },
     { $set: { detailContent: path }, $inc: { detailContentRev: 1 } },
     { new: true },
   );
@@ -28,7 +103,7 @@ export function setSceneDetailContent(id: string, path: string) {
 
 export function setSceneOverlayContent(id: string, path: string) {
   return Scene.findOneAndUpdate(
-    { _id: id },
+    { _id: { $eq: id } },
     { $set: { overlayContent: path }, $inc: { overlayContentRev: 1 } },
     { new: true },
   );
@@ -48,7 +123,7 @@ export function createUserScene(user: IUser, scene: IScene): Promise<IScene> {
 }
 
 export function deleteUserScene(user: IUser, sceneId: string) {
-  return Scene.deleteOne({ _id: sceneId, user: user._id });
+  return Scene.deleteOne({ _id: { $eq: sceneId }, user: { $eq: user._id } });
 }
 
 /**
@@ -74,7 +149,7 @@ export function setSceneViewport(
   angle?: number,
 ) {
   return Scene.findOneAndUpdate(
-    { _id: id },
+    { _id: { $eq: id } },
     { backgroundSize: bg, viewport: vp, angle: angle },
     { new: true },
   );
