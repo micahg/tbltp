@@ -59,38 +59,6 @@ export function sceneViewportValidator() {
         errorMessage: "Invalid viewport",
       },
     },
-    // "viewport.x": {
-    //   in: ["body"],
-    //   optional: false,
-    //   isInt: {
-    //     options: { min: 0 },
-    //     errorMessage: "Viewport x must be a non-negative integer",
-    //   },
-    // },
-    // "viewport.y": {
-    //   in: ["body"],
-    //   optional: false,
-    //   isInt: {
-    //     options: { min: 0 },
-    //     errorMessage: "Viewport y must be a non-negative integer",
-    //   },
-    // },
-    // "viewport.width": {
-    //   in: ["body"],
-    //   optional: false,
-    //   isInt: {
-    //     options: { min: 0 },
-    //     errorMessage: "Viewport width must be a non-negative integer",
-    //   },
-    // },
-    // "viewport.height": {
-    //   in: ["body"],
-    //   optional: false,
-    //   isInt: {
-    //     options: { min: 0 },
-    //     errorMessage: "Viewport height must be a non-negative integer",
-    //   },
-    // },
     backgroundSize: {
       in: ["body"],
       optional: true,
@@ -99,38 +67,6 @@ export function sceneViewportValidator() {
         errorMessage: "Invalid background size",
       },
     },
-    // "backgroundSize.x": {
-    //   in: ["body"],
-    //   optional: false,
-    //   isInt: {
-    //     options: { min: 0 },
-    //     errorMessage: "BackgroundSize x must be a non-negative integer",
-    //   },
-    // },
-    // "backgroundSize.y": {
-    //   in: ["body"],
-    //   optional: false,
-    //   isInt: {
-    //     options: { min: 0 },
-    //     errorMessage: "BackgroundSize y must be a non-negative integer",
-    //   },
-    // },
-    // "backgroundSize.width": {
-    //   in: ["body"],
-    //   optional: false,
-    //   isInt: {
-    //     options: { min: 0 },
-    //     errorMessage: "BackgroundSize width must be a non-negative integer",
-    //   },
-    // },
-    // "backgroundSize.height": {
-    //   in: ["body"],
-    //   optional: false,
-    //   isInt: {
-    //     options: { min: 0 },
-    //     errorMessage: "BackgroundSize height must be a non-negative integer",
-    //   },
-    // },
     angle: {
       in: ["body"],
       optional: true,
