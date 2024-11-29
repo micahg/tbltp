@@ -196,7 +196,6 @@ export const ContentMiddleware: Middleware =
             );
             let msg = "Unable to update asset data";
             if (error instanceof Error && axios.isAxiosError(error.cause)) {
-              console.log("Asset name already exists");
               if (error.cause.response?.status === 413) {
                 msg = "Asset too big";
               }
