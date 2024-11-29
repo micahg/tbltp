@@ -194,7 +194,15 @@ export const ContentMiddleware: Middleware =
             console.error(
               `Error updating asset data: ${JSON.stringify(error)}`,
             );
-            const msg = "Unable to update asset data";
+            let msg = "Unable to update asset data";
+            if (error instanceof Error && axios.isAxiosError(error.cause)) {
+              if (error.cause.response?.status === 413) {
+                msg = "Asset too big";
+              }
+              if (error.cause.response?.status === 406) {
+                msg = "Invalid asset format";
+              }
+            }
             const err: ContentReducerError = { msg, success: false };
             next({ type: "content/error", payload: err });
           }
@@ -359,8 +367,11 @@ export const ContentMiddleware: Middleware =
             };
             if (err.response.status === 413) {
               error.msg = "Asset too big";
-              next({ type: "content/error", payload: error });
             }
+            if (err.response.status === 406) {
+              error.msg = "Invalid asset format";
+            }
+            next({ type: "content/error", payload: error });
             if (err.scene) {
               // delete the failed scene and set the current scene to nothing
               store.dispatch({
