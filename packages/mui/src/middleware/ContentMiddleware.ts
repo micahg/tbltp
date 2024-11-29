@@ -194,7 +194,16 @@ export const ContentMiddleware: Middleware =
             console.error(
               `Error updating asset data: ${JSON.stringify(error)}`,
             );
-            const msg = "Unable to update asset data";
+            let msg = "Unable to update asset data";
+            if (error instanceof Error && axios.isAxiosError(error.cause)) {
+              console.log("Asset name already exists");
+              if (error.cause.response?.status === 413) {
+                msg = "Asset too big";
+              }
+              if (error.cause.response?.status === 406) {
+                msg = "Invalid asset format";
+              }
+            }
             const err: ContentReducerError = { msg, success: false };
             next({ type: "content/error", payload: err });
           }
