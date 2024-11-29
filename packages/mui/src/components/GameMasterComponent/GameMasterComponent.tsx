@@ -3,17 +3,10 @@ import {
   AppBar,
   AppBarProps,
   Box,
-  Collapse,
   CssBaseline,
   Divider,
   Drawer,
   IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ListSubheader,
   Toolbar,
   Typography,
   styled,
@@ -22,21 +15,22 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import PhotoIcon from "@mui/icons-material/Photo";
-import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
-import LogoutIcon from "@mui/icons-material/Logout";
-import DeleteIcon from "@mui/icons-material/Delete";
-import AddIcon from "@mui/icons-material/Add";
+// import PhotoIcon from "@mui/icons-material/Photo";
+// import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
+// import LogoutIcon from "@mui/icons-material/Logout";
+// import DeleteIcon from "@mui/icons-material/Delete";
+// import AddIcon from "@mui/icons-material/Add";
 import ContentEditor from "../ContentEditor/ContentEditor.lazy";
 import GameMasterActionComponent, {
   GameMasterAction,
 } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { ExpandLess, ExpandMore, UploadFile } from "@mui/icons-material";
+// import { ExpandLess, ExpandMore, UploadFile } from "@mui/icons-material";
 import SceneComponent from "../SceneComponent/SceneComponent.lazy";
 import { Scene } from "../../reducers/ContentReducer";
 import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
+import NavigationDrawerComponent from "../NavigationDrawerComponent/NavigationDrawerComponent.lazy";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -154,12 +148,6 @@ const GameMasterComponent = () => {
     setFocusedComponent(FocusedComponent.Scene);
   };
 
-  const handleDeleteScene = (scene: Scene) => {
-    dispatch({ type: "content/deletescene", payload: scene });
-  };
-
-  const handleLogout = () => dispatch({ type: "environment/logout" });
-
   const handlePopulateToolbar = (newActions: GameMasterAction[]) => {
     /**************************************************************************
      * OOOOOOhhh boy, lots to discuss here. OK, so, the issue with the toolbar
@@ -269,69 +257,13 @@ const GameMasterComponent = () => {
           </IconButton>
         </DrawerHeader>
         <Divider />
-        <List>
-          <ListItem key="Assets" disablePadding onClick={handleViewAssets}>
-            <ListItemButton>
-              <ListItemIcon>
-                <UploadFile />
-              </ListItemIcon>
-              <ListItemText primary="Assets" />
-            </ListItemButton>
-          </ListItem>
-          <ListItem key="Campaigns" disablePadding>
-            <ListItemButton>
-              <ListItemIcon>
-                <PhotoLibraryIcon />
-              </ListItemIcon>
-              <ListItemText primary="Campaigns" />
-            </ListItemButton>
-          </ListItem>
-          <ListItem key="Scenes" disablePadding onClick={scenesClick}>
-            <ListItemButton>
-              <ListItemIcon>
-                <PhotoIcon />
-              </ListItemIcon>
-              <ListItemText primary="Scenes" />
-              {scenesOpen ? <ExpandLess /> : <ExpandMore />}
-            </ListItemButton>
-          </ListItem>
-          <Collapse in={scenesOpen} timeout="auto" unmountOnExit>
-            <ListSubheader>
-              <ListItemButton onClick={() => handleCreateScene()}>
-                <ListItemIcon>
-                  <AddIcon />
-                </ListItemIcon>
-                <ListItemText primary="Create Scene" />
-              </ListItemButton>
-            </ListSubheader>
-            {scenes.map((scene) => (
-              <ListItem
-                key={scene._id}
-                secondaryAction={
-                  <IconButton
-                    edge="end"
-                    aria-label="delete"
-                    onClick={() => handleDeleteScene(scene)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                }
-              >
-                <ListItemButton onClick={() => handleEditScene(scene)}>
-                  <ListItemText primary={scene.description} />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </Collapse>
-          <ListItem key="Log Out" disablePadding onClick={handleLogout}>
-            <ListItemButton>
-              <ListItemIcon>
-                <LogoutIcon />
-              </ListItemIcon>
-              <ListItemText primary="Log Out" />
-            </ListItemButton>
-          </ListItem>
-        </List>
+        <NavigationDrawerComponent
+          scenesOpen={scenesOpen}
+          scenesClick={scenesClick}
+          handleEditScene={handleEditScene}
+          handleCreateScene={handleCreateScene}
+          handleViewAssets={handleViewAssets}
+        />
       </Drawer>
       <Main open={open}>
         {focusedComponent === FocusedComponent.ContentEditor && (
