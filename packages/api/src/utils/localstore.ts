@@ -34,7 +34,7 @@ function getContentTypeExtension(contentType: string): string | null {
 export function getValidExtension(file: Express.Multer.File) {
   const idx = VALID_CONTENT_TYPES.indexOf(file.mimetype);
   if (idx === -1)
-    throw new Error(`Invalid mime type: ${file.mimetype}`, { cause: 400 });
+    throw new Error(`Invalid mime type: ${file.mimetype}`, { cause: 406});
   return CONTENT_TYPE_EXTS[idx];
 }
 
@@ -93,7 +93,7 @@ export function updateAssetFromLink(
       const ext = getContentTypeExtension(headers["content-type"]);
       if (!ext)
         throw new Error(`Invalid mime type: ${headers["content-type"]}`, {
-          cause: 400,
+          cause: 406,
         });
 
       const fileName = `${layer}.${ext}`;
@@ -146,7 +146,7 @@ export async function updateAssetFromUpload(
 ): Promise<LayerUpdate> {
   const ext = getContentTypeExtension(req.file.mimetype);
   if (!ext)
-    throw new Error(`Invalid mime type: ${req.file.mimetype}`, { cause: 400 });
+    throw new Error(`Invalid mime type: ${req.file.mimetype}`, { cause: 406 });
   const src = req.file.path;
   const fileName = `${layer}.${ext}`;
   const dest = `${DEST_FOLDER}/${scene.user}/scene/${scene._id}/${fileName}`;

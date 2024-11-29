@@ -359,8 +359,11 @@ export const ContentMiddleware: Middleware =
             };
             if (err.response.status === 413) {
               error.msg = "Asset too big";
-              next({ type: "content/error", payload: error });
             }
+            if (err.response.status === 406) {
+              error.msg = "Invalid asset format";
+            }
+            next({ type: "content/error", payload: error });
             if (err.scene) {
               // delete the failed scene and set the current scene to nothing
               store.dispatch({
