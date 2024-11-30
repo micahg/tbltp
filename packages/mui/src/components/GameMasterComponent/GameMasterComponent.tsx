@@ -15,18 +15,12 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-// import PhotoIcon from "@mui/icons-material/Photo";
-// import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
-// import LogoutIcon from "@mui/icons-material/Logout";
-// import DeleteIcon from "@mui/icons-material/Delete";
-// import AddIcon from "@mui/icons-material/Add";
 import ContentEditor from "../ContentEditor/ContentEditor.lazy";
 import GameMasterActionComponent, {
   GameMasterAction,
 } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-// import { ExpandLess, ExpandMore, UploadFile } from "@mui/icons-material";
 import SceneComponent from "../SceneComponent/SceneComponent.lazy";
 import { Scene } from "../../reducers/ContentReducer";
 import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
@@ -94,7 +88,8 @@ const DrawerHeader = styled("div")(({ theme }) => ({
 const GameMasterComponent = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const [open, setOpen] = useState<boolean>(false);
+  const [navOpen, setNavOpen] = useState<boolean>(false);
+  const [infoOpen, setInfoOpen] = useState<boolean>(false);
   const [scenesOpen, setScenesOpen] = useState<boolean>(false);
   const [actions, setActions] = useState<GameMasterAction[]>([]);
   const [doot, setDoot] = useState<number>(0);
@@ -116,13 +111,13 @@ const GameMasterComponent = () => {
     (state: AppReducerState) => state.content.currentScene,
   );
 
-  const handleDrawerOpen = () => {
-    setOpen(true);
-  };
+  const handleNavDrawerOpen = () => setNavOpen(true);
 
-  const handleDrawerClose = () => {
-    setOpen(false);
-  };
+  const handleNavDrawerClose = () => setNavOpen(false);
+
+  const handleInfoDrawerOpen = () => setInfoOpen(true);
+
+  const handleInfoDrawerClose = () => setInfoOpen(false);
 
   const handleCreateScene = (/*event: React.MouseEvent<HTMLElement>*/) => {
     // bump the scene key so the scene component state resets
@@ -217,14 +212,14 @@ const GameMasterComponent = () => {
   return (
     <Box sx={{ display: "flex", width: "100vw", height: "100vh" }}>
       <CssBaseline />
-      <GameMasterAppBar position="fixed" open={open}>
+      <GameMasterAppBar position="fixed" open={navOpen}>
         <Toolbar>
           <IconButton
             color="inherit"
             aria-label="open drawer"
-            onClick={handleDrawerOpen}
+            onClick={handleNavDrawerOpen}
             edge="start"
-            sx={{ mr: 2, ...(open && { display: "none" }) }}
+            sx={{ mr: 2, ...(navOpen && { display: "none" }) }}
           >
             <MenuIcon />
           </IconButton>
@@ -245,10 +240,10 @@ const GameMasterComponent = () => {
         }}
         variant="persistent"
         anchor="left"
-        open={open}
+        open={navOpen}
       >
         <DrawerHeader>
-          <IconButton onClick={handleDrawerClose}>
+          <IconButton onClick={handleNavDrawerClose}>
             {theme.direction === "ltr" ? (
               <ChevronLeftIcon />
             ) : (
@@ -265,9 +260,13 @@ const GameMasterComponent = () => {
           handleViewAssets={handleViewAssets}
         />
       </Drawer>
-      <Main open={open}>
+      <Drawer open={infoOpen} anchor="right" onClose={handleInfoDrawerClose}>
+        <Box sx={{ width: 250 }}>Hello</Box>
+      </Drawer>
+      <Main open={navOpen}>
         {focusedComponent === FocusedComponent.ContentEditor && (
           <ContentEditor
+            infoDrawer={handleInfoDrawerOpen}
             populateToolbar={handlePopulateToolbar}
             redrawToolbar={handleRedrawToolbar}
             manageScene={handleManageScene}

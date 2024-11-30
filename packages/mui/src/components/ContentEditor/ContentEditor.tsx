@@ -51,6 +51,7 @@ import { Rect } from "@micahg/tbltp-common";
 const sm = new MouseStateMachine();
 
 interface ContentEditorProps {
+  infoDrawer: () => void;
   populateToolbar?: (actions: GameMasterAction[]) => void;
   redrawToolbar?: () => void;
   manageScene?: () => void;
@@ -75,6 +76,7 @@ const ContentEditor = ({
   populateToolbar,
   redrawToolbar,
   manageScene,
+  infoDrawer,
 }: ContentEditorProps) => {
   const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
@@ -385,7 +387,8 @@ const ContentEditor = ({
         tooltip: "Token",
         hidden: () => internalState.rec && internalState.act === "token",
         disabled: () => internalState.rec && internalState.act !== "token",
-        callback: () => prepareRecording("token"),
+        // callback: () => prepareRecording("token"),
+        callback: () => infoDrawer(),
       },
       {
         icon: Face,
