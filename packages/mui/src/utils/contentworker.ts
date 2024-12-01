@@ -18,7 +18,7 @@ import {
   copyRect,
   zoomFromViewport,
   adjustImageToViewport,
-  adjustTokenDimensions,
+  // adjustTokenDimensions,
 } from "./geometry";
 import { Rect } from "@micahg/tbltp-common";
 
@@ -75,7 +75,7 @@ let brush = MIN_BRUSH;
 
 let _token_dw = 0;
 let _token_dh = 0;
-const _token_delta = MIN_BRUSH;
+// const _token_delta = MIN_BRUSH;
 let vamp: ImageBitmap;
 
 function trimPanning() {
@@ -169,17 +169,17 @@ function calculateViewport() {
   return;
 }
 
-function calculateToken(delta: number) {
-  [_token_dw, _token_dh] = adjustTokenDimensions(
-    delta,
-    vamp.width,
-    vamp.height,
-    _token_dw,
-    _token_dh,
-    overlayCtx.canvas.width,
-    overlayCtx.canvas.height,
-  );
-}
+// function calculateToken(delta: number) {
+//   [_token_dw, _token_dh] = adjustTokenDimensions(
+//     delta,
+//     vamp.width,
+//     vamp.height,
+//     _token_dw,
+//     _token_dh,
+//     overlayCtx.canvas.width,
+//     overlayCtx.canvas.height,
+//   );
+// }
 
 /**
  * Given a desired viewport, set our current viewport accordingly, set the zoom,
@@ -856,12 +856,18 @@ self.onmessage = async (evt) => {
       break;
     }
     case "brush_inc": {
-      calculateToken(_token_delta);
+      // eventually you will return to this - it may be a good idea to consider
+      // creating separate events if its not too much overhead in the editor.
+      //
+      // this caused a https://github.com/micahg/tbltp/issues/319 because `vamp`
+      // was undefined when calculateToken tried to access its properties.
+      //
+      // calculateToken(_token_delta);
       brush += MIN_BRUSH;
       break;
     }
     case "brush_dec": {
-      calculateToken(-_token_delta);
+      // calculateToken(-_token_delta);
       brush -= brush > MIN_BRUSH ? MIN_BRUSH : 0;
       break;
     }
