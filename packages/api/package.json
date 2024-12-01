@@ -57,7 +57,7 @@
     "@opentelemetry/exporter-jaeger": "^1.25.1",
     "@opentelemetry/exporter-metrics-otlp-proto": "^0.52.1",
     "@opentelemetry/exporter-trace-otlp-proto": "^0.52.1",
-    "@opentelemetry/instrumentation-lru-memoizer": "^0.39.0",
+    "@opentelemetry/instrumentation-lru-memoizer": "^0.41.0",
     "@opentelemetry/resources": "^1.25.1",
     "@opentelemetry/sdk-metrics": "^1.25.1",
     "@opentelemetry/sdk-node": "^0.52.1",
