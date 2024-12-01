@@ -187,7 +187,7 @@ const RemoteDisplayComponent = () => {
       window.addEventListener("focus", doFocus);
       return () => window.removeEventListener("focus", doFocus);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * First settle our authentication situation. Either confirm we are running
