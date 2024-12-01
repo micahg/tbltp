@@ -380,13 +380,13 @@ const ContentEditor = ({
         disabled: () => internalState.rec || internalState.act === "select",
         callback: () => sm.transition("rotateClock"),
       },
-      {
-        icon: Face,
-        tooltip: "Token",
-        hidden: () => internalState.rec && internalState.act === "token",
-        disabled: () => internalState.rec && internalState.act !== "token",
-        callback: () => prepareRecording("token"),
-      },
+      // {
+      //   icon: Face,
+      //   tooltip: "Token",
+      //   hidden: () => internalState.rec && internalState.act === "token",
+      //   disabled: () => internalState.rec && internalState.act !== "token",
+      //   callback: () => prepareRecording("token"),
+      // },
       {
         icon: Face,
         tooltip: "Finish Token",
