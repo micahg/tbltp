@@ -25,6 +25,7 @@ import SceneComponent from "../SceneComponent/SceneComponent.lazy";
 import { Scene } from "../../reducers/ContentReducer";
 import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
 import NavigationDrawerComponent from "../NavigationDrawerComponent/NavigationDrawerComponent.lazy";
+import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -260,8 +261,20 @@ const GameMasterComponent = () => {
           handleViewAssets={handleViewAssets}
         />
       </Drawer>
-      <Drawer open={infoOpen} anchor="right" onClose={handleInfoDrawerClose}>
-        <Box sx={{ width: 250 }}>Hello</Box>
+      <Drawer
+        open={infoOpen}
+        anchor="right"
+        onClose={handleInfoDrawerClose}
+        sx={{
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            margin: "6px",
+            borderRadius: "6px",
+            height: "calc(100% - 12px)",
+          },
+        }}
+      >
+        <TokenInfoDrawerComponent />
       </Drawer>
       <Main open={navOpen}>
         {focusedComponent === FocusedComponent.ContentEditor && (
