@@ -2,18 +2,24 @@
 import {
   Box,
   Button,
+  Checkbox,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Select,
   TextField,
 } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
+import { useSelector } from "react-redux";
+import { AppReducerState } from "../../reducers/AppReducer";
+import { Asset } from "../../reducers/ContentReducer";
 // interface CreateTokenFormComponentProps {}
 
 interface FormValues {
   name: string;
   asset: string;
+  visible: boolean;
   hitPoints: number;
 }
 
@@ -23,6 +29,7 @@ const CreateTokenFormComponent = () => {
     handleSubmit,
     formState: { errors },
   } = useForm<FormValues>({ mode: "onBlur" });
+  const assets = useSelector((state: AppReducerState) => state.content.assets);
   const onSubmit = (data: FormValues) => console.log(data);
   console.log(`Errors: ${JSON.stringify(errors)}`);
   return (
@@ -55,6 +62,20 @@ const CreateTokenFormComponent = () => {
           )}
         />
         <FormControl fullWidth>
+          <Controller
+            name="visible"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <FormControlLabel
+                {...field}
+                control={<Checkbox />}
+                label="Player Visible"
+              />
+            )}
+          />
+        </FormControl>
+        <FormControl fullWidth>
           <InputLabel id="asset-label">Asset</InputLabel>
           <Controller
             name="asset"
@@ -65,8 +86,11 @@ const CreateTokenFormComponent = () => {
                 <MenuItem value="">
                   <em>None</em>
                 </MenuItem>
-                <MenuItem value="asset1">Asset 1</MenuItem>
-                <MenuItem value="asset2">Asset 2</MenuItem>
+                {assets.map((asset: Asset) => (
+                  <MenuItem key={asset._id} value={asset._id}>
+                    {asset.name}
+                  </MenuItem>
+                ))}
               </Select>
             )}
           />
