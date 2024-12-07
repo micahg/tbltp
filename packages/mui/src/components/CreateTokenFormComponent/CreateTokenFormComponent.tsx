@@ -11,10 +11,11 @@ import {
   TextField,
 } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { Asset } from "../../reducers/ContentReducer";
 import { Token } from "@micahg/tbltp-common";
+import { useEffect } from "react";
 
 const CreateTokenFormComponent = () => {
   const {
@@ -22,9 +23,18 @@ const CreateTokenFormComponent = () => {
     handleSubmit,
     formState: { errors },
   } = useForm<Token>({ mode: "onBlur" });
+
+  const dispatch = useDispatch();
+
   const assets = useSelector((state: AppReducerState) => state.content.assets);
+
   const onSubmit = (data: Token) => console.log(data);
-  console.log(`Errors: ${JSON.stringify(errors)}`);
+
+  useEffect(() => {
+    if (!dispatch) return;
+    dispatch({ type: "content/assets" });
+  }, [dispatch]);
+
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <Box
