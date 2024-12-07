@@ -13,8 +13,8 @@ import { Controller, useForm } from "react-hook-form";
 
 interface FormValues {
   name: string;
-  asset?: string;
-  hitPoints?: number;
+  asset: string;
+  hitPoints: number;
 }
 
 const CreateTokenFormComponent = () => {
