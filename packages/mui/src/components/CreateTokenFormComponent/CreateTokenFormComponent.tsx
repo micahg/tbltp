@@ -14,23 +14,16 @@ import { Controller, useForm } from "react-hook-form";
 import { useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { Asset } from "../../reducers/ContentReducer";
-// interface CreateTokenFormComponentProps {}
-
-interface FormValues {
-  name: string;
-  asset: string;
-  visible: boolean;
-  hitPoints: number;
-}
+import { Token } from "@micahg/tbltp-common";
 
 const CreateTokenFormComponent = () => {
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<FormValues>({ mode: "onBlur" });
+  } = useForm<Token>({ mode: "onBlur" });
   const assets = useSelector((state: AppReducerState) => state.content.assets);
-  const onSubmit = (data: FormValues) => console.log(data);
+  const onSubmit = (data: Token) => console.log(data);
   console.log(`Errors: ${JSON.stringify(errors)}`);
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
