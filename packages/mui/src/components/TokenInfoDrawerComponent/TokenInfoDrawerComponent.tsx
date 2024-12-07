@@ -96,46 +96,6 @@ const TokenInfoDrawerComponent = () => {
       <Collapse in={createOpen} timeout="auto" unmountOnExit>
         <ListItem>
           <CreateTokenFormComponent />
-          {/* <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              width: "100%",
-              gap: "0.25em",
-            }}
-          >
-            <TextField
-              autoFocus
-              label="Name"
-              variant="standard"
-              sx={{ m: 1, margin: "1em" }}
-            ></TextField>
-            <TextField
-              autoFocus
-              label="Asset"
-              variant="standard"
-              sx={{ m: 1, margin: "1em" }}
-            ></TextField>
-            <TextField
-              id="hp"
-              label="Hit Points"
-              type="number"
-              variant="standard"
-            />
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "row",
-                justifyContent: "right",
-                alignItems: "center",
-                width: "100%",
-              }}
-            >
-              <Button variant="outlined">Create</Button>
-            </Box>
-          </Box> */}
         </ListItem>
       </Collapse>
     </List>
