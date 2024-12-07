@@ -1,6 +1,6 @@
 // import styles from "./CreateTokenFormComponent.module.css";
 import {
-  // Box,
+  Box,
   Button,
   FormControl,
   InputLabel,
@@ -27,7 +27,16 @@ const CreateTokenFormComponent = () => {
   console.log(`Errors: ${JSON.stringify(errors)}`);
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      <div>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          width: "100%",
+          gap: "1em",
+        }}
+      >
         <Controller
           name="name"
           control={control}
@@ -45,8 +54,6 @@ const CreateTokenFormComponent = () => {
             />
           )}
         />
-      </div>
-      <div>
         <FormControl fullWidth>
           <InputLabel id="asset-label">Asset</InputLabel>
           <Controller
@@ -64,8 +71,6 @@ const CreateTokenFormComponent = () => {
             )}
           />
         </FormControl>
-      </div>
-      <div>
         <Controller
           name="hitPoints"
           control={control}
@@ -86,64 +91,21 @@ const CreateTokenFormComponent = () => {
             />
           )}
         />
-      </div>
-      <Button type="submit" variant="contained" color="primary">
-        Submit
-      </Button>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "right",
+            alignItems: "center",
+            width: "100%",
+          }}
+        >
+          <Button type="submit" variant="contained" color="primary">
+            Submit
+          </Button>
+        </Box>
+      </Box>
     </form>
-    // <form onSubmit={handleSubmit(onSubmit)}>
-    //   <Box
-    //     sx={{
-    //       display: "flex",
-    //       flexDirection: "column",
-    //       justifyContent: "center",
-    //       alignItems: "center",
-    //       width: "100%",
-    //       gap: "0.25em",
-    //     }}
-    //   >
-    //     <TextField
-    //       autoFocus
-    //       label="Name"
-    //       variant="standard"
-    //       sx={{ m: 1, margin: "1em" }}
-    //       error={!!errors.name}
-    //       helperText={(errors?.name?.message as string) || ""}
-    //       {...(register("name"),
-    //       {
-    //         required: true,
-    //         maxLength: { value: 2, message: "ASDF" },
-    //       })}
-    //     ></TextField>
-    //     <TextField
-    //       autoFocus
-    //       label="Asset"
-    //       variant="standard"
-    //       sx={{ m: 1, margin: "1em" }}
-    //       {...(register("asset"), { required: true })}
-    //     ></TextField>
-    //     <TextField
-    //       id="hp"
-    //       label="Hit Points"
-    //       type="number"
-    //       variant="standard"
-    //       {...(register("hp"), { required: false, min: 0, max: 10000 })}
-    //     />
-    //     <Box
-    //       sx={{
-    //         display: "flex",
-    //         flexDirection: "row",
-    //         justifyContent: "right",
-    //         alignItems: "center",
-    //         width: "100%",
-    //       }}
-    //     >
-    //       <Button variant="outlined" type="submit">
-    //         Create
-    //       </Button>
-    //     </Box>
-    //   </Box>
-    // </form>
   );
 };
 
