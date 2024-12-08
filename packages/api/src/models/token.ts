@@ -1,15 +1,16 @@
 import { Schema, model } from "mongoose";
-import { Token as BasicToken } from "@micahg/tbltp-common";
+import { Token as BasicToken, MAX_HP, MIN_HP } from "@micahg/tbltp-common";
 
 export type Token = Omit<BasicToken, "asset"> & {
   asset?: Schema.Types.ObjectId;
 };
 
 interface IToken extends Token {
-  _id: Schema.Types.ObjectId;
+  _id?: Schema.Types.ObjectId;
   user: Schema.Types.ObjectId;
   visible: boolean;
   asset?: Schema.Types.ObjectId;
+  hitPoints?: number;
 }
 
 const TokenSchema = new Schema<IToken>(
@@ -18,6 +19,12 @@ const TokenSchema = new Schema<IToken>(
     name: { type: String, required: true },
     visible: { type: Boolean, default: false },
     asset: { type: Schema.Types.ObjectId, required: false },
+    hitPoints: {
+      type: Number,
+      required: false,
+      min: [MIN_HP, "Hit-points too low"],
+      max: [MAX_HP, "Hit-points too high"],
+    },
   },
   { timestamps: true },
 );
