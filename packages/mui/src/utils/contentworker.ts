@@ -561,7 +561,6 @@ async function update(values: TableUpdate) {
   }
 }
 
-// eslint-disable-next-line no-restricted-globals
 self.onmessage = async (evt) => {
   console.log(evt.data.cmd);
   switch (evt.data.cmd) {
