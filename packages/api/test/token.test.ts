@@ -218,17 +218,52 @@ describe("token", () => {
       await usersCollection.deleteMany({}); // Clean up the database
     });
   });
-  // describe("list", () => {
-  //   it("Should get an empty list of assets when there are none", async () => {
-  //     const url = `/token`;
-  //     let resp;
-  //     try {
-  //       resp = await request(app).get(url);
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(200);
-  //     expect(resp.body.length).toBe(0);
-  //   });
-  // });
+  describe("list", () => {
+    beforeEach(async () => {
+      (getFakeUser as jest.Mock).mockReturnValue(userZero);
+    });
+    afterEach(async () => {
+      await tokensCollection.deleteMany({}); // Clean up the database
+      await usersCollection.deleteMany({}); // Clean up the database
+    });
+    it("Should get the list of tokens", async () => {
+      let resp;
+      try {
+        resp = await request(app)
+          .put("/token")
+          .send({ name: "first", visible: true, hitPoints: 99 });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("first");
+      expect(resp.body.hitPoints).toBe(99);
+      expect(resp.body.visible).toBe(true);
+      try {
+        resp = await request(app).put("/token").send({ name: "second" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("second");
+      expect(resp.body.hitPoints).toBeUndefined();
+      expect(resp.body.visible).toBe(false);
+
+      try {
+        resp = await request(app).get("/token");
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body.length).toBe(2);
+      expect(resp.body[0].name).toBe("first");
+      expect(resp.body[0].hitPoints).toBe(99);
+      expect(resp.body[0].visible).toBe(true);
+      expect(resp.body[1].name).toBe("second");
+      expect(resp.body[1].hitPoints).toBeUndefined();
+      expect(resp.body[1].visible).toBe(false);
+    });
+  });
 });

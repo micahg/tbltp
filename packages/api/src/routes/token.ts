@@ -1,8 +1,23 @@
 import { NextFunction, Request, Response } from "express";
 import { getOrCreateUser } from "../utils/user";
 import { log } from "../utils/logger";
-import { createUserToken, getUserToken } from "../utils/token";
+import { createUserToken, getUserToken, listUserTokens } from "../utils/token";
 import { getUserAsset } from "../utils/asset";
+
+export async function listTokens(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getOrCreateUser(req.auth);
+    const tokens = await listUserTokens(user);
+    res.json(tokens);
+  } catch (err) {
+    log.error("Unable to list user assets", err);
+    return next({ status: err.cause || 500 });
+  }
+}
 
 export async function createOrUpdateToken(
   req: Request,

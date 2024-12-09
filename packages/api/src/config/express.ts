@@ -47,7 +47,7 @@ import {
 } from "../utils/scene";
 import { stateValidator } from "../utils/state";
 import { tokenValidator } from "../utils/token";
-import { createOrUpdateToken } from "../routes/token";
+import { createOrUpdateToken, listTokens } from "../routes/token";
 
 /**
  * Since we can't authorize img HTML tags, allow the token to be passed as a
@@ -239,7 +239,7 @@ export function create(): Express {
     schemaErrorCheck,
     setAssetData,
   );
-
+  app.get(ALL_TOKEN_PATH, jwtCheck, listTokens);
   app.put(
     ALL_TOKEN_PATH,
     jwtCheck,
