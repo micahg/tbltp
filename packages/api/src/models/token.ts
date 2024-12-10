@@ -1,7 +1,7 @@
 import { Schema, model } from "mongoose";
 import { Token as BasicToken, MAX_HP, MIN_HP } from "@micahg/tbltp-common";
 
-export type Token = Omit<BasicToken, "asset"> & {
+export type Token = Omit<BasicToken, "_id" | "asset"> & {
   asset?: Schema.Types.ObjectId;
 };
 

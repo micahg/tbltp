@@ -1,4 +1,3 @@
-import { Asset } from "../../reducers/ContentReducer";
 import {
   Box,
   IconButton,
@@ -15,6 +14,7 @@ import { LoadProgress } from "../../utils/content";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import { Asset } from "@micahg/tbltp-common";
 
 interface AssetPanelComponentProps {
   asset: Asset;

@@ -13,8 +13,7 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { Asset } from "../../reducers/ContentReducer";
-import { Token } from "@micahg/tbltp-common";
+import { Asset, Token } from "@micahg/tbltp-common";
 import { useEffect } from "react";
 
 const CreateTokenFormComponent = () => {
