@@ -1,10 +1,7 @@
 // import styles from "./TokenInfoDrawerComponent.module.css";
 import {
-  Box,
-  Button,
   Collapse,
   Divider,
-  Icon,
   List,
   ListItem,
   ListItemButton,
