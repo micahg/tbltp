@@ -176,6 +176,38 @@ describe("token", () => {
       expect(assets2[0].visible).toBe(true);
       expect(assets2[0].hitPoints).toBe(10);
     });
+    it("Should fail to update someone elses token", async () => {
+      let resp;
+      try {
+        resp = await request(app).put("/token").send({ name: "test" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("test");
+      const user = await usersCollection.findOne({ sub: userZero });
+      expect(user).toBeDefined();
+      expect(user).not.toBeNull();
+      const tokens = await tokensCollection.find({ user: user!._id }).toArray();
+      expect(tokens).toBeDefined();
+      expect(tokens).not.toBeNull();
+      expect(tokens).toHaveLength(1);
+
+      (getFakeUser as jest.Mock).mockReturnValue(userOne);
+      try {
+        resp = await request(app).put("/token").send({
+          _id: resp.body._id,
+          name: "test2",
+          visible: true,
+          hitPoints: 10,
+          asset: resp.body._id,
+        });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(400);
+    });
     it("Should fail to update the token to someone elses asset", async () => {
       let resp;
       try {
@@ -189,16 +221,18 @@ describe("token", () => {
       const user = await usersCollection.findOne({ sub: userZero });
       expect(user).toBeDefined();
       expect(user).not.toBeNull();
-      const assets = await tokensCollection.find({ user: user!._id }).toArray();
-      expect(assets).toBeDefined();
-      expect(assets).not.toBeNull();
-      expect(assets).toHaveLength(1);
+      const tokens = await tokensCollection.find({ user: user!._id }).toArray();
+      expect(tokens).toBeDefined();
+      expect(tokens).not.toBeNull();
+      expect(tokens).toHaveLength(1);
+
       (getFakeUser as jest.Mock).mockReturnValue(userOne);
       try {
         resp = await request(app).put("/asset").send({ name: "test" });
       } catch (err) {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
+
       (getFakeUser as jest.Mock).mockReturnValue(userZero);
       try {
         resp = await request(app).put("/token").send({
@@ -263,6 +297,113 @@ describe("token", () => {
       expect(resp.body[0].visible).toBe(true);
       expect(resp.body[1].name).toBe("second");
       expect(resp.body[1].hitPoints).toBeUndefined();
+      expect(resp.body[1].visible).toBe(false);
+    });
+  });
+  describe("delete", () => {
+    beforeEach(async () => {
+      (getFakeUser as jest.Mock).mockReturnValue(userZero);
+    });
+    afterEach(async () => {
+      await tokensCollection.deleteMany({}); // Clean up the database
+      await usersCollection.deleteMany({}); // Clean up the database
+    });
+    it("Should not delete someone elses token", async () => {
+      let resp;
+      try {
+        resp = await request(app).put("/token").send({ name: "test" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("test");
+      const user = await usersCollection.findOne({ sub: userZero });
+      expect(user).toBeDefined();
+      expect(user).not.toBeNull();
+      const tokens = await tokensCollection.find({ user: user!._id }).toArray();
+      expect(tokens).toBeDefined();
+      expect(tokens).not.toBeNull();
+      expect(tokens).toHaveLength(1);
+      (getFakeUser as jest.Mock).mockReturnValue(userOne);
+      try {
+        resp = await request(app).delete(`/token/${resp.body._id}`).send();
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(404);
+    });
+    it("Should delete a tokens", async () => {
+      let resp;
+      try {
+        resp = await request(app)
+          .put("/token")
+          .send({ name: "first", visible: true, hitPoints: 99 });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("first");
+      expect(resp.body.hitPoints).toBe(99);
+      expect(resp.body.visible).toBe(true);
+      try {
+        resp = await request(app).put("/token").send({ name: "second" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("second");
+      expect(resp.body.hitPoints).toBeUndefined();
+      expect(resp.body.visible).toBe(false);
+      try {
+        resp = await request(app)
+          .put("/token")
+          .send({ name: "third", hitPoints: 10 });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.name).toBe("third");
+      expect(resp.body.hitPoints).toBe(10);
+      expect(resp.body.visible).toBe(false);
+      try {
+        resp = await request(app).get("/token");
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body.length).toBe(3);
+      expect(resp.body[0].name).toBe("first");
+      expect(resp.body[0].hitPoints).toBe(99);
+      expect(resp.body[0].visible).toBe(true);
+      expect(resp.body[1].name).toBe("second");
+      expect(resp.body[1].hitPoints).toBeUndefined();
+      expect(resp.body[1].visible).toBe(false);
+      expect(resp.body[2].name).toBe("third");
+      expect(resp.body[2].hitPoints).toBe(10);
+      expect(resp.body[2].visible).toBe(false);
+      try {
+        resp = await request(app).delete(`/token/${resp.body[1]._id}`);
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(204);
+
+      try {
+        resp = await request(app).get("/token");
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body.length).toBe(2);
+      expect(resp.body[0].name).toBe("first");
+      expect(resp.body[0].hitPoints).toBe(99);
+      expect(resp.body[0].visible).toBe(true);
+      expect(resp.body[1].name).toBe("third");
+      expect(resp.body[1].hitPoints).toBe(10);
       expect(resp.body[1].visible).toBe(false);
     });
   });

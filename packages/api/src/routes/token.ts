@@ -67,3 +67,23 @@ export async function createOrUpdateToken(
     return next({ status: err.cause || 500 });
   }
 }
+
+export async function deleteToken(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getOrCreateUser(req.auth);
+    const token = await getUserToken(user, req.params.id);
+    if (!token) {
+      return res.status(404).send();
+    }
+    await token.deleteOne();
+    // don't return yet, we will delete after sending the response
+    return res.status(204).send();
+  } catch (err) {
+    log.error(`Unable to delete token ${err.message}`);
+    return next({ status: err.cause || 500 });
+  }
+}

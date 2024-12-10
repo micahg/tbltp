@@ -57,6 +57,18 @@ export function tokenValidator() {
   });
 }
 
+export function tokenDeleteValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      optional: false,
+      isMongoId: {
+        errorMessage: "Invalid asset ID",
+      },
+    },
+  });
+}
+
 export function getUserToken(user: IUser, id: string) {
   return TokenModel.findOne({
     _id: { $eq: id },
