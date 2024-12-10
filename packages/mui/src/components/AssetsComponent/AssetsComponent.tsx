@@ -8,7 +8,7 @@ import { Upload } from "@mui/icons-material";
 import { AppReducerState } from "../../reducers/AppReducer";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import AssetPanelComponent from "../AssetPanelComponent/AssetPanelComponent.lazy";
-import { Asset } from "../../reducers/ContentReducer";
+import { Asset } from "@micahg/tbltp-common";
 
 interface AssetsComponentProps {
   populateToolbar?: (actions: GameMasterAction[]) => void;

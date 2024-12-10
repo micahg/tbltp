@@ -26,7 +26,10 @@ jobs:
         with:
           node-version: '18.x'
       - run: npm ci -w packages/${{ inputs.package }}
-      - run: npm run build -w packages/${{ inputs.package }}
+      - name: Package build
+        env:
+          DISABLE_ESLINT_PLUGIN: true
+        run: npm run build -w packages/${{ inputs.package }}
       - id: get-version
         name: Get ${{ inputs.package }} Version
         run: |

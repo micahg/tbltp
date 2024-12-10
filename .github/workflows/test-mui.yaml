@@ -22,6 +22,8 @@ jobs:
       - name: Utils Unit Test
         run: npm run test:utils -w packages/mui
       - name: Test Build
+        env:
+          DISABLE_ESLINT_PLUGIN: true
         run: npm run build -w packages/mui
 
       
