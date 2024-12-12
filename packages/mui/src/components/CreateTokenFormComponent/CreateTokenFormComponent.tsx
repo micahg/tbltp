@@ -15,6 +15,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { Asset, Token } from "@micahg/tbltp-common";
 import { useEffect } from "react";
+import { NAME_REGEX } from "../SceneComponent/SceneComponent";
 
 const CreateTokenFormComponent = () => {
   const {
@@ -27,7 +28,17 @@ const CreateTokenFormComponent = () => {
 
   const assets = useSelector((state: AppReducerState) => state.content.assets);
 
-  const onSubmit = (data: Token) => console.log(data);
+  const onSubmit = (data: Token) => {
+    // don't send an empty asset
+    if (data.asset === "") {
+      delete data.asset;
+    }
+    if (data.hitPoints === 0) {
+      delete data.hitPoints;
+    }
+    console.log(data);
+    dispatch({ type: "content/updatetoken", payload: data });
+  };
 
   useEffect(() => {
     if (!dispatch) return;
@@ -52,7 +63,10 @@ const CreateTokenFormComponent = () => {
           defaultValue=""
           rules={{
             required: "Name is required",
-            maxLength: { value: 5, message: "Max length is 5" },
+            pattern: {
+              value: NAME_REGEX,
+              message: "Name must be alphanumeric",
+            },
           }}
           render={({ field }) => (
             <TextField
@@ -102,8 +116,8 @@ const CreateTokenFormComponent = () => {
           control={control}
           defaultValue={0}
           rules={{
-            min: { value: 0, message: "Min value is 0" },
-            max: { value: 1000, message: "Max value is 1000" },
+            min: { value: 0, message: `Min value is ${0}` },
+            max: { value: 1000, message: `Max value is ${1000}` },
           }}
           render={({ field }) => (
             <TextField

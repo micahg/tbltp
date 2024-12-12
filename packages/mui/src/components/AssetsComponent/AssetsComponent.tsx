@@ -34,7 +34,7 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
         callback: () => {
           const name = `ASSET ${assets.length}`;
           const asset: Asset = { name };
-          dispatch({ type: "content/updateasset", payload: { asset } });
+          dispatch({ type: "content/updateasset", payload: asset });
         },
       },
       {

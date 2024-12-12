@@ -1,5 +1,5 @@
 import { PayloadAction } from "@reduxjs/toolkit";
-import { Asset, Rect } from "@micahg/tbltp-common";
+import { Asset, Rect, Token } from "@micahg/tbltp-common";
 
 // copied from api
 export interface Scene {
@@ -34,6 +34,7 @@ export type ContentReducerState = {
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
   readonly assets: Asset[];
+  readonly tokens: Token[];
   readonly err?: ContentReducerError;
 };
 
@@ -42,6 +43,7 @@ const initialState: ContentReducerState = {
   currentScene: undefined,
   scenes: [],
   assets: [],
+  tokens: [],
   err: undefined,
 };
 
@@ -114,6 +116,15 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const assets = [...state.assets];
       assets.splice(idx, 1);
       return { ...state, assets: assets };
+    }
+    case "content/updatetoken": {
+      const token = action.payload as unknown as Token;
+      const idx = state.tokens.findIndex((a) => a._id === token._id);
+      if (idx < 0) return { ...state, tokens: [...state.tokens, token] };
+      const newTokens = [...state.tokens];
+      newTokens.splice(idx, 1, token);
+      return { ...state, tokens: newTokens };
+      break;
     }
     case "content/error": {
       // important to let undefined through. This will clear the error

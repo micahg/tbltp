@@ -35,38 +35,53 @@ function isBlob(payload: URL | Blob): payload is File {
   return (payload as Blob).type !== undefined;
 }
 
-// async function update<T extends Asset | Token>() {
-//   return null;
-// }
-async function updateAsset(
+type Operation = "put" | "delete";
+
+async function update<T extends Asset | Token>(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  asset?: Asset,
+  op: Operation,
+  t: T,
+  path: string,
 ): Promise<AxiosResponse> {
   const headers = await getToken(state, store);
 
   try {
-    const resp = await axios.put(`${state.environment.api}/asset`, asset, {
+    const resp = await axios[op](`${state.environment.api}/${path}`, t, {
       headers: headers,
     });
     return resp;
   } catch (err) {
-    throw new Error("Unable to create asset", { cause: err });
+    throw new Error(`Unable to ${op} ${path}`, { cause: err });
   }
 }
 
-async function deleteAsset(
+async function operate<T extends Asset | Token>(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  asset: Asset,
-): Promise<AxiosResponse> {
+  next: Dispatch<AnyAction>,
+  op: Operation,
+  path: string,
+  action: unknown & { type: string; payload: T },
+) {
   try {
-    const url = `${state.environment.api}/asset/${asset._id}`;
-    const headers = await getToken(state, store);
-    const resp = await axios.delete(url, { headers: headers });
-    return resp;
-  } catch (err) {
-    throw new Error("Unable to delete asset", { cause: err });
+    const result = await update(state, store, op, action.payload, path);
+    next({ type: action.type, payload: result.data });
+  } catch (error) {
+    let msg = `Unable to create ${path}`;
+    if (error instanceof Error) {
+      if (axios.isAxiosError(error.cause)) {
+        console.log(`Operation failure: ${JSON.stringify(error.cause)}`);
+        if (error.cause.response?.status === 409) {
+          msg = `${path} name already exists`;
+        }
+      }
+    }
+    const err: ContentReducerError = {
+      msg: msg,
+      success: false,
+    };
+    next({ type: "content/error", payload: err });
   }
 }
 
@@ -156,29 +171,16 @@ export const ContentMiddleware: Middleware =
     }
 
     switch (action.type) {
+      case "content/updatetoken": {
+        operate(state, store, next, "put", "token", action);
+        break;
+      }
+      case "content/deletetoken": {
+        operate(state, store, next, "delete", "token", action);
+        break;
+      }
       case "content/updateasset":
-        {
-          const { asset } = action.payload;
-          try {
-            const result = await updateAsset(state, store, asset);
-            next({ type: action.type, payload: result.data });
-          } catch (error) {
-            let msg = "Unable to create asset";
-            if (error instanceof Error) {
-              if (axios.isAxiosError(error.cause)) {
-                console.log("Asset name already exists");
-                if (error.cause.response?.status === 409) {
-                  msg = "Asset name already exists";
-                }
-              }
-            }
-            const err: ContentReducerError = {
-              msg: msg,
-              success: false,
-            };
-            next({ type: "content/error", payload: err });
-          }
-        }
+        operate(state, store, next, "put", "asset", action);
         break;
       case "content/updateassetdata":
         {
@@ -211,16 +213,7 @@ export const ContentMiddleware: Middleware =
         }
         break;
       case "content/deleteasset": {
-        try {
-          const { asset } = action.payload as { asset: Asset };
-          await deleteAsset(state, store, asset);
-          next(action);
-        } catch (error) {
-          console.error(`Error deleting asset: ${JSON.stringify(error)}`);
-          const msg = "Unable to delete asset";
-          const err: ContentReducerError = { msg, success: false };
-          next({ type: "content/error", payload: err });
-        }
+        operate(state, store, next, "delete", "asset", action);
         break;
       }
       case "content/assets": {
