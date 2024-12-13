@@ -16,9 +16,11 @@ import { AppReducerState } from "../../reducers/AppReducer";
 import { Asset, Token } from "@micahg/tbltp-common";
 import { useEffect } from "react";
 import { NAME_REGEX } from "../SceneComponent/SceneComponent";
+import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent";
 
 const CreateTokenFormComponent = () => {
   const {
+    reset,
     control,
     handleSubmit,
     formState: { errors },
@@ -38,6 +40,7 @@ const CreateTokenFormComponent = () => {
     }
     console.log(data);
     dispatch({ type: "content/updatetoken", payload: data });
+    reset();
   };
 
   useEffect(() => {
@@ -57,26 +60,29 @@ const CreateTokenFormComponent = () => {
           gap: "1em",
         }}
       >
-        <Controller
-          name="name"
-          control={control}
-          defaultValue=""
-          rules={{
-            required: "Name is required",
-            pattern: {
-              value: NAME_REGEX,
-              message: "Name must be alphanumeric",
-            },
-          }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Name"
-              error={!!errors.name}
-              helperText={errors.name ? (errors.name.message as string) : ""}
-            />
-          )}
-        />
+        <ErrorAlertComponent />
+        <FormControl fullWidth>
+          <Controller
+            name="name"
+            control={control}
+            defaultValue=""
+            rules={{
+              required: "Name is required",
+              pattern: {
+                value: NAME_REGEX,
+                message: "Name must be alphanumeric",
+              },
+            }}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Name"
+                error={!!errors.name}
+                helperText={errors.name ? (errors.name.message as string) : ""}
+              />
+            )}
+          />
+        </FormControl>
         <FormControl fullWidth>
           <Controller
             name="visible"
@@ -111,26 +117,29 @@ const CreateTokenFormComponent = () => {
             )}
           />
         </FormControl>
-        <Controller
-          name="hitPoints"
-          control={control}
-          defaultValue={0}
-          rules={{
-            min: { value: 0, message: `Min value is ${0}` },
-            max: { value: 1000, message: `Max value is ${1000}` },
-          }}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              label="Hit Points"
-              type="number"
-              error={!!errors.hitPoints}
-              helperText={
-                errors.hitPoints ? (errors.hitPoints.message as string) : ""
-              }
-            />
-          )}
-        />
+        <FormControl fullWidth>
+
+          <Controller
+            name="hitPoints"
+            control={control}
+            defaultValue={0}
+            rules={{
+              min: { value: 0, message: `Min value is ${0}` },
+              max: { value: 1000, message: `Max value is ${1000}` },
+            }}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label="Hit Points"
+                type="number"
+                error={!!errors.hitPoints}
+                helperText={
+                  errors.hitPoints ? (errors.hitPoints.message as string) : ""
+                }
+              />
+            )}
+          />
+        </FormControl>
         <Box
           sx={{
             display: "flex",

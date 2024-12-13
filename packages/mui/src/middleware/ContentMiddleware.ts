@@ -37,6 +37,11 @@ function isBlob(payload: URL | Blob): payload is File {
 
 type Operation = "put" | "delete";
 
+const FriendlyOperation : {[key in Operation]: string } = {
+  "put": "Update succesfull",
+  "delete": "Deletion successful"
+}
+
 async function update<T extends Asset | Token>(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
@@ -67,6 +72,11 @@ async function operate<T extends Asset | Token>(
   try {
     const result = await update(state, store, op, action.payload, path);
     next({ type: action.type, payload: result.data });
+    const err: ContentReducerError = {
+      msg: FriendlyOperation[op],
+      success: true,
+    };
+    next({ type: "content/error", payload: err });
   } catch (error) {
     let msg = `Unable to create ${path}`;
     if (error instanceof Error) {
