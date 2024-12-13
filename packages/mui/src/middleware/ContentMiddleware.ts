@@ -37,10 +37,10 @@ function isBlob(payload: URL | Blob): payload is File {
 
 type Operation = "put" | "delete";
 
-const FriendlyOperation : {[key in Operation]: string } = {
-  "put": "Update succesfull",
-  "delete": "Deletion successful"
-}
+const FriendlyOperation: { [key in Operation]: string } = {
+  put: "Update succesfull",
+  delete: "Deletion successful",
+};
 
 async function update<T extends Asset | Token>(
   state: AppReducerState,
@@ -94,6 +94,21 @@ async function operate<T extends Asset | Token>(
     next({ type: "content/error", payload: err });
   }
 }
+// async function retrieve(
+//   state: AppReducerState,
+//   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+//   path: string,
+//   action: unknown & { type: string; payload: T },
+// ) {
+//   const url = `${state.environment.api}/${path}`;
+//   getToken(state, store)
+//     .then((headers) => axios.get(url, { headers: headers }))
+//     .then((value) => next({ type: action.type, payload: value.data }))
+//     .catch((err) =>
+//       // TODO MICAH display error
+//       console.error(`Unable to fetch assets: ${JSON.stringify(err)}`),
+//     );
+// }
 
 async function updateAssetData(
   state: AppReducerState,
@@ -225,6 +240,9 @@ export const ContentMiddleware: Middleware =
       case "content/deleteasset": {
         operate(state, store, next, "delete", "asset", action);
         break;
+      }
+      case "content/tokens": {
+        // operate(state, store, next, "get", "asset");
       }
       case "content/assets": {
         const url = `${state.environment.api}/asset`;

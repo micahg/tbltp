@@ -118,7 +118,6 @@ const CreateTokenFormComponent = () => {
           />
         </FormControl>
         <FormControl fullWidth>
-
           <Controller
             name="hitPoints"
             control={control}
