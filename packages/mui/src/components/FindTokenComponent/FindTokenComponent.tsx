@@ -1,15 +1,7 @@
-import {
-  Box,
-  List,
-  ListItem,
-  IconButton,
-  ListSubheader,
-  Paper,
-  TextField,
-} from "@mui/material";
+import { Box, List, ListItem, IconButton, TextField } from "@mui/material";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { useDispatch, useSelector } from "react-redux";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 // import styles from "./FindTokenComponent.module.css";
 
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -19,6 +11,7 @@ import { Token } from "@micahg/tbltp-common";
 const FindTokenComponent = () => {
   const dispatch = useDispatch();
   const tokens = useSelector((state: AppReducerState) => state.content.tokens);
+  const [searchValue, setSearchValue] = useState("");
 
   useEffect(() => {
     if (tokens === undefined) dispatch({ type: "content/tokens" });
@@ -27,18 +20,6 @@ const FindTokenComponent = () => {
   const handleDeleteToken = (token: Token) =>
     dispatch({ type: "content/deletetoken", payload: token });
 
-  /**        {scenes.map((scene) => (
-          <ListItem
-            key={scene._id}
-            secondaryAction={
-              <IconButton
-                edge="end"
-                aria-label="delete"
-                onClick={() => handleDeleteScene(scene)}
-              >
-                <DeleteIcon />
-              </IconButton>
-            } */
   return (
     // , height: `calc(100vh - 72px)`
     <Box sx={{ overflow: "auto" }}>
@@ -46,27 +27,34 @@ const FindTokenComponent = () => {
         autoFocus
         label="Name"
         variant="standard"
-        // onChange={search}
+        // if this ever hits the backend, it should debounce
+        onChange={(event) => setSearchValue(event.target.value)}
         sx={{ m: 1, margin: "1em" }}
       ></TextField>
       <List>
         {tokens !== undefined &&
-          tokens.map((token) => (
-            <ListItem
-              key={token._id}
-              secondaryAction={
-                <IconButton
-                  edge="end"
-                  aria-label="delete"
-                  onClick={() => handleDeleteToken(token)}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              }
-            >
-              {token.name}
-            </ListItem>
-          ))}
+          tokens
+            .filter(
+              (token) =>
+                searchValue === "" ||
+                token.name.toLowerCase().includes(searchValue.toLowerCase()),
+            )
+            .map((token) => (
+              <ListItem
+                key={token._id}
+                secondaryAction={
+                  <IconButton
+                    edge="end"
+                    aria-label="delete"
+                    onClick={() => handleDeleteToken(token)}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                }
+              >
+                {token.name}
+              </ListItem>
+            ))}
       </List>
 
       {/* <ListItem
