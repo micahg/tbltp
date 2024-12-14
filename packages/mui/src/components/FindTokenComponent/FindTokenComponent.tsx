@@ -1,15 +1,32 @@
-import { Box, ListItem, ListSubheader, Paper, TextField } from "@mui/material";
+import {
+  Box,
+  List,
+  ListItem,
+  IconButton,
+  ListSubheader,
+  Paper,
+  TextField,
+} from "@mui/material";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useEffect } from "react";
 // import styles from "./FindTokenComponent.module.css";
 
+import DeleteIcon from "@mui/icons-material/Delete";
+import { Token } from "@micahg/tbltp-common";
 // interface FindTokenComponentProps {}
 
 const FindTokenComponent = () => {
+  const dispatch = useDispatch();
   const tokens = useSelector((state: AppReducerState) => state.content.tokens);
 
-  useEffect(() => {}, []);
+  useEffect(() => {
+    if (tokens === undefined) dispatch({ type: "content/tokens" });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDeleteToken = (token: Token) => {
+    dispatch({ type: "content/deletetoken", payload: token });
+  };
 
   /**        {scenes.map((scene) => (
           <ListItem
@@ -26,15 +43,33 @@ const FindTokenComponent = () => {
   return (
     // , height: `calc(100vh - 72px)`
     <Box sx={{ overflow: "auto" }}>
-      <ListSubheader>
-        <TextField
-          autoFocus
-          label="Name"
-          variant="standard"
-          // onChange={search}
-          sx={{ m: 1, margin: "1em" }}
-        ></TextField>
-      </ListSubheader>
+      <TextField
+        autoFocus
+        label="Name"
+        variant="standard"
+        // onChange={search}
+        sx={{ m: 1, margin: "1em" }}
+      ></TextField>
+      <List>
+        {tokens !== undefined &&
+          tokens.map((token) => (
+            <ListItem
+              key={token._id}
+              secondaryAction={
+                <IconButton
+                  edge="end"
+                  aria-label="delete"
+                  onClick={() => handleDeleteToken(token)}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              }
+            >
+              {token.name}
+            </ListItem>
+          ))}
+      </List>
+
       {/* <ListItem
             key={scene._id}
             secondaryAction={
@@ -47,9 +82,6 @@ const FindTokenComponent = () => {
               </IconButton>
             }
           > */}
-      {tokens.map((token) => (
-        <ListItem key={token._id}>{token.name}</ListItem>
-      ))}
       {/* <TextField
         variant="standard"
         label="Class"

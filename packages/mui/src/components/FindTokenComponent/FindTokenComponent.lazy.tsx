@@ -1,8 +1,10 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense } from "react";
 
-const LazyFindTokenComponent = lazy(() => import('./FindTokenComponent'));
+const LazyFindTokenComponent = lazy(() => import("./FindTokenComponent"));
 
-const FindTokenComponent = (props: JSX.IntrinsicAttributes & { children?: React.ReactNode; }) => (
+const FindTokenComponent = (
+  props: JSX.IntrinsicAttributes & { children?: React.ReactNode },
+) => (
   <Suspense fallback={null}>
     <LazyFindTokenComponent {...props} />
   </Suspense>

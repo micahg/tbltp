@@ -35,29 +35,42 @@ function isBlob(payload: URL | Blob): payload is File {
   return (payload as Blob).type !== undefined;
 }
 
-type Operation = "put" | "delete";
+type Operation = "get" | "put" | "delete";
 
-const FriendlyOperation: { [key in Operation]: string } = {
+const FriendlyOperation: { [key in Operation]: string | undefined } = {
+  get: undefined,
   put: "Update succesfull",
   delete: "Deletion successful",
 };
 
-async function update<T extends Asset | Token>(
+function inferPath(op: Operation, path: string, t: Asset | Token): string {
+  // no id for get, put expects an id in the body (or its a new entity)
+  return op === "delete" && t !== undefined && "_id" in t
+    ? `${path}/${t._id}`
+    : path;
+}
+async function request<T extends Asset | Token>(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   op: Operation,
   t: T,
-  path: string,
+  basePath: string,
 ): Promise<AxiosResponse> {
+  const path = inferPath(op, basePath, t);
+  const url = `${state.environment.api}/${path}`;
   const headers = await getToken(state, store);
-
-  try {
-    const resp = await axios[op](`${state.environment.api}/${path}`, t, {
+  let fn;
+  if (op == "put")
+    fn = axios[op](url, t, {
       headers: headers,
     });
+  else fn = axios[op](url, { headers: headers });
+
+  try {
+    const resp = await fn;
     return resp;
   } catch (err) {
-    throw new Error(`Unable to ${op} ${path}`, { cause: err });
+    throw new Error(`Unable to ${op} ${basePath}`, { cause: err });
   }
 }
 
@@ -70,13 +83,19 @@ async function operate<T extends Asset | Token>(
   action: unknown & { type: string; payload: T },
 ) {
   try {
-    const result = await update(state, store, op, action.payload, path);
-    next({ type: action.type, payload: result.data });
-    const err: ContentReducerError = {
-      msg: FriendlyOperation[op],
-      success: true,
-    };
-    next({ type: "content/error", payload: err });
+    const result = await request(state, store, op, action.payload, path);
+    next({
+      type: action.type,
+      payload: result.status === 204 ? action.payload : result.data,
+    });
+    const msg = FriendlyOperation[op];
+    if (msg) {
+      const err: ContentReducerError = {
+        msg: msg,
+        success: true,
+      };
+      next({ type: "content/error", payload: err });
+    }
   } catch (error) {
     let msg = `Unable to create ${path}`;
     if (error instanceof Error) {
@@ -242,17 +261,11 @@ export const ContentMiddleware: Middleware =
         break;
       }
       case "content/tokens": {
-        // operate(state, store, next, "get", "asset");
+        operate(state, store, next, "get", "token", action);
+        break;
       }
       case "content/assets": {
-        const url = `${state.environment.api}/asset`;
-        getToken(state, store)
-          .then((headers) => axios.get(url, { headers: headers }))
-          .then((value) => next({ type: action.type, payload: value.data }))
-          .catch((err) =>
-            // TODO MICAH display error
-            console.error(`Unable to fetch assets: ${JSON.stringify(err)}`),
-          );
+        operate(state, store, next, "get", "asset", action);
         break;
       }
       case "content/push":
@@ -343,13 +356,7 @@ export const ContentMiddleware: Middleware =
         break;
       }
       case "content/scenes": {
-        const url = `${state.environment.api}/scene`;
-        getToken(state, store)
-          .then((headers) => axios.get(url, { headers: headers }))
-          .then((value) => next({ type: action.type, payload: value.data }))
-          .catch((err) =>
-            console.error(`Unable to fetch scenes: ${JSON.stringify(err)}`),
-          );
+        operate(state, store, next, "get", "scene", action);
         break;
       }
       case "content/createscene": {
@@ -407,13 +414,7 @@ export const ContentMiddleware: Middleware =
         break;
       }
       case "content/deletescene": {
-        const url = `${state.environment.api}/scene/${action.payload._id}`;
-        getToken(state, store)
-          .then((headers) => axios.delete(url, { headers: headers }))
-          .then(() => next(action))
-          .catch((err) =>
-            console.error(`Unable to delet scene: ${JSON.stringify(err)}`),
-          );
+        operate(state, store, next, "delete", "scene", action);
         break;
       }
       default:

@@ -34,7 +34,7 @@ export type ContentReducerState = {
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
   readonly assets: Asset[];
-  readonly tokens: Token[];
+  readonly tokens?: Token[];
   readonly err?: ContentReducerError;
 };
 
@@ -43,7 +43,7 @@ const initialState: ContentReducerState = {
   currentScene: undefined,
   scenes: [],
   assets: [],
-  tokens: [],
+  tokens: undefined,
   err: undefined,
 };
 
@@ -71,6 +71,11 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     case "content/assets": {
       const assets: Asset[] = action.payload as unknown as Asset[];
       return { ...state, assets };
+    }
+    case "content/tokens": {
+      const tokens: Token[] = action.payload as unknown as Token[];
+      const ret = { ...state, tokens };
+      return ret;
     }
     case "content/scenes": {
       const scenes: Scene[] = action.payload as unknown as Scene[];
@@ -110,7 +115,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       return { ...state, assets: newAssets };
     }
     case "content/deleteasset": {
-      const { asset } = action.payload as unknown as { asset: Asset };
+      const asset = action.payload as unknown as Asset;
       const idx = state.assets.findIndex((a) => a._id === asset._id);
       if (idx < 0) return state;
       const assets = [...state.assets];
@@ -119,12 +124,20 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     }
     case "content/updatetoken": {
       const token = action.payload as unknown as Token;
-      const idx = state.tokens.findIndex((a) => a._id === token._id);
-      if (idx < 0) return { ...state, tokens: [...state.tokens, token] };
-      const newTokens = [...state.tokens];
+      const tokens = state.tokens || [];
+      const idx = tokens.findIndex((a) => a._id === token._id) || -1;
+      if (idx < 0) return { ...state, tokens: [...tokens, token] };
+      const newTokens = [...tokens];
       newTokens.splice(idx, 1, token);
       return { ...state, tokens: newTokens };
-      break;
+    }
+    case "content/deletetoken": {
+      const token = action.payload as unknown as Token;
+      const idx = state.tokens?.findIndex((a) => a._id === token._id) || -1;
+      if (idx < 0) return state;
+      const tokens = [...state.tokens!];
+      tokens.splice(idx, 1);
+      return { ...state, tokens: tokens };
     }
     case "content/error": {
       // important to let undefined through. This will clear the error

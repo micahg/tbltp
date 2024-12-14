@@ -67,7 +67,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
     if (name !== asset.name) {
       dispatch({
         type: "content/updateasset",
-        payload: { asset: { ...asset, name } },
+        payload: { ...asset, name },
       });
       setName(name);
     }

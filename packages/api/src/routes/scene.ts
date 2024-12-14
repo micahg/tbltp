@@ -61,7 +61,7 @@ export function deleteScene(req: Request, res: Response) {
   return getUser(req.auth)
     .then((user) => userExistsOr401(user))
     .then((user) => deleteUserScene(user, req.params.id))
-    .then(() => res.sendStatus(200));
+    .then(() => res.sendStatus(204));
 }
 
 export function createScene(req: Request, res: Response) {
