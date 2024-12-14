@@ -24,9 +24,8 @@ const FindTokenComponent = () => {
     if (tokens === undefined) dispatch({ type: "content/tokens" });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleDeleteToken = (token: Token) => {
+  const handleDeleteToken = (token: Token) =>
     dispatch({ type: "content/deletetoken", payload: token });
-  };
 
   /**        {scenes.map((scene) => (
           <ListItem
@@ -103,7 +102,7 @@ const FindTokenComponent = () => {
       /> */}
       {/* The text field above is 3.5em, so we shrink the paper by 3.5em and let it handle overflow
       to keep the scrolling to within the list it contains. */}
-      <Paper
+      {/* <Paper
         sx={{
           display: "flex",
           justifyContent: "left",
@@ -115,7 +114,7 @@ const FindTokenComponent = () => {
         }}
         component="ul"
         elevation={0}
-      ></Paper>
+      ></Paper> */}
     </Box>
   );
 };
