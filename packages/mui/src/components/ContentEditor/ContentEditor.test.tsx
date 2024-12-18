@@ -4,7 +4,7 @@ import ContentEditor from "./ContentEditor";
 
 describe("<ContentEditor />", () => {
   test("it should mount", () => {
-    render(<ContentEditor />);
+    render(<ContentEditor infoDrawer={() => {}} />);
 
     const contentEditor = screen.getByTestId("ContentEditor");
 

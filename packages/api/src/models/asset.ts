@@ -1,5 +1,9 @@
 import { Schema, model } from "mongoose";
-import { Asset } from "@micahg/tbltp-common";
+import { Asset as BasicAsset } from "@micahg/tbltp-common";
+
+export type Asset = Omit<BasicAsset, "_id" | "user"> & {
+  asset?: Schema.Types.ObjectId;
+};
 
 interface IAsset extends Asset {
   _id?: Schema.Types.ObjectId;

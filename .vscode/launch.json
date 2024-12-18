@@ -58,18 +58,6 @@
         "DISABLE_AUTH": "false",
       }
     },
-    {
-      "name": "Debug UI Tests",
-      "type": "node",
-      "request": "launch",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "-w",
-        "packages/mui",
-        "run",
-        "test:utils"
-      ]
-    }
   ],
   "compounds": [
     {

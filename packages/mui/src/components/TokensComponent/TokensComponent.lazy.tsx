@@ -1,20 +1,17 @@
 import React, { lazy, Suspense } from "react";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 
-const LazyContentEditor = lazy(() => import("./ContentEditor"));
+const LazyTokensComponent = lazy(() => import("./TokensComponent"));
 
-const ContentEditor = (
+const TokensComponent = (
   props: JSX.IntrinsicAttributes & {
-    infoDrawer: () => void;
     populateToolbar?: (actions: GameMasterAction[]) => void;
-    redrawToolbar?: () => void;
-    manageScene?: () => void;
     children?: React.ReactNode;
   },
 ) => (
   <Suspense fallback={null}>
-    <LazyContentEditor {...props} />
+    <LazyTokensComponent {...props} />
   </Suspense>
 );
 
-export default ContentEditor;
+export default TokensComponent;

@@ -1,5 +1,5 @@
 import { PayloadAction } from "@reduxjs/toolkit";
-import { Asset as CommonAsset, Rect } from "@micahg/tbltp-common";
+import { Asset, Rect, Token } from "@micahg/tbltp-common";
 
 // copied from api
 export interface Scene {
@@ -29,15 +29,12 @@ export type ContentReducerError = {
   success: boolean;
 };
 
-export interface Asset extends CommonAsset {
-  _id?: string;
-}
-
 export type ContentReducerState = {
   readonly pushTime: number | undefined;
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
-  readonly assets: Asset[];
+  readonly assets?: Asset[];
+  readonly tokens?: Token[];
   readonly err?: ContentReducerError;
 };
 
@@ -45,7 +42,8 @@ const initialState: ContentReducerState = {
   pushTime: undefined,
   currentScene: undefined,
   scenes: [],
-  assets: [],
+  assets: undefined,
+  tokens: undefined,
   err: undefined,
 };
 
@@ -73,6 +71,11 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     case "content/assets": {
       const assets: Asset[] = action.payload as unknown as Asset[];
       return { ...state, assets };
+    }
+    case "content/tokens": {
+      const tokens: Token[] = action.payload as unknown as Token[];
+      const ret = { ...state, tokens };
+      return ret;
     }
     case "content/scenes": {
       const scenes: Scene[] = action.payload as unknown as Scene[];
@@ -105,19 +108,41 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     case "content/updateassetdata":
     case "content/updateasset": {
       const asset = action.payload as unknown as Asset;
-      const idx = state.assets.findIndex((a) => a._id === asset._id);
-      if (idx < 0) return { ...state, assets: [...state.assets, asset] };
-      const newAssets = [...state.assets];
+      const assets = state.assets || [];
+      const idx = assets.findIndex((a) => a._id === asset._id);
+      if (idx < 0) return { ...state, assets: [...assets, asset] };
+      const newAssets = [...assets];
       newAssets.splice(idx, 1, asset);
       return { ...state, assets: newAssets };
     }
     case "content/deleteasset": {
-      const { asset } = action.payload as unknown as { asset: Asset };
-      const idx = state.assets.findIndex((a) => a._id === asset._id);
+      const asset = action.payload as unknown as Asset;
+      const assets = state.assets || [];
+      const idx = assets.findIndex((a) => a._id === asset._id);
       if (idx < 0) return state;
-      const assets = [...state.assets];
-      assets.splice(idx, 1);
-      return { ...state, assets: assets };
+      const newAssets = [...assets];
+      newAssets.splice(idx, 1);
+      return { ...state, assets: newAssets };
+    }
+    case "content/updatetoken": {
+      const token = action.payload as unknown as Token;
+      const tokens = state.tokens || [];
+      const idx = tokens.findIndex((a) => a._id === token._id);
+      if (idx < 0) return { ...state, tokens: [...tokens, token] };
+      const newTokens = [...tokens];
+      newTokens.splice(idx, 1, token);
+      return { ...state, tokens: newTokens };
+    }
+    case "content/deletetoken": {
+      const token = action.payload as unknown as Token;
+      const idx =
+        state.tokens === undefined
+          ? -1
+          : state.tokens.findIndex((a) => a._id === token._id);
+      if (idx < 0) return state;
+      const tokens = [...state.tokens!];
+      tokens.splice(idx, 1);
+      return { ...state, tokens: tokens };
     }
     case "content/error": {
       // important to let undefined through. This will clear the error

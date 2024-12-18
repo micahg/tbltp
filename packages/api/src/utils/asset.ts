@@ -1,5 +1,4 @@
-import { Asset } from "@micahg/tbltp-common";
-import { AssetModel, IAsset } from "../models/asset";
+import { Asset, AssetModel, IAsset } from "../models/asset";
 import { IUser } from "../models/user";
 import { NAME_REGEX } from "../routes/scene";
 import { checkSchema } from "express-validator";
