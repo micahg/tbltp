@@ -9,6 +9,7 @@ const NavigationDrawerComponent = (
   props: JSX.IntrinsicAttributes & {
     scenesOpen: boolean;
     handleViewAssets: () => void;
+    handleViewTokens: () => void;
     handleCreateScene: () => void;
     handleEditScene: (scene?: Scene) => void;
     scenesClick: () => void;

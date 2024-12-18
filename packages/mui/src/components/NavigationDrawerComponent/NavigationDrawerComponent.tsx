@@ -12,9 +12,8 @@ import {
 // import styles from "./NavigationDrawerComponent.module.css";
 import { Scene } from "../../reducers/ContentReducer";
 import { useDispatch, useSelector } from "react-redux";
-import { ExpandLess, ExpandMore, UploadFile } from "@mui/icons-material";
+import { ExpandLess, ExpandMore, UploadFile, Face } from "@mui/icons-material";
 import PhotoIcon from "@mui/icons-material/Photo";
-import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import LogoutIcon from "@mui/icons-material/Logout";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
@@ -23,6 +22,7 @@ import { AppReducerState } from "../../reducers/AppReducer";
 interface NavigationDrawerComponentProps {
   scenesOpen: boolean;
   handleViewAssets: () => void;
+  handleViewTokens: () => void;
   handleCreateScene: () => void;
   handleEditScene: (scene?: Scene) => void;
   scenesClick: () => void;
@@ -33,6 +33,7 @@ const NavigationDrawerComponent = ({
   handleViewAssets,
   handleCreateScene,
   handleEditScene,
+  handleViewTokens,
   scenesClick,
 }: NavigationDrawerComponentProps) => {
   const dispatch = useDispatch();
@@ -55,12 +56,12 @@ const NavigationDrawerComponent = ({
           <ListItemText primary="Assets" />
         </ListItemButton>
       </ListItem>
-      <ListItem key="Campaigns" disablePadding>
+      <ListItem key="Tokens" disablePadding onClick={handleViewTokens}>
         <ListItemButton>
           <ListItemIcon>
-            <PhotoLibraryIcon />
+            <Face />
           </ListItemIcon>
-          <ListItemText primary="Campaigns" />
+          <ListItemText primary="Tokens" />
         </ListItemButton>
       </ListItem>
       <ListItem key="Scenes" disablePadding onClick={scenesClick}>

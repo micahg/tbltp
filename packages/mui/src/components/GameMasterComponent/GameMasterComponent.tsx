@@ -26,6 +26,7 @@ import { Scene } from "../../reducers/ContentReducer";
 import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
 import NavigationDrawerComponent from "../NavigationDrawerComponent/NavigationDrawerComponent.lazy";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
+import TokensComponent from "../TokensComponent/TokensComponent.lazy";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -34,6 +35,7 @@ enum FocusedComponent {
   ContentEditor,
   Scene,
   Assets,
+  Tokens,
 }
 
 const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
@@ -131,9 +133,8 @@ const GameMasterComponent = () => {
     setFocusedComponent(FocusedComponent.Scene);
   };
 
-  const handleViewAssets = () => {
-    setFocusedComponent(FocusedComponent.Assets);
-  };
+  const handleViewTokens = () => setFocusedComponent(FocusedComponent.Tokens);
+  const handleViewAssets = () => setFocusedComponent(FocusedComponent.Assets);
 
   const handleEditScene = (scene?: Scene) => {
     if (scene) dispatch({ type: "content/currentscene", payload: scene });
@@ -259,6 +260,7 @@ const GameMasterComponent = () => {
           handleEditScene={handleEditScene}
           handleCreateScene={handleCreateScene}
           handleViewAssets={handleViewAssets}
+          handleViewTokens={handleViewTokens}
         />
       </Drawer>
       <Drawer
@@ -296,6 +298,9 @@ const GameMasterComponent = () => {
         )}
         {focusedComponent === FocusedComponent.Assets && (
           <AssetsComponent populateToolbar={handlePopulateToolbar} />
+        )}
+        {focusedComponent === FocusedComponent.Tokens && (
+          <TokensComponent populateToolbar={handlePopulateToolbar} />
         )}
       </Main>
     </Box>

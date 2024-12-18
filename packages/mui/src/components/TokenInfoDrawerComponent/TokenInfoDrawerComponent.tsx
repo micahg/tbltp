@@ -61,7 +61,7 @@ const TokenInfoDrawerComponent = () => {
         <Dialog open={createOpen} onClose={closeCreate}>
           <DialogTitle>Create Token</DialogTitle>
           <DialogContent>
-            <CreateTokenFormComponent />
+            <CreateTokenFormComponent showErrors={true} />
           </DialogContent>
         </Dialog>
       </Fragment>

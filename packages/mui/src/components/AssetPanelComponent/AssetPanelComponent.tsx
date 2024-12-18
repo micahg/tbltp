@@ -87,7 +87,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const deleteAsset = () => {
     dispatch({
       type: "content/deleteasset",
-      payload: { asset },
+      payload: asset,
     });
   };
 

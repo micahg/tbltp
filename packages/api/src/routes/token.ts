@@ -56,7 +56,7 @@ export async function createOrUpdateToken(
         updated = true;
       }
       if (updated) {
-        return res.json(await token.save()).send(204);
+        return res.json(await token.save());
       }
       return res.status(204).send();
     }

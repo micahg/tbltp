@@ -5,10 +5,12 @@ import {
   Checkbox,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   TextField,
+  Tooltip,
 } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
@@ -16,19 +18,43 @@ import { AppReducerState } from "../../reducers/AppReducer";
 import { Asset, Token } from "@micahg/tbltp-common";
 import { useEffect } from "react";
 import { NAME_REGEX } from "../SceneComponent/SceneComponent";
+import SaveIcon from "@mui/icons-material/Save";
+import DeleteIcon from "@mui/icons-material/Delete";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent";
 
-const CreateTokenFormComponent = () => {
+interface CreateTokenFormComponentProps {
+  token?: Token;
+  showErrors?: boolean;
+}
+
+const CreateTokenFormComponent = ({
+  token,
+  showErrors,
+}: CreateTokenFormComponentProps) => {
+  console.log(`MICAH token is ${JSON.stringify(token)}`);
   const {
     reset,
     control,
     handleSubmit,
-    formState: { errors },
-  } = useForm<Token>({ mode: "onBlur" });
+    formState: { errors, isDirty },
+  } = useForm<Token>({
+    mode: "onBlur",
+    defaultValues: {
+      name: token?.name || "",
+      visible: token?.visible || false,
+      asset: token?.asset || "",
+      hitPoints: token?.hitPoints || 0,
+    },
+  });
 
   const dispatch = useDispatch();
 
   const assets = useSelector((state: AppReducerState) => state.content.assets);
+  const deleteToken = () =>
+    dispatch({
+      type: "content/deletetoken",
+      payload: token,
+    });
 
   const onSubmit = (data: Token) => {
     // don't send an empty asset
@@ -37,6 +63,10 @@ const CreateTokenFormComponent = () => {
     }
     if (data.hitPoints === 0) {
       delete data.hitPoints;
+    }
+
+    if (token) {
+      data = { ...token, ...data };
     }
     console.log(data);
     dispatch({ type: "content/updatetoken", payload: data });
@@ -60,12 +90,11 @@ const CreateTokenFormComponent = () => {
           gap: "1em",
         }}
       >
-        <ErrorAlertComponent />
+        {showErrors && <ErrorAlertComponent />}
         <FormControl fullWidth>
           <Controller
             name="name"
             control={control}
-            defaultValue=""
             rules={{
               required: "Name is required",
               pattern: {
@@ -87,7 +116,6 @@ const CreateTokenFormComponent = () => {
           <Controller
             name="visible"
             control={control}
-            defaultValue={false}
             render={({ field }) => (
               <FormControlLabel
                 {...field}
@@ -102,7 +130,6 @@ const CreateTokenFormComponent = () => {
           <Controller
             name="asset"
             control={control}
-            defaultValue=""
             render={({ field }) => (
               <Select {...field} labelId="asset-label" label="Asset">
                 <MenuItem value="">
@@ -121,7 +148,6 @@ const CreateTokenFormComponent = () => {
           <Controller
             name="hitPoints"
             control={control}
-            defaultValue={0}
             rules={{
               min: { value: 0, message: `Min value is ${0}` },
               max: { value: 1000, message: `Max value is ${1000}` },
@@ -151,6 +177,37 @@ const CreateTokenFormComponent = () => {
           <Button type="submit" variant="contained" color="primary">
             Submit
           </Button>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "right",
+            }}
+          >
+            <Tooltip title="Save your changes to the token">
+              <span>
+                <IconButton
+                  aria-label="save"
+                  color="primary"
+                  disabled={!isDirty}
+                  // onClick={updateAsset}
+                >
+                  <SaveIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Delete this token">
+              <span>
+                <IconButton
+                  aria-label="delete"
+                  color="primary"
+                  onClick={deleteToken}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Box>
         </Box>
       </Box>
     </form>

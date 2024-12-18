@@ -125,7 +125,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     case "content/updatetoken": {
       const token = action.payload as unknown as Token;
       const tokens = state.tokens || [];
-      const idx = tokens.findIndex((a) => a._id === token._id) || -1;
+      const idx = tokens.findIndex((a) => a._id === token._id);
       if (idx < 0) return { ...state, tokens: [...tokens, token] };
       const newTokens = [...tokens];
       newTokens.splice(idx, 1, token);
@@ -133,7 +133,10 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     }
     case "content/deletetoken": {
       const token = action.payload as unknown as Token;
-      const idx = state.tokens?.findIndex((a) => a._id === token._id) || -1;
+      const idx =
+        state.tokens === undefined
+          ? -1
+          : state.tokens.findIndex((a) => a._id === token._id);
       if (idx < 0) return state;
       const tokens = [...state.tokens!];
       tokens.splice(idx, 1);
