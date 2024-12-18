@@ -24,12 +24,12 @@ import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent";
 
 interface CreateTokenFormComponentProps {
   token?: Token;
-  showErrors?: boolean;
+  modal?: boolean;
 }
 
 const CreateTokenFormComponent = ({
   token,
-  showErrors,
+  modal,
 }: CreateTokenFormComponentProps) => {
   console.log(`MICAH token is ${JSON.stringify(token)}`);
   const {
@@ -97,7 +97,7 @@ const CreateTokenFormComponent = ({
           gap: "1em",
         }}
       >
-        {showErrors && <ErrorAlertComponent />}
+        {modal && <ErrorAlertComponent />}
         <FormControl fullWidth>
           <Controller
             name="name"
@@ -182,40 +182,43 @@ const CreateTokenFormComponent = ({
             width: "100%",
           }}
         >
-          <Button type="submit" variant="contained" color="primary">
-            Submit
-          </Button>
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "right",
-            }}
-          >
-            <Tooltip title="Save your changes to the token">
-              <span>
-                <IconButton
-                  aria-label="save"
-                  color="primary"
-                  disabled={!isDirty}
-                  // onClick={updateAsset}
-                >
-                  <SaveIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
-            <Tooltip title="Delete this token">
-              <span>
-                <IconButton
-                  aria-label="delete"
-                  color="primary"
-                  onClick={deleteToken}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
-          </Box>
+          {modal ? (
+            <Button type="submit" variant="contained" color="primary">
+              Submit
+            </Button>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "right",
+              }}
+            >
+              <Tooltip title="Save your changes to the token">
+                <span>
+                  <IconButton
+                    aria-label="save"
+                    color="primary"
+                    disabled={!isDirty}
+                    // onClick={updateAsset}
+                  >
+                    <SaveIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Delete this token">
+                <span>
+                  <IconButton
+                    aria-label="delete"
+                    color="primary"
+                    onClick={deleteToken}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
+          )}
         </Box>
       </Box>
     </form>

@@ -4,7 +4,7 @@ import { Box, Grid } from "@mui/material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Upload } from "@mui/icons-material";
+import { Add } from "@mui/icons-material";
 import { AppReducerState } from "../../reducers/AppReducer";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import AssetPanelComponent from "../AssetPanelComponent/AssetPanelComponent.lazy";
@@ -27,8 +27,8 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
     if (!populateToolbar) return;
     const actions: GameMasterAction[] = [
       {
-        icon: Upload,
-        tooltip: "Upload Asset",
+        icon: Add,
+        tooltip: "Create Asset",
         hidden: () => false,
         disabled: () => false,
         callback: () => {
@@ -40,7 +40,7 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
       {
         // work around infinite re-render (see the long blurb in
         // handlePopulateToolbar from GameMasterComponent.tsx)
-        icon: Upload,
+        icon: Add,
         tooltip: JSON.stringify(assets),
         hidden: () => true,
         disabled: () => true,

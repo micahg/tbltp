@@ -8,7 +8,7 @@ const LazyCreateTokenFormComponent = lazy(
 const CreateTokenFormComponent = (
   props: JSX.IntrinsicAttributes & {
     token?: Token;
-    showErrors?: boolean;
+    modal?: boolean;
     children?: React.ReactNode;
   },
 ) => (
