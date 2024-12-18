@@ -33,7 +33,7 @@ export type ContentReducerState = {
   readonly pushTime: number | undefined;
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
-  readonly assets: Asset[];
+  readonly assets?: Asset[];
   readonly tokens?: Token[];
   readonly err?: ContentReducerError;
 };
@@ -42,7 +42,7 @@ const initialState: ContentReducerState = {
   pushTime: undefined,
   currentScene: undefined,
   scenes: [],
-  assets: [],
+  assets: undefined,
   tokens: undefined,
   err: undefined,
 };
@@ -108,19 +108,21 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     case "content/updateassetdata":
     case "content/updateasset": {
       const asset = action.payload as unknown as Asset;
-      const idx = state.assets.findIndex((a) => a._id === asset._id);
-      if (idx < 0) return { ...state, assets: [...state.assets, asset] };
-      const newAssets = [...state.assets];
+      const assets = state.assets || [];
+      const idx = assets.findIndex((a) => a._id === asset._id);
+      if (idx < 0) return { ...state, assets: [...assets, asset] };
+      const newAssets = [...assets];
       newAssets.splice(idx, 1, asset);
       return { ...state, assets: newAssets };
     }
     case "content/deleteasset": {
       const asset = action.payload as unknown as Asset;
-      const idx = state.assets.findIndex((a) => a._id === asset._id);
+      const assets = state.assets || [];
+      const idx = assets.findIndex((a) => a._id === asset._id);
       if (idx < 0) return state;
-      const assets = [...state.assets];
-      assets.splice(idx, 1);
-      return { ...state, assets: assets };
+      const newAssets = [...assets];
+      newAssets.splice(idx, 1);
+      return { ...state, assets: newAssets };
     }
     case "content/updatetoken": {
       const token = action.payload as unknown as Token;

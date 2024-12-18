@@ -16,7 +16,7 @@ import { Controller, useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { Asset, Token } from "@micahg/tbltp-common";
-import { useEffect } from "react";
+import { memo, useEffect } from "react";
 import { NAME_REGEX } from "../SceneComponent/SceneComponent";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -70,13 +70,20 @@ const CreateTokenFormComponent = ({
     }
     console.log(data);
     dispatch({ type: "content/updatetoken", payload: data });
-    reset();
+    reset(data);
   };
 
   useEffect(() => {
     if (!dispatch) return;
+    if (assets) return;
     dispatch({ type: "content/assets" });
-  }, [dispatch]);
+  }, [assets, dispatch]);
+
+  useEffect(() => {
+    if (!reset) return;
+    if (!token) return;
+    reset(token);
+  }, [reset, token]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -135,11 +142,12 @@ const CreateTokenFormComponent = ({
                 <MenuItem value="">
                   <em>None</em>
                 </MenuItem>
-                {assets.map((asset: Asset) => (
-                  <MenuItem key={asset._id} value={asset._id}>
-                    {asset.name}
-                  </MenuItem>
-                ))}
+                {assets !== undefined &&
+                  assets.map((asset: Asset) => (
+                    <MenuItem key={asset._id} value={asset._id}>
+                      {asset.name}
+                    </MenuItem>
+                  ))}
               </Select>
             )}
           />
@@ -214,4 +222,12 @@ const CreateTokenFormComponent = ({
   );
 };
 
-export default CreateTokenFormComponent;
+export default memo(CreateTokenFormComponent, (prev, next) => {
+  return (
+    prev.token?._id === next.token?._id &&
+    prev.token?.name === next.token?.name &&
+    prev.token?.visible === next.token?.visible &&
+    prev.token?.asset === next.token?.asset &&
+    prev.token?.hitPoints === next.token?.hitPoints
+  );
+});

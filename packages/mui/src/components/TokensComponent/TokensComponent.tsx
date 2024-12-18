@@ -5,7 +5,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { Box, Grid } from "@mui/material";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent";
 import { Token } from "@micahg/tbltp-common";
-import AssetPanelComponent from "../AssetPanelComponent/AssetPanelComponent";
 import { AppReducerState } from "../../reducers/AppReducer";
 import CreateTokenFormComponent from "../CreateTokenFormComponent/CreateTokenFormComponent";
 
@@ -21,14 +20,15 @@ const TokensComponent = ({ populateToolbar }: TokensComponentProps) => {
 
   useEffect(() => {
     if (!dispatch) return;
+    if (tokens) return; // tokens are undefined until they are fetched
     dispatch({ type: "content/tokens" });
-  }, [dispatch]);
+  }, [tokens, dispatch]);
 
   useEffect(() => {
     if (!populateToolbar) return;
     const actions: GameMasterAction[] = [];
     populateToolbar(actions);
-  }, [tokens, dispatch, populateToolbar]);
+  }, [populateToolbar]);
 
   return (
     // 100vh - 64px for the toolbar - 8px for the paddings

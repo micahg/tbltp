@@ -32,7 +32,7 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
         hidden: () => false,
         disabled: () => false,
         callback: () => {
-          const name = `ASSET ${assets.length}`;
+          const name = `ASSET ${assets?.length || 0}`;
           const asset: Asset = { name };
           dispatch({ type: "content/updateasset", payload: asset });
         },
@@ -55,11 +55,12 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
     <Box sx={{ overflow: "auto", height: `calc(100vh - 72px)` }}>
       <ErrorAlertComponent />
       <Grid container columns={{ xs: 2, sm: 2, md: 2 }}>
-        {assets.map((asset: Asset) => (
-          <Box key={asset._id} sx={{ margin: "12px" }}>
-            <AssetPanelComponent asset={asset} readonly={false} />
-          </Box>
-        ))}
+        {assets !== undefined &&
+          assets.map((asset: Asset) => (
+            <Box key={asset._id} sx={{ margin: "12px" }}>
+              <AssetPanelComponent asset={asset} readonly={false} />
+            </Box>
+          ))}
       </Grid>
     </Box>
   );
