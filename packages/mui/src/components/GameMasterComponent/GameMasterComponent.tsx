@@ -1,4 +1,4 @@
-import { useEffect, useState, ReactElement } from "react";
+import React, { useEffect, useState, ReactElement, cloneElement } from "react";
 import {
   AppBar,
   AppBarProps,
@@ -119,7 +119,11 @@ const GameMasterComponent = () => {
   const handleNavDrawerClose = () => setNavOpen(false);
 
   const handleInfoDrawerOpen = (info: ReactElement) => {
-    setInfoComponent(info);
+    // inject this drawers close method into the info component
+    const closableInfo = cloneElement(info, {
+      closeDrawer: handleInfoDrawerClose,
+    });
+    setInfoComponent(closableInfo);
     setInfoOpen(true);
   };
 

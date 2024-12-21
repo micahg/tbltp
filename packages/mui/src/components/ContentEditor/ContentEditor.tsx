@@ -107,6 +107,7 @@ const ContentEditor = ({
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   // selection is sized relative to the visible canvas size -- not the full background size
   const [selection, setSelection] = useState<Rect | null>(null);
+  const [token, setToken] = useState<HydratedToken | null>(null);
 
   /**
    * THIS GUY RIGHT HERE IS REALLY IMPORTANT. Because we use a callback to render
@@ -394,7 +395,8 @@ const ContentEditor = ({
           infoDrawer(
             <TokenInfoDrawerComponent
               onToken={(token: HydratedToken) => {
-                console.log(`MICAH YOU SELECTED ${JSON.stringify(token)}`);
+                setToken(token);
+                prepareRecording("token");
               }}
             />,
           ),

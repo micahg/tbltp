@@ -22,10 +22,12 @@ import { HydratedToken } from "@micahg/tbltp-common";
 
 interface TokenInfoDrawerComponentProps {
   onToken: (token: HydratedToken) => void; // pass through for token selection
+  closeDrawer?: () => void;
 }
 
 const TokenInfoDrawerComponent = ({
   onToken,
+  closeDrawer,
 }: TokenInfoDrawerComponentProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -35,6 +37,11 @@ const TokenInfoDrawerComponent = ({
   const closeCreate = () => setCreateOpen(false);
 
   const toggleSearch = () => setSearchOpen(!searchOpen);
+
+  const tokenSelected = (token: HydratedToken) => {
+    if (closeDrawer) closeDrawer();
+    onToken(token);
+  };
 
   return (
     <Box>
@@ -50,7 +57,7 @@ const TokenInfoDrawerComponent = ({
         </ListItem>
         <Collapse in={searchOpen} timeout="auto" unmountOnExit>
           <ListItem>
-            <FindTokenComponent onToken={onToken} />
+            <FindTokenComponent onToken={tokenSelected} />
           </ListItem>
           <Divider />
         </Collapse>
