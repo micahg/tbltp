@@ -39,7 +39,7 @@ const TokenInfoDrawerComponent = () => {
             <ListItemIcon>
               <SearchIcon />
             </ListItemIcon>
-            <ListItemText primary="Add Existing" />
+            <ListItemText primary="Use Token" />
           </ListItemButton>
         </ListItem>
         <Collapse in={searchOpen} timeout="auto" unmountOnExit>

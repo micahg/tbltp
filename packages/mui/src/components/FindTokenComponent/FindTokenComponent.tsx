@@ -1,10 +1,9 @@
-import { Box, List, ListItem, IconButton, TextField } from "@mui/material";
+import { Box, List, ListItem, TextField, ListItemButton } from "@mui/material";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useState } from "react";
 // import styles from "./FindTokenComponent.module.css";
 
-import DeleteIcon from "@mui/icons-material/Delete";
 import { Token } from "@micahg/tbltp-common";
 // interface FindTokenComponentProps {}
 
@@ -16,9 +15,6 @@ const FindTokenComponent = () => {
   useEffect(() => {
     if (tokens === undefined) dispatch({ type: "content/tokens" });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleDeleteToken = (token: Token) =>
-    dispatch({ type: "content/deletetoken", payload: token });
 
   return (
     // , height: `calc(100vh - 72px)`
@@ -40,19 +36,8 @@ const FindTokenComponent = () => {
                 token.name.toLowerCase().includes(searchValue.toLowerCase()),
             )
             .map((token) => (
-              <ListItem
-                key={token._id}
-                secondaryAction={
-                  <IconButton
-                    edge="end"
-                    aria-label="delete"
-                    onClick={() => handleDeleteToken(token)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                }
-              >
-                {token.name}
+              <ListItem key={token._id}>
+                <ListItemButton>{token.name}</ListItemButton>
               </ListItem>
             ))}
       </List>
