@@ -18,10 +18,10 @@ import { useState, Fragment } from "react";
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import CreateTokenFormComponent from "../CreateTokenFormComponent/CreateTokenFormComponent.lazy";
 import FindTokenComponent from "../FindTokenComponent/FindTokenComponent.lazy";
-import { Token } from "@micahg/tbltp-common";
+import { HydratedToken } from "@micahg/tbltp-common";
 
 interface TokenInfoDrawerComponentProps {
-  onToken: (token: Token) => void; // pass through for token selection
+  onToken: (token: HydratedToken) => void; // pass through for token selection
 }
 
 const TokenInfoDrawerComponent = ({

@@ -200,6 +200,8 @@ const GameMasterComponent = () => {
     if (!noauth && !authClient) return;
     if (noauth || auth) {
       dispatch({ type: "content/scenes" });
+      dispatch({ type: "content/tokens" });
+      dispatch({ type: "content/assets" });
       return;
     }
     // if (noauth) return;

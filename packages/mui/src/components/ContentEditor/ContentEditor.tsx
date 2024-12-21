@@ -47,7 +47,7 @@ import {
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { LoadProgress } from "../../utils/content";
-import { Rect, Token } from "@micahg/tbltp-common";
+import { Rect, HydratedToken } from "@micahg/tbltp-common";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 
 const sm = new MouseStateMachine();
@@ -393,7 +393,7 @@ const ContentEditor = ({
         callback: () =>
           infoDrawer(
             <TokenInfoDrawerComponent
-              onToken={(token: Token) => {
+              onToken={(token: HydratedToken) => {
                 console.log(`MICAH YOU SELECTED ${JSON.stringify(token)}`);
               }}
             />,
