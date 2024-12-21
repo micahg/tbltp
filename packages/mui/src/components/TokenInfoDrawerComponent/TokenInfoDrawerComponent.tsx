@@ -18,9 +18,15 @@ import { useState, Fragment } from "react";
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import CreateTokenFormComponent from "../CreateTokenFormComponent/CreateTokenFormComponent.lazy";
 import FindTokenComponent from "../FindTokenComponent/FindTokenComponent.lazy";
-// interface TokenInfoDrawerComponentProps {}
+import { Token } from "@micahg/tbltp-common";
 
-const TokenInfoDrawerComponent = () => {
+interface TokenInfoDrawerComponentProps {
+  onToken: (token: Token) => void; // pass through for token selection
+}
+
+const TokenInfoDrawerComponent = ({
+  onToken,
+}: TokenInfoDrawerComponentProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -44,7 +50,7 @@ const TokenInfoDrawerComponent = () => {
         </ListItem>
         <Collapse in={searchOpen} timeout="auto" unmountOnExit>
           <ListItem>
-            <FindTokenComponent />
+            <FindTokenComponent onToken={onToken} />
           </ListItem>
           <Divider />
         </Collapse>

@@ -2,11 +2,14 @@ import { Box, List, ListItem, TextField, ListItemButton } from "@mui/material";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useState } from "react";
+import { Token } from "@micahg/tbltp-common";
 // import styles from "./FindTokenComponent.module.css";
 
-// interface FindTokenComponentProps {}
+interface FindTokenComponentProps {
+  onToken: (token: Token) => void;
+}
 
-const FindTokenComponent = () => {
+const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
   const dispatch = useDispatch();
   const tokens = useSelector((state: AppReducerState) => state.content.tokens);
   const [searchValue, setSearchValue] = useState("");
@@ -36,7 +39,9 @@ const FindTokenComponent = () => {
             )
             .map((token) => (
               <ListItem key={token._id}>
-                <ListItemButton>{token.name}</ListItemButton>
+                <ListItemButton onClick={() => onToken(token)}>
+                  {token.name}
+                </ListItemButton>
               </ListItem>
             ))}
       </List>

@@ -5,7 +5,7 @@ import FindTokenComponent from "./FindTokenComponent";
 
 describe("<FindTokenComponent />", () => {
   test("it should mount", () => {
-    render(<FindTokenComponent />);
+    render(<FindTokenComponent onToken={() => {}} />);
 
     const findTokenComponent = screen.getByTestId("FindTokenComponent");
 

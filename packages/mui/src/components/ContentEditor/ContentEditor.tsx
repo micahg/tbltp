@@ -47,7 +47,7 @@ import {
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { LoadProgress } from "../../utils/content";
-import { Rect } from "@micahg/tbltp-common";
+import { Rect, Token } from "@micahg/tbltp-common";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 
 const sm = new MouseStateMachine();
@@ -390,7 +390,14 @@ const ContentEditor = ({
         hidden: () => internalState.rec && internalState.act === "token",
         disabled: () => internalState.rec && internalState.act !== "token",
         // callback: () => prepareRecording("token"),
-        callback: () => infoDrawer(<TokenInfoDrawerComponent />),
+        callback: () =>
+          infoDrawer(
+            <TokenInfoDrawerComponent
+              onToken={(token: Token) => {
+                console.log(`MICAH YOU SELECTED ${JSON.stringify(token)}`);
+              }}
+            />,
+          ),
       },
       {
         icon: Face,

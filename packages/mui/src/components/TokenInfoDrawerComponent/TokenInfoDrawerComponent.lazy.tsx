@@ -1,3 +1,4 @@
+import { Token } from "@micahg/tbltp-common";
 import React, { lazy, Suspense } from "react";
 
 const LazyTokenInfoDrawerComponent = lazy(
@@ -5,7 +6,10 @@ const LazyTokenInfoDrawerComponent = lazy(
 );
 
 const TokenInfoDrawerComponent = (
-  props: JSX.IntrinsicAttributes & { children?: React.ReactNode },
+  props: JSX.IntrinsicAttributes & {
+    onToken: (token: Token) => void;
+    children?: React.ReactNode;
+  },
 ) => (
   <Suspense fallback={null}>
     <LazyTokenInfoDrawerComponent {...props} />
