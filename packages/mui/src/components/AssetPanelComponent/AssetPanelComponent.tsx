@@ -36,6 +36,8 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   );
   const saveDisabled = name === asset.name && !file;
 
+  console.log(`MICAH asset is ${JSON.stringify(asset)}`);
+
   const selectFile = () => {
     const input = document.createElement("input");
     input.type = "file";

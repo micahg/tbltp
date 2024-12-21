@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, ReactElement } from "react";
 import {
   AppBar,
   AppBarProps,
@@ -25,7 +25,6 @@ import SceneComponent from "../SceneComponent/SceneComponent.lazy";
 import { Scene } from "../../reducers/ContentReducer";
 import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
 import NavigationDrawerComponent from "../NavigationDrawerComponent/NavigationDrawerComponent.lazy";
-import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 import TokensComponent from "../TokensComponent/TokensComponent.lazy";
 
 const drawerWidth = 240;
@@ -93,6 +92,7 @@ const GameMasterComponent = () => {
   const dispatch = useDispatch();
   const [navOpen, setNavOpen] = useState<boolean>(false);
   const [infoOpen, setInfoOpen] = useState<boolean>(false);
+  const [infoComponent, setInfoComponent] = useState<ReactElement | null>(null);
   const [scenesOpen, setScenesOpen] = useState<boolean>(false);
   const [actions, setActions] = useState<GameMasterAction[]>([]);
   const [doot, setDoot] = useState<number>(0);
@@ -118,9 +118,15 @@ const GameMasterComponent = () => {
 
   const handleNavDrawerClose = () => setNavOpen(false);
 
-  const handleInfoDrawerOpen = () => setInfoOpen(true);
+  const handleInfoDrawerOpen = (info: ReactElement) => {
+    setInfoComponent(info);
+    setInfoOpen(true);
+  };
 
-  const handleInfoDrawerClose = () => setInfoOpen(false);
+  const handleInfoDrawerClose = () => {
+    setInfoOpen(false);
+    setInfoComponent(null);
+  };
 
   const handleCreateScene = (/*event: React.MouseEvent<HTMLElement>*/) => {
     // bump the scene key so the scene component state resets
@@ -276,7 +282,7 @@ const GameMasterComponent = () => {
           },
         }}
       >
-        <TokenInfoDrawerComponent />
+        {infoComponent}
       </Drawer>
       <Main open={navOpen}>
         {focusedComponent === FocusedComponent.ContentEditor && (

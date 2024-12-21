@@ -1,5 +1,6 @@
 // trigger rebuild.
 import React, {
+  ReactElement,
   RefObject,
   createRef,
   useCallback,
@@ -47,11 +48,12 @@ import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { LoadProgress } from "../../utils/content";
 import { Rect } from "@micahg/tbltp-common";
+import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 
 const sm = new MouseStateMachine();
 
 interface ContentEditorProps {
-  infoDrawer: () => void;
+  infoDrawer: (info: ReactElement) => void;
   populateToolbar?: (actions: GameMasterAction[]) => void;
   redrawToolbar?: () => void;
   manageScene?: () => void;
@@ -388,7 +390,7 @@ const ContentEditor = ({
         hidden: () => internalState.rec && internalState.act === "token",
         disabled: () => internalState.rec && internalState.act !== "token",
         // callback: () => prepareRecording("token"),
-        callback: () => infoDrawer(),
+        callback: () => infoDrawer(<TokenInfoDrawerComponent />),
       },
       {
         icon: Face,
