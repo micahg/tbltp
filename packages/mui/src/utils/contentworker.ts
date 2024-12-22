@@ -761,6 +761,8 @@ self.onmessage = async (evt) => {
       startY = -1;
       endX = -1;
       endY = -1;
+      // restore the clean (no opaque brush indicator/token indicator where the mouse was) overlay
+      renderImage(overlayCtx, imageCanvasses, _angle);
       break;
     }
     case "end_erase": {
