@@ -132,7 +132,7 @@ function renderImage(
 function renderToken(x: number, y: number) {
   overlayCtx.save();
   // may be best to not translate since we're scaling
-  overlayCtx.translate(-vamp.width / 2, -vamp.height / 2);
+  overlayCtx.translate(-_token_dw / 2, -_token_dh / 2);
   overlayCtx.drawImage(
     vamp,
     // source (should always just be source dimensions)
@@ -145,8 +145,6 @@ function renderToken(x: number, y: number) {
     y,
     _token_dw,
     _token_dh,
-    // vamp.width,
-    // vamp.height,
   );
 
   overlayCtx.restore();
