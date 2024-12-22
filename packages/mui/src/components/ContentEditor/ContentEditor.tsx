@@ -640,9 +640,19 @@ const ContentEditor = ({
         sm.transition("done");
         const e: WheelEvent = args[0] as WheelEvent;
         if (e.deltaY > 0) {
-          worker.postMessage({ cmd: "brush_inc", x: e.offsetX, y: e.offsetY });
+          worker.postMessage({
+            cmd: "brush_inc",
+            x: e.offsetX,
+            y: e.offsetY,
+            action: internalState.act,
+          });
         } else if (e.deltaY < 0) {
-          worker.postMessage({ cmd: "brush_dec", x: e.offsetX, y: e.offsetY });
+          worker.postMessage({
+            cmd: "brush_dec",
+            x: e.offsetX,
+            y: e.offsetY,
+            action: internalState.act,
+          });
         }
       } else if (
         internalState.rec &&
