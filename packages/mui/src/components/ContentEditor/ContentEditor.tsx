@@ -107,7 +107,6 @@ const ContentEditor = ({
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   // selection is sized relative to the visible canvas size -- not the full background size
   const [selection, setSelection] = useState<Rect | null>(null);
-  const [token, setToken] = useState<HydratedToken | null>(null);
 
   /**
    * THIS GUY RIGHT HERE IS REALLY IMPORTANT. Because we use a callback to render
@@ -177,12 +176,20 @@ const ContentEditor = ({
     if (manageScene) manageScene();
   }, [manageScene]);
 
-  const gmSelectColor = () => {
+  const setToken = useCallback(
+    (token: HydratedToken) => {
+      if (!worker) return;
+      worker.postMessage({ cmd: "set_token", token: token, bearer: bearer });
+    },
+    [worker, bearer],
+  );
+
+  const gmSelectColor = useCallback(() => {
     if (!internalState.color.current) return;
     const ref = internalState.color.current;
     ref.focus();
     ref.click();
-  };
+  }, [internalState.color]);
 
   const gmSelectOpacityMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -309,10 +316,12 @@ const ContentEditor = ({
 
   /**
    * Populate the toolbar with our actions. Empty deps insures this only gets
-   * called once on load.
    */
   useEffect(() => {
     if (!populateToolbar) return;
+    if (!worker) return;
+    if (!bearer) return; // fetching token images requires a bearer token
+    if (!apiUrl) return; // fetching token images requires an API
 
     const actions: GameMasterAction[] = [
       {
@@ -456,7 +465,21 @@ const ContentEditor = ({
     ];
     populateToolbar(actions);
     setToolbarPopulated(true);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    apiUrl,
+    bearer,
+    gmSelectColor,
+    infoDrawer,
+    internalState.act,
+    internalState.rec,
+    internalState.selected,
+    internalState.zoom,
+    populateToolbar,
+    prepareRecording,
+    sceneManager,
+    setToken,
+    worker,
+  ]);
 
   useEffect(() => {
     if (!scene || !scene.viewport || !scene.backgroundSize) return;

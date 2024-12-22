@@ -20,7 +20,7 @@ import {
   adjustImageToViewport,
   // adjustTokenDimensions,
 } from "./geometry";
-import { Rect } from "@micahg/tbltp-common";
+import { HydratedToken, Rect } from "@micahg/tbltp-common";
 
 /**
  * Worker for offscreen drawing in the content editor.
@@ -30,8 +30,6 @@ let backgroundImageRev: number;
 let backgroundImageSrc: string;
 let backgroundCtx: OffscreenCanvasRenderingContext2D;
 let overlayCtx: OffscreenCanvasRenderingContext2D;
-let overlayImageSrc: string;
-let overlayImageRev: number;
 let fullCtx: OffscreenCanvasRenderingContext2D;
 let thingCtx: OffscreenCanvasRenderingContext2D;
 let imageCanvasses: CanvasImageSource[] = [];
@@ -44,6 +42,7 @@ const _zoom_step = 0.5;
 let _max_zoom: number;
 let _first_zoom_step: number;
 let _things_on_top_of_overlay = false;
+let _token: HydratedToken | undefined = undefined;
 
 // canvas width and height (sent from main thread)
 const _canvas: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -216,7 +215,7 @@ function sizeVisibleCanvasses(width: number, height: number) {
 }
 
 function loadAllImages(update: TableUpdate) {
-  const { bearer, background, backgroundRev, overlay, overlayRev } = update;
+  const { bearer, background, backgroundRev, overlay } = update;
   const progress = (p: LoadProgress) =>
     postMessage({ cmd: "progress", evt: p });
 
@@ -232,9 +231,7 @@ function loadAllImages(update: TableUpdate) {
   backgroundImageSrc = background || backgroundImageSrc;
   backgroundImageRev = backgroundRev || backgroundImageRev;
   const ovP = overlay
-    ? overlay === overlayImageSrc && overlayRev === overlayImageRev
-      ? overlayCtx.canvas.transferToImageBitmap()
-      : loadImage(overlay, bearer, progress)
+    ? loadImage(overlay, bearer, progress)
     : Promise.resolve(null);
   // TODO signal an error if either promise fails
   return Promise.all([bgP, ovP]).then(([bgImg, ovImg]) => {
@@ -684,6 +681,26 @@ self.onmessage = async (evt) => {
           fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
         }
         renderBrush(evt.data.x, evt.data.y, brush);
+      }
+      break;
+    }
+    case "set_token": {
+      if ("token" in evt.data && "bearer" in evt.data) {
+        _token = evt.data.token;
+        const location = _token?.asset?.location;
+        if (location) {
+          loadImage(location, evt.data.bearer)
+            .then((img) => {
+              vamp = img;
+            })
+            .catch((err) => {
+              console.error(
+                `ERROR: PORK CHOP SANDWICHES - unable to load token image: ${err}`,
+              );
+            });
+        } else {
+          console.error(`ERROR: PORK CHOP SANDWICHES - no location in token`);
+        }
       }
       break;
     }
