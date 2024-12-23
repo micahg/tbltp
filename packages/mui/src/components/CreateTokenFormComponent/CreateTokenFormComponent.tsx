@@ -209,7 +209,6 @@ const CreateTokenFormComponent = ({
                     aria-label="save"
                     color="primary"
                     disabled={!isDirty}
-                    // onClick={updateAsset}
                   >
                     <SaveIcon />
                   </IconButton>
