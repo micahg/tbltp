@@ -4,10 +4,10 @@ import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionC
 import { useDispatch, useSelector } from "react-redux";
 import { Box, Grid } from "@mui/material";
 import { Add } from "@mui/icons-material";
-import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent";
+import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import { Token } from "@micahg/tbltp-common";
 import { AppReducerState } from "../../reducers/AppReducer";
-import CreateTokenFormComponent from "../CreateTokenFormComponent/CreateTokenFormComponent";
+import CreateTokenFormComponent from "../CreateTokenFormComponent/CreateTokenFormComponent.lazy";
 
 interface TokensComponentProps {
   populateToolbar?: (actions: GameMasterAction[]) => void;

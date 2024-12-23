@@ -31,7 +31,6 @@ const CreateTokenFormComponent = ({
   token,
   modal,
 }: CreateTokenFormComponentProps) => {
-  console.log(`MICAH token is ${JSON.stringify(token)}`);
   const {
     reset,
     control,
@@ -39,12 +38,7 @@ const CreateTokenFormComponent = ({
     formState: { errors, isDirty },
   } = useForm<Token>({
     mode: "onBlur",
-    defaultValues: {
-      name: token?.name || "",
-      visible: token?.visible || false,
-      asset: token?.asset || "",
-      hitPoints: token?.hitPoints || 0,
-    },
+    defaultValues: stripToken(token),
   });
 
   const dispatch = useDispatch();
@@ -55,6 +49,21 @@ const CreateTokenFormComponent = ({
       type: "content/deletetoken",
       payload: token,
     });
+
+  /**
+   * Strip the token properties that can't be edited so they don't
+   * trigger the form to be dirty (for example, the _id is not part
+   * of the form, but if its part of the object we pass to reset,
+   * the form will be dirty)
+   */
+  function stripToken(token?: Token): Token {
+    return {
+      name: token?.name || "",
+      visible: token?.visible || false,
+      asset: token?.asset || "",
+      hitPoints: token?.hitPoints || 0,
+    };
+  }
 
   const onSubmit = (data: Token) => {
     // don't send an empty asset
@@ -68,7 +77,6 @@ const CreateTokenFormComponent = ({
     if (token) {
       data = { ...token, ...data };
     }
-    console.log(data);
     dispatch({ type: "content/updatetoken", payload: data });
     reset(data);
   };
@@ -82,7 +90,7 @@ const CreateTokenFormComponent = ({
   useEffect(() => {
     if (!reset) return;
     if (!token) return;
-    reset(token);
+    reset(stripToken(token));
   }, [reset, token]);
 
   return (
@@ -197,6 +205,7 @@ const CreateTokenFormComponent = ({
               <Tooltip title="Save your changes to the token">
                 <span>
                   <IconButton
+                    type="submit"
                     aria-label="save"
                     color="primary"
                     disabled={!isDirty}
