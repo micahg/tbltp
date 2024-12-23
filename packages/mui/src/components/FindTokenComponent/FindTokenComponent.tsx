@@ -25,16 +25,13 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
       if (assets === undefined) return;
       if (apiUrl === undefined) return;
 
+      // if no asset selected token renders with default token image
       const asset = assets.find((asset) => asset._id === token.asset);
-      if (!asset) {
-        console.error(`Asset not found for token ${token._id}`);
-        return;
+      if (asset) {
+        asset.location = `${apiUrl}/${asset.location}`;
       }
 
-      const hydratedToken: HydratedToken = {
-        ...token,
-        asset: { ...asset, location: `${apiUrl}/${asset.location}` },
-      };
+      const hydratedToken: HydratedToken = { ...token, asset };
       onToken(hydratedToken);
     },
     [assets, apiUrl, onToken],

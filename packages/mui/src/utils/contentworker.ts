@@ -42,6 +42,7 @@ const _zoom_step = 0.5;
 let _max_zoom: number;
 let _first_zoom_step: number;
 let _things_on_top_of_overlay = false;
+let _default_token: ImageBitmap;
 let _token: HydratedToken | undefined = undefined;
 
 // canvas width and height (sent from main thread)
@@ -216,6 +217,9 @@ function loadAllImages(update: TableUpdate) {
   const { bearer, background, backgroundRev, overlay } = update;
   const progress = (p: LoadProgress) =>
     postMessage({ cmd: "progress", evt: p });
+
+  // load the default token image - no point blocking on this - it should load before we need it
+  loadImage("/x.webp", bearer).then((img) => (_default_token = img));
 
   // gross - if we have a background image, only load it if the revision changed...
   // so here if we see no change we don't bother pulling the new image
@@ -521,11 +525,6 @@ async function update(values: TableUpdate) {
   }
 
   try {
-    try {
-      vamp = await loadImage("/vneven.png", values.bearer);
-    } catch (err) {
-      console.error(err);
-    }
     const [bgImg, ovImg] = await loadAllImages(values);
     if (!bgImg) return;
 
@@ -692,12 +691,11 @@ self.onmessage = async (evt) => {
               vamp = img;
             })
             .catch((err) => {
-              console.error(
-                `ERROR: PORK CHOP SANDWICHES - unable to load token image: ${err}`,
-              );
+              vamp = _default_token;
+              console.error(`ERROR: unable to load token image: ${err}`);
             });
         } else {
-          console.error(`ERROR: PORK CHOP SANDWICHES - no location in token`);
+          vamp = _default_token;
         }
       }
       break;
