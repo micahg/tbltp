@@ -100,7 +100,7 @@ async function operate<T extends Asset | Token>(
     let msg = `Unable to create ${path}`;
     if (error instanceof Error) {
       if (axios.isAxiosError(error.cause)) {
-        console.log(`Operation failure: ${JSON.stringify(error.cause)}`);
+        console.error(`Operation failure: ${JSON.stringify(error.cause)}`);
         if (error.cause.response?.status === 409) {
           msg = `${path} name already exists`;
         }
