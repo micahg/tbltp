@@ -81,6 +81,17 @@ let _token_dh = 0;
 const _token_delta = MIN_BRUSH;
 let vamp: ImageBitmap;
 
+/**
+ * Set the token to an image. If no image is provided, the default token is used.
+ * @param image the image to use as the token
+ */
+function setToken(image?: ImageBitmap) {
+  if (image) vamp = image;
+  else vamp = _default_token;
+  _token_dw = vamp.width;
+  _token_dh = vamp.height;
+}
+
 function trimPanning() {
   if (_img.x <= 0) _img.x = 0;
   if (_img.y <= 0) _img.y = 0;
@@ -731,8 +742,8 @@ self.onmessage = async (evt) => {
           overlayCtx.fillStyle = GUIDE_FILL;
           recording = true;
           // _token_adjust = 0;
-          _token_dw = vamp.width;
-          _token_dh = vamp.height;
+          // _token_dw = vamp.width;
+          // _token_dh = vamp.height;
           requestAnimationFrame(animateToken);
         }
       } else if (evt.data.buttons === 1) {
@@ -754,15 +765,13 @@ self.onmessage = async (evt) => {
         const location = _token?.asset?.location;
         if (location) {
           loadImage(location, evt.data.bearer)
-            .then((img) => {
-              vamp = img;
-            })
+            .then((img) => setToken(img))
             .catch((err) => {
-              vamp = _default_token;
+              setToken();
               console.error(`ERROR: unable to load token image: ${err}`);
             });
         } else {
-          vamp = _default_token;
+          setToken();
         }
       }
       break;
