@@ -66,18 +66,21 @@ const CreateTokenFormComponent = ({
   }
 
   const onSubmit = (data: Token) => {
+    // overlay the local changes
+    const update = { ...token, ...data };
+
     // don't send an empty asset
     if (data.asset === "") {
-      delete data.asset;
-    }
-    if (data.hitPoints === 0) {
-      delete data.hitPoints;
+      delete update.asset;
     }
 
-    if (token) {
-      data = { ...token, ...data };
+    // just remove the hitpoints if they are 0
+    const hp = Number(data.hitPoints);
+    if (hp === 0 || Number.isNaN(hp)) {
+      delete update.hitPoints;
     }
-    dispatch({ type: "content/updatetoken", payload: data });
+
+    dispatch({ type: "content/updatetoken", payload: update });
     reset(data);
   };
 
