@@ -338,12 +338,10 @@ function renderToken(x: number, y: number, full = true) {
 
   // un-rotate and scale
   let { x: dx, y: dy } = unrotateAndScalePoints(createPoints([x, y]))[0];
+
   // then add the image area offset (eg if we're zoomed in)
   dx += _img.x;
   dy += _img.y;
-  // const { x: dw, y: dh } = unrotateAndScalePoints(
-  //   createPoints([_token_dw, _token_dh]),
-  // )[0];
 
   const [dw, dh] = rotatedWidthAndHeight(
     _angle,
@@ -351,23 +349,18 @@ function renderToken(x: number, y: number, full = true) {
     _token_dh * _zoom,
   );
 
-  console.log(`dx: ${dx}, dy: ${dy}, dw: ${dw}, dh: ${dh}`);
-
   // should be thing ctx when tokens become things
   fullCtx.save();
-  fullCtx.rotate((_angle * Math.PI) / 180);
-  fullCtx.translate(-dw / 2, -dh / 2); // center the image
+  fullCtx.translate(dx, dy);
+  fullCtx.rotate((-_angle * Math.PI) / 180);
   fullCtx.drawImage(
     vamp,
-    // we ctx.rotate above, so REMEMBER: the actual source image SHOULD NOT BE ROTATED
     0,
     0,
     vamp.width,
     vamp.height,
-    // the viewport, on the other hand, does need to accommodate that rotation since
-    // we are on a mostly statically sized canvas but width and height might be rotated
-    dx, // compensate for half of image
-    dy, // compensate for half of image
+    -dw / 2,
+    -dh / 2,
     dw,
     dh,
   );
