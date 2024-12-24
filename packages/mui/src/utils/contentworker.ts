@@ -73,7 +73,10 @@ let green = "0";
 let blue = "0";
 let brush = MIN_BRUSH;
 
+/// _token_dw starts as the token width and then shrinks to just over zero or grows to the full width
 let _token_dw = 0;
+
+/// _token_dh starts as the token height and then shrinks to just over zero or grows to the full height
 let _token_dh = 0;
 const _token_delta = MIN_BRUSH;
 let vamp: ImageBitmap;
@@ -128,28 +131,6 @@ function renderImage(
     );
   });
   ctx.restore();
-}
-
-function renderToken(x: number, y: number) {
-  overlayCtx.save();
-  // may be best to not translate since we're scaling
-  overlayCtx.translate(-_token_dw / 2, -_token_dh / 2);
-  overlayCtx.drawImage(
-    vamp,
-    // source (should always just be source dimensions)
-    0,
-    0,
-    vamp.width,
-    vamp.height,
-    // destination (adjust according to scale)
-    x,
-    y,
-    _token_dw,
-    _token_dh,
-  );
-
-  overlayCtx.restore();
-  return;
 }
 
 function calculateViewport() {
@@ -332,6 +313,69 @@ function eraseBrush(x: number, y: number, radius: number) {
   renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
+function renderToken(x: number, y: number, full = true) {
+  if (!full) {
+    overlayCtx.save();
+    // may be best to not translate since we're scaling
+    overlayCtx.translate(-_token_dw / 2, -_token_dh / 2);
+    overlayCtx.drawImage(
+      vamp,
+      // source (should always just be source dimensions)
+      0,
+      0,
+      vamp.width,
+      vamp.height,
+      // destination (adjust according to scale)
+      x,
+      y,
+      _token_dw,
+      _token_dh,
+    );
+
+    overlayCtx.restore();
+    return;
+  }
+
+  // un-rotate and scale
+  let { x: dx, y: dy } = unrotateAndScalePoints(createPoints([x, y]))[0];
+  // then add the image area offset (eg if we're zoomed in)
+  dx += _img.x;
+  dy += _img.y;
+  // const { x: dw, y: dh } = unrotateAndScalePoints(
+  //   createPoints([_token_dw, _token_dh]),
+  // )[0];
+
+  const [dw, dh] = rotatedWidthAndHeight(
+    _angle,
+    _token_dw * _zoom,
+    _token_dh * _zoom,
+  );
+
+  console.log(`dx: ${dx}, dy: ${dy}, dw: ${dw}, dh: ${dh}`);
+
+  // should be thing ctx when tokens become things
+  fullCtx.save();
+  fullCtx.rotate((_angle * Math.PI) / 180);
+  fullCtx.translate(-dw / 2, -dh / 2); // center the image
+  fullCtx.drawImage(
+    vamp,
+    // we ctx.rotate above, so REMEMBER: the actual source image SHOULD NOT BE ROTATED
+    0,
+    0,
+    vamp.width,
+    vamp.height,
+    // the viewport, on the other hand, does need to accommodate that rotation since
+    // we are on a mostly statically sized canvas but width and height might be rotated
+    dx, // compensate for half of image
+    dy, // compensate for half of image
+    dw,
+    dh,
+  );
+
+  fullCtx.restore();
+  renderImage(overlayCtx, imageCanvasses, _angle);
+}
+
 function renderBrush(x: number, y: number, radius: number, full = true) {
   if (!full) {
     overlayCtx.save();
@@ -343,7 +387,7 @@ function renderBrush(x: number, y: number, radius: number, full = true) {
   }
   // un-rotate and scale
   const p = unrotateAndScalePoints(createPoints([x, y]))[0];
-  // then add the image area offset
+  // then add the image area offset (eg if we're zoomed in)
   p.x += _img.x;
   p.y += _img.y;
   fullCtx.save();
@@ -444,7 +488,7 @@ function animateBrush() {
 function animateToken() {
   if (!recording) return;
   renderImage(overlayCtx, imageCanvasses, _angle);
-  renderToken(startX, startY);
+  renderToken(startX, startY, false);
   requestAnimationFrame(() => animateToken());
 }
 
@@ -681,25 +725,6 @@ self.onmessage = async (evt) => {
       }
       break;
     }
-    case "set_token": {
-      if ("token" in evt.data && "bearer" in evt.data) {
-        _token = evt.data.token;
-        const location = _token?.asset?.location;
-        if (location) {
-          loadImage(location, evt.data.bearer)
-            .then((img) => {
-              vamp = img;
-            })
-            .catch((err) => {
-              vamp = _default_token;
-              console.error(`ERROR: unable to load token image: ${err}`);
-            });
-        } else {
-          vamp = _default_token;
-        }
-      }
-      break;
-    }
     case "token": {
       startX = evt.data.x;
       startY = evt.data.y;
@@ -726,7 +751,26 @@ self.onmessage = async (evt) => {
           overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
           fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
         }
-        renderBrush(evt.data.x, evt.data.y, brush);
+        renderToken(evt.data.x, evt.data.y);
+      }
+      break;
+    }
+    case "set_token": {
+      if ("token" in evt.data && "bearer" in evt.data) {
+        _token = evt.data.token;
+        const location = _token?.asset?.location;
+        if (location) {
+          loadImage(location, evt.data.bearer)
+            .then((img) => {
+              vamp = img;
+            })
+            .catch((err) => {
+              vamp = _default_token;
+              console.error(`ERROR: unable to load token image: ${err}`);
+            });
+        } else {
+          vamp = _default_token;
+        }
       }
       break;
     }
@@ -799,6 +843,13 @@ self.onmessage = async (evt) => {
       startY = -1;
       endX = -1;
       endY = -1;
+      break;
+    }
+    case "end_token": {
+      recording = false;
+      panning = false;
+      renderToken(startX, startY, false);
+      storeOverlay();
       break;
     }
     case "obscure": {
