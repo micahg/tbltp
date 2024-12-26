@@ -1,5 +1,6 @@
 // trigger rebuild.
 import React, {
+  ReactElement,
   RefObject,
   createRef,
   useCallback,
@@ -46,11 +47,13 @@ import {
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { LoadProgress } from "../../utils/content";
-import { Rect } from "@micahg/tbltp-common";
+import { Rect, HydratedToken } from "@micahg/tbltp-common";
+import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 
 const sm = new MouseStateMachine();
 
 interface ContentEditorProps {
+  infoDrawer: (info: ReactElement) => void;
   populateToolbar?: (actions: GameMasterAction[]) => void;
   redrawToolbar?: () => void;
   manageScene?: () => void;
@@ -75,6 +78,7 @@ const ContentEditor = ({
   populateToolbar,
   redrawToolbar,
   manageScene,
+  infoDrawer,
 }: ContentEditorProps) => {
   const dispatch = useDispatch();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
@@ -172,12 +176,20 @@ const ContentEditor = ({
     if (manageScene) manageScene();
   }, [manageScene]);
 
-  const gmSelectColor = () => {
+  const setToken = useCallback(
+    (token: HydratedToken) => {
+      if (!worker) return;
+      worker.postMessage({ cmd: "set_token", token: token, bearer: bearer });
+    },
+    [worker, bearer],
+  );
+
+  const gmSelectColor = useCallback(() => {
     if (!internalState.color.current) return;
     const ref = internalState.color.current;
     ref.focus();
     ref.click();
-  };
+  }, [internalState.color]);
 
   const gmSelectOpacityMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -304,10 +316,12 @@ const ContentEditor = ({
 
   /**
    * Populate the toolbar with our actions. Empty deps insures this only gets
-   * called once on load.
    */
   useEffect(() => {
     if (!populateToolbar) return;
+    if (!worker) return;
+    if (!bearer) return; // fetching token images requires a bearer token
+    if (!apiUrl) return; // fetching token images requires an API
 
     const actions: GameMasterAction[] = [
       {
@@ -380,13 +394,22 @@ const ContentEditor = ({
         disabled: () => internalState.rec || internalState.act === "select",
         callback: () => sm.transition("rotateClock"),
       },
-      // {
-      //   icon: Face,
-      //   tooltip: "Token",
-      //   hidden: () => internalState.rec && internalState.act === "token",
-      //   disabled: () => internalState.rec && internalState.act !== "token",
-      //   callback: () => prepareRecording("token"),
-      // },
+      {
+        icon: Face,
+        tooltip: "Token",
+        hidden: () => internalState.rec && internalState.act === "token",
+        disabled: () => internalState.rec && internalState.act !== "token",
+        // callback: () => prepareRecording("token"),
+        callback: () =>
+          infoDrawer(
+            <TokenInfoDrawerComponent
+              onToken={(token: HydratedToken) => {
+                setToken(token);
+                prepareRecording("token");
+              }}
+            />,
+          ),
+      },
       {
         icon: Face,
         tooltip: "Finish Token",
@@ -442,7 +465,21 @@ const ContentEditor = ({
     ];
     populateToolbar(actions);
     setToolbarPopulated(true);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    apiUrl,
+    bearer,
+    gmSelectColor,
+    infoDrawer,
+    internalState.act,
+    internalState.rec,
+    internalState.selected,
+    internalState.zoom,
+    populateToolbar,
+    prepareRecording,
+    sceneManager,
+    setToken,
+    worker,
+  ]);
 
   useEffect(() => {
     if (!scene || !scene.viewport || !scene.backgroundSize) return;
@@ -603,9 +640,19 @@ const ContentEditor = ({
         sm.transition("done");
         const e: WheelEvent = args[0] as WheelEvent;
         if (e.deltaY > 0) {
-          worker.postMessage({ cmd: "brush_inc", x: e.offsetX, y: e.offsetY });
+          worker.postMessage({
+            cmd: "brush_inc",
+            x: e.offsetX,
+            y: e.offsetY,
+            action: internalState.act,
+          });
         } else if (e.deltaY < 0) {
-          worker.postMessage({ cmd: "brush_dec", x: e.offsetX, y: e.offsetY });
+          worker.postMessage({
+            cmd: "brush_dec",
+            x: e.offsetX,
+            y: e.offsetY,
+            action: internalState.act,
+          });
         }
       } else if (
         internalState.rec &&

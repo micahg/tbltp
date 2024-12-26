@@ -347,7 +347,7 @@ export function adjustTokenDimensions(
     dw = Math.round((dh * ow) / oh);
   }
   // don't go passed that max width and height
-  if (dw < mw && dh < mh && dw >= ow && dh >= oh) {
+  if (dw < mw && dh < mh && dw > 0 && dh > 0) {
     cw = dw;
     ch = dh;
   }

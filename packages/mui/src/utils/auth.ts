@@ -154,7 +154,6 @@ export function getToken(
 }
 
 export function getDeviceCode(data: AuthConfig) {
-  console.log(data);
   return new Promise((resolve, reject) => {
     const params: URLSearchParams = new URLSearchParams({
       client_id: data.clientId,

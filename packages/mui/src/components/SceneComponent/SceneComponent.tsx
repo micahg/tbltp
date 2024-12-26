@@ -16,7 +16,8 @@ import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionC
 import { LoadProgress, loadImage } from "../../utils/content";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 
-const NAME_REGEX = /^[\w\s]{1,64}$/;
+// TODO move to a shared file
+export const NAME_REGEX = /^[\w\s]{1,64}$/;
 
 interface SceneComponentProps {
   populateToolbar?: (actions: GameMasterAction[]) => void;

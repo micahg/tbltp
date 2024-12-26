@@ -3,8 +3,7 @@ import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { getToken } from "../utils/auth";
 import { ContentReducerError, Scene } from "../reducers/ContentReducer";
-import { Rect } from "@micahg/tbltp-common";
-import { Asset } from "../reducers/ContentReducer";
+import { Asset, Rect, Token } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 
@@ -36,37 +35,99 @@ function isBlob(payload: URL | Blob): payload is File {
   return (payload as Blob).type !== undefined;
 }
 
-async function updateAsset(
+type Operation = "get" | "put" | "delete";
+
+const FriendlyOperation: { [key in Operation]: string | undefined } = {
+  get: undefined,
+  put: "Update succesfull",
+  delete: "Deletion successful",
+};
+
+function inferPath(op: Operation, path: string, t: Asset | Token): string {
+  // no id for get, put expects an id in the body (or its a new entity)
+  return op === "delete" && t !== undefined && "_id" in t
+    ? `${path}/${t._id}`
+    : path;
+}
+async function request<T extends Asset | Token>(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  asset?: Asset,
+  op: Operation,
+  t: T,
+  basePath: string,
 ): Promise<AxiosResponse> {
+  const path = inferPath(op, basePath, t);
+  const url = `${state.environment.api}/${path}`;
   const headers = await getToken(state, store);
-
-  try {
-    const resp = await axios.put(`${state.environment.api}/asset`, asset, {
+  let fn;
+  if (op == "put")
+    fn = axios[op](url, t, {
       headers: headers,
     });
+  else fn = axios[op](url, { headers: headers });
+
+  try {
+    const resp = await fn;
     return resp;
   } catch (err) {
-    throw new Error("Unable to create asset", { cause: err });
+    throw new Error(`Unable to ${op} ${basePath}`, { cause: err });
   }
 }
 
-async function deleteAsset(
+async function operate<T extends Asset | Token>(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  asset: Asset,
-): Promise<AxiosResponse> {
+  next: Dispatch<AnyAction>,
+  op: Operation,
+  path: string,
+  action: unknown & { type: string; payload: T },
+) {
   try {
-    const url = `${state.environment.api}/asset/${asset._id}`;
-    const headers = await getToken(state, store);
-    const resp = await axios.delete(url, { headers: headers });
-    return resp;
-  } catch (err) {
-    throw new Error("Unable to delete asset", { cause: err });
+    const result = await request(state, store, op, action.payload, path);
+    next({
+      type: action.type,
+      payload: result.status === 204 ? action.payload : result.data,
+    });
+    const msg = FriendlyOperation[op];
+    if (msg) {
+      const err: ContentReducerError = {
+        msg: msg,
+        success: true,
+      };
+      next({ type: "content/error", payload: err });
+    }
+  } catch (error) {
+    let msg = `Unable to create ${path}`;
+    if (error instanceof Error) {
+      if (axios.isAxiosError(error.cause)) {
+        console.error(`Operation failure: ${JSON.stringify(error.cause)}`);
+        if (error.cause.response?.status === 409) {
+          msg = `${path} name already exists`;
+        }
+      }
+    }
+    const err: ContentReducerError = {
+      msg: msg,
+      success: false,
+    };
+    next({ type: "content/error", payload: err });
   }
 }
+// async function retrieve(
+//   state: AppReducerState,
+//   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+//   path: string,
+//   action: unknown & { type: string; payload: T },
+// ) {
+//   const url = `${state.environment.api}/${path}`;
+//   getToken(state, store)
+//     .then((headers) => axios.get(url, { headers: headers }))
+//     .then((value) => next({ type: action.type, payload: value.data }))
+//     .catch((err) =>
+//       // TODO MICAH display error
+//       console.error(`Unable to fetch assets: ${JSON.stringify(err)}`),
+//     );
+// }
 
 async function updateAssetData(
   state: AppReducerState,
@@ -154,29 +215,16 @@ export const ContentMiddleware: Middleware =
     }
 
     switch (action.type) {
+      case "content/updatetoken": {
+        operate(state, store, next, "put", "token", action);
+        break;
+      }
+      case "content/deletetoken": {
+        operate(state, store, next, "delete", "token", action);
+        break;
+      }
       case "content/updateasset":
-        {
-          const { asset } = action.payload;
-          try {
-            const result = await updateAsset(state, store, asset);
-            next({ type: action.type, payload: result.data });
-          } catch (error) {
-            let msg = "Unable to create asset";
-            if (error instanceof Error) {
-              if (axios.isAxiosError(error.cause)) {
-                console.log("Asset name already exists");
-                if (error.cause.response?.status === 409) {
-                  msg = "Asset name already exists";
-                }
-              }
-            }
-            const err: ContentReducerError = {
-              msg: msg,
-              success: false,
-            };
-            next({ type: "content/error", payload: err });
-          }
-        }
+        operate(state, store, next, "put", "asset", action);
         break;
       case "content/updateassetdata":
         {
@@ -209,27 +257,15 @@ export const ContentMiddleware: Middleware =
         }
         break;
       case "content/deleteasset": {
-        try {
-          const { asset } = action.payload as { asset: Asset };
-          await deleteAsset(state, store, asset);
-          next(action);
-        } catch (error) {
-          console.error(`Error deleting asset: ${JSON.stringify(error)}`);
-          const msg = "Unable to delete asset";
-          const err: ContentReducerError = { msg, success: false };
-          next({ type: "content/error", payload: err });
-        }
+        operate(state, store, next, "delete", "asset", action);
+        break;
+      }
+      case "content/tokens": {
+        operate(state, store, next, "get", "token", action);
         break;
       }
       case "content/assets": {
-        const url = `${state.environment.api}/asset`;
-        getToken(state, store)
-          .then((headers) => axios.get(url, { headers: headers }))
-          .then((value) => next({ type: action.type, payload: value.data }))
-          .catch((err) =>
-            // TODO MICAH display error
-            console.error(`Unable to fetch assets: ${JSON.stringify(err)}`),
-          );
+        operate(state, store, next, "get", "asset", action);
         break;
       }
       case "content/push":
@@ -320,13 +356,7 @@ export const ContentMiddleware: Middleware =
         break;
       }
       case "content/scenes": {
-        const url = `${state.environment.api}/scene`;
-        getToken(state, store)
-          .then((headers) => axios.get(url, { headers: headers }))
-          .then((value) => next({ type: action.type, payload: value.data }))
-          .catch((err) =>
-            console.error(`Unable to fetch scenes: ${JSON.stringify(err)}`),
-          );
+        operate(state, store, next, "get", "scene", action);
         break;
       }
       case "content/createscene": {
@@ -384,13 +414,7 @@ export const ContentMiddleware: Middleware =
         break;
       }
       case "content/deletescene": {
-        const url = `${state.environment.api}/scene/${action.payload._id}`;
-        getToken(state, store)
-          .then((headers) => axios.delete(url, { headers: headers }))
-          .then(() => next(action))
-          .catch((err) =>
-            console.error(`Unable to delet scene: ${JSON.stringify(err)}`),
-          );
+        operate(state, store, next, "delete", "scene", action);
         break;
       }
       default:

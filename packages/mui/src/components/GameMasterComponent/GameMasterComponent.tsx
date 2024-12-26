@@ -1,19 +1,12 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, ReactElement, cloneElement } from "react";
 import {
   AppBar,
   AppBarProps,
   Box,
-  Collapse,
   CssBaseline,
   Divider,
   Drawer,
   IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ListSubheader,
   Toolbar,
   Typography,
   styled,
@@ -22,21 +15,17 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import PhotoIcon from "@mui/icons-material/Photo";
-import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
-import LogoutIcon from "@mui/icons-material/Logout";
-import DeleteIcon from "@mui/icons-material/Delete";
-import AddIcon from "@mui/icons-material/Add";
 import ContentEditor from "../ContentEditor/ContentEditor.lazy";
 import GameMasterActionComponent, {
   GameMasterAction,
 } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { ExpandLess, ExpandMore, UploadFile } from "@mui/icons-material";
 import SceneComponent from "../SceneComponent/SceneComponent.lazy";
 import { Scene } from "../../reducers/ContentReducer";
 import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
+import NavigationDrawerComponent from "../NavigationDrawerComponent/NavigationDrawerComponent.lazy";
+import TokensComponent from "../TokensComponent/TokensComponent.lazy";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -45,6 +34,7 @@ enum FocusedComponent {
   ContentEditor,
   Scene,
   Assets,
+  Tokens,
 }
 
 const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
@@ -100,7 +90,9 @@ const DrawerHeader = styled("div")(({ theme }) => ({
 const GameMasterComponent = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const [open, setOpen] = useState<boolean>(false);
+  const [navOpen, setNavOpen] = useState<boolean>(false);
+  const [infoOpen, setInfoOpen] = useState<boolean>(false);
+  const [infoComponent, setInfoComponent] = useState<ReactElement | null>(null);
   const [scenesOpen, setScenesOpen] = useState<boolean>(false);
   const [actions, setActions] = useState<GameMasterAction[]>([]);
   const [doot, setDoot] = useState<number>(0);
@@ -122,12 +114,22 @@ const GameMasterComponent = () => {
     (state: AppReducerState) => state.content.currentScene,
   );
 
-  const handleDrawerOpen = () => {
-    setOpen(true);
+  const handleNavDrawerOpen = () => setNavOpen(true);
+
+  const handleNavDrawerClose = () => setNavOpen(false);
+
+  const handleInfoDrawerOpen = (info: ReactElement) => {
+    // inject this drawers close method into the info component
+    const closableInfo = cloneElement(info, {
+      closeDrawer: handleInfoDrawerClose,
+    });
+    setInfoComponent(closableInfo);
+    setInfoOpen(true);
   };
 
-  const handleDrawerClose = () => {
-    setOpen(false);
+  const handleInfoDrawerClose = () => {
+    setInfoOpen(false);
+    setInfoComponent(null);
   };
 
   const handleCreateScene = (/*event: React.MouseEvent<HTMLElement>*/) => {
@@ -141,9 +143,8 @@ const GameMasterComponent = () => {
     setFocusedComponent(FocusedComponent.Scene);
   };
 
-  const handleViewAssets = () => {
-    setFocusedComponent(FocusedComponent.Assets);
-  };
+  const handleViewTokens = () => setFocusedComponent(FocusedComponent.Tokens);
+  const handleViewAssets = () => setFocusedComponent(FocusedComponent.Assets);
 
   const handleEditScene = (scene?: Scene) => {
     if (scene) dispatch({ type: "content/currentscene", payload: scene });
@@ -153,12 +154,6 @@ const GameMasterComponent = () => {
   const handleManageScene = () => {
     setFocusedComponent(FocusedComponent.Scene);
   };
-
-  const handleDeleteScene = (scene: Scene) => {
-    dispatch({ type: "content/deletescene", payload: scene });
-  };
-
-  const handleLogout = () => dispatch({ type: "environment/logout" });
 
   const handlePopulateToolbar = (newActions: GameMasterAction[]) => {
     /**************************************************************************
@@ -209,6 +204,8 @@ const GameMasterComponent = () => {
     if (!noauth && !authClient) return;
     if (noauth || auth) {
       dispatch({ type: "content/scenes" });
+      dispatch({ type: "content/tokens" });
+      dispatch({ type: "content/assets" });
       return;
     }
     // if (noauth) return;
@@ -229,14 +226,14 @@ const GameMasterComponent = () => {
   return (
     <Box sx={{ display: "flex", width: "100vw", height: "100vh" }}>
       <CssBaseline />
-      <GameMasterAppBar position="fixed" open={open}>
+      <GameMasterAppBar position="fixed" open={navOpen}>
         <Toolbar>
           <IconButton
             color="inherit"
             aria-label="open drawer"
-            onClick={handleDrawerOpen}
+            onClick={handleNavDrawerOpen}
             edge="start"
-            sx={{ mr: 2, ...(open && { display: "none" }) }}
+            sx={{ mr: 2, ...(navOpen && { display: "none" }) }}
           >
             <MenuIcon />
           </IconButton>
@@ -257,10 +254,10 @@ const GameMasterComponent = () => {
         }}
         variant="persistent"
         anchor="left"
-        open={open}
+        open={navOpen}
       >
         <DrawerHeader>
-          <IconButton onClick={handleDrawerClose}>
+          <IconButton onClick={handleNavDrawerClose}>
             {theme.direction === "ltr" ? (
               <ChevronLeftIcon />
             ) : (
@@ -269,73 +266,34 @@ const GameMasterComponent = () => {
           </IconButton>
         </DrawerHeader>
         <Divider />
-        <List>
-          <ListItem key="Assets" disablePadding onClick={handleViewAssets}>
-            <ListItemButton>
-              <ListItemIcon>
-                <UploadFile />
-              </ListItemIcon>
-              <ListItemText primary="Assets" />
-            </ListItemButton>
-          </ListItem>
-          <ListItem key="Campaigns" disablePadding>
-            <ListItemButton>
-              <ListItemIcon>
-                <PhotoLibraryIcon />
-              </ListItemIcon>
-              <ListItemText primary="Campaigns" />
-            </ListItemButton>
-          </ListItem>
-          <ListItem key="Scenes" disablePadding onClick={scenesClick}>
-            <ListItemButton>
-              <ListItemIcon>
-                <PhotoIcon />
-              </ListItemIcon>
-              <ListItemText primary="Scenes" />
-              {scenesOpen ? <ExpandLess /> : <ExpandMore />}
-            </ListItemButton>
-          </ListItem>
-          <Collapse in={scenesOpen} timeout="auto" unmountOnExit>
-            <ListSubheader>
-              <ListItemButton onClick={() => handleCreateScene()}>
-                <ListItemIcon>
-                  <AddIcon />
-                </ListItemIcon>
-                <ListItemText primary="Create Scene" />
-              </ListItemButton>
-            </ListSubheader>
-            {scenes.map((scene) => (
-              <ListItem
-                key={scene._id}
-                secondaryAction={
-                  <IconButton
-                    edge="end"
-                    aria-label="delete"
-                    onClick={() => handleDeleteScene(scene)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                }
-              >
-                <ListItemButton onClick={() => handleEditScene(scene)}>
-                  <ListItemText primary={scene.description} />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </Collapse>
-          <ListItem key="Log Out" disablePadding onClick={handleLogout}>
-            <ListItemButton>
-              <ListItemIcon>
-                <LogoutIcon />
-              </ListItemIcon>
-              <ListItemText primary="Log Out" />
-            </ListItemButton>
-          </ListItem>
-        </List>
+        <NavigationDrawerComponent
+          scenesOpen={scenesOpen}
+          scenesClick={scenesClick}
+          handleEditScene={handleEditScene}
+          handleCreateScene={handleCreateScene}
+          handleViewAssets={handleViewAssets}
+          handleViewTokens={handleViewTokens}
+        />
       </Drawer>
-      <Main open={open}>
+      <Drawer
+        open={infoOpen}
+        anchor="right"
+        onClose={handleInfoDrawerClose}
+        sx={{
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            margin: "6px",
+            borderRadius: "6px",
+            height: "calc(100% - 12px)",
+          },
+        }}
+      >
+        {infoComponent}
+      </Drawer>
+      <Main open={navOpen}>
         {focusedComponent === FocusedComponent.ContentEditor && (
           <ContentEditor
+            infoDrawer={handleInfoDrawerOpen}
             populateToolbar={handlePopulateToolbar}
             redrawToolbar={handleRedrawToolbar}
             manageScene={handleManageScene}
@@ -352,6 +310,9 @@ const GameMasterComponent = () => {
         )}
         {focusedComponent === FocusedComponent.Assets && (
           <AssetsComponent populateToolbar={handlePopulateToolbar} />
+        )}
+        {focusedComponent === FocusedComponent.Tokens && (
+          <TokensComponent populateToolbar={handlePopulateToolbar} />
         )}
       </Main>
     </Box>

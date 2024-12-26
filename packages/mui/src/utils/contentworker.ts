@@ -18,9 +18,9 @@ import {
   copyRect,
   zoomFromViewport,
   adjustImageToViewport,
-  // adjustTokenDimensions,
+  adjustTokenDimensions,
 } from "./geometry";
-import { Rect } from "@micahg/tbltp-common";
+import { HydratedToken, Rect } from "@micahg/tbltp-common";
 
 /**
  * Worker for offscreen drawing in the content editor.
@@ -30,8 +30,6 @@ let backgroundImageRev: number;
 let backgroundImageSrc: string;
 let backgroundCtx: OffscreenCanvasRenderingContext2D;
 let overlayCtx: OffscreenCanvasRenderingContext2D;
-let overlayImageSrc: string;
-let overlayImageRev: number;
 let fullCtx: OffscreenCanvasRenderingContext2D;
 let thingCtx: OffscreenCanvasRenderingContext2D;
 let imageCanvasses: CanvasImageSource[] = [];
@@ -44,6 +42,8 @@ const _zoom_step = 0.5;
 let _max_zoom: number;
 let _first_zoom_step: number;
 let _things_on_top_of_overlay = false;
+let _default_token: ImageBitmap;
+let _token: HydratedToken | undefined = undefined;
 
 // canvas width and height (sent from main thread)
 const _canvas: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -73,10 +73,24 @@ let green = "0";
 let blue = "0";
 let brush = MIN_BRUSH;
 
+/// _token_dw starts as the token width and then shrinks to just over zero or grows to the full width
 let _token_dw = 0;
+
+/// _token_dh starts as the token height and then shrinks to just over zero or grows to the full height
 let _token_dh = 0;
-// const _token_delta = MIN_BRUSH;
+const _token_delta = MIN_BRUSH;
 let vamp: ImageBitmap;
+
+/**
+ * Set the token to an image. If no image is provided, the default token is used.
+ * @param image the image to use as the token
+ */
+function setToken(image?: ImageBitmap) {
+  if (image) vamp = image;
+  else vamp = _default_token;
+  _token_dw = vamp.width;
+  _token_dh = vamp.height;
+}
 
 function trimPanning() {
   if (_img.x <= 0) _img.x = 0;
@@ -130,30 +144,6 @@ function renderImage(
   ctx.restore();
 }
 
-function renderToken(x: number, y: number) {
-  overlayCtx.save();
-  // may be best to not translate since we're scaling
-  overlayCtx.translate(-vamp.width / 2, -vamp.height / 2);
-  overlayCtx.drawImage(
-    vamp,
-    // source (should always just be source dimensions)
-    0,
-    0,
-    vamp.width,
-    vamp.height,
-    // destination (adjust according to scale)
-    x,
-    y,
-    _token_dw,
-    _token_dh,
-    // vamp.width,
-    // vamp.height,
-  );
-
-  overlayCtx.restore();
-  return;
-}
-
 function calculateViewport() {
   // REMEMBER THIS METHOD UPDATES THE _vp and the _img
   adjustImageToViewport(
@@ -169,17 +159,17 @@ function calculateViewport() {
   return;
 }
 
-// function calculateToken(delta: number) {
-//   [_token_dw, _token_dh] = adjustTokenDimensions(
-//     delta,
-//     vamp.width,
-//     vamp.height,
-//     _token_dw,
-//     _token_dh,
-//     overlayCtx.canvas.width,
-//     overlayCtx.canvas.height,
-//   );
-// }
+function calculateToken(delta: number) {
+  [_token_dw, _token_dh] = adjustTokenDimensions(
+    delta,
+    vamp.width,
+    vamp.height,
+    _token_dw,
+    _token_dh,
+    overlayCtx.canvas.width,
+    overlayCtx.canvas.height,
+  );
+}
 
 /**
  * Given a desired viewport, set our current viewport accordingly, set the zoom,
@@ -216,9 +206,12 @@ function sizeVisibleCanvasses(width: number, height: number) {
 }
 
 function loadAllImages(update: TableUpdate) {
-  const { bearer, background, backgroundRev, overlay, overlayRev } = update;
+  const { bearer, background, backgroundRev, overlay } = update;
   const progress = (p: LoadProgress) =>
     postMessage({ cmd: "progress", evt: p });
+
+  // load the default token image - no point blocking on this - it should load before we need it
+  loadImage("/x.webp", bearer).then((img) => (_default_token = img));
 
   // gross - if we have a background image, only load it if the revision changed...
   // so here if we see no change we don't bother pulling the new image
@@ -232,9 +225,7 @@ function loadAllImages(update: TableUpdate) {
   backgroundImageSrc = background || backgroundImageSrc;
   backgroundImageRev = backgroundRev || backgroundImageRev;
   const ovP = overlay
-    ? overlay === overlayImageSrc && overlayRev === overlayImageRev
-      ? overlayCtx.canvas.transferToImageBitmap()
-      : loadImage(overlay, bearer, progress)
+    ? loadImage(overlay, bearer, progress)
     : Promise.resolve(null);
   // TODO signal an error if either promise fails
   return Promise.all([bgP, ovP]).then(([bgImg, ovImg]) => {
@@ -333,6 +324,62 @@ function eraseBrush(x: number, y: number, radius: number) {
   renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
+function renderToken(x: number, y: number, full = true) {
+  if (!full) {
+    overlayCtx.save();
+    // may be best to not translate since we're scaling
+    overlayCtx.translate(-_token_dw / 2, -_token_dh / 2);
+    overlayCtx.drawImage(
+      vamp,
+      // source (should always just be source dimensions)
+      0,
+      0,
+      vamp.width,
+      vamp.height,
+      // destination (adjust according to scale)
+      x,
+      y,
+      _token_dw,
+      _token_dh,
+    );
+
+    overlayCtx.restore();
+    return;
+  }
+
+  // un-rotate and scale
+  let { x: dx, y: dy } = unrotateAndScalePoints(createPoints([x, y]))[0];
+
+  // then add the image area offset (eg if we're zoomed in)
+  dx += _img.x;
+  dy += _img.y;
+
+  const [dw, dh] = rotatedWidthAndHeight(
+    _angle,
+    _token_dw * _zoom,
+    _token_dh * _zoom,
+  );
+
+  // should be thing ctx when tokens become things
+  fullCtx.save();
+  fullCtx.translate(dx, dy);
+  fullCtx.rotate((-_angle * Math.PI) / 180);
+  fullCtx.drawImage(
+    vamp,
+    0,
+    0,
+    vamp.width,
+    vamp.height,
+    -dw / 2,
+    -dh / 2,
+    dw,
+    dh,
+  );
+
+  fullCtx.restore();
+  renderImage(overlayCtx, imageCanvasses, _angle);
+}
+
 function renderBrush(x: number, y: number, radius: number, full = true) {
   if (!full) {
     overlayCtx.save();
@@ -344,7 +391,7 @@ function renderBrush(x: number, y: number, radius: number, full = true) {
   }
   // un-rotate and scale
   const p = unrotateAndScalePoints(createPoints([x, y]))[0];
-  // then add the image area offset
+  // then add the image area offset (eg if we're zoomed in)
   p.x += _img.x;
   p.y += _img.y;
   fullCtx.save();
@@ -445,7 +492,7 @@ function animateBrush() {
 function animateToken() {
   if (!recording) return;
   renderImage(overlayCtx, imageCanvasses, _angle);
-  renderToken(startX, startY);
+  renderToken(startX, startY, false);
   requestAnimationFrame(() => animateToken());
 }
 
@@ -526,11 +573,6 @@ async function update(values: TableUpdate) {
   }
 
   try {
-    try {
-      vamp = await loadImage("/vneven.png", values.bearer);
-    } catch (err) {
-      console.error(err);
-    }
     const [bgImg, ovImg] = await loadAllImages(values);
     if (!bgImg) return;
 
@@ -561,7 +603,6 @@ async function update(values: TableUpdate) {
   }
 }
 
-// eslint-disable-next-line no-restricted-globals
 self.onmessage = async (evt) => {
   console.log(evt.data.cmd);
   switch (evt.data.cmd) {
@@ -701,8 +742,8 @@ self.onmessage = async (evt) => {
           overlayCtx.fillStyle = GUIDE_FILL;
           recording = true;
           // _token_adjust = 0;
-          _token_dw = vamp.width;
-          _token_dh = vamp.height;
+          // _token_dw = vamp.width;
+          // _token_dh = vamp.height;
           requestAnimationFrame(animateToken);
         }
       } else if (evt.data.buttons === 1) {
@@ -714,7 +755,24 @@ self.onmessage = async (evt) => {
           overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
           fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
         }
-        renderBrush(evt.data.x, evt.data.y, brush);
+        renderToken(evt.data.x, evt.data.y);
+      }
+      break;
+    }
+    case "set_token": {
+      if ("token" in evt.data && "bearer" in evt.data) {
+        _token = evt.data.token;
+        const location = _token?.asset?.location;
+        if (location) {
+          loadImage(location, evt.data.bearer)
+            .then((img) => setToken(img))
+            .catch((err) => {
+              setToken();
+              console.error(`ERROR: unable to load token image: ${err}`);
+            });
+        } else {
+          setToken();
+        }
       }
       break;
     }
@@ -747,6 +805,8 @@ self.onmessage = async (evt) => {
       startY = -1;
       endX = -1;
       endY = -1;
+      // restore the clean (no opaque brush indicator/token indicator where the mouse was) overlay
+      renderImage(overlayCtx, imageCanvasses, _angle);
       break;
     }
     case "end_erase": {
@@ -785,6 +845,13 @@ self.onmessage = async (evt) => {
       startY = -1;
       endX = -1;
       endY = -1;
+      break;
+    }
+    case "end_token": {
+      recording = false;
+      panning = false;
+      renderToken(startX, startY, false);
+      storeOverlay();
       break;
     }
     case "obscure": {
@@ -861,14 +928,20 @@ self.onmessage = async (evt) => {
       //
       // this caused a https://github.com/micahg/tbltp/issues/319 because `vamp`
       // was undefined when calculateToken tried to access its properties.
-      //
-      // calculateToken(_token_delta);
-      brush += MIN_BRUSH;
+
+      if (evt.data.action === "token") {
+        calculateToken(_token_delta);
+      } else {
+        brush += MIN_BRUSH;
+      }
       break;
     }
     case "brush_dec": {
-      // calculateToken(-_token_delta);
-      brush -= brush > MIN_BRUSH ? MIN_BRUSH : 0;
+      if (evt.data.action === "token") {
+        calculateToken(-_token_delta);
+      } else {
+        brush -= brush > MIN_BRUSH ? MIN_BRUSH : 0;
+      }
       break;
     }
     default: {
