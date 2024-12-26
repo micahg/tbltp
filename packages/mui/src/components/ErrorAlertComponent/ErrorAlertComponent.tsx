@@ -4,9 +4,15 @@ import { AppReducerState } from "../../reducers/AppReducer";
 import CloseIcon from "@mui/icons-material/Close";
 import { useEffect } from "react";
 
-const ErrorAlertComponent = () => {
+interface ErrorAlertComponentProps {
+  sticky?: boolean;
+}
+
+const ErrorAlertComponent = ({ sticky }: ErrorAlertComponentProps) => {
   const dispatch = useDispatch();
   const error = useSelector((state: AppReducerState) => state.content.err);
+
+  console.log(`sticky: ${sticky}`);
 
   useEffect(() => {
     // clear the error if there is one
@@ -16,7 +22,14 @@ const ErrorAlertComponent = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <Box>
+    <Box
+      sx={{
+        position: sticky === true ? "sticky" : "relative",
+        top: sticky === true ? "6px" : undefined,
+        padding: sticky === true ? "12px" : undefined,
+        width: "100%",
+      }}
+    >
       {error?.success === false && (
         <Alert
           severity="error"

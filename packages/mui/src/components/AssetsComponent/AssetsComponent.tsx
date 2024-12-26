@@ -53,7 +53,7 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
   return (
     // 100vh - 64px for the toolbar - 8px for the paddings
     <Box sx={{ overflow: "auto", height: `calc(100vh - 72px)` }}>
-      <ErrorAlertComponent />
+      <ErrorAlertComponent sticky={true} />
       <Grid container columns={{ xs: 2, sm: 2, md: 2 }}>
         {assets !== undefined &&
           assets.map((asset: Asset) => (
