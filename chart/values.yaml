@@ -4,7 +4,7 @@ releaseVersion: 0.0.1
 deployEnv: local
 uiAppName: ntt-ui
 uiAppReplicas: 1
-uiImageVers: 0.10.0
+uiImageVers: 0.11.0
 uiImagePath: ghcr.io/micahg/tbltp-mui
 uiDomain: "tbltp.dev"
 webDomain: "www.tbltp.dev"
