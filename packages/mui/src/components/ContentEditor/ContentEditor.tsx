@@ -810,8 +810,6 @@ const ContentEditor = ({
 
     // don't pull everything if we already scene data
     if (sceneId) return;
-
-    dispatch({ type: "content/pull" });
   }, [apiUrl, dispatch, toolbarPopulated, auth, noauth, sceneId]);
 
   return (

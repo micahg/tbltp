@@ -39,7 +39,7 @@ export const EnvironmentMiddleware: Middleware =
             action.payload.data.API_URL = infApiUrl;
           }
 
-          // same goes for webservices - as above so below
+          // same goes for websocket - as above so below
           const infWSUrl = `ws://${window.location.hostname}:${apiPort}`;
           if (
             action.payload.data.WS_URL === "ws://localhost:3000/" &&

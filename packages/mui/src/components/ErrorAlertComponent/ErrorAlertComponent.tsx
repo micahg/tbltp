@@ -12,8 +12,6 @@ const ErrorAlertComponent = ({ sticky }: ErrorAlertComponentProps) => {
   const dispatch = useDispatch();
   const error = useSelector((state: AppReducerState) => state.content.err);
 
-  console.log(`sticky: ${sticky}`);
-
   useEffect(() => {
     // clear the error if there is one
     return () => {

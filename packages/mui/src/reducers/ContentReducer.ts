@@ -50,7 +50,7 @@ const initialState: ContentReducerState = {
 export const ContentReducer = (state = initialState, action: PayloadAction) => {
   switch (action.type) {
     case "content/push":
-      return { ...state, pushTime: action.payload };
+      return { ...state, pushTime: new Date().getTime() };
     case "content/pull": {
       const table: TableTop = action.payload as unknown as TableTop;
       const tableSceneIdx = state.scenes.findIndex(

@@ -203,6 +203,7 @@ const GameMasterComponent = () => {
     if (!dispatch) return;
     if (!noauth && !authClient) return;
     if (noauth || auth) {
+      dispatch({ type: "content/pull" });
       dispatch({ type: "content/scenes" });
       dispatch({ type: "content/tokens" });
       dispatch({ type: "content/assets" });

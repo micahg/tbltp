@@ -27,6 +27,10 @@ export interface AssetUpdate {
   progress?: (evt: AxiosProgressEvent) => void;
 }
 
+interface SceneUpdate {
+  scene: string;
+}
+
 function isAssetUpdate(payload: File | AssetUpdate): payload is AssetUpdate {
   return (payload as AssetUpdate).asset !== undefined;
 }
@@ -37,19 +41,21 @@ function isBlob(payload: URL | Blob): payload is File {
 
 type Operation = "get" | "put" | "delete";
 
+type OperationType = Asset | Token | SceneUpdate;
+
 const FriendlyOperation: { [key in Operation]: string | undefined } = {
   get: undefined,
   put: "Update succesfull",
   delete: "Deletion successful",
 };
 
-function inferPath(op: Operation, path: string, t: Asset | Token): string {
+function inferPath(op: Operation, path: string, t: OperationType): string {
   // no id for get, put expects an id in the body (or its a new entity)
   return op === "delete" && t !== undefined && "_id" in t
     ? `${path}/${t._id}`
     : path;
 }
-async function request<T extends Asset | Token>(
+async function request<T extends OperationType>(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   op: Operation,
@@ -60,11 +66,11 @@ async function request<T extends Asset | Token>(
   const url = `${state.environment.api}/${path}`;
   const headers = await getToken(state, store);
   let fn;
-  if (op == "put")
+  if (op === "put") {
     fn = axios[op](url, t, {
       headers: headers,
     });
-  else fn = axios[op](url, { headers: headers });
+  } else fn = axios[op](url, { headers: headers });
 
   try {
     const resp = await fn;
@@ -74,7 +80,7 @@ async function request<T extends Asset | Token>(
   }
 }
 
-async function operate<T extends Asset | Token>(
+async function operate<T extends OperationType>(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   next: Dispatch<AnyAction>,
@@ -113,21 +119,6 @@ async function operate<T extends Asset | Token>(
     next({ type: "content/error", payload: err });
   }
 }
-// async function retrieve(
-//   state: AppReducerState,
-//   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-//   path: string,
-//   action: unknown & { type: string; payload: T },
-// ) {
-//   const url = `${state.environment.api}/${path}`;
-//   getToken(state, store)
-//     .then((headers) => axios.get(url, { headers: headers }))
-//     .then((value) => next({ type: action.type, payload: value.data }))
-//     .catch((err) =>
-//       // TODO MICAH display error
-//       console.error(`Unable to fetch assets: ${JSON.stringify(err)}`),
-//     );
-// }
 
 async function updateAssetData(
   state: AppReducerState,
@@ -270,34 +261,25 @@ export const ContentMiddleware: Middleware =
       }
       case "content/push":
         {
+          /**
+           * The ContentEditor doesn't actually tell us anything
+           * about the scene, just which scene we're pushing. The overlay or
+           * background updates independently, and this call just refreshes the
+           * tabletop with the current scene so the remote display is updated.
+           */
           const scene: Scene = state.content.currentScene;
           if (!scene) return next(action);
-          const url = `${state.environment.api}/state`;
-          getToken(state, store)
-            .then((headers) =>
-              axios.put(url, { scene: scene._id }, { headers: headers }),
-            )
-            .then(() => {
-              action.payload = new Date().getTime();
-              next(action);
-            })
-            .catch((err) => {
-              // TODO MICAH DISPLAY ERROR
-              console.error(`Unable to update state: ${JSON.stringify(err)}`);
-              next(action);
-            });
+          if (!scene._id) return next(action);
+          const upd: SceneUpdate = { scene: scene._id };
+          operate(state, store, next, "put", "state", {
+            ...action,
+            payload: upd,
+          });
         }
         break;
       case "content/pull":
         {
-          const url = `${state.environment.api}/state`;
-          getToken(state, store)
-            .then((headers) => axios.get(url, { headers: headers }))
-            .then((value) => next({ ...action, payload: value.data }))
-            .catch((err) => {
-              // TODO MICAH display error
-              console.error(`Unable to get state: ${JSON.stringify(err)}`);
-            });
+          operate(state, store, next, "get", "state", action);
         }
         break;
       case "content/player":
