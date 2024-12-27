@@ -7,6 +7,7 @@ import {
   getValidExtension,
   updateAssetFromFile,
 } from "../utils/localstore";
+import { knownMongoError } from "../utils/errors";
 
 export async function listAssets(
   req: Request,
@@ -43,11 +44,7 @@ export async function createOrUpdateAsset(
     }
     return res.status(204).send();
   } catch (err) {
-    if ("name" in err && err.name === "MongoServerError") {
-      if (err.code === 11000) {
-        return next({ status: 409 });
-      }
-    }
+    if (knownMongoError(err, next)) return;
     log.error(`Unable to create asset: ${err.message}`);
     return next({ status: err.cause || 500 });
   }

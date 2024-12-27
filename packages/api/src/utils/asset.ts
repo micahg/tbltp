@@ -2,6 +2,7 @@ import { Asset, AssetModel, IAsset } from "../models/asset";
 import { IUser } from "../models/user";
 import { NAME_REGEX } from "../routes/scene";
 import { checkSchema } from "express-validator";
+import { knownMongoError } from "./errors";
 
 export function assetValidator() {
   return checkSchema({
@@ -64,11 +65,7 @@ export async function createUserAsset(user: IUser, asset: Asset) {
     dbAsset.user = user._id;
     return await AssetModel.create(dbAsset);
   } catch (err) {
-    if ("name" in err && err.name === "MongoServerError") {
-      if (err.code === 11000) {
-        throw new Error("Asset name already exists", { cause: 409 });
-      }
-    }
+    knownMongoError(err);
   }
 }
 
