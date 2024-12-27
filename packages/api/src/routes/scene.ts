@@ -57,21 +57,23 @@ export function getScenes(req: Request, res: Response, next: NextFunction) {
     .catch(() => next({ status: 500 }));
 }
 
-export function deleteScene(req: Request, res: Response) {
+export function deleteScene(req: Request, res: Response, next: NextFunction) {
   return getUser(req.auth)
     .then((user) => userExistsOr401(user))
     .then((user) => deleteUserScene(user, req.params.id))
-    .then(() => res.sendStatus(204));
+    .then(() => res.sendStatus(204))
+    .catch((err) => next(err));
 }
 
-export function createScene(req: Request, res: Response) {
+export function createScene(req: Request, res: Response, next: NextFunction) {
   return getUser(req.auth)
     .then((user) => userExistsOr401(user))
     .then((user) => {
       validateScene(req.body);
       return createUserScene(user, req.body);
     })
-    .then((scene) => res.send(scene));
+    .then((scene) => res.send(scene))
+    .catch((err) => next(err));
 }
 
 export function updateSceneContent(
