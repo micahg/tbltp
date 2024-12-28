@@ -12,24 +12,31 @@ import RemoteDisplayComponent from "./components/RemoteDisplayComponent/RemoteDi
 import GameMasterComponent from "./components/GameMasterComponent/GameMasterComponent.lazy";
 import DeviceCodeComponent from "./components/DeviceCodeComponent/DeviceCodeComponent.lazy";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import UnavailableComponent from "./components/UnavailableComponent/UnavailableComponent";
 
 const routes = [];
 routes.push({ path: "/", element: <LandingComponent />, errorElement: null });
 routes.push({
   path: "/display",
   element: <RemoteDisplayComponent />,
-  errorElement: null,
+  errorElement: <UnavailableComponent />,
 });
 routes.push({
   path: "/edit",
   element: <GameMasterComponent />,
-  errorElement: null,
+  errorElement: <UnavailableComponent />,
 });
 routes.push({
   path: "/device",
   element: <DeviceCodeComponent />,
+  errorElement: <UnavailableComponent />,
+});
+routes.push({
+  path: "/unavailable",
+  element: <UnavailableComponent />,
   errorElement: null,
 });
+
 const router = createBrowserRouter(routes);
 
 const store = configureStore({

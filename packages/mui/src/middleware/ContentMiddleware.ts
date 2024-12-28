@@ -103,12 +103,20 @@ async function operate<T extends OperationType>(
       next({ type: "content/error", payload: err });
     }
   } catch (error) {
-    let msg = `Unable to create ${path}`;
+    let msg = `Unable to ${op} ${path}`;
     if (error instanceof Error) {
       if (axios.isAxiosError(error.cause)) {
         console.error(`Operation failure: ${JSON.stringify(error.cause)}`);
-        if (error.cause.response?.status === 409) {
-          msg = `${path} name already exists`;
+        if (error.cause.response) {
+          const status = error.cause.response.status;
+          if (status === 409) {
+            msg = `${path} name already exists`;
+          } else if (status >= 500) {
+            const b64err = window.btoa(
+              error.stack ? error.stack : error.toString(),
+            );
+            window.location.href = `/unavailable?error=${b64err}`;
+          }
         }
       }
     }
