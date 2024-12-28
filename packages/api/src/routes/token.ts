@@ -3,6 +3,7 @@ import { getOrCreateUser } from "../utils/user";
 import { log } from "../utils/logger";
 import { createUserToken, getUserToken, listUserTokens } from "../utils/token";
 import { getUserAsset } from "../utils/asset";
+import { knownMongoError } from "../utils/errors";
 
 export async function listTokens(
   req: Request,
@@ -63,6 +64,7 @@ export async function createOrUpdateToken(
     const retval = await createUserToken(user, req.body);
     return res.status(201).json(retval);
   } catch (err) {
+    if (knownMongoError(err, next)) return;
     log.error(`Unable to create asset: ${err.message}`);
     return next({ status: err.cause || 500 });
   }

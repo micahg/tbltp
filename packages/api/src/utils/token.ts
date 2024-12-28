@@ -3,6 +3,7 @@ import { NAME_REGEX } from "../routes/scene";
 import { MAX_HP, MIN_HP } from "@micahg/tbltp-common";
 import { IUser } from "../models/user";
 import { IToken, TokenModel } from "../models/token";
+import { knownMongoError } from "./errors";
 
 const TOKEN_MASK = "name visible asset hitPoints";
 
@@ -89,10 +90,6 @@ export async function createUserToken(user: IUser, token: IToken) {
     const result = await TokenModel.create(token);
     return result;
   } catch (err) {
-    if ("name" in err && err.name === "MongoServerError") {
-      if (err.code === 11000) {
-        throw new Error("Token name already exists", { cause: 409 });
-      }
-    }
+    knownMongoError(err);
   }
 }
