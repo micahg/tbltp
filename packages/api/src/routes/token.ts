@@ -39,6 +39,9 @@ export async function createOrUpdateToken(
     if ("_id" in req.body) {
       let updated = false;
       const token = await getUserToken(user, req.body._id);
+
+      const hadAsset = !!token.asset;
+
       if (token.name != req.body.name) {
         token.name = req.body.name;
         updated = true;
@@ -55,7 +58,12 @@ export async function createOrUpdateToken(
       if (withAsset) {
         token.asset = asset._id;
         updated = true;
+      } else if (hadAsset) {
+        // asset explicitly unset
+        token.asset = undefined;
+        updated = true;
       }
+
       if (updated) {
         return res.json(await token.save());
       }

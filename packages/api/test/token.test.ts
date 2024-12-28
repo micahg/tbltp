@@ -1,6 +1,6 @@
 process.env["DISABLE_AUTH"] = "true";
 
-import { Collection, MongoClient } from "mongodb";
+import { BSON, Collection, MongoClient, ObjectId } from "mongodb";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
 import { app, serverPromise, shutDown, startUp } from "../src/server";
@@ -12,6 +12,7 @@ let mongodb: MongoMemoryServer;
 let mongocl: MongoClient;
 let tokensCollection: Collection;
 let usersCollection: Collection;
+let assetsCollection: Collection;
 
 jest.mock("../src/utils/auth");
 
@@ -25,6 +26,7 @@ beforeAll((done) => {
       const db = mongocl.db("ntt");
       usersCollection = db.collection("users");
       tokensCollection = db.collection("tokens");
+      assetsCollection = db.collection("assets");
 
       (getOAuthPublicKey as jest.Mock).mockReturnValue(
         Promise.resolve("pubkey"),
@@ -247,9 +249,87 @@ describe("token", () => {
       }
       expect(resp.statusCode).toBe(400);
     });
+
+    it("Should update the token asset", async () => {
+      let resp;
+      try {
+        resp = await request(app).put("/token").send({ name: "test" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      const tokenId = resp.body._id as string;
+      try {
+        resp = await request(app).put("/asset").send({ name: "test" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      const assetId = resp.body._id;
+      try {
+        resp = await request(app).put("/token").send({
+          _id: tokenId,
+          name: "test",
+          asset: assetId,
+        });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      const allTokens = await tokensCollection.find({}).toArray();
+      console.log(allTokens);
+      const token = await tokensCollection.findOne({
+        _id: { $eq: new BSON.ObjectId(tokenId) },
+      });
+      expect(token).toBeDefined();
+      expect(token?.asset.toString()).toBe(assetId);
+    });
+    it("Should delete the token asset", async () => {
+      let resp;
+
+      try {
+        resp = await request(app).put("/asset").send({ name: "test" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      const assetId = resp.body._id;
+
+      try {
+        resp = await request(app)
+          .put("/token")
+          .send({ name: "test", asset: assetId, hitPoints: 10 });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      const tokenId = resp.body._id as string;
+      let token = await tokensCollection.findOne({
+        _id: { $eq: new BSON.ObjectId(tokenId) },
+      });
+      expect(token).toBeDefined();
+      expect(token?.hitPoints).toBe(10);
+      expect(token?.asset.toString()).toBe(assetId);
+
+      try {
+        resp = await request(app).put("/token").send({
+          _id: tokenId,
+          name: "test",
+        });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+
+      token = await tokensCollection.findOne({
+        _id: { $eq: new BSON.ObjectId(tokenId) },
+      });
+      expect(token).toBeDefined();
+      expect(token!.hitPoints).toBeUndefined();
+      expect(token!.asset).toBeUndefined();
+    });
     afterEach(async () => {
       await tokensCollection.deleteMany({}); // Clean up the database
       await usersCollection.deleteMany({}); // Clean up the database
+      await assetsCollection.deleteMany({}); // Clean up the database
     });
   });
   describe("list", () => {
