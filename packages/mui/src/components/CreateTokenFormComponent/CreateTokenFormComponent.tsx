@@ -27,6 +27,20 @@ interface CreateTokenFormComponentProps {
   modal?: boolean;
 }
 
+export const TwoMinuteTableTop = () => (
+  <p>
+    Need tokens? Try{" "}
+    <a
+      href="https://tools.2minutetabletop.com/"
+      target="_blank"
+      rel="noreferrer"
+    >
+      2-Minute Tabletop
+    </a>{" "}
+    and add them to your assets.
+  </p>
+);
+
 const CreateTokenFormComponent = ({
   token,
   modal,
@@ -109,6 +123,7 @@ const CreateTokenFormComponent = ({
         }}
       >
         {modal && <ErrorAlertComponent />}
+        {modal && <TwoMinuteTableTop />}
         <FormControl fullWidth>
           <Controller
             name="name"
