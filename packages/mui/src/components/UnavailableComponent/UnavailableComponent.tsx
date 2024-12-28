@@ -1,5 +1,5 @@
 import { Box, Paper, Typography } from "@mui/material";
-import styles from "./UnavailableComponent.module.css";
+// import styles from "./UnavailableComponent.module.css";
 
 // interface UnavailableComponentProps {}
 
