@@ -39,7 +39,7 @@ export const EnvironmentMiddleware: Middleware =
             action.payload.data.API_URL = infApiUrl;
           }
 
-          // same goes for websocket - as above so below
+          // same goes for webservices - as above so below
           const infWSUrl = `ws://${window.location.hostname}:${apiPort}`;
           if (
             action.payload.data.WS_URL === "ws://localhost:3000/" &&
@@ -56,9 +56,13 @@ export const EnvironmentMiddleware: Middleware =
         .then((client) =>
           next({ type: "environment/authclient", payload: client }),
         )
-        .catch((reason) => {
-          // TODO trigger an error
-          console.error(`FAILED TO ENV CONFIG FETCH ${JSON.stringify(reason)}`);
+        .catch(() => {
+          const errPath = "/unavailable";
+          if (window.location.pathname === errPath) return;
+          const b64err = window.btoa(
+            `Unable to fetch environment configuration`,
+          );
+          window.location.href = `${errPath}?error=${b64err}`;
         });
     } else if (action.type === "environment/authenticate") {
       if (storeAPI.getState().environment.authStarted) return next(action);
