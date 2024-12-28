@@ -8,6 +8,7 @@ import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy
 import { Token } from "@micahg/tbltp-common";
 import { AppReducerState } from "../../reducers/AppReducer";
 import CreateTokenFormComponent from "../CreateTokenFormComponent/CreateTokenFormComponent.lazy";
+import { TwoMinuteTableTop } from "../CreateTokenFormComponent/CreateTokenFormComponent";
 
 interface TokensComponentProps {
   populateToolbar?: (actions: GameMasterAction[]) => void;
@@ -57,6 +58,9 @@ const TokensComponent = ({ populateToolbar }: TokensComponentProps) => {
     // 100vh - 64px for the toolbar - 8px for the paddings
     <Box sx={{ overflow: "auto", height: `calc(100vh - 72px)` }}>
       <ErrorAlertComponent sticky={true} />
+      <Box sx={{ paddingLeft: "12px", paddingRight: "12px" }}>
+        <TwoMinuteTableTop />
+      </Box>
       <Grid container columns={{ xs: 2, sm: 2, md: 2 }}>
         {tokens &&
           tokens.map((token: Token) => (
