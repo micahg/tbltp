@@ -102,10 +102,12 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
         createImageBitmap(file).then((i) => {
           const a = [i.width, i.height];
           const b = playerWH;
+          const detailRatio = Math.round((100 * i.width) / i.height);
+          const playerRatio = Math.round((100 * b[0]) / b[1]);
           renderImage(i, dCanvas);
           setDetailWH(a);
           setResolutionMismatch(
-            b.length === 2 && (a[0] !== b[0] || a[1] !== b[1]),
+            !Number.isNaN(playerRatio) && detailRatio !== playerRatio,
           );
         });
         setDetailFile(file);
@@ -114,10 +116,12 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
         createImageBitmap(file).then((i) => {
           const a = [i.width, i.height];
           const b = detailWH;
+          const playerRatio = Math.round((100 * i.width) / i.height);
+          const detailRatio = Math.round((100 * b[0]) / b[1]);
           setPlayerWH(a);
           renderImage(i, pCanvas);
           setResolutionMismatch(
-            b.length === 2 && (a[0] !== b[0] || a[1] !== b[1]),
+            !Number.isNaN(detailRatio) && detailRatio !== playerRatio,
           );
         });
         setPlayerFile(file);
