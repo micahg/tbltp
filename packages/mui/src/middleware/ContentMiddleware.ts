@@ -3,7 +3,7 @@ import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { getToken } from "../utils/auth";
 import { ContentReducerError, Scene } from "../reducers/ContentReducer";
-import { Asset, Rect, Token } from "@micahg/tbltp-common";
+import { Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 
@@ -41,7 +41,7 @@ function isBlob(payload: URL | Blob): payload is File {
 
 type Operation = "get" | "put" | "delete";
 
-type OperationType = Asset | Token | SceneUpdate;
+type OperationType = Asset | Token | SceneUpdate | TokenInstance;
 
 const FriendlyOperation: { [key in Operation]: string | undefined } = {
   get: undefined,
@@ -222,6 +222,9 @@ export const ContentMiddleware: Middleware =
         operate(state, store, next, "delete", "token", action);
         break;
       }
+      case "content/token_placed":
+        operate(state, store, next, "put", "tokeninstance", action);
+        break;
       case "content/updateasset":
         operate(state, store, next, "put", "asset", action);
         break;
