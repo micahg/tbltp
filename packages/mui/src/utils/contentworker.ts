@@ -730,32 +730,15 @@ self.onmessage = async (evt) => {
       break;
     }
     case "token": {
+      // tokens behave differently than brushes - brushes "record" the mouse movement when no button
+      // is pressed and then paint directly to the canvases when it is. Tokens just record until the
+      // the mouse button is pressed and then released. The token is then placed at the last mouse
+      // position where by the end_token command.
       startX = evt.data.x;
       startY = evt.data.y;
-      // here we do not turn recording on or off (thats handled by the move/record/end events elsewhere)
-      // also "recording" is not "painting" TODO MICAH COME BACK HERE AND CONFIRM ITS ABOUT CANVAS ANIMATION
-      // where we do not paint (painting is separate from drawing the selection or the translucent brush)
-      if (evt.data.buttons === 0) {
-        // here we don't draw BUT if you look at animateBrush, you'll see that we'll just repaint the
-        // overlay and then render the translucent brush
-        if (!recording) {
-          overlayCtx.fillStyle = GUIDE_FILL;
-          recording = true;
-          // _token_adjust = 0;
-          // _token_dw = vamp.width;
-          // _token_dh = vamp.height;
-          requestAnimationFrame(animateToken);
-        }
-      } else if (evt.data.buttons === 1) {
-        // here however we just update the canvas with the actual brush. It seems that the fill call
-        // in renderBrush will force the canvas to update so there isn't much point in using animation
-        // frames
-        if (recording) {
-          recording = false;
-          overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
-          fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
-        }
-        renderToken(evt.data.x, evt.data.y);
+      if (!recording) {
+        recording = true;
+        requestAnimationFrame(animateToken);
       }
       break;
     }
@@ -848,9 +831,14 @@ self.onmessage = async (evt) => {
       break;
     }
     case "end_token": {
+      /**
+       * end_token is triggered on "complete" from the statemachine which is triggered
+       * by the mouse up event. startX and startY will be the last mouse position while
+       * the mouse was down. This is the position where the token will be placed.
+       */
       recording = false;
       panning = false;
-      renderToken(startX, startY, false);
+      renderToken(startX, startY);
       storeOverlay();
       break;
     }
