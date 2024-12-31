@@ -20,7 +20,11 @@ import {
   adjustImageToViewport,
   adjustTokenDimensions,
 } from "./geometry";
-import { HydratedToken, Rect } from "@micahg/tbltp-common";
+import {
+  HydratedToken,
+  Rect,
+  ScenelessTokenInstance,
+} from "@micahg/tbltp-common";
 
 /**
  * Worker for offscreen drawing in the content editor.
@@ -836,10 +840,24 @@ self.onmessage = async (evt) => {
        * by the mouse up event. startX and startY will be the last mouse position while
        * the mouse was down. This is the position where the token will be placed.
        */
+      if (!_token || !_token._id) {
+        // TODO report this error to the main thread
+        console.error(`ERROR: no token set in end_token`);
+        return;
+      }
       recording = false;
       panning = false;
       renderToken(startX, startY);
       storeOverlay();
+      const instance: ScenelessTokenInstance = {
+        token: _token._id,
+        name: _token.name,
+        visible: _token.visible,
+        x: startX,
+        y: startY,
+        scale: _zoom,
+      };
+      postMessage({ cmd: "token_placed", instance: instance });
       break;
     }
     case "obscure": {

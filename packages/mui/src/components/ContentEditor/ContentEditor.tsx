@@ -47,7 +47,12 @@ import {
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { LoadProgress } from "../../utils/content";
-import { Rect, HydratedToken } from "@micahg/tbltp-common";
+import {
+  Rect,
+  HydratedToken,
+  TokenInstance,
+  ScenelessTokenInstance,
+} from "@micahg/tbltp-common";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 
 const sm = new MouseStateMachine();
@@ -244,7 +249,7 @@ const ContentEditor = ({
    */
   const handleWorkerMessage = useCallback(
     (evt: MessageEvent<unknown>) => {
-      // bump the overlay version so it gets sent
+      if (!scene?._id) return;
       if (!evt.data || typeof evt.data !== "object") return;
       if (!("cmd" in evt.data)) return;
       if (evt.data.cmd === "overlay") {
@@ -304,9 +309,16 @@ const ContentEditor = ({
           for (const [, v] of Object.entries(downloads)) value += v;
           setDownloadProgress((value * 100) / length);
         }
+      } else if (evt.data.cmd === "token_placed") {
+        if (!("instance" in evt.data)) return;
+        const instance: TokenInstance = {
+          ...(evt.data.instance as ScenelessTokenInstance),
+          scene: scene._id,
+        };
+        dispatch({ type: "content/token_placed", payload: instance });
       }
     },
-    [dispatch, downloads, ovRev],
+    [dispatch, downloads, ovRev, scene],
   );
 
   useEffect(() => {
