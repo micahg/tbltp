@@ -19,14 +19,14 @@ export function tokenValidator() {
       },
       matches: {
         options: NAME_REGEX,
-        errorMessage: "Invalid asset name",
+        errorMessage: "Invalid token name",
       },
     },
     _id: {
       in: ["body"],
       optional: true,
       isMongoId: {
-        errorMessage: "Invalid asset ID",
+        errorMessage: "Invalid token ID",
       },
     },
     visible: {
