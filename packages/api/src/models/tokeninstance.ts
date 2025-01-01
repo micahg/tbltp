@@ -18,6 +18,7 @@ interface ITokenInstance extends TokenInstance {
   _id?: Schema.Types.ObjectId;
   user: Schema.Types.ObjectId;
   scene: Schema.Types.ObjectId;
+  token: Schema.Types.ObjectId;
   visible: boolean;
   hitPoints?: number;
   x: number;
@@ -46,6 +47,9 @@ const TokenInstanceSchema = new Schema<ITokenInstance>(
 );
 TokenInstanceSchema.index({ user: 1, scene: 1 }, { unique: true });
 
-const TokenInstanceModel = model<ITokenInstance>("Token", TokenInstanceSchema);
+const TokenInstanceModel = model<ITokenInstance>(
+  "TokenInstance",
+  TokenInstanceSchema,
+);
 
 export { TokenInstanceModel, ITokenInstance };

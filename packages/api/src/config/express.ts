@@ -18,6 +18,7 @@ import {
   ASSET_PATH,
   ALL_TOKEN_PATH,
   TOKEN_PATH,
+  ALL_TOKEN_INSTANCE_PATH,
 } from "../utils/constants";
 import { getState, updateState } from "../routes/state";
 
@@ -49,6 +50,8 @@ import {
 import { stateValidator } from "../utils/state";
 import { tokenDeleteValidator, tokenValidator } from "../utils/token";
 import { createOrUpdateToken, deleteToken, listTokens } from "../routes/token";
+import { createOrUpdateTokenInstance } from "../routes/tokeninstance";
+import { tokenInstanceValidator } from "../utils/tokeninstance";
 
 /**
  * Since we can't authorize img HTML tags, allow the token to be passed as a
@@ -64,6 +67,7 @@ function copyAuthParam(
   }
   next();
 }
+
 function getJWTCheck(noauth: boolean) {
   const aud: string = process.env.AUDIENCE_URL || "http://localhost:3000/";
   const iss: string = process.env.ISSUER_URL || "https://nttdev.us.auth0.com/";
@@ -254,6 +258,13 @@ export function create(): Express {
     tokenDeleteValidator(),
     schemaErrorCheck,
     deleteToken,
+  );
+  app.put(
+    ALL_TOKEN_INSTANCE_PATH,
+    jwtCheck,
+    tokenInstanceValidator(),
+    schemaErrorCheck,
+    createOrUpdateTokenInstance,
   );
 
   // handle errors
