@@ -19,6 +19,7 @@ interface ITokenInstance extends TokenInstance {
   user: Schema.Types.ObjectId;
   scene: Schema.Types.ObjectId;
   token: Schema.Types.ObjectId;
+  name: string;
   visible: boolean;
   hitPoints?: number;
   x: number;

@@ -28,6 +28,16 @@ const minTokenInstance: TokenInstance = {
   visible: true,
 };
 
+const updatedMinTokenInstance: TokenInstance = {
+  name: "qwer",
+  scene: "111111111111111111111111",
+  token: "111111111111111111111111",
+  x: 1,
+  y: 1,
+  scale: 2,
+  visible: false,
+};
+
 beforeAll((done) => {
   // mongo 7 needs wild tiger
   MongoMemoryServer.create({ instance: { storageEngine: "wiredTiger" } }).then(
@@ -67,20 +77,20 @@ afterAll(() => {
 
 describe("token instance", () => {
   // start each test with the zero user as the calling user
+  beforeEach(async () => {
+    (getFakeUser as jest.Mock).mockReturnValue(userZero);
+    await tokensCollection.deleteMany({}); // Clean up the database
+    await usersCollection.deleteMany({}); // Clean up the database
+    await tokenInstancesCollection.deleteMany({}); // Clean up the database
+    await sceneCollection.deleteMany({}); // Clean up the database
+  });
+  afterEach(async () => {
+    await tokensCollection.deleteMany({}); // Clean up the database
+    await usersCollection.deleteMany({}); // Clean up the database
+    await tokenInstancesCollection.deleteMany({}); // Clean up the database
+    await sceneCollection.deleteMany({}); // Clean up the database
+  });
   describe("creation", () => {
-    beforeEach(async () => {
-      (getFakeUser as jest.Mock).mockReturnValue(userZero);
-      await tokensCollection.deleteMany({}); // Clean up the database
-      await usersCollection.deleteMany({}); // Clean up the database
-      await tokenInstancesCollection.deleteMany({}); // Clean up the database
-      await sceneCollection.deleteMany({}); // Clean up the database
-    });
-    afterEach(async () => {
-      await tokensCollection.deleteMany({}); // Clean up the database
-      await usersCollection.deleteMany({}); // Clean up the database
-      await tokenInstancesCollection.deleteMany({}); // Clean up the database
-      await sceneCollection.deleteMany({}); // Clean up the database
-    });
     it("Should not create an empty token instance", async () => {
       let resp;
       try {
@@ -200,124 +210,116 @@ describe("token instance", () => {
       expect(resp.statusCode).toBe(404);
     });
   });
-  // describe("update", () => {
-  //   beforeEach(async () => {
-  //     (getFakeUser as jest.Mock).mockReturnValue(userZero);
-  //   });
-  //   it("Should update the token name", async () => {
-  //     let resp;
-  //     try {
-  //       resp = await request(app).put("/token").send({ name: "test" });
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(201);
-  //     expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
-  //     expect(resp.body.name).toBe("test");
-  //     const user = await usersCollection.findOne({ sub: userZero });
-  //     expect(user).toBeDefined();
-  //     expect(user).not.toBeNull();
-  //     const assets = await tokensCollection.find({ user: user!._id }).toArray();
-  //     expect(assets).toBeDefined();
-  //     expect(assets).not.toBeNull();
-  //     expect(assets).toHaveLength(1);
-  //     try {
-  //       resp = await request(app).put("/token").send({
-  //         _id: resp.body._id,
-  //         name: "test2",
-  //         visible: true,
-  //         hitPoints: 10,
-  //       });
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(200);
-  //     const assets2 = await tokensCollection
-  //       .find({ user: user!._id })
-  //       .toArray();
-  //     expect(assets2).toBeDefined();
-  //     expect(assets2).not.toBeNull();
-  //     expect(assets2).toHaveLength(1);
-  //     expect(assets2[0].name).toBe("test2");
-  //     expect(assets2[0].visible).toBe(true);
-  //     expect(assets2[0].hitPoints).toBe(10);
-  //   });
-  //   it("Should fail to update someone elses token", async () => {
-  //     let resp;
-  //     try {
-  //       resp = await request(app).put("/token").send({ name: "test" });
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(201);
-  //     expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
-  //     expect(resp.body.name).toBe("test");
-  //     const user = await usersCollection.findOne({ sub: userZero });
-  //     expect(user).toBeDefined();
-  //     expect(user).not.toBeNull();
-  //     const tokens = await tokensCollection.find({ user: user!._id }).toArray();
-  //     expect(tokens).toBeDefined();
-  //     expect(tokens).not.toBeNull();
-  //     expect(tokens).toHaveLength(1);
+  describe("update", () => {
+    test.each(Object.keys(minTokenInstance))(
+      "Should fail with %s missing",
+      async (key) => {
+        // create a scene
+        const sceneResponse = await request(app).get("/scene");
+        expect(sceneResponse.statusCode).toBe(200);
 
-  //     (getFakeUser as jest.Mock).mockReturnValue(userOne);
-  //     try {
-  //       resp = await request(app).put("/token").send({
-  //         _id: resp.body._id,
-  //         name: "test2",
-  //         visible: true,
-  //         hitPoints: 10,
-  //         asset: resp.body._id,
-  //       });
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(400);
-  //   });
-  //   it("Should fail to update the token to someone elses asset", async () => {
-  //     let resp;
-  //     try {
-  //       resp = await request(app).put("/token").send({ name: "test" });
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(201);
-  //     expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
-  //     expect(resp.body.name).toBe("test");
-  //     const user = await usersCollection.findOne({ sub: userZero });
-  //     expect(user).toBeDefined();
-  //     expect(user).not.toBeNull();
-  //     const tokens = await tokensCollection.find({ user: user!._id }).toArray();
-  //     expect(tokens).toBeDefined();
-  //     expect(tokens).not.toBeNull();
-  //     expect(tokens).toHaveLength(1);
+        // create a token
+        const tokenResponse = await request(app)
+          .put("/token")
+          .send({ name: "test" });
+        expect(tokenResponse.statusCode).toBe(201);
 
-  //     (getFakeUser as jest.Mock).mockReturnValue(userOne);
-  //     try {
-  //       resp = await request(app).put("/asset").send({ name: "test" });
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
+        // create the token instance
+        const resp = await request(app).put("/tokeninstance").send({
+          name: "test",
+          token: tokenResponse.body._id,
+          scene: sceneResponse.body[0]._id,
+          x: 0,
+          y: 0,
+          scale: 1,
+          visible: true,
+        });
+        expect(resp.statusCode).toBe(201);
 
-  //     (getFakeUser as jest.Mock).mockReturnValue(userZero);
-  //     try {
-  //       resp = await request(app).put("/token").send({
-  //         _id: resp.body._id,
-  //         name: "test2",
-  //         visible: true,
-  //         hitPoints: 10,
-  //         asset: resp.body._id,
-  //       });
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(400);
-  //   });
-  //   afterEach(async () => {
-  //     await tokensCollection.deleteMany({}); // Clean up the database
-  //     await usersCollection.deleteMany({}); // Clean up the database
-  //   });
-  // });
+        const inst = { ...resp.body };
+        delete inst[key];
+
+        const resp2 = await request(app).put("/tokeninstance").send(inst);
+        expect(resp2.statusCode).toBe(400);
+      },
+    );
+    test.each(["scene", "token"])(
+      "Should fail with invalid %s",
+      async (key) => {
+        // create a scene
+        const sceneResponse = await request(app).get("/scene");
+        expect(sceneResponse.statusCode).toBe(200);
+
+        // create a token
+        const tokenResponse = await request(app)
+          .put("/token")
+          .send({ name: "test" });
+        expect(tokenResponse.statusCode).toBe(201);
+
+        // create the token instance
+        const resp = await request(app).put("/tokeninstance").send({
+          name: "test",
+          token: tokenResponse.body._id,
+          scene: sceneResponse.body[0]._id,
+          x: 0,
+          y: 0,
+          scale: 1,
+          visible: true,
+        });
+        expect(resp.statusCode).toBe(201);
+
+        const inst = { ...resp.body };
+        inst[key] = "asdf";
+        const resp2 = await request(app).put("/tokeninstance").send(inst);
+        expect(resp2.statusCode).toBe(400);
+      },
+    );
+    it("Should update a token instance", async () => {
+      // create a scene
+      const sceneResp = await request(app).get("/scene");
+      expect(sceneResp.statusCode).toBe(200);
+
+      // create a token
+      const tokenResp1 = await request(app)
+        .put("/token")
+        .send({ name: "test" });
+      expect(tokenResp1.statusCode).toBe(201);
+
+      const tokenResp2 = await request(app)
+        .put("/token")
+        .send({ name: "test2" });
+      expect(tokenResp1.statusCode).toBe(201);
+
+      // create the token instance
+      const resp = await request(app).put("/tokeninstance").send({
+        name: "test",
+        token: tokenResp1.body._id,
+        scene: sceneResp.body[0]._id,
+        x: 0,
+        y: 0,
+        scale: 1,
+        visible: true,
+      });
+      expect(resp.statusCode).toBe(201);
+
+      const inst = {
+        _id: resp.body._id,
+        ...updatedMinTokenInstance,
+        scene: sceneResp.body[0]._id,
+        token: tokenResp2.body._id,
+      };
+      const resp2 = await request(app).put("/tokeninstance").send(inst);
+      expect(resp2.statusCode).toBe(200);
+      expect(resp2.body._id).toBe(resp.body._id);
+      expect(resp2.body.name).toBe("qwer");
+      expect(resp2.body.scene).toBe(inst.scene);
+      expect(resp2.body.token).toBe(inst.token);
+      expect(resp2.body.x).toBe(1);
+      expect(resp2.body.y).toBe(1);
+      expect(resp2.body.scale).toBe(2);
+      expect(resp2.body.visible).toBe(false);
+    });
+  });
   // describe("list", () => {
   //   beforeEach(async () => {
   //     (getFakeUser as jest.Mock).mockReturnValue(userZero);
