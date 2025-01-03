@@ -1,9 +1,14 @@
 import { checkSchema } from "express-validator";
 import { NAME_REGEX } from "../routes/scene";
 import { MAX_HP, MIN_HP } from "@micahg/tbltp-common";
-import { ITokenInstance, TokenInstanceModel } from "../models/tokeninstance";
+import {
+  TokenInstance,
+  ITokenInstance,
+  TokenInstanceModel,
+} from "../models/tokeninstance";
 import { knownMongoError } from "./errors";
 import { IUser } from "../models/user";
+import mongoose from "mongoose";
 
 export function tokenInstanceValidator() {
   return checkSchema({
@@ -83,6 +88,15 @@ export function tokenInstanceValidator() {
     },
   });
 }
+
+export function getUserTokenInstance(user: IUser, id: string) {
+  return TokenInstanceModel.findOne({
+    _id: { $eq: id },
+    user: { $eq: user._id },
+  });
+  // TODO try to cast to ITokenInstance to remove mongo timestamps
+}
+
 export async function createUserTokenInstance(
   user: IUser,
   tokenInstance: ITokenInstance,
@@ -99,4 +113,35 @@ export async function createUserTokenInstance(
   } catch (err) {
     knownMongoError(err);
   }
+}
+
+export async function updateTokenInstance(
+  instance: ITokenInstance & mongoose.Document,
+  update: TokenInstance,
+) {
+  if (instance.name !== update.name) {
+    instance.name = update.name;
+  }
+  if (instance.scene !== update.scene) {
+    instance.scene = update.scene;
+  }
+  if (instance.token !== update.token) {
+    instance.token = update.token;
+  }
+  if (instance.visible !== update.visible) {
+    instance.visible = update.visible;
+  }
+  if (instance.hitPoints !== update.hitPoints) {
+    instance.hitPoints = update.hitPoints;
+  }
+  if (instance.x !== update.x) {
+    instance.x = update.x;
+  }
+  if (instance.y !== update.y) {
+    instance.y = update.y;
+  }
+  if (instance.scale !== update.scale) {
+    instance.scale = update.scale;
+  }
+  return instance.save();
 }
