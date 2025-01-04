@@ -22,12 +22,12 @@ jobs:
       contents: read
     steps:
     # cache download ./node_modules/.cache
-      - uses: actions/checkout@v3 
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4 
+      - uses: actions/setup-node@v4
         with:
           node-version: '18.x'
       - name: Cache Mongo Binary
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ env.MONGO_CACHE_PATH }}/${{ env.MONGO_BINARY }}
           key: ${{ env.MONGO_BINARY }}
@@ -47,8 +47,8 @@ jobs:
       contents: read
     steps:
     # cache download ./node_modules/.cache
-      - uses: actions/checkout@v3 
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '18.x'
       - run: npm ci
