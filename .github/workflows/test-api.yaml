@@ -9,7 +9,10 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   MONGO_CACHE_PATH: ~/.cache/mongodb-binaries
+  MONGO_BINARY: mongod-x86_64-ubuntu-8.0.4
   MONGOMS_VERSION: 8.0.4
+  # the download url is used for keying our cache so we have to force an archecture/os/os version/mongo version
+  MONGOMS_DOWNLOAD_URL: https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2204-8.0.4.tgz
 jobs:
   test_api:
     runs-on: ubuntu-latest
