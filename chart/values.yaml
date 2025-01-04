@@ -18,7 +18,7 @@ apiStorageClassSize: 10Gi
 mongoName: "mongo"
 mongoSuffix: "lrmrxki.mongodb.net"
 mongoImagePath: mongo
-mongoImageVers: 7.0.0
+mongoImageVers: 8.0.4
 mongoPort: 27017
 mongoDB: tbltp
 certIssuer: letsencrypt-staging
