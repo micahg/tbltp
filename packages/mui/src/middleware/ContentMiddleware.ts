@@ -325,6 +325,7 @@ export const ContentMiddleware: Middleware =
           progress,
         )
           .then((value) => {
+            // MICAH this is being triggered by "content/overlay" and triggering a rerender
             next({ type: "content/scene", payload: value.data });
             const err: ContentReducerError = {
               msg: "Update successful",

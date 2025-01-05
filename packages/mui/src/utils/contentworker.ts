@@ -550,6 +550,8 @@ function updateThings(things?: Thing[], render = false) {
   // cheese it if there are no things to render
   if (!things) return;
 
+  console.log(`updating things: ${JSON.stringify(things)}`);
+
   // map things to drawable things
   things
     .map((thing) => newDrawableThing(thing))

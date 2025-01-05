@@ -9,7 +9,11 @@ import React, {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { getRect, newSelectedRegion } from "../../utils/drawing";
+import {
+  getRect,
+  newSelectedRegion,
+  SelectedRegion,
+} from "../../utils/drawing";
 import { equalRects } from "../../utils/geometry";
 import { MouseStateMachine } from "../../utils/mousestatemachine";
 import { setCallback } from "../../utils/statemachine";
@@ -511,14 +515,14 @@ const ContentEditor = ({
     sm.transition("wait");
   }, [scene, internalState, redrawToolbar, worker]);
 
-  useEffect(() => {
-    if (!scene) return;
-    if (!dispatch) return;
-    if (scene.tokens) {
-      return;
-    }
-    dispatch({ type: "content/scenetokens", payload: { scene: scene._id } });
-  }, [dispatch, scene]);
+  // useEffect(() => {
+  //   if (!scene) return;
+  //   if (!dispatch) return;
+  //   if (scene.tokens) {
+  //     return;
+  //   }
+  //   dispatch({ type: "content/scenetokens", payload: { scene: scene._id } });
+  // }, [dispatch, scene]);
 
   useEffect(() => {
     /**
@@ -749,14 +753,14 @@ const ContentEditor = ({
 
       const angle = scene.angle || 0;
       // add the viewport as a selected region if it exists and isn't just the entire background
-      const things =
+      const things: (SelectedRegion | TokenInstance)[] =
         scene.viewport &&
         scene.backgroundSize &&
         !equalRects(scene.viewport, scene.backgroundSize)
           ? [newSelectedRegion(scene.viewport)]
           : [];
 
-      // MICAH HERE LOOP OVER TOKENS AND ADD THEM TO THINGS
+      scene.tokens?.forEach((token) => things.push(token));
 
       worker.postMessage({
         cmd: "update",
@@ -772,6 +776,10 @@ const ContentEditor = ({
   }, [apiUrl, bearer, bgRev, ovRev, scene, sceneId, worker]);
 
   useEffect(() => {
+    if (!worker) return;
+    worker.onmessage = handleWorkerMessage;
+  }, [worker, handleWorkerMessage]);
+  useEffect(() => {
     /**
      * the canvas refs are not really reliable indicators of our state. They
      * change more than once after we are setup. To avoid setting up duplicate
@@ -780,14 +788,22 @@ const ContentEditor = ({
      */
     const bg = contentCanvasRef.current;
     const ov = overlayCanvasRef.current;
-    if (!bg || !ov || internalState.transferred) {
+
+    // MICAH i think this little bit of "genius" is what is causing problems.
+    // the handleWorkerMessage is a callback that depends on side effects, so
+    // it never gets updated....
+    if (!bg || !ov) {
       return;
     }
+    // if (internalState.transferred) {
+    //   if (worker) worker.onmessage = handleWorkerMessage;
+    //   return;
+    // }
 
     const wrkr = setupOffscreenCanvas(bg, ov, true);
     setWorker(wrkr);
     internalState.transferred = true;
-    wrkr.onmessage = handleWorkerMessage;
+    // wrkr.onmessage = handleWorkerMessage;
     ov.oncontextmenu = (e) => {
       e.preventDefault();
       e.stopPropagation();

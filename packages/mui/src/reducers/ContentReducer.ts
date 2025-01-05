@@ -48,6 +48,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
         );
         return state;
       }
+      console.log(`MICAH updating current scene ${action.type}`);
       return { ...state, currentScene: state.scenes[tableSceneIdx] };
     }
     case "content/zoom":
@@ -63,8 +64,10 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     }
     case "content/scenes": {
       const scenes: Scene[] = action.payload as unknown as Scene[];
-      if (!state.currentScene)
+      if (!state.currentScene) {
+        console.log(`MICAH updating current scene ${action.type}`);
         return { ...state, scenes: scenes, currentScene: scenes[0] };
+      }
       return { ...state, scenes: scenes };
     }
     case "content/scene": {
@@ -78,6 +81,9 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       // the current scene is updated we do need to rerender.
       if (scene._id !== state.currentScene?._id)
         return { ...state, scenes: state.scenes };
+      console.log(`MICAH updating current scene ${action.type}`);
+      console.log(`MICAH old scene is ${JSON.stringify(state.currentScene)}`);
+      console.log(`MICAH new scene is ${JSON.stringify(scene)}`);
       return { ...state, currentScene: scene, scenes: state.scenes };
     }
     case "content/deletescene": {
@@ -87,6 +93,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     }
     case "content/currentscene": {
       const scene: Scene = action.payload as unknown as Scene;
+      console.log(`MICAH updating current scene ${action.type}`);
       return { ...state, currentScene: scene };
     }
     case "content/updateassetdata":
@@ -143,6 +150,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
 
       scenes[idx] = { ...scenes[idx], tokens };
       const newScene = { ...scene, tokens };
+      console.log(`MICAH updating current scene ${action.type}`);
       return { ...state, scenes: [...scenes], currentScene: newScene };
       break;
     }
