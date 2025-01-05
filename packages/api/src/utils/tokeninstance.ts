@@ -101,6 +101,18 @@ export function sceneTokenInstanceValidator() {
   });
 }
 
+export function deleteTokenInstanceValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      optional: false,
+      isMongoId: {
+        errorMessage: "Invalid token instance ID",
+      },
+    },
+  });
+}
+
 export function getSceneTokenInstances(user: IUser, scene: string) {
   return TokenInstanceModel.find({
     user: { $eq: user._id },
@@ -114,6 +126,13 @@ export function getUserTokenInstance(user: IUser, id: string) {
     user: { $eq: user._id },
   });
   // TODO try to cast to ITokenInstance to remove mongo timestamps
+}
+
+export function deleteUserTokenInstance(user: IUser, id: string) {
+  return TokenInstanceModel.deleteOne({
+    _id: { $eq: id },
+    user: { $eq: user._id },
+  });
 }
 
 export async function createUserTokenInstance(

@@ -416,6 +416,65 @@ describe("token instance", () => {
       expect(resp.body[1].visible).toBe(false);
     });
   });
+  describe("delete", () => {
+    it("Should not delete someone elses token instance", async () => {
+      const sceneResponse = await request(app).get("/scene");
+      expect(sceneResponse.statusCode).toBe(200);
+      const url = `/scene/${sceneResponse.body[0]._id}/token`;
+
+      // create a token
+      const tokenResponse = await request(app)
+        .put("/token")
+        .send({ name: "test" });
+      expect(tokenResponse.statusCode).toBe(201);
+
+      // create the token instance
+      const resp1 = await request(app).put(url).send({
+        name: "one",
+        token: tokenResponse.body._id,
+        x: 0,
+        y: 0,
+        scale: 1,
+        visible: true,
+      });
+      expect(resp1.statusCode).toBe(201);
+
+      // switch to a different user and create a token with the asset
+      (getFakeUser as jest.Mock).mockReturnValue(userOne);
+
+      const resp2 = await request(app).delete(
+        `/tokeninstance/${resp1.body._id}`,
+      );
+      expect(resp2.statusCode).toBe(404);
+    });
+    it("Should delete a token instance", async () => {
+      const sceneResponse = await request(app).get("/scene");
+      expect(sceneResponse.statusCode).toBe(200);
+      const url = `/scene/${sceneResponse.body[0]._id}/token`;
+
+      // create a token
+      const tokenResponse = await request(app)
+        .put("/token")
+        .send({ name: "test" });
+      expect(tokenResponse.statusCode).toBe(201);
+
+      // create the token instance
+      const resp1 = await request(app).put(url).send({
+        name: "one",
+        token: tokenResponse.body._id,
+        x: 0,
+        y: 0,
+        scale: 1,
+        visible: true,
+      });
+      expect(resp1.statusCode).toBe(201);
+
+      const resp2 = await request(app).delete(
+        `/tokeninstance/${resp1.body._id}`,
+      );
+      expect(resp2.statusCode).toBe(204);
+    });
+  });
   // describe("delete", () => {
   //   beforeEach(async () => {
   //     (getFakeUser as jest.Mock).mockReturnValue(userZero);
@@ -424,31 +483,7 @@ describe("token instance", () => {
   //     await tokensCollection.deleteMany({}); // Clean up the database
   //     await usersCollection.deleteMany({}); // Clean up the database
   //   });
-  //   it("Should not delete someone elses token", async () => {
-  //     let resp;
-  //     try {
-  //       resp = await request(app).put("/token").send({ name: "test" });
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(201);
-  //     expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
-  //     expect(resp.body.name).toBe("test");
-  //     const user = await usersCollection.findOne({ sub: userZero });
-  //     expect(user).toBeDefined();
-  //     expect(user).not.toBeNull();
-  //     const tokens = await tokensCollection.find({ user: user!._id }).toArray();
-  //     expect(tokens).toBeDefined();
-  //     expect(tokens).not.toBeNull();
-  //     expect(tokens).toHaveLength(1);
-  //     (getFakeUser as jest.Mock).mockReturnValue(userOne);
-  //     try {
-  //       resp = await request(app).delete(`/token/${resp.body._id}`).send();
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(404);
-  //   });
+
   //   it("Should delete a tokens", async () => {
   //     let resp;
   //     try {

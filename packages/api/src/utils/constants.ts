@@ -14,6 +14,7 @@ export const SCENE_PATH = "/scene/:id";
 export const SCENE_CONTENT_PATH = "/scene/:id/content";
 export const SCENE_VIEWPORT_PATH = "/scene/:id/viewport";
 export const SCENE_TOKEN_PATH = "/scene/:id/token";
+export const TOKEN_INSTANCE_PATH = "/tokeninstance/:id";
 
 export const VALID_LAYERS = ["overlay", "detail", "player"];
 export const VALID_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"];

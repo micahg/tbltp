@@ -6,6 +6,7 @@ import { getUserToken } from "../utils/token";
 import { getUserScene } from "../utils/scene";
 import {
   createUserTokenInstance,
+  deleteUserTokenInstance,
   getSceneTokenInstances,
   getUserTokenInstance,
   updateTokenInstance,
@@ -64,6 +65,25 @@ export async function getSceneTokenInstance(
   } catch (err) {
     if (knownMongoError(err, next)) return;
     log.error(`Unable to get asset: ${err.message}`);
+    next({ status: err.cause || 500 });
+  }
+}
+
+export async function deleteTokenInstance(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getOrCreateUser(req.auth);
+    const result = await deleteUserTokenInstance(user, req.params.id);
+    if (!result || result.deletedCount === 0) {
+      return res.status(404).send();
+    }
+    return res.status(204).send();
+  } catch (err) {
+    if (knownMongoError(err, next)) return;
+    log.error(`Unable to delete asset: ${err.message}`);
     next({ status: err.cause || 500 });
   }
 }

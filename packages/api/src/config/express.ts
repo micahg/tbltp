@@ -19,6 +19,7 @@ import {
   ALL_TOKEN_PATH,
   TOKEN_PATH,
   SCENE_TOKEN_PATH,
+  TOKEN_INSTANCE_PATH,
 } from "../utils/constants";
 import { getState, updateState } from "../routes/state";
 
@@ -52,9 +53,11 @@ import { tokenDeleteValidator, tokenValidator } from "../utils/token";
 import { createOrUpdateToken, deleteToken, listTokens } from "../routes/token";
 import {
   createOrUpdateTokenInstance,
+  deleteTokenInstance,
   getSceneTokenInstance,
 } from "../routes/tokeninstance";
 import {
+  deleteTokenInstanceValidator,
   sceneTokenInstanceValidator,
   tokenInstanceValidator,
 } from "../utils/tokeninstance";
@@ -278,6 +281,13 @@ export function create(): Express {
     sceneTokenInstanceValidator(),
     schemaErrorCheck,
     getSceneTokenInstance,
+  );
+  app.delete(
+    TOKEN_INSTANCE_PATH,
+    jwtCheck,
+    deleteTokenInstanceValidator(),
+    schemaErrorCheck,
+    deleteTokenInstance,
   );
 
   // handle errors
