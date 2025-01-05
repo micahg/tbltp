@@ -417,6 +417,16 @@ describe("token instance", () => {
     });
   });
   describe("delete", () => {
+    it("Should 404 on a missing token instance", async () => {
+      const resp2 = await request(app).delete(
+        `/tokeninstance/000000000000000000000000`,
+      );
+      expect(resp2.statusCode).toBe(404);
+    });
+    it("Should 400 on an invalid token instance id", async () => {
+      const resp2 = await request(app).delete(`/tokeninstance/asdf`);
+      expect(resp2.statusCode).toBe(400);
+    });
     it("Should not delete someone elses token instance", async () => {
       const sceneResponse = await request(app).get("/scene");
       expect(sceneResponse.statusCode).toBe(200);
@@ -475,87 +485,4 @@ describe("token instance", () => {
       expect(resp2.statusCode).toBe(204);
     });
   });
-  // describe("delete", () => {
-  //   beforeEach(async () => {
-  //     (getFakeUser as jest.Mock).mockReturnValue(userZero);
-  //   });
-  //   afterEach(async () => {
-  //     await tokensCollection.deleteMany({}); // Clean up the database
-  //     await usersCollection.deleteMany({}); // Clean up the database
-  //   });
-
-  //   it("Should delete a tokens", async () => {
-  //     let resp;
-  //     try {
-  //       resp = await request(app)
-  //         .put("/token")
-  //         .send({ name: "first", visible: true, hitPoints: 99 });
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(201);
-  //     expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
-  //     expect(resp.body.name).toBe("first");
-  //     expect(resp.body.hitPoints).toBe(99);
-  //     expect(resp.body.visible).toBe(true);
-  //     try {
-  //       resp = await request(app).put("/token").send({ name: "second" });
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(201);
-  //     expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
-  //     expect(resp.body.name).toBe("second");
-  //     expect(resp.body.hitPoints).toBeUndefined();
-  //     expect(resp.body.visible).toBe(false);
-  //     try {
-  //       resp = await request(app)
-  //         .put("/token")
-  //         .send({ name: "third", hitPoints: 10 });
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(201);
-  //     expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
-  //     expect(resp.body.name).toBe("third");
-  //     expect(resp.body.hitPoints).toBe(10);
-  //     expect(resp.body.visible).toBe(false);
-  //     try {
-  //       resp = await request(app).get("/token");
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(200);
-  //     expect(resp.body.length).toBe(3);
-  //     expect(resp.body[0].name).toBe("first");
-  //     expect(resp.body[0].hitPoints).toBe(99);
-  //     expect(resp.body[0].visible).toBe(true);
-  //     expect(resp.body[1].name).toBe("second");
-  //     expect(resp.body[1].hitPoints).toBeUndefined();
-  //     expect(resp.body[1].visible).toBe(false);
-  //     expect(resp.body[2].name).toBe("third");
-  //     expect(resp.body[2].hitPoints).toBe(10);
-  //     expect(resp.body[2].visible).toBe(false);
-  //     try {
-  //       resp = await request(app).delete(`/token/${resp.body[1]._id}`);
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(204);
-
-  //     try {
-  //       resp = await request(app).get("/token");
-  //     } catch (err) {
-  //       fail(`Exception: ${JSON.stringify(err)}`);
-  //     }
-  //     expect(resp.statusCode).toBe(200);
-  //     expect(resp.body.length).toBe(2);
-  //     expect(resp.body[0].name).toBe("first");
-  //     expect(resp.body[0].hitPoints).toBe(99);
-  //     expect(resp.body[0].visible).toBe(true);
-  //     expect(resp.body[1].name).toBe("third");
-  //     expect(resp.body[1].hitPoints).toBe(10);
-  //     expect(resp.body[1].visible).toBe(false);
-  //   });
-  // });
 });
