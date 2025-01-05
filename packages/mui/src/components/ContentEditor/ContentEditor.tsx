@@ -249,6 +249,7 @@ const ContentEditor = ({
    */
   const handleWorkerMessage = useCallback(
     (evt: MessageEvent<unknown>) => {
+      console.log(`Worker message ${ovRev} `, evt.data);
       if (!scene?._id) return;
       if (!evt.data || typeof evt.data !== "object") return;
       if (!("cmd" in evt.data)) return;
@@ -747,6 +748,7 @@ const ContentEditor = ({
           ? [newSelectedRegion(scene.viewport)]
           : [];
 
+      console.log("MICAH sending update");
       worker.postMessage({
         cmd: "update",
         values: {
@@ -759,6 +761,15 @@ const ContentEditor = ({
       });
     }
   }, [apiUrl, bearer, bgRev, ovRev, scene, sceneId, worker]);
+
+  useEffect(() => {
+    if (!worker) return;
+    if (!handleWorkerMessage) return;
+    worker.onmessage = handleWorkerMessage;
+    return () => {
+      worker.removeEventListener("message", handleWorkerMessage, false);
+    };
+  }, [handleWorkerMessage, worker]);
 
   useEffect(() => {
     /**
@@ -776,7 +787,6 @@ const ContentEditor = ({
     const wrkr = setupOffscreenCanvas(bg, ov, true);
     setWorker(wrkr);
     internalState.transferred = true;
-    wrkr.onmessage = handleWorkerMessage;
     ov.oncontextmenu = (e) => {
       e.preventDefault();
       e.stopPropagation();

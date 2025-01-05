@@ -646,7 +646,14 @@ self.onmessage = async (evt) => {
     case "update": {
       try {
         await update(evt.data.values);
+
+        // MICAH this is a giant bug -- there are multiple updates sent and they don't necessarily
+        // need to trigger a resize... is it even necessary? probably only on the first one. Maybe
+        // we can validate some state before the `await update` above and skip the "resize post" if
+        // there isn't actually a change.
+
         // technically, because the background changed, we've resized due to the image changing size
+        console.log("MICAH SENDING resized");
         postMessage({
           cmd: "resized",
           width: _vp.width,
