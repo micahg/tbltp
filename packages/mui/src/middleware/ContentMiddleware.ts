@@ -2,8 +2,8 @@ import { Middleware } from "redux";
 import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { getToken } from "../utils/auth";
-import { ContentReducerError, Scene } from "../reducers/ContentReducer";
-import { Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
+import { ContentReducerError } from "../reducers/ContentReducer";
+import { Scene, Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 
@@ -222,7 +222,12 @@ export const ContentMiddleware: Middleware =
         operate(state, store, next, "delete", "token", action);
         break;
       }
-      case "content/token_placed": {
+      case "content/scenetokens": {
+        const path = `scene/${action.payload.scene}/token`;
+        operate(state, store, next, "get", path, action);
+        break;
+      }
+      case "content/scenetokenplaced": {
         const path = `scene/${action.payload.scene}/token`;
         operate(state, store, next, "put", path, action);
         break;

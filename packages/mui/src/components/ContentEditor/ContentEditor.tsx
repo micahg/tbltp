@@ -315,7 +315,7 @@ const ContentEditor = ({
           ...(evt.data.instance as ScenelessTokenInstance),
           scene: scene._id,
         };
-        dispatch({ type: "content/token_placed", payload: instance });
+        dispatch({ type: "content/scenetokenplaced", payload: instance });
       }
     },
     [dispatch, downloads, ovRev, scene],
@@ -510,6 +510,15 @@ const ContentEditor = ({
     redrawToolbar();
     sm.transition("wait");
   }, [scene, internalState, redrawToolbar, worker]);
+
+  useEffect(() => {
+    if (!scene) return;
+    if (!dispatch) return;
+    if (scene.tokens) {
+      return;
+    }
+    dispatch({ type: "content/scenetokens", payload: { scene: scene._id } });
+  }, [dispatch, scene]);
 
   useEffect(() => {
     /**
@@ -746,6 +755,8 @@ const ContentEditor = ({
         !equalRects(scene.viewport, scene.backgroundSize)
           ? [newSelectedRegion(scene.viewport)]
           : [];
+
+      // MICAH HERE LOOP OVER TOKENS AND ADD THEM TO THINGS
 
       worker.postMessage({
         cmd: "update",

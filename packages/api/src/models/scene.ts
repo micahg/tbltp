@@ -1,24 +1,9 @@
 import { Schema, model } from "mongoose";
-import { Rect } from "@micahg/tbltp-common";
+import { Scene } from "@micahg/tbltp-common";
 
-/**
- * Student Interface.
- *
- * Each student has a name, Organization ID, and links to a classroom.
- */
-interface IScene {
+interface IScene extends Omit<Scene, "_id" | "user" | "tokens"> {
   _id?: Schema.Types.ObjectId;
   user: Schema.Types.ObjectId;
-  description: string;
-  overlayContent?: string;
-  overlayContentRev?: number;
-  detailContent?: string;
-  detailContentRev?: number;
-  playerContent?: string;
-  playerContentRev?: number;
-  viewport?: Rect;
-  backgroundSize?: Rect;
-  angle?: number;
 }
 
 const SceneSchema = new Schema<IScene>(

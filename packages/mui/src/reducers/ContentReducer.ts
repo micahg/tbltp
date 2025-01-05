@@ -1,21 +1,5 @@
 import { PayloadAction } from "@reduxjs/toolkit";
-import { Asset, Rect, Token } from "@micahg/tbltp-common";
-
-// copied from api
-export interface Scene {
-  _id?: string;
-  user: string;
-  description: string;
-  overlayContent?: string;
-  overlayContentRev?: number;
-  detailContent?: string;
-  detailContentRev?: number;
-  playerContent?: string;
-  playerContentRev?: number;
-  viewport?: Rect;
-  backgroundSize?: Rect;
-  angle?: number;
-}
+import { Asset, Scene, Token, TokenInstance } from "@micahg/tbltp-common";
 
 // copied from the api
 interface TableTop {
@@ -143,6 +127,24 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const tokens = [...state.tokens!];
       tokens.splice(idx, 1);
       return { ...state, tokens: tokens };
+    }
+    case "content/scenetokenplaced": {
+      break;
+    }
+    case "content/scenetokens": {
+      // ensure we have a current scene
+      const scene = state.currentScene;
+      if (!scene) return state;
+
+      const tokens = action.payload as unknown as TokenInstance[];
+
+      const scenes = state.scenes;
+      const idx = state.scenes.findIndex((s) => s._id === scene._id);
+
+      scenes[idx] = { ...scenes[idx], tokens };
+      const newScene = { ...scene, tokens };
+      return { ...state, scenes: [...scenes], currentScene: newScene };
+      break;
     }
     case "content/error": {
       // important to let undefined through. This will clear the error

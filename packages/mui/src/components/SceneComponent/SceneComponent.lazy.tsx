@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from "react";
-import { Scene } from "../../reducers/ContentReducer";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
+import { Scene } from "@micahg/tbltp-common";
 
 const LazySceneComponent = lazy(() => import("./SceneComponent"));
 
