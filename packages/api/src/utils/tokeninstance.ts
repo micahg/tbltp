@@ -82,8 +82,8 @@ export function tokenInstanceValidator() {
     scale: {
       in: ["body"],
       optional: false,
-      isInt: {
-        errorMessage: "scale must be an integer",
+      isNumeric: {
+        errorMessage: "scale must be a number",
       },
     },
   });

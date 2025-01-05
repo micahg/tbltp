@@ -222,9 +222,11 @@ export const ContentMiddleware: Middleware =
         operate(state, store, next, "delete", "token", action);
         break;
       }
-      case "content/token_placed":
-        operate(state, store, next, "put", "tokeninstance", action);
+      case "content/token_placed": {
+        const path = `scene/${action.payload.scene}/token`;
+        operate(state, store, next, "put", path, action);
         break;
+      }
       case "content/updateasset":
         operate(state, store, next, "put", "asset", action);
         break;
