@@ -46,7 +46,7 @@ const TokenInstanceSchema = new Schema<ITokenInstance>(
   },
   { timestamps: true },
 );
-TokenInstanceSchema.index({ user: 1, scene: 1 }, { unique: true });
+TokenInstanceSchema.index({ user: 1, scene: 1 }, { unique: false });
 
 const TokenInstanceModel = model<ITokenInstance>(
   "TokenInstance",

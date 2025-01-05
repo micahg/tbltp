@@ -8,13 +8,12 @@ export const ASSET_PATH = `${ALL_ASSETS_PATH}/:id`;
 export const ASSET_DATA_PATH = `${ASSET_PATH}/data`;
 export const ALL_TOKEN_PATH = "/token";
 export const TOKEN_PATH = `${ALL_TOKEN_PATH}/:id`;
-export const ALL_TOKEN_INSTANCE_PATH = "/tokeninstance";
-export const TOKEN_INSTANCE_PATH = `${ALL_TOKEN_INSTANCE_PATH}/:id`;
 export const STATE_ASSET = "/state";
 export const ALL_SCENES_PATH = "/scene";
 export const SCENE_PATH = "/scene/:id";
 export const SCENE_CONTENT_PATH = "/scene/:id/content";
 export const SCENE_VIEWPORT_PATH = "/scene/:id/viewport";
+export const SCENE_TOKEN_PATH = "/scene/:id/token";
 
 export const VALID_LAYERS = ["overlay", "detail", "player"];
 export const VALID_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"];

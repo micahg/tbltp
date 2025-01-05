@@ -18,7 +18,7 @@ import {
   ASSET_PATH,
   ALL_TOKEN_PATH,
   TOKEN_PATH,
-  ALL_TOKEN_INSTANCE_PATH,
+  SCENE_TOKEN_PATH,
 } from "../utils/constants";
 import { getState, updateState } from "../routes/state";
 
@@ -50,8 +50,14 @@ import {
 import { stateValidator } from "../utils/state";
 import { tokenDeleteValidator, tokenValidator } from "../utils/token";
 import { createOrUpdateToken, deleteToken, listTokens } from "../routes/token";
-import { createOrUpdateTokenInstance } from "../routes/tokeninstance";
-import { tokenInstanceValidator } from "../utils/tokeninstance";
+import {
+  createOrUpdateTokenInstance,
+  getSceneTokenInstance,
+} from "../routes/tokeninstance";
+import {
+  sceneTokenInstanceValidator,
+  tokenInstanceValidator,
+} from "../utils/tokeninstance";
 
 /**
  * Since we can't authorize img HTML tags, allow the token to be passed as a
@@ -260,11 +266,18 @@ export function create(): Express {
     deleteToken,
   );
   app.put(
-    ALL_TOKEN_INSTANCE_PATH,
+    SCENE_TOKEN_PATH,
     jwtCheck,
     tokenInstanceValidator(),
     schemaErrorCheck,
     createOrUpdateTokenInstance,
+  );
+  app.get(
+    SCENE_TOKEN_PATH,
+    jwtCheck,
+    sceneTokenInstanceValidator(),
+    schemaErrorCheck,
+    getSceneTokenInstance,
   );
 
   // handle errors

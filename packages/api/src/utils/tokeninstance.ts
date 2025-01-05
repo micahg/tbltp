@@ -39,8 +39,8 @@ export function tokenInstanceValidator() {
         errorMessage: "Invalid token ID",
       },
     },
-    scene: {
-      in: ["body"],
+    id: {
+      in: ["params"],
       optional: false,
       isMongoId: {
         errorMessage: "Invalid scene ID",
@@ -86,6 +86,25 @@ export function tokenInstanceValidator() {
         errorMessage: "scale must be an integer",
       },
     },
+  });
+}
+
+export function sceneTokenInstanceValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      optional: false,
+      isMongoId: {
+        errorMessage: "Invalid scene ID",
+      },
+    },
+  });
+}
+
+export function getSceneTokenInstances(user: IUser, scene: string) {
+  return TokenInstanceModel.find({
+    user: { $eq: user._id },
+    scene: { $eq: scene },
   });
 }
 

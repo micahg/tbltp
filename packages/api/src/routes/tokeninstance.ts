@@ -6,6 +6,7 @@ import { getUserToken } from "../utils/token";
 import { getUserScene } from "../utils/scene";
 import {
   createUserTokenInstance,
+  getSceneTokenInstances,
   getUserTokenInstance,
   updateTokenInstance,
 } from "../utils/tokeninstance";
@@ -19,7 +20,7 @@ export async function createOrUpdateTokenInstance(
   try {
     const user = await getOrCreateUser(req.auth);
     const tokenPromise = getUserToken(user, req.body.token);
-    const scenePromise = getUserScene(user, req.body.scene);
+    const scenePromise = getUserScene(user, req.params.id);
     if ("_id" in req.body) {
       const tokenInstancePromise = getUserTokenInstance(user, req.body._id);
       const [tokenInstance, token, scene] = await Promise.all([
@@ -38,15 +39,31 @@ export async function createOrUpdateTokenInstance(
         return res.status(404).send();
       }
 
-      const instance: ITokenInstance = await createUserTokenInstance(
-        user,
-        req.body,
-      );
+      const instance: ITokenInstance = await createUserTokenInstance(user, {
+        ...req.body,
+        scene: req.params.id,
+      });
       return res.status(201).json(instance);
     }
   } catch (err) {
     if (knownMongoError(err, next)) return;
     log.error(`Unable to create asset: ${err.message}`);
     return next({ status: err.cause || 500 });
+  }
+}
+
+export async function getSceneTokenInstance(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getOrCreateUser(req.auth);
+    const tokenInstances = await getSceneTokenInstances(user, req.params.id);
+    return res.json(tokenInstances);
+  } catch (err) {
+    if (knownMongoError(err, next)) return;
+    log.error(`Unable to get asset: ${err.message}`);
+    next({ status: err.cause || 500 });
   }
 }
