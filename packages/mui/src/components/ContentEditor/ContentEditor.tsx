@@ -775,10 +775,25 @@ const ContentEditor = ({
     }
   }, [apiUrl, bearer, bgRev, ovRev, scene, sceneId, worker]);
 
+  /**
+   * Its important to separate the worker message handler from the
+   * worker creation *because* the handler is a callback that
+   * depends on state that changes over time. The worker is setup
+   * once when we initialize the canvas.
+   */
   useEffect(() => {
     if (!worker) return;
-    worker.onmessage = handleWorkerMessage;
+    if (!handleWorkerMessage) return;
+    worker.addEventListener("message", handleWorkerMessage);
+    return () => {
+      worker.removeEventListener("message", handleWorkerMessage);
+    };
   }, [worker, handleWorkerMessage]);
+
+  /**
+   * Setup the web worker -- this should only happen once and the canvas
+   * should live on for the life of the component.
+   */
   useEffect(() => {
     /**
      * the canvas refs are not really reliable indicators of our state. They
@@ -789,21 +804,13 @@ const ContentEditor = ({
     const bg = contentCanvasRef.current;
     const ov = overlayCanvasRef.current;
 
-    // MICAH i think this little bit of "genius" is what is causing problems.
-    // the handleWorkerMessage is a callback that depends on side effects, so
-    // it never gets updated....
-    if (!bg || !ov) {
+    if (!bg || !ov || internalState.transferred) {
       return;
     }
-    // if (internalState.transferred) {
-    //   if (worker) worker.onmessage = handleWorkerMessage;
-    //   return;
-    // }
 
     const wrkr = setupOffscreenCanvas(bg, ov, true);
     setWorker(wrkr);
     internalState.transferred = true;
-    // wrkr.onmessage = handleWorkerMessage;
     ov.oncontextmenu = (e) => {
       e.preventDefault();
       e.stopPropagation();
