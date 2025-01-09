@@ -81,9 +81,9 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       // the current scene is updated we do need to rerender.
       if (scene._id !== state.currentScene?._id)
         return { ...state, scenes: state.scenes };
-      console.log(`MICAH updating current scene ${action.type}`);
-      console.log(`MICAH old scene is ${JSON.stringify(state.currentScene)}`);
-      console.log(`MICAH new scene is ${JSON.stringify(scene)}`);
+      // console.log(`MICAH updating current scene ${action.type}`);
+      // console.log(`MICAH old scene is ${JSON.stringify(state.currentScene)}`);
+      // console.log(`MICAH new scene is ${JSON.stringify(scene)}`);
       return { ...state, currentScene: scene, scenes: state.scenes };
     }
     case "content/deletescene": {

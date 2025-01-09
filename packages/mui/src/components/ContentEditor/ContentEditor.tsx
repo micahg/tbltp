@@ -112,10 +112,14 @@ const ContentEditor = ({
   const [ovRev, setOvRev] = useState<number>(0);
   const [sceneId, setSceneId] = useState<string>(); // used to track flipping between scenes
   const [worker, setWorker] = useState<Worker>();
+  const [sceneUpdated, setSceneUpdated] = useState<boolean>(false);
   const [downloads] = useState<Record<string, number>>({});
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   // selection is sized relative to the visible canvas size -- not the full background size
   const [selection, setSelection] = useState<Rect | null>(null);
+
+  // the viewport to draw so the dm knows what the players see
+  const [displayViewport, setDisplayViewport] = useState<Rect | null>(null);
 
   /**
    * THIS GUY RIGHT HERE IS REALLY IMPORTANT. Because we use a callback to render
@@ -256,7 +260,9 @@ const ContentEditor = ({
       if (!scene?._id) return;
       if (!evt.data || typeof evt.data !== "object") return;
       if (!("cmd" in evt.data)) return;
-      if (evt.data.cmd === "overlay") {
+      if (evt.data.cmd === "updated") {
+        setSceneUpdated(true);
+      } else if (evt.data.cmd === "overlay") {
         if ("blob" in evt.data) {
           setOvRev(ovRev + 1);
           dispatch({ type: "content/overlay", payload: evt.data.blob });
@@ -727,7 +733,6 @@ const ContentEditor = ({
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
     let drawOV = oRev > ovRev;
-    let drawTH = false;
     if (drawBG) setBgRev(bRev); // takes effect next render cycle
     if (drawOV) setOvRev(oRev); // takes effect next render cycle
 
@@ -742,25 +747,31 @@ const ContentEditor = ({
       drawOV = scene.overlayContent !== undefined;
     }
 
-    if (scene.viewport) drawTH = true;
+    // OK THIS is triggering a redraw -- why do we care about the viewport? Obviously we
+    // were thinking "hey" we need to draw the viewport....... but this is fucking stupid.
+    // there is always a viewport. The more I think about it I think we have a few things
+    // to reorganize... viewport *changes* should trigger repainting the canvas, as should
+    // the addition of things... then there is the need (somehow) separate what we send
+    // to the display from what we show to the DM -- paint and tokens will need to live
+    // separate but render together on the player screen.
+
+    // we already have a "thing" canvas in the worker, I think scenes need a composite
+    // image that users see since now basically have to pain tokens on without screwing
+    // up the fog of war (so tokens can be moved around)... whats the best order though?
+
+    // - [DONE] separate this crap (this should useEffect should only deal with scene changes)
+    //   and create a separate effect for viewport, tokens, etc?
+    // - [DONE] update the scene to handle paint and tokens separately
+    // - update the worker to update the separate player and DM canvases
 
     // if we have nothing new to draw then cheese it
-    if (!drawBG && !drawOV && !drawTH) return;
+    if (!drawBG && !drawOV) return;
 
-    if (drawBG || drawTH) {
+    if (drawBG) {
       const overlay = drawOV ? `${apiUrl}/${oContent}` : undefined;
       const background = drawBG ? `${apiUrl}/${bContent}` : undefined;
 
       const angle = scene.angle || 0;
-      // add the viewport as a selected region if it exists and isn't just the entire background
-      const things: (SelectedRegion | TokenInstance)[] =
-        scene.viewport &&
-        scene.backgroundSize &&
-        !equalRects(scene.viewport, scene.backgroundSize)
-          ? [newSelectedRegion(scene.viewport)]
-          : [];
-
-      scene.tokens?.forEach((token) => things.push(token));
 
       worker.postMessage({
         cmd: "update",
@@ -769,11 +780,43 @@ const ContentEditor = ({
           overlay,
           bearer,
           angle,
-          things,
         },
       });
     }
   }, [apiUrl, bearer, bgRev, ovRev, scene, sceneId, worker]);
+
+  /**
+   * We don't want to render the viewport until it changes in current scene server-side
+   * so we detect it here and then update the worker to redraw the viewport.
+   */
+  useEffect(() => {
+    if (!scene) return;
+    if (!sceneId) return;
+    if (!scene.viewport) return;
+    if (!worker) return;
+    if (!sceneUpdated) return;
+
+    // we *ONLY* care about the viewport changing in the context of the same scene
+    // otherwise, it should be rendered by the scene change.
+    if (!sceneId || scene._id !== sceneId) return;
+
+    // if the viewport has not *actually* changed, then we don't care
+    if (displayViewport !== null && equalRects(scene.viewport, displayViewport))
+      return;
+
+    // at this point, we know the viewport has changed and we need to update the worker...
+    setDisplayViewport(scene.viewport);
+    const things: (SelectedRegion | TokenInstance)[] =
+      scene.viewport &&
+      scene.backgroundSize &&
+      !equalRects(scene.viewport, scene.backgroundSize)
+        ? [newSelectedRegion(scene.viewport)]
+        : [];
+
+    scene.tokens?.forEach((token) => things.push(token));
+    // need to delay this until we know we're in a good state.
+    worker.postMessage({ cmd: "things", values: { things } });
+  }, [displayViewport, scene, sceneId, worker, sceneUpdated]);
 
   /**
    * Its important to separate the worker message handler from the
