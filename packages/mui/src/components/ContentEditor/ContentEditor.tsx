@@ -846,7 +846,6 @@ const ContentEditor = ({
      */
     const bg = contentCanvasRef.current;
     const ov = overlayCanvasRef.current;
-
     if (!bg || !ov || internalState.transferred) {
       return;
     }
