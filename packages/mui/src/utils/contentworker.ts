@@ -645,7 +645,11 @@ self.onmessage = async (evt) => {
     }
     case "update": {
       try {
+        // TODO micah maybe check (or return from update) if there was actually a resize!?!?!?
         await update(evt.data.values);
+
+        postMessage({ cmd: "updated" });
+
         // technically, because the background changed, we've resized due to the image changing size
         postMessage({
           cmd: "resized",
@@ -657,6 +661,11 @@ self.onmessage = async (evt) => {
       } catch (err) {
         console.error(`Unable to update: ${JSON.stringify(err)}`);
       }
+      break;
+    }
+    case "things": {
+      // refactor update to handle things on their own
+      await update(evt.data.values);
       break;
     }
     case "resize": {
