@@ -9,13 +9,12 @@ import { useNavigate } from "react-router-dom";
 import { Box } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
-import { Thing } from "../../utils/drawing";
 import { Rect, TableState } from "@micahg/tbltp-common";
 
 // TODO UNION MICAH DON"T SKIP NOW
 export type TableUpdate = TableState & {
   bearer: string;
-  things?: Thing[];
+  things?: unknown[];
 };
 
 interface WSStateMessage {

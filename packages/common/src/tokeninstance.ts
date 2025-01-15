@@ -17,3 +17,7 @@ export interface ScenelessTokenInstance extends Omit<Token, "asset"> {
 export interface TokenInstance extends ScenelessTokenInstance{
   scene: string;
 }
+
+export interface HydratedTokenInstance extends Omit<TokenInstance, "token"> {
+  "token": string;
+}

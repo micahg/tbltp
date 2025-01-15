@@ -1,7 +1,7 @@
 // - test with brand new scene (that wont have a viewport)
 import { TableUpdate } from "../components/RemoteDisplayComponent/RemoteDisplayComponent";
 import { LoadProgress, loadImage } from "./content";
-import { Drawable, Thing, newDrawableThing } from "./drawing";
+import { createDrawable, Drawable } from "./drawing";
 import {
   Point,
   createPoints,
@@ -543,17 +543,16 @@ function adjustZoom(zoom: number, x: number, y: number) {
   renderAllCanvasses(backgroundImage);
 }
 
-function updateThings(things?: Thing[], render = false) {
+function updateThings(things?: unknown[], render = false) {
   // clear the existing thing list
   _things.length = 0;
 
   // cheese it if there are no things to render
   if (!things) return;
 
-  // map things to drawable things
   things
-    .map((thing) => newDrawableThing(thing))
     .filter((thing) => thing)
+    .map((thing) => createDrawable(thing))
     .forEach((thing) => (thing ? _things.push(thing) : null));
 
   // render if we're asked (avoided in cases of subsequent full renders)

@@ -9,12 +9,7 @@ import React, {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import {
-  getRect,
-  newSelectedRegion,
-  SelectedRegion,
-} from "../../utils/drawing";
-import { equalRects } from "../../utils/geometry";
+import { createRect, equalRects } from "../../utils/geometry";
 import { MouseStateMachine } from "../../utils/mousestatemachine";
 import { setCallback } from "../../utils/statemachine";
 import styles from "./ContentEditor.module.css";
@@ -331,6 +326,30 @@ const ContentEditor = ({
     [dispatch, downloads, ovRev, scene],
   );
 
+  /**
+   * Send drawables to the worker to render on the canvas
+   */
+  const handleDrawables = useCallback(() => {
+    if (!scene) return;
+    if (!worker) return;
+
+    // we cannot pre-translate these into drawables because properties
+    // that are methods do not survive the transfer to the worker
+    const things: (TokenInstance | Rect)[] = scene.tokens
+      ? [...scene.tokens]
+      : [];
+    if (
+      scene.viewport &&
+      scene.backgroundSize &&
+      !equalRects(scene.viewport, scene.backgroundSize)
+    )
+      things.push(scene.viewport);
+
+    // scene.tokens?.forEach((token) => things.push(token));
+    // need to delay this until we know we're in a good state.
+    worker.postMessage({ cmd: "things", values: { things } });
+  }, [worker, scene]);
+
   useEffect(() => {
     if (!internalState || !toolbarPopulated) return;
     internalState.color = colorInputRef;
@@ -421,7 +440,6 @@ const ContentEditor = ({
         tooltip: "Token",
         hidden: () => internalState.rec && internalState.act === "token",
         disabled: () => internalState.rec && internalState.act !== "token",
-        // callback: () => prepareRecording("token"),
         callback: () =>
           infoDrawer(
             <TokenInfoDrawerComponent
@@ -521,15 +539,6 @@ const ContentEditor = ({
     sm.transition("wait");
   }, [scene, internalState, redrawToolbar, worker]);
 
-  // useEffect(() => {
-  //   if (!scene) return;
-  //   if (!dispatch) return;
-  //   if (scene.tokens) {
-  //     return;
-  //   }
-  //   dispatch({ type: "content/scenetokens", payload: { scene: scene._id } });
-  // }, [dispatch, scene]);
-
   useEffect(() => {
     /**
      * For now, we do want to run this every render, because we need
@@ -586,7 +595,7 @@ const ContentEditor = ({
       worker.postMessage({ cmd: "zoom", rect: selection });
     });
     setCallback(sm, "remoteZoomOut", () => {
-      const imgRect = getRect(0, 0, imageSize[0], imageSize[1]);
+      const imgRect = createRect([0, 0, imageSize[0], imageSize[1]]);
       dispatch({
         type: "content/zoom",
         payload: { backgroundSize: imgRect, viewport: imgRect },
@@ -747,23 +756,6 @@ const ContentEditor = ({
       drawOV = scene.overlayContent !== undefined;
     }
 
-    // OK THIS is triggering a redraw -- why do we care about the viewport? Obviously we
-    // were thinking "hey" we need to draw the viewport....... but this is fucking stupid.
-    // there is always a viewport. The more I think about it I think we have a few things
-    // to reorganize... viewport *changes* should trigger repainting the canvas, as should
-    // the addition of things... then there is the need (somehow) separate what we send
-    // to the display from what we show to the DM -- paint and tokens will need to live
-    // separate but render together on the player screen.
-
-    // we already have a "thing" canvas in the worker, I think scenes need a composite
-    // image that users see since now basically have to pain tokens on without screwing
-    // up the fog of war (so tokens can be moved around)... whats the best order though?
-
-    // - [DONE] separate this crap (this should useEffect should only deal with scene changes)
-    //   and create a separate effect for viewport, tokens, etc?
-    // - [DONE] update the scene to handle paint and tokens separately
-    // - update the worker to update the separate player and DM canvases
-
     // if we have nothing new to draw then cheese it
     if (!drawBG && !drawOV) return;
 
@@ -806,17 +798,32 @@ const ContentEditor = ({
 
     // at this point, we know the viewport has changed and we need to update the worker...
     setDisplayViewport(scene.viewport);
-    const things: (SelectedRegion | TokenInstance)[] =
-      scene.viewport &&
-      scene.backgroundSize &&
-      !equalRects(scene.viewport, scene.backgroundSize)
-        ? [newSelectedRegion(scene.viewport)]
-        : [];
 
-    scene.tokens?.forEach((token) => things.push(token));
-    // need to delay this until we know we're in a good state.
-    worker.postMessage({ cmd: "things", values: { things } });
-  }, [displayViewport, scene, sceneId, worker, sceneUpdated]);
+    // draw the viewport (and possibly tokens) to the canvas
+    handleDrawables();
+
+    // scene.tokens?.forEach((token) => things.push(token));
+    // // need to delay this until we know we're in a good state.
+    // worker.postMessage({ cmd: "things", values: { things } });
+  }, [displayViewport, scene, sceneId, worker, sceneUpdated, handleDrawables]);
+
+  /**
+   * Wait for tokens to be changed in the scene, then render them
+   */
+  useEffect(() => {
+    if (!scene) return;
+    if (!dispatch) return;
+    if (!sceneUpdated) return;
+
+    // draw the viewport (and possibly tokens) to the canvas
+    if (scene.tokens && handleDrawables) {
+      handleDrawables();
+      return;
+    }
+
+    // if there are no tokens, set them in the scene so they can be drawn
+    dispatch({ type: "content/scenetokens", payload: { scene: scene._id } });
+  }, [dispatch, scene, sceneUpdated, handleDrawables]);
 
   /**
    * Its important to separate the worker message handler from the
