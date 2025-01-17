@@ -13,6 +13,7 @@ import { Rect, TableState } from "@micahg/tbltp-common";
 
 // TODO UNION MICAH DON"T SKIP NOW
 export type TableUpdate = TableState & {
+  apiUrl: string;
   bearer: string;
   things?: unknown[];
 };

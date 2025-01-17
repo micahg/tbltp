@@ -332,6 +332,8 @@ const ContentEditor = ({
   const handleDrawables = useCallback(() => {
     if (!scene) return;
     if (!worker) return;
+    if (!apiUrl) return;
+    if (!bearer) return;
 
     // we cannot pre-translate these into drawables because properties
     // that are methods do not survive the transfer to the worker
@@ -347,8 +349,8 @@ const ContentEditor = ({
 
     // scene.tokens?.forEach((token) => things.push(token));
     // need to delay this until we know we're in a good state.
-    worker.postMessage({ cmd: "things", values: { things } });
-  }, [worker, scene]);
+    worker.postMessage({ cmd: "things", values: { apiUrl, bearer, things } });
+  }, [apiUrl, bearer, worker, scene]);
 
   useEffect(() => {
     if (!internalState || !toolbarPopulated) return;
@@ -801,10 +803,6 @@ const ContentEditor = ({
 
     // draw the viewport (and possibly tokens) to the canvas
     handleDrawables();
-
-    // scene.tokens?.forEach((token) => things.push(token));
-    // // need to delay this until we know we're in a good state.
-    // worker.postMessage({ cmd: "things", values: { things } });
   }, [displayViewport, scene, sceneId, worker, sceneUpdated, handleDrawables]);
 
   /**
@@ -817,6 +815,8 @@ const ContentEditor = ({
 
     // draw the viewport (and possibly tokens) to the canvas
     if (scene.tokens && handleDrawables) {
+      // TODO MICAH HYDRATE SCENE TOKENS HERE WHENEVER THEY CHANGE
+      console.log(scene.tokens);
       handleDrawables();
       return;
     }

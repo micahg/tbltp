@@ -543,7 +543,12 @@ function adjustZoom(zoom: number, x: number, y: number) {
   renderAllCanvasses(backgroundImage);
 }
 
-function updateThings(things?: unknown[], render = false) {
+function updateThings(
+  apiUrl: string,
+  bearer: string,
+  things?: unknown[],
+  render = false,
+) {
   // clear the existing thing list
   _things.length = 0;
 
@@ -552,7 +557,7 @@ function updateThings(things?: unknown[], render = false) {
 
   things
     .filter((thing) => thing)
-    .map((thing) => createDrawable(thing))
+    .map((thing) => createDrawable(thing, apiUrl, bearer))
     .forEach((thing) => (thing ? _things.push(thing) : null));
 
   // render if we're asked (avoided in cases of subsequent full renders)
@@ -562,14 +567,14 @@ function updateThings(things?: unknown[], render = false) {
 }
 
 async function update(values: TableUpdate) {
-  const { angle, background, viewport, things } = values;
+  const { apiUrl, bearer, angle, background, viewport, things } = values;
   if (!background) {
-    if (things) return updateThings(things, true);
+    if (things) return updateThings(apiUrl, bearer, things, true);
     console.error(`Ignoring update without background`);
     return;
   }
   _angle = angle;
-  updateThings(things);
+  updateThings(apiUrl, bearer, things);
 
   if (viewport) {
     copyRect(viewport, _img_orig);
