@@ -543,17 +543,30 @@ function adjustZoom(zoom: number, x: number, y: number) {
   renderAllCanvasses(backgroundImage);
 }
 
-function updateThings(things?: unknown[], render = false) {
+async function updateThings(
+  apiUrl: string,
+  bearer: string,
+  things?: unknown[],
+  render = false,
+) {
   // clear the existing thing list
   _things.length = 0;
 
   // cheese it if there are no things to render
   if (!things) return;
 
-  things
-    .filter((thing) => thing)
-    .map((thing) => createDrawable(thing))
-    .forEach((thing) => (thing ? _things.push(thing) : null));
+  const promises: Promise<Drawable>[] = [];
+  for (const thing of things.filter((thing) => thing)) {
+    promises.push(createDrawable(thing, apiUrl, bearer));
+  }
+  let drawables: Drawable[];
+  try {
+    drawables = await Promise.all(promises);
+  } catch (err) {
+    console.error(`Unable to load things: ${JSON.stringify(err)}`);
+    return;
+  }
+  drawables.forEach((d) => _things.push(d));
 
   // render if we're asked (avoided in cases of subsequent full renders)
   if (!render) return;
@@ -562,14 +575,14 @@ function updateThings(things?: unknown[], render = false) {
 }
 
 async function update(values: TableUpdate) {
-  const { angle, background, viewport, things } = values;
+  const { apiUrl, bearer, angle, background, viewport, things } = values;
   if (!background) {
-    if (things) return updateThings(things, true);
+    if (things) return updateThings(apiUrl, bearer, things, true);
     console.error(`Ignoring update without background`);
     return;
   }
   _angle = angle;
-  updateThings(things);
+  updateThings(apiUrl, bearer, things);
 
   if (viewport) {
     copyRect(viewport, _img_orig);

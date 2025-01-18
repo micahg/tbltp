@@ -12,7 +12,11 @@ import { debounce } from "lodash";
 import { Rect, TableState } from "@micahg/tbltp-common";
 
 // TODO UNION MICAH DON"T SKIP NOW
+// BEFORE MERGING THIS BRANCH - this doesn't need to be *here* but it does need to be somewhere.
+// Its used exclusively in the worker so it probably should be in the worker file? things could
+// also be typed a little better (HydratedTokenInstance | Rect)
 export type TableUpdate = TableState & {
+  apiUrl: string;
   bearer: string;
   things?: unknown[];
 };

@@ -1,5 +1,11 @@
 import { PayloadAction } from "@reduxjs/toolkit";
-import { Asset, Scene, Token, TokenInstance } from "@micahg/tbltp-common";
+import {
+  Asset,
+  HydratedTokenInstance,
+  Scene,
+  Token,
+  TokenInstance,
+} from "@micahg/tbltp-common";
 
 // copied from the api
 interface TableTop {
@@ -144,13 +150,30 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       if (!scene) return state;
 
       const tokens = action.payload as unknown as TokenInstance[];
+      const hydrated: HydratedTokenInstance[] = [];
 
       const scenes = state.scenes;
       const idx = state.scenes.findIndex((s) => s._id === scene._id);
 
-      scenes[idx] = { ...scenes[idx], tokens };
-      const newScene = { ...scene, tokens };
-      console.log(`MICAH updating current scene ${action.type}`);
+      for (const instance of tokens) {
+        const token = state.tokens?.find((t) => t._id === instance.token);
+        if (!token) {
+          console.error(`Unable to find token for instance ${instance._id}`);
+          continue;
+        }
+        console.log(token.asset);
+        const asset = state.assets?.find((a) => a._id === token.asset);
+        if (!asset || !asset.location) {
+          console.error(
+            `Unable to find asset for token instance ${instance._id}, asset ${token.asset}`,
+          );
+          continue;
+        }
+        hydrated.push({ ...instance, token: asset.location });
+      }
+
+      scenes[idx] = { ...scenes[idx], tokens: hydrated };
+      const newScene = { ...scene, tokens: hydrated };
       return { ...state, scenes: [...scenes], currentScene: newScene };
       break;
     }
