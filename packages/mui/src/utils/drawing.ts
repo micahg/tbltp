@@ -58,14 +58,11 @@ export async function createDrawable<T = Rect>(
   apiUrl: string,
   bearer: string,
 ): Promise<Drawable> {
-  // if (isPoint(d)) return new DrawablePoint(d);
-  // if (isToken(d)) return new DrawableToken(d);
   if (isRect(d)) return new DrawableSelectedRegion(d);
   if (isHydratedTokenInstnace(d)) {
-    const img = await createDrawableToken(apiUrl, d.token, bearer);
+    const img = await cacheTokenImage(apiUrl, d.token, bearer);
     return new DrawableToken(d, img);
   }
-  // if (isHydratedTokenInstnace(d)) return new
   throw new TypeError("Invalid Drawable");
 }
 
@@ -99,19 +96,19 @@ class DrawableSelectedRegion implements Drawable {
 }
 
 // TODO try with bad link and see what happens before merging - ideally fallack to X
-async function createDrawableToken(
+async function cacheTokenImage(
   apiUrl: string,
   location: string,
   bearer: string,
 ) {
   if (location in cache) return cache[location];
-  // don't prefix here - you have the api from the environment reducer in when you're setting this in the content reducer
+  console.warn(`Cache miss for token ${location}`);
   const url = `${apiUrl}/${location}`;
   const img = await loadImage(url, bearer);
   cache[location] = img;
   return img;
 }
-// MICAH: NEED HYDRATED INSTANCE TOKEN THAT INCLUDES IMAGE + A TOKEN CACHE
+
 class DrawableToken implements Drawable {
   token: HydratedTokenInstance;
   img: ImageBitmap;
@@ -120,22 +117,18 @@ class DrawableToken implements Drawable {
     this.img = img;
   }
   draw(ctx: DrawContext) {
-    // ctx.beginPath();
-    // ctx.arc(this.token.x, this.token.y, 10, 0, 2 * Math.PI);
-    // ctx.fillStyle = "black";
-    // ctx.fill();
     const [_token_dw, _token_dh] = [this.img.width, this.img.height];
     ctx.translate(-_token_dw / 2, -_token_dh / 2);
     ctx.drawImage(
-      vamp,
+      this.img,
       // source (should always just be source dimensions)
       0,
       0,
-      vamp.width,
-      vamp.height,
+      this.img.width,
+      this.img.height,
       // destination (adjust according to scale)
-      x,
-      y,
+      this.token.x,
+      this.token.y,
       _token_dw,
       _token_dh,
     );

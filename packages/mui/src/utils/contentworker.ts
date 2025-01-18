@@ -543,7 +543,7 @@ function adjustZoom(zoom: number, x: number, y: number) {
   renderAllCanvasses(backgroundImage);
 }
 
-function updateThings(
+async function updateThings(
   apiUrl: string,
   bearer: string,
   things?: unknown[],
@@ -555,10 +555,18 @@ function updateThings(
   // cheese it if there are no things to render
   if (!things) return;
 
-  things
-    .filter((thing) => thing)
-    .map((thing) => createDrawable(thing, apiUrl, bearer))
-    .forEach((thing) => (thing ? _things.push(thing) : null));
+  const promises: Promise<Drawable>[] = [];
+  for (const thing of things.filter((thing) => thing)) {
+    promises.push(createDrawable(thing, apiUrl, bearer));
+  }
+  let drawables: Drawable[];
+  try {
+    drawables = await Promise.all(promises);
+  } catch (err) {
+    console.error(`Unable to load things: ${JSON.stringify(err)}`);
+    return;
+  }
+  drawables.forEach((d) => _things.push(d));
 
   // render if we're asked (avoided in cases of subsequent full renders)
   if (!render) return;
