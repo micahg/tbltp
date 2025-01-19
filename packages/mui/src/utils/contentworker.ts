@@ -435,7 +435,9 @@ function renderThings(ctx: OffscreenCanvasRenderingContext2D) {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   for (const thing of _things) {
     try {
+      ctx.save();
       thing.draw(ctx);
+      ctx.restore();
     } catch (err) {
       console.error(err);
     }

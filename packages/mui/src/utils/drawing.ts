@@ -117,6 +117,7 @@ class DrawableToken implements Drawable {
     this.img = img;
   }
   draw(ctx: DrawContext) {
+    // TODO: don't draw if not in region
     const [_token_dw, _token_dh] = [this.img.width, this.img.height];
     ctx.translate(-_token_dw / 2, -_token_dh / 2);
     ctx.drawImage(
