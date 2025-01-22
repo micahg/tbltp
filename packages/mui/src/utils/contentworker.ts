@@ -21,10 +21,11 @@ import {
   adjustTokenDimensions,
 } from "./geometry";
 import {
-  HydratedToken,
+  HydratedTokenInstance,
   Rect,
   ScenelessTokenInstance,
 } from "@micahg/tbltp-common";
+import { fromHydratedToken } from "./tokens";
 
 /**
  * Worker for offscreen drawing in the content editor.
@@ -47,7 +48,7 @@ let _max_zoom: number;
 let _first_zoom_step: number;
 let _things_on_top_of_overlay = false;
 let _default_token: ImageBitmap;
-let _token: HydratedToken | undefined = undefined;
+let _token: HydratedTokenInstance | undefined = undefined;
 
 // canvas width and height (sent from main thread)
 const _canvas: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -331,6 +332,8 @@ function eraseBrush(x: number, y: number, radius: number) {
 function renderToken(x: number, y: number, full = true) {
   if (!full) {
     overlayCtx.save();
+    if (_token) [_token.x, _token.y] = [x, y];
+
     // may be best to not translate since we're scaling
     overlayCtx.translate(-_token_dw / 2, -_token_dh / 2);
     overlayCtx.drawImage(
@@ -559,7 +562,7 @@ async function updateThings(
 
   const promises: Promise<Drawable>[] = [];
   for (const thing of things.filter((thing) => thing)) {
-    promises.push(createDrawable(thing, apiUrl, bearer));
+    promises.push(createDrawable(thing, bearer));
   }
   let drawables: Drawable[];
   try {
@@ -771,8 +774,15 @@ self.onmessage = async (evt) => {
     }
     case "set_token": {
       if ("token" in evt.data && "bearer" in evt.data) {
-        _token = evt.data.token;
-        const location = _token?.asset?.location;
+        // hiMicah();
+        // _token = evt.data.token; // HydratedToken
+        // const hydrated = fromHydratedToken(evt.data.token);
+        // console.log(hydrated);
+        _token = fromHydratedToken(evt.data.token);
+        const dt = await createDrawable(_token, evt.data.bearer);
+        console.log(dt);
+        // const d = createDrawable(_token, evt.data.bearer);
+        const location = _token.token;
         if (location) {
           loadImage(location, evt.data.bearer)
             .then((img) => setToken(img))

@@ -2,7 +2,7 @@
  * IMPORTANT: Do not change the interfaces in this file without also reviewing the corresponding
  * mongoose models and (if applicable) omitting/redefining the types.
  */
-import { Token } from "./token";
+import { HydratedToken, Token } from "./token";
 
 /**
  * Token placement properties without knowing the scene details
@@ -18,6 +18,7 @@ export interface TokenInstance extends ScenelessTokenInstance{
   scene: string;
 }
 
+// TODO remove "scene" from this interface since once hydrated we know which scene its from
 export interface HydratedTokenInstance extends Omit<TokenInstance, "token"> {
-  "token": string;
+  "token": string; // technically an url not an object id
 }

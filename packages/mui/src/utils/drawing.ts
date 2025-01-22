@@ -1,3 +1,9 @@
+/**
+ * FOR TESTING THE MAIN SCENE IS 66106a4b867826e1074c9476
+ * to remove from the other scene:
+ *  db.tokeninstances.remove({scene: ObjectId("66106a6e867826e1074c9484")})
+ */
+
 import { Rect, HydratedTokenInstance } from "@micahg/tbltp-common";
 import { loadImage } from "./content";
 
@@ -17,6 +23,8 @@ export type Thing = SelectedRegion | Marker;
 type BitmapCache = {
   [key: string]: ImageBitmap;
 };
+
+let DEFAULT_TOIKEN: ImageBitmap;
 
 const cache: BitmapCache = {};
 
@@ -55,12 +63,11 @@ export type Marker = {
 
 export async function createDrawable<T = Rect>(
   d: T,
-  apiUrl: string,
   bearer: string,
 ): Promise<Drawable> {
   if (isRect(d)) return new DrawableSelectedRegion(d);
   if (isHydratedTokenInstnace(d)) {
-    const img = await cacheTokenImage(apiUrl, d.token, bearer);
+    const img = await cacheTokenImage(d.token, bearer);
     return new DrawableToken(d, img);
   }
   throw new TypeError("Invalid Drawable");
@@ -96,15 +103,11 @@ class DrawableSelectedRegion implements Drawable {
 }
 
 // TODO try with bad link and see what happens before merging - ideally fallack to X
-async function cacheTokenImage(
-  apiUrl: string,
-  location: string,
-  bearer: string,
-) {
+async function cacheTokenImage(location: string, bearer: string) {
   if (location in cache) return cache[location];
   console.warn(`Cache miss for token ${location}`);
-  const url = `${apiUrl}/${location}`;
-  const img = await loadImage(url, bearer);
+
+  const img = await loadImage(location || "/x.webp", bearer);
   cache[location] = img;
   return img;
 }
@@ -116,6 +119,25 @@ class DrawableToken implements Drawable {
     this.token = token;
     this.img = img;
   }
+  place(ctx: DrawContext) {
+    // TODO: don't draw if not in region
+    const [_token_dw, _token_dh] = [this.img.width, this.img.height];
+    ctx.translate(-_token_dw / 2, -_token_dh / 2);
+    ctx.drawImage(
+      this.img,
+      // source (should always just be source dimensions)
+      0,
+      0,
+      this.img.width,
+      this.img.height,
+      // destination (adjust according to scale)
+      this.token.x,
+      this.token.y,
+      _token_dw,
+      _token_dh,
+    );
+  }
+
   draw(ctx: DrawContext) {
     // TODO: don't draw if not in region
     const [_token_dw, _token_dh] = [this.img.width, this.img.height];
