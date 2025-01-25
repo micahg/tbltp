@@ -504,7 +504,7 @@ function animateToken() {
   renderImage(overlayCtx, imageCanvasses, _angle);
   // renderToken(startX, startY, false);
   overlayCtx.save();
-  _token.draw(overlayCtx);
+  _token.place(overlayCtx, _zoom);
   overlayCtx.restore();
   requestAnimationFrame(() => animateToken());
 }
@@ -791,6 +791,7 @@ self.onmessage = async (evt) => {
           hydrated,
           evt.data.bearer,
         )) as DrawableToken;
+        _token.token_id = evt.data.token._id;
         // const d = createDrawable(_token, evt.data.bearer);
         // const location = _token.token;
         // if (location) {
@@ -889,6 +890,14 @@ self.onmessage = async (evt) => {
         console.error(`ERROR: no token set in end_token`);
         return;
       }
+
+      const p = unrotateAndScalePoints(
+        createPoints([_token.token.x, _token.token.y]),
+      )[0];
+      _token.token.x = Math.round(p.x);
+      _token.token.y = Math.round(p.y);
+
+      // TODO MICAH offset by our panned position
       recording = false;
       panning = false;
       // renderToken(startX, startY);
@@ -896,13 +905,16 @@ self.onmessage = async (evt) => {
       storeOverlay();
       const instance: ScenelessTokenInstance = {
         ..._token.token,
-        // token: _token._id,
-        // name: _token.name,
-        // visible: _token.visible,
-        // x: startX,
-        // y: startY,
-        // scale: _zoom,
+        token: _token.token_id!,
       };
+      // const instance: ScenelessTokenInstance = {
+      //   token: _token._id,
+      //   name: _token.name,
+      //   visible: _token.visible,
+      //   x: startX,
+      //   y: startY,
+      //   scale: _zoom,
+      // };
       postMessage({ cmd: "token_placed", instance: instance });
       break;
     }
@@ -981,18 +993,18 @@ self.onmessage = async (evt) => {
       // this caused a https://github.com/micahg/tbltp/issues/319 because `vamp`
       // was undefined when calculateToken tried to access its properties.
 
-      if (evt.data.action === "token") {
-        // calculateToken(_token_delta);
-        console.log(`MICAH TODO increase token size`);
+      if (evt.data.action === "token" && _token) {
+        if (_token.token.scale < 1) _token.token.scale *= 2;
+        else _token.token.scale += 0.5;
       } else {
         brush += MIN_BRUSH;
       }
       break;
     }
     case "brush_dec": {
-      if (evt.data.action === "token") {
-        // calculateToken(-_token_delta);
-        console.log(`MICAH TODO decrease token size`);
+      if (evt.data.action === "token" && _token) {
+        if (_token.token.scale < 1) _token.token.scale *= 0.5;
+        else _token.token.scale -= 0.5;
       } else {
         brush -= brush > MIN_BRUSH ? MIN_BRUSH : 0;
       }

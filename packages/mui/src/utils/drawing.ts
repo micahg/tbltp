@@ -2,6 +2,7 @@
  * FOR TESTING THE MAIN SCENE IS 66106a4b867826e1074c9476
  * to remove from the other scene:
  *  db.tokeninstances.remove({scene: ObjectId("66106a6e867826e1074c9484")})
+ *  db.tokeninstances.remove({scene: { $ne: ObjectId("66106a4b867826e1074c9476")}});
  */
 
 import { Rect, HydratedTokenInstance } from "@micahg/tbltp-common";
@@ -118,13 +119,27 @@ export interface BetterDrawable<T> {
 export class DrawableToken implements Drawable {
   token: HydratedTokenInstance;
   img: ImageBitmap;
+  token_id?: string; // hack to hang on to original toke when we want to send it back to the server for placement
   constructor(token: HydratedTokenInstance, img: ImageBitmap) {
     this.token = token;
     this.img = img;
   }
-  place(ctx: DrawContext) {
+
+  /**
+   *
+   * @param ctx
+   * @param zoom is the background divided by the visible canvas size
+   * Math.max(_fullRotW / _canvas.width, _fullRotH / _canvas.height);
+   */
+  place(ctx: DrawContext, zoom: number) {
     // TODO: don't draw if not in region
-    const [_token_dw, _token_dh] = [this.img.width, this.img.height];
+
+    // calcualte the size coefficient
+    const sizeCo = this.token.scale / zoom;
+    const [_token_dw, _token_dh] = [
+      this.img.width * sizeCo,
+      this.img.height * sizeCo,
+    ];
     ctx.translate(-_token_dw / 2, -_token_dh / 2);
     ctx.drawImage(
       this.img,
@@ -143,7 +158,10 @@ export class DrawableToken implements Drawable {
 
   draw(ctx: DrawContext) {
     // TODO: don't draw if not in region
-    const [_token_dw, _token_dh] = [this.img.width, this.img.height];
+    const [_token_dw, _token_dh] = [
+      this.img.width * this.token.scale,
+      this.img.height * this.token.scale,
+    ];
     ctx.translate(-_token_dw / 2, -_token_dh / 2);
     ctx.drawImage(
       this.img,
