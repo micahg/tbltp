@@ -23,13 +23,8 @@ import {
   copyRect,
   zoomFromViewport,
   adjustImageToViewport,
-  // adjustTokenDimensions,
 } from "./geometry";
-import {
-  // HydratedTokenInstance,
-  Rect,
-  ScenelessTokenInstance,
-} from "@micahg/tbltp-common";
+import { Rect, ScenelessTokenInstance } from "@micahg/tbltp-common";
 import { fromHydratedToken } from "./tokens";
 
 /**
@@ -52,7 +47,6 @@ const _zoom_step = 0.5;
 let _max_zoom: number;
 let _first_zoom_step: number;
 let _things_on_top_of_overlay = false;
-// let _default_token: ImageBitmap;
 let _token: DrawableToken | undefined = undefined;
 
 // canvas width and height (sent from main thread)
@@ -82,25 +76,6 @@ let red = "255";
 let green = "0";
 let blue = "0";
 let brush = MIN_BRUSH;
-
-/// _token_dw starts as the token width and then shrinks to just over zero or grows to the full width
-// let _token_dw = 0;
-
-/// _token_dh starts as the token height and then shrinks to just over zero or grows to the full height
-// let _token_dh = 0;
-// const _token_delta = MIN_BRUSH;
-// let vamp: ImageBitmap;
-
-/**
- * Set the token to an image. If no image is provided, the default token is used.
- * @param image the image to use as the token
- */
-// function setToken(image?: ImageBitmap) {
-//   if (image) vamp = image;
-//   else vamp = _default_token;
-//   _token_dw = vamp.width;
-//   _token_dh = vamp.height;
-// }
 
 function trimPanning() {
   if (_img.x <= 0) _img.x = 0;
@@ -168,18 +143,6 @@ function calculateViewport() {
   );
   return;
 }
-
-// function calculateToken(delta: number) {
-//   [_token_dw, _token_dh] = adjustTokenDimensions(
-//     delta,
-//     vamp.width,
-//     vamp.height,
-//     _token_dw,
-//     _token_dh,
-//     overlayCtx.canvas.width,
-//     overlayCtx.canvas.height,
-//   );
-// }
 
 /**
  * Given a desired viewport, set our current viewport accordingly, set the zoom,
@@ -341,63 +304,6 @@ function renderToken(ctx: DrawContext, place = false) {
   else _token.draw(ctx);
   ctx.restore();
 }
-// function renderToken(x: number, y: number, full = true) {
-//   if (!full) {
-//     overlayCtx.save();
-//     if (_token) [_token.x, _token.y] = [x, y];
-
-//     // may be best to not translate since we're scaling
-//     overlayCtx.translate(-_token_dw / 2, -_token_dh / 2);
-//     overlayCtx.drawImage(
-//       vamp,
-//       // source (should always just be source dimensions)
-//       0,
-//       0,
-//       vamp.width,
-//       vamp.height,
-//       // destination (adjust according to scale)
-//       x,
-//       y,
-//       _token_dw,
-//       _token_dh,
-//     );
-
-//     overlayCtx.restore();
-//     return;
-//   }
-
-//   // un-rotate and scale
-//   let { x: dx, y: dy } = unrotateAndScalePoints(createPoints([x, y]))[0];
-
-//   // then add the image area offset (eg if we're zoomed in)
-//   dx += _img.x;
-//   dy += _img.y;
-
-//   const [dw, dh] = rotatedWidthAndHeight(
-//     _angle,
-//     _token_dw * _zoom,
-//     _token_dh * _zoom,
-//   );
-
-//   // should be thing ctx when tokens become things
-//   fullCtx.save();
-//   fullCtx.translate(dx, dy);
-//   fullCtx.rotate((-_angle * Math.PI) / 180);
-//   fullCtx.drawImage(
-//     vamp,
-//     0,
-//     0,
-//     vamp.width,
-//     vamp.height,
-//     -dw / 2,
-//     -dh / 2,
-//     dw,
-//     dh,
-//   );
-
-//   fullCtx.restore();
-//   renderImage(overlayCtx, imageCanvasses, _angle);
-// }
 
 function renderBrush(x: number, y: number, radius: number, full = true) {
   if (!full) {
@@ -514,11 +420,7 @@ function animateToken() {
   if (!recording) return;
   if (!_token) return;
   renderImage(overlayCtx, imageCanvasses, _angle);
-  // renderToken(startX, startY, false);
   renderToken(overlayCtx, true);
-  // overlayCtx.save();
-  // _token.place(overlayCtx, _zoom);
-  // overlayCtx.restore();
   requestAnimationFrame(() => animateToken());
 }
 
@@ -781,8 +683,6 @@ self.onmessage = async (evt) => {
       // is pressed and then paint directly to the canvases when it is. Tokens just record until the
       // the mouse button is pressed and then released. The token is then placed at the last mouse
       // position where by the end_token command.
-      // startX = evt.data.x;
-      // startY = evt.data.y;
       if (!_token) break;
       _token.token.x = evt.data.x;
       _token.token.y = evt.data.y;
@@ -795,28 +695,12 @@ self.onmessage = async (evt) => {
     }
     case "set_token": {
       if ("token" in evt.data && "bearer" in evt.data) {
-        // hiMicah();
-        // _token = evt.data.token; // HydratedToken
-        // const hydrated = fromHydratedToken(evt.data.token);
-        // console.log(hydrated);
         const hydrated = fromHydratedToken(evt.data.token);
         _token = (await createDrawable(
           hydrated,
           evt.data.bearer,
         )) as DrawableToken;
         _token.token_id = evt.data.token._id;
-        // const d = createDrawable(_token, evt.data.bearer);
-        // const location = _token.token;
-        // if (location) {
-        //   loadImage(location, evt.data.bearer)
-        //     .then((img) => setToken(img))
-        //     .catch((err) => {
-        //       setToken();
-        //       console.error(`ERROR: unable to load token image: ${err}`);
-        //     });
-        // } else {
-        //   setToken();
-        // }
       }
       break;
     }
@@ -898,7 +782,6 @@ self.onmessage = async (evt) => {
        * the mouse was down. This is the position where the token will be placed.
        */
       if (!_token) {
-        // || !_token._id) {
         // TODO report this error to the main thread
         console.error(`ERROR: no token set in end_token`);
         return;
@@ -912,25 +795,14 @@ self.onmessage = async (evt) => {
       _token.token.angle -= _angle;
       _token.normalize();
 
-      // TODO MICAH offset by our panned position
       recording = false;
       panning = false;
-      // renderToken(startX, startY);
-      // _token.draw(thingCtx);
       renderToken(thingCtx);
       storeOverlay();
       const instance: ScenelessTokenInstance = {
         ..._token.token,
         token: _token.token_id!,
       };
-      // const instance: ScenelessTokenInstance = {
-      //   token: _token._id,
-      //   name: _token.name,
-      //   visible: _token.visible,
-      //   x: startX,
-      //   y: startY,
-      //   scale: _zoom,
-      // };
       postMessage({ cmd: "token_placed", instance: instance });
       break;
     }
