@@ -695,6 +695,12 @@ const ContentEditor = ({
             y: e.offsetY,
             action: internalState.act,
           });
+        } else if (e.deltaX !== 0) {
+          worker.postMessage({
+            cmd: "brush_rot",
+            delta: e.deltaX,
+            action: internalState.act,
+          });
         }
       } else if (
         internalState.rec &&

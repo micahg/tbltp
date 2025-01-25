@@ -14,6 +14,7 @@ export type TokenInstance = Omit<
   scene: Schema.Types.ObjectId;
 };
 
+// TODO IS THIS REDUNDANT?
 interface ITokenInstance extends TokenInstance {
   _id?: Schema.Types.ObjectId;
   user: Schema.Types.ObjectId;
@@ -25,6 +26,7 @@ interface ITokenInstance extends TokenInstance {
   x: number;
   y: number;
   scale: number;
+  angle: number;
 }
 
 const TokenInstanceSchema = new Schema<ITokenInstance>(
@@ -43,6 +45,7 @@ const TokenInstanceSchema = new Schema<ITokenInstance>(
     x: { type: Number, required: true },
     y: { type: Number, required: true },
     scale: { type: Number, required: true, default: 1 },
+    angle: { type: Number, required: true, default: 0 },
   },
   { timestamps: true },
 );

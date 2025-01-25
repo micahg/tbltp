@@ -141,6 +141,9 @@ export class DrawableToken implements Drawable {
       this.img.width * sizeCo,
       this.img.height * sizeCo,
     ];
+
+    ctx.translate(this.token.x, this.token.y);
+    ctx.rotate((this.token.angle * Math.PI) / 180);
     ctx.translate(-_token_dw / 2, -_token_dh / 2);
     ctx.drawImage(
       this.img,
@@ -149,33 +152,13 @@ export class DrawableToken implements Drawable {
       0,
       this.img.width,
       this.img.height,
-      // destination (adjust according to scale)
-      this.token.x,
-      this.token.y,
+      // destination
+      0,
+      0,
       _token_dw,
       _token_dh,
     );
   }
 
-  draw(ctx: DrawContext) {
-    // TODO: don't draw if not in region
-    const [_token_dw, _token_dh] = [
-      this.img.width * this.token.scale,
-      this.img.height * this.token.scale,
-    ];
-    ctx.translate(-_token_dw / 2, -_token_dh / 2);
-    ctx.drawImage(
-      this.img,
-      // source (should always just be source dimensions)
-      0,
-      0,
-      this.img.width,
-      this.img.height,
-      // destination (adjust according to scale)
-      this.token.x,
-      this.token.y,
-      _token_dw,
-      _token_dh,
-    );
-  }
+  draw = (ctx: DrawContext) => this.place(ctx, 1);
 }

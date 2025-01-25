@@ -1024,6 +1024,15 @@ self.onmessage = async (evt) => {
       }
       break;
     }
+    case "brush_rot": {
+      if (evt.data.action !== "token" || !_token) return;
+      const coef = evt.data.delta > 0 ? 1 : -1;
+      _token.token.angle += coef * 15;
+      if (_token.token.angle < 0) _token.token.angle += 360;
+      _token.token.angle %= 360;
+      console.log(`rotating token to ${_token.token.angle}`);
+      break;
+    }
     default: {
       console.error(`Unexpected worker command: ${evt.data.cmd}`);
       break;

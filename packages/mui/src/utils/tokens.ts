@@ -9,5 +9,6 @@ export function fromHydratedToken(d: HydratedToken): HydratedTokenInstance {
     x: 0,
     y: 0,
     scale: 1,
+    angle: 0,
   };
 }
