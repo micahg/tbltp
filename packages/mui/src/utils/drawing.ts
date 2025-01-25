@@ -13,6 +13,7 @@ export type DrawContext = CanvasDrawPath &
   CanvasFillStrokeStyles &
   CanvasTransform &
   CanvasDrawImage &
+  CanvasState &
   CanvasPath;
 
 export interface Drawable {

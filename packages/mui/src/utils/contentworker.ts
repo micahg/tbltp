@@ -1,7 +1,12 @@
 // - test with brand new scene (that wont have a viewport)
 import { TableUpdate } from "../components/RemoteDisplayComponent/RemoteDisplayComponent";
 import { LoadProgress, loadImage } from "./content";
-import { createDrawable, Drawable, DrawableToken } from "./drawing";
+import {
+  createDrawable,
+  Drawable,
+  DrawableToken,
+  DrawContext,
+} from "./drawing";
 import {
   Point,
   createPoints,
@@ -329,6 +334,13 @@ function eraseBrush(x: number, y: number, radius: number) {
   renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
+function renderToken(ctx: DrawContext, place = false) {
+  if (!_token) return;
+  ctx.save();
+  if (place) _token.place(ctx, _zoom);
+  else _token.draw(ctx);
+  ctx.restore();
+}
 // function renderToken(x: number, y: number, full = true) {
 //   if (!full) {
 //     overlayCtx.save();
@@ -503,9 +515,10 @@ function animateToken() {
   if (!_token) return;
   renderImage(overlayCtx, imageCanvasses, _angle);
   // renderToken(startX, startY, false);
-  overlayCtx.save();
-  _token.place(overlayCtx, _zoom);
-  overlayCtx.restore();
+  renderToken(overlayCtx, true);
+  // overlayCtx.save();
+  // _token.place(overlayCtx, _zoom);
+  // overlayCtx.restore();
   requestAnimationFrame(() => animateToken());
 }
 
@@ -901,7 +914,8 @@ self.onmessage = async (evt) => {
       recording = false;
       panning = false;
       // renderToken(startX, startY);
-      _token.draw(thingCtx);
+      // _token.draw(thingCtx);
+      renderToken(thingCtx);
       storeOverlay();
       const instance: ScenelessTokenInstance = {
         ..._token.token,
