@@ -24,8 +24,6 @@ type BitmapCache = {
   [key: string]: ImageBitmap;
 };
 
-let DEFAULT_TOIKEN: ImageBitmap;
-
 const cache: BitmapCache = {};
 
 export function isRect(d: unknown): d is Rect {
@@ -104,15 +102,20 @@ class DrawableSelectedRegion implements Drawable {
 
 // TODO try with bad link and see what happens before merging - ideally fallack to X
 async function cacheTokenImage(location: string, bearer: string) {
-  if (location in cache) return cache[location];
-  console.warn(`Cache miss for token ${location}`);
+  const url = location || "/x.webp";
+  if (url in cache) return cache[url];
+  console.warn(`Cache miss for token ${url}`);
 
-  const img = await loadImage(location || "/x.webp", bearer);
-  cache[location] = img;
+  const img = await loadImage(url, bearer);
+  cache[url] = img;
   return img;
 }
 
-class DrawableToken implements Drawable {
+export interface BetterDrawable<T> {
+  draw(ctx: DrawContext, d: T): void;
+}
+
+export class DrawableToken implements Drawable {
   token: HydratedTokenInstance;
   img: ImageBitmap;
   constructor(token: HydratedTokenInstance, img: ImageBitmap) {
