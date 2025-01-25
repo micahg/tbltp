@@ -790,8 +790,8 @@ self.onmessage = async (evt) => {
       const p = unrotateAndScalePoints(
         createPoints([_token.token.x, _token.token.y]),
       )[0];
-      _token.token.x = Math.round(p.x);
-      _token.token.y = Math.round(p.y);
+      _token.token.x = Math.round(p.x + _img.x);
+      _token.token.y = Math.round(p.y + _img.y);
       _token.token.angle -= _angle;
       _token.normalize();
 
@@ -804,6 +804,9 @@ self.onmessage = async (evt) => {
         token: _token.token_id!,
       };
       postMessage({ cmd: "token_placed", instance: instance });
+
+      _token.token.angle += _angle;
+      _token.normalize();
       break;
     }
     case "obscure": {
