@@ -126,6 +126,11 @@ export class DrawableToken implements Drawable {
     this.img = img;
   }
 
+  normalize() {
+    while (this.token.angle < 0) this.token.angle += 360;
+    while (this.token.angle >= 360) this.token.angle -= 360;
+  }
+
   /**
    *
    * @param ctx

@@ -909,6 +909,8 @@ self.onmessage = async (evt) => {
       )[0];
       _token.token.x = Math.round(p.x);
       _token.token.y = Math.round(p.y);
+      _token.token.angle -= _angle;
+      _token.normalize();
 
       // TODO MICAH offset by our panned position
       recording = false;
@@ -1028,8 +1030,7 @@ self.onmessage = async (evt) => {
       if (evt.data.action !== "token" || !_token) return;
       const coef = evt.data.delta > 0 ? 1 : -1;
       _token.token.angle += coef * 15;
-      if (_token.token.angle < 0) _token.token.angle += 360;
-      _token.token.angle %= 360;
+      _token.normalize();
       console.log(`rotating token to ${_token.token.angle}`);
       break;
     }
