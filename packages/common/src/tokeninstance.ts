@@ -12,12 +12,14 @@ export interface ScenelessTokenInstance extends Omit<Token, "asset"> {
   x: number;
   y: number;
   scale: number;
+  angle: number;
 }
 
 export interface TokenInstance extends ScenelessTokenInstance{
   scene: string;
 }
 
+// TODO remove "scene" from this interface since once hydrated we know which scene its from
 export interface HydratedTokenInstance extends Omit<TokenInstance, "token"> {
-  "token": string;
+  "token": string; // technically an url not an object id
 }

@@ -86,6 +86,18 @@ export function tokenInstanceValidator() {
         errorMessage: "scale must be a number",
       },
     },
+    angle: {
+      in: ["body"],
+      optional: true,
+      isInt: {
+        options: {
+          min: 0,
+          max: 359,
+        },
+        errorMessage:
+          "angle must be an integer arg degree between 0 and 359 inclusive",
+      },
+    },
   });
 }
 

@@ -20,6 +20,7 @@ export type ContentReducerError = {
 };
 
 export type ContentReducerState = {
+  readonly mediaPrefix?: string;
   readonly pushTime: number | undefined;
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
@@ -39,6 +40,8 @@ const initialState: ContentReducerState = {
 
 export const ContentReducer = (state = initialState, action: PayloadAction) => {
   switch (action.type) {
+    case "content/mediaprefix":
+      return { ...state, mediaPrefix: action.payload as unknown as string };
     case "content/push":
       return { ...state, pushTime: new Date().getTime() };
     case "content/pull": {
@@ -169,7 +172,10 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
           );
           continue;
         }
-        hydrated.push({ ...instance, token: asset.location });
+        hydrated.push({
+          ...instance,
+          token: `${state.mediaPrefix}/${asset.location}`,
+        });
       }
 
       scenes[idx] = { ...scenes[idx], tokens: hydrated };

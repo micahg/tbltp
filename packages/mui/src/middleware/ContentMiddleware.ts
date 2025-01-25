@@ -213,6 +213,11 @@ export const ContentMiddleware: Middleware =
       return next(action);
     }
 
+    if (!state.content.mediaPrefix) {
+      // I suppose when we use R2 or S3, this will be different (and likely from the environment config)
+      next({ type: "content/mediaprefix", payload: state.environment.api });
+    }
+
     switch (action.type) {
       case "content/updatetoken": {
         operate(state, store, next, "put", "token", action);
