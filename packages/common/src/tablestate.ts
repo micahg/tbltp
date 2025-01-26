@@ -3,14 +3,15 @@
  * mongoose models and (if applicable) omitting/redefining the types.
  */
 import { Rect } from "./geometry";
+import { TokenInstance } from "./tokeninstance";
 
 export interface TableState {
-    overlay?: string;
-    overlayRev?: number;
-    background?: string;
-    backgroundRev?: number;
-    viewport: Rect;
-    angle: number;
-    backgroundSize?: Rect;
-  }
-  
+  overlay?: string;
+  overlayRev?: number;
+  background?: string;
+  backgroundRev?: number;
+  viewport: Rect;
+  angle: number;
+  backgroundSize?: Rect;
+  tokens: TokenInstance[];
+}
