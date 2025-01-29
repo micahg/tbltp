@@ -113,7 +113,6 @@ function schemaErrorCheck(
 ) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    log.error("Schema validation failed", { errors: errors.array() });
     return res.sendStatus(400);
   }
   next();
