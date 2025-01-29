@@ -18,7 +18,8 @@ import { getUserByID } from "./user";
 import { getOrCreateTableTop } from "./tabletop";
 import { getUserScene } from "./scene";
 import { getSceneTokenInstances } from "./tokeninstance";
-import { ITokenInstance } from "../models/tokeninstance";
+import { HydratedTokenInstance } from "@micahg/tbltp-common";
+import { hydrateStateToken } from "../routes/state";
 
 interface WSStateMessage {
   method?: string;
@@ -95,9 +96,11 @@ async function verifyConnection(sock: WebSocket, req: IncomingMessage) {
       throw new Error("User has no scene set", { cause: WS_NO_SCENE });
 
     const sceneId = table.scene.toString();
-    const tokenPromise = getSceneTokenInstances(user, sceneId);
+    const tokenPromise = getSceneTokenInstances(user, sceneId, true);
     const scenePromise = getUserScene(user, sceneId);
     const [scene, tokens] = await Promise.all([scenePromise, tokenPromise]);
+
+    const hydrated = await hydrateStateToken(user, scene, tokens);
 
     const state: TableState = {
       overlay: scene.overlayContent,
@@ -107,7 +110,7 @@ async function verifyConnection(sock: WebSocket, req: IncomingMessage) {
       viewport: scene.viewport,
       backgroundSize: scene.backgroundSize,
       angle: scene.angle || 0,
-      tokens: tokens,
+      tokens: hydrated,
     };
     const msg: WSStateMessage = {
       method: "connection",
@@ -128,61 +131,6 @@ async function verifyConnection(sock: WebSocket, req: IncomingMessage) {
     closeSocketWithError(sock, msg, reason);
   }
 
-  // getUserByID(jwt.sub)
-  //   .then((user) => {
-  //     // close socket for invalid users
-  //     if (!user) throw new Error("invalid user", { cause: WS_INVALID_USER });
-  //     const userID: string = user._id.toString();
-  //     if (SOCKET_SESSIONS.has(userID)) {
-  //       log.info(`New connection - closing old WS for user ${userID}`);
-  //       SOCKET_SESSIONS.get(userID).close();
-  //       SOCKET_SESSIONS.delete(userID);
-  //     }
-  //     SOCKET_SESSIONS.set(userID, sock);
-  //     sock.on("close", () => {
-  //       SOCKET_SESSIONS.delete(userID);
-  //       log.info(`Total websocket connections ${SOCKET_SESSIONS.size}`);
-  //     });
-  //     return user;
-  //   })
-  //   .then((user) => getOrCreateTableTop(user))
-  //   .then((table) => {
-  //     if (!table.scene)
-  //       throw new Error("User has no scene set", { cause: WS_NO_SCENE });
-
-  //     // const asdf = getSceneTokenInstances(table.user, req.params.id);
-  //     return getSceneById(table.scene.toString(), table.user.toString());
-  //   })
-  //   .then((scene) => {
-  //     const state: TableState = {
-  //       overlay: scene.overlayContent,
-  //       overlayRev: scene.overlayContentRev,
-  //       background: scene.playerContent,
-  //       backgroundRev: scene.playerContentRev,
-  //       viewport: scene.viewport,
-  //       backgroundSize: scene.backgroundSize,
-  //       angle: scene.angle || 0,
-  //       // tokens: scene.tokens,
-  //     };
-  //     const msg: WSStateMessage = {
-  //       method: "connection",
-  //       state: state,
-  //     };
-  //     // make sure we don't get shut down on the next interval
-  //     sock["live"] = true;
-  //     sock.on("pong", () => (sock["live"] = true));
-  //     sock.send(JSON.stringify(msg));
-  //   })
-  //   .catch((err) => {
-  //     const msg = Object.prototype.hasOwnProperty.call(err, "message")
-  //       ? err.message
-  //       : JSON.stringify(err);
-  //     const reason = Object.prototype.hasOwnProperty.call(err, "cause")
-  //       ? err.cause
-  //       : null;
-  //     closeSocketWithError(sock, msg, reason);
-  //   });
-
   sock.on("message", (buf) => {
     const data = buf.toString();
     log.info(`Received "${data}"`);
@@ -199,27 +147,30 @@ export function startWSServer(
   const wss = new WebSocketServer({ server: nodeServer });
   const emitter = app as EventEmitter;
 
-  emitter.on(ASSETS_UPDATED_SIG, (scene: IScene, tokens: ITokenInstance[]) => {
-    const userID = scene.user.toString();
-    if (!SOCKET_SESSIONS.has(userID)) return;
-    const tableState: TableState = {
-      overlay: scene.overlayContent,
-      overlayRev: scene.overlayContentRev,
-      background: scene.playerContent,
-      backgroundRev: scene.playerContentRev,
-      viewport: scene.viewport,
-      backgroundSize: scene.backgroundSize,
-      angle: scene.angle || 0,
-      tokens: tokens,
-    };
-    const sock: WebSocket = SOCKET_SESSIONS.get(userID);
-    const msg: WSStateMessage = {
-      method: ASSETS_UPDATED_SIG,
-      state: tableState,
-    };
-    log.info(`Sending ${JSON.stringify(msg)}`);
-    sock.send(JSON.stringify(msg));
-  });
+  emitter.on(
+    ASSETS_UPDATED_SIG,
+    (scene: IScene, tokens: HydratedTokenInstance[]) => {
+      const userID = scene.user.toString();
+      if (!SOCKET_SESSIONS.has(userID)) return;
+      const tableState: TableState = {
+        overlay: scene.overlayContent,
+        overlayRev: scene.overlayContentRev,
+        background: scene.playerContent,
+        backgroundRev: scene.playerContentRev,
+        viewport: scene.viewport,
+        backgroundSize: scene.backgroundSize,
+        angle: scene.angle || 0,
+        tokens: tokens,
+      };
+      const sock: WebSocket = SOCKET_SESSIONS.get(userID);
+      const msg: WSStateMessage = {
+        method: ASSETS_UPDATED_SIG,
+        state: tableState,
+      };
+      log.info(`Sending ${JSON.stringify(msg)}`);
+      sock.send(JSON.stringify(msg));
+    },
+  );
 
   wss.on("connection", verifyConnection);
   const interval = setInterval(() => {

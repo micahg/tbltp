@@ -8,7 +8,36 @@ import {
   setTableTopByScene,
 } from "../utils/tabletop";
 import { getUserScene } from "../utils/scene";
-import { getSceneTokenInstances } from "../utils/tokeninstance";
+import {
+  getSceneTokenInstanceAssets,
+  getSceneTokenInstances,
+} from "../utils/tokeninstance";
+import { HydratedTokenInstance } from "@micahg/tbltp-common";
+import { IUser } from "../models/user";
+import { ITokenInstance } from "../models/tokeninstance";
+import { IScene } from "../models/scene";
+import { Document } from "mongoose";
+
+export async function hydrateStateToken(
+  user: IUser,
+  scene: IScene,
+  tokens: Document<unknown, object, ITokenInstance>[],
+) {
+  const stuff = await getSceneTokenInstanceAssets(user, scene);
+  if (stuff.length !== tokens.length)
+    throw new Error("Token count mismatch", { cause: 400 });
+
+  // this only works because we're starting from the same query on user/scene/visible
+  const hydrated: HydratedTokenInstance[] = [];
+  for (const [i, token] of tokens.entries()) {
+    const t = token.toObject({
+      flattenObjectIds: true,
+    }) as unknown as HydratedTokenInstance;
+    t.token = stuff[i].assets.location;
+    hydrated.push(t);
+  }
+  return hydrated;
+}
 
 export async function updateState(
   req: Request,
@@ -23,21 +52,21 @@ export async function updateState(
     const table = await getOrCreateTableTop(user);
     await setTableTopByScene(table._id.toString(), sceneID);
     const scenePromise = getUserScene(user, sceneID);
-    const tokenPromise = getSceneTokenInstances(user, sceneID);
+    // get *visible* tokens
+    const tokenPromise = getSceneTokenInstances(user, sceneID, true);
     const [scene, tokens] = await Promise.all([scenePromise, tokenPromise]);
-    res.app.emit(ASSETS_UPDATED_SIG, scene, tokens);
     res.sendStatus(200);
+
+    // fucking normalized tokens - get unique token ids - if this ever scales this probably
+    // needs to come off the hot path -- how big could a
+
+    // this only works because we're starting from the same query on user/scene/visible
+    const hydrated = await hydrateStateToken(user, scene, tokens);
+
+    res.app.emit(ASSETS_UPDATED_SIG, scene, hydrated);
   } catch (err) {
     return next(err);
   }
-  // return getUser(req.auth)
-  //   .then((user) => userExistsOr401(user))
-  //   .then((user) => getOrCreateTableTop(user)) // maybe we can skip this and just update by ID
-  //   .then((table) => setTableTopByScene(table._id.toString(), sceneID))
-  //   .then((table) => getSceneById(sceneID, table.user.toString()))
-  //   .then((scene) => res.app.emit(ASSETS_UPDATED_SIG, scene))
-  //   .then(() => res.sendStatus(200))
-  //   .catch((err) => next(err));
 }
 
 export function getState(req: Request, res: Response, next: NextFunction) {

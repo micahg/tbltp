@@ -1,5 +1,4 @@
-import { Rect } from "@micahg/tbltp-common";
-import { ITokenInstance } from "./tokeninstance";
+import { HydratedTokenInstance, Rect } from "@micahg/tbltp-common";
 
 export interface TableState {
   overlay?: string;
@@ -9,5 +8,5 @@ export interface TableState {
   viewport: Rect;
   angle: number;
   backgroundSize?: Rect;
-  tokens: ITokenInstance[];
+  tokens: HydratedTokenInstance[];
 }

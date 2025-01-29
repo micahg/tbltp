@@ -31,7 +31,7 @@ interface ITokenInstance extends TokenInstance {
 
 const TokenInstanceSchema = new Schema<ITokenInstance>(
   {
-    token: { type: Schema.Types.ObjectId, required: true },
+    token: { type: Schema.Types.ObjectId, required: true, ref: "Token" },
     scene: { type: Schema.Types.ObjectId, required: true },
     user: { type: Schema.Types.ObjectId, required: true },
     name: { type: String, required: true },
