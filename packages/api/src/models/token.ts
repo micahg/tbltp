@@ -18,7 +18,7 @@ const TokenSchema = new Schema<IToken>(
     user: { type: Schema.Types.ObjectId, required: true },
     name: { type: String, required: true },
     visible: { type: Boolean, default: false },
-    asset: { type: Schema.Types.ObjectId, required: false },
+    asset: { type: Schema.Types.ObjectId, required: false, ref: "Asset" },
     hitPoints: {
       type: Number,
       required: false,

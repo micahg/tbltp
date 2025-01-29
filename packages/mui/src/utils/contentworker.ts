@@ -1,5 +1,4 @@
 // - test with brand new scene (that wont have a viewport)
-import { TableUpdate } from "../components/RemoteDisplayComponent/RemoteDisplayComponent";
 import { LoadProgress, loadImage } from "./content";
 import {
   createDrawable,
@@ -24,7 +23,7 @@ import {
   zoomFromViewport,
   adjustImageToViewport,
 } from "./geometry";
-import { Rect, ScenelessTokenInstance } from "@micahg/tbltp-common";
+import { Rect, ScenelessTokenInstance, TableState } from "@micahg/tbltp-common";
 import { fromHydratedToken } from "./tokens";
 
 /**
@@ -76,6 +75,12 @@ let red = "255";
 let green = "0";
 let blue = "0";
 let brush = MIN_BRUSH;
+
+export type TableUpdate = TableState & {
+  apiUrl: string;
+  bearer: string;
+  things?: unknown[];
+};
 
 function trimPanning() {
   if (_img.x <= 0) _img.x = 0;

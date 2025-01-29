@@ -7,7 +7,7 @@ import { app, serverPromise, shutDown, startUp } from "../src/server";
 
 import * as request from "supertest";
 import { userOne, userZero } from "./assets/auth";
-import { TokenInstance } from "@micahg/tbltp-common";
+import { ScenelessTokenInstance, TokenInstance } from "@micahg/tbltp-common";
 
 let mongodb: MongoMemoryServer;
 let mongocl: MongoClient;
@@ -18,7 +18,7 @@ let usersCollection,
 
 jest.mock("../src/utils/auth");
 
-type SceneToken = Omit<TokenInstance, "scene">;
+type SceneToken = Omit<ScenelessTokenInstance, "angle">;
 
 const minTokenInstance: SceneToken = {
   name: "asdf",
@@ -37,6 +37,7 @@ const updatedMinTokenInstance: TokenInstance = {
   y: 1,
   scale: 2,
   visible: false,
+  angle: 0,
 };
 
 beforeAll((done) => {
@@ -182,6 +183,7 @@ describe("token instance", () => {
         y: 0,
         scale: 1,
         visible: true,
+        angle: 0,
       };
       const resp = await request(app).put("/tokeninstance").send(inst);
       expect(resp.statusCode).toBe(404);
@@ -208,6 +210,7 @@ describe("token instance", () => {
         y: 0,
         scale: 1,
         visible: true,
+        angle: 0,
       };
       const resp = await request(app).put("/tokeninstance").send(inst);
       expect(resp.statusCode).toBe(404);

@@ -9,6 +9,7 @@ import {
 import { knownMongoError } from "./errors";
 import { IUser } from "../models/user";
 import mongoose from "mongoose";
+import { IScene } from "../models/scene";
 
 export function tokenInstanceValidator() {
   return checkSchema({
@@ -125,11 +126,46 @@ export function deleteTokenInstanceValidator() {
   });
 }
 
-export function getSceneTokenInstances(user: IUser, scene: string) {
-  return TokenInstanceModel.find({
+export function getSceneTokenInstances(
+  user: IUser,
+  scene: string,
+  visible?: boolean,
+) {
+  const query = {
     user: { $eq: user._id },
     scene: { $eq: scene },
-  });
+  };
+  if (visible !== undefined) {
+    query["visible"] = { $eq: visible };
+  }
+  return TokenInstanceModel.find(query);
+}
+
+export function getSceneTokenInstanceAssets(user: IUser, scene: IScene) {
+  return TokenInstanceModel.aggregate([
+    { $match: { scene: scene._id, visible: true } },
+    { $project: { token: 1 } },
+    {
+      $lookup: {
+        from: "tokens",
+        localField: "token",
+        foreignField: "_id",
+        as: "tokens",
+      },
+    },
+    { $project: { _id: 1, "tokens.asset": 1 } },
+    { $unwind: "$tokens" },
+    {
+      $lookup: {
+        from: "assets",
+        localField: "tokens.asset",
+        foreignField: "_id",
+        as: "assets",
+      },
+    },
+    { $project: { _id: 1, "assets.location": 1 } },
+    { $unwind: "$assets" },
+  ]);
 }
 
 export function getUserTokenInstance(user: IUser, id: string) {
