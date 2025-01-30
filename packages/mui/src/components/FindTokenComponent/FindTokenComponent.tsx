@@ -63,6 +63,7 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
         scale: 1,
         angle: 0,
       };
+      // MICAH PICK IT UP HERE
       console.log(`MICAH instance would be ${JSON.stringify(instance)}`);
       const hydratedToken: HydratedToken = { ...token, asset };
       onToken(hydratedToken);
