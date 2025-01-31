@@ -18,10 +18,10 @@ import { useState, Fragment } from "react";
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import CreateTokenFormComponent from "../CreateTokenFormComponent/CreateTokenFormComponent.lazy";
 import FindTokenComponent from "../FindTokenComponent/FindTokenComponent.lazy";
-import { HydratedToken } from "@micahg/tbltp-common";
+import { ScenelessTokenInstance } from "@micahg/tbltp-common";
 
 interface TokenInfoDrawerComponentProps {
-  onToken: (token: HydratedToken) => void; // pass through for token selection
+  onToken: (token: ScenelessTokenInstance) => void; // pass through for token selection
   closeDrawer?: () => void;
 }
 
@@ -38,7 +38,7 @@ const TokenInfoDrawerComponent = ({
 
   const toggleSearch = () => setSearchOpen(!searchOpen);
 
-  const tokenSelected = (token: HydratedToken) => {
+  const tokenSelected = (token: ScenelessTokenInstance) => {
     if (closeDrawer) closeDrawer();
     onToken(token);
   };

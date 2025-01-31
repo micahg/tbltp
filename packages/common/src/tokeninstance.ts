@@ -13,6 +13,7 @@ export interface ScenelessTokenInstance extends Omit<Token, "asset"> {
   y: number;
   scale: number;
   angle: number;
+  visible: boolean;
 }
 
 export interface TokenInstance extends ScenelessTokenInstance{

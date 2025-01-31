@@ -14,15 +14,12 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { useDispatch, useSelector } from "react-redux";
 import { useCallback, useEffect, useState } from "react";
-import {
-  HydratedToken,
-  ScenelessTokenInstance,
-  Token,
-} from "@micahg/tbltp-common";
+import { ScenelessTokenInstance, Token } from "@micahg/tbltp-common";
 // import styles from "./FindTokenComponent.module.css";
 
 interface FindTokenComponentProps {
-  onToken: (token: HydratedToken) => void;
+  // onToken: (token: HydratedToken) => void;
+  onToken: (token: ScenelessTokenInstance) => void;
 }
 
 const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
@@ -63,10 +60,10 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
         scale: 1,
         angle: 0,
       };
-      // MICAH PICK IT UP HERE
+      // MICAH PICK IT UP HERE - need to send HydratedTokenInstance (need the asset)
       console.log(`MICAH instance would be ${JSON.stringify(instance)}`);
-      const hydratedToken: HydratedToken = { ...token, asset };
-      onToken(hydratedToken);
+      // const hydratedToken: HydratedToken = { ...token, asset };
+      onToken(instance);
     },
     [assets, mediaPrefix, onToken],
   );

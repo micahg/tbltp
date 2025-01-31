@@ -48,7 +48,6 @@ import { debounce } from "lodash";
 import { LoadProgress } from "../../utils/content";
 import {
   Rect,
-  HydratedToken,
   TokenInstance,
   ScenelessTokenInstance,
 } from "@micahg/tbltp-common";
@@ -185,7 +184,7 @@ const ContentEditor = ({
   }, [manageScene]);
 
   const setToken = useCallback(
-    (token: HydratedToken) => {
+    (token: ScenelessTokenInstance) => {
       if (!worker) return;
       worker.postMessage({ cmd: "set_token", token: token, bearer: bearer });
     },
@@ -450,7 +449,7 @@ const ContentEditor = ({
         callback: () =>
           infoDrawer(
             <TokenInfoDrawerComponent
-              onToken={(token: HydratedToken) => {
+              onToken={(token: ScenelessTokenInstance) => {
                 setToken(token);
                 prepareRecording("token");
               }}

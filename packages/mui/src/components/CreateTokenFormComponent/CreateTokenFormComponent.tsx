@@ -2,9 +2,7 @@
 import {
   Box,
   Button,
-  Checkbox,
   FormControl,
-  FormControlLabel,
   IconButton,
   InputLabel,
   MenuItem,
@@ -73,7 +71,6 @@ const CreateTokenFormComponent = ({
   function stripToken(token?: Token): Token {
     return {
       name: token?.name || "",
-      visible: token?.visible || false,
       asset: token?.asset || "",
       hitPoints: token?.hitPoints || 0,
     };
@@ -141,19 +138,6 @@ const CreateTokenFormComponent = ({
                 label="Name"
                 error={!!errors.name}
                 helperText={errors.name ? (errors.name.message as string) : ""}
-              />
-            )}
-          />
-        </FormControl>
-        <FormControl fullWidth>
-          <Controller
-            name="visible"
-            control={control}
-            render={({ field }) => (
-              <FormControlLabel
-                {...field}
-                control={<Checkbox />}
-                label="Player Visible"
               />
             )}
           />
@@ -255,7 +239,6 @@ export default memo(CreateTokenFormComponent, (prev, next) => {
   return (
     prev.token?._id === next.token?._id &&
     prev.token?.name === next.token?.name &&
-    prev.token?.visible === next.token?.visible &&
     prev.token?.asset === next.token?.asset &&
     prev.token?.hitPoints === next.token?.hitPoints
   );
