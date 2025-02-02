@@ -315,16 +315,10 @@ const ContentEditor = ({
         }
       } else if (evt.data.cmd === "token_placed") {
         if (!("instance" in evt.data)) return;
-        const instance: TokenInstance = {
-          ...(evt.data.instance as HydratedTokenInstance),
-          scene: scene._id,
-        };
-        // MICAH this is the point we go from token to token instance for a scene
-        // tokens shouldn't have a visibility flag, but somewhere we have to set that
-        // value. I like the idea of an icon on the token button that allows it to be
-        // hidden -- does it also make sense to handle the conversion from token to
-        // instance token there? maybe, we do know what scene we're on...
-        dispatch({ type: "content/scenetokenplaced", payload: instance });
+        dispatch({
+          type: "content/scenetokenplaced",
+          payload: evt.data.instance,
+        });
       }
     },
     [dispatch, downloads, ovRev, scene],

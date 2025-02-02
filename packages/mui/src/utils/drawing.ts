@@ -47,7 +47,8 @@ export function isHydratedTokenInstnace(
     typeof d === "object" &&
     typeof (d as HydratedTokenInstance).x === "number" &&
     typeof (d as HydratedTokenInstance).y === "number" &&
-    typeof (d as HydratedTokenInstance).token === "string"
+    typeof (d as HydratedTokenInstance).token === "string" &&
+    typeof (d as HydratedTokenInstance).asset === "string"
   );
 }
 
@@ -67,7 +68,7 @@ export async function createDrawable<T = Rect>(
 ): Promise<Drawable> {
   if (isRect(d)) return new DrawableSelectedRegion(d);
   if (isHydratedTokenInstnace(d)) {
-    const img = await cacheTokenImage(d.token, bearer);
+    const img = await cacheTokenImage(d.asset, bearer);
     return new DrawableToken(d, img);
   }
   throw new TypeError("Invalid Drawable");
@@ -120,7 +121,6 @@ export interface BetterDrawable<T> {
 export class DrawableToken implements Drawable {
   token: HydratedTokenInstance;
   img: ImageBitmap;
-  token_id?: string; // hack to hang on to original toke when we want to send it back to the server for placement
   constructor(token: HydratedTokenInstance, img: ImageBitmap) {
     this.token = token;
     this.img = img;

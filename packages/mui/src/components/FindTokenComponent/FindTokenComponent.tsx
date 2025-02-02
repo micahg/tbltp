@@ -42,7 +42,7 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendHydratedToken = useCallback(
-    (token: Token, visible: boolean) => {
+    (token: Token, asset: string, visible: boolean) => {
       if (assets === undefined) return;
       if (mediaPrefix === undefined) return;
       if (scene === undefined) return;
@@ -52,26 +52,13 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
         scene: scene._id!,
         visible,
         token: token._id!,
+        asset: asset,
         x: 0,
         y: 0,
         scale: 1,
         angle: 0,
       };
 
-      // if no asset selected token renders with default token image
-      const asset = assets.find((asset) => asset._id === token.asset);
-      if (asset) {
-        // copy (instead of asset.location updating) so we don't keep prepending the api url infinitely
-        // const location = `${mediaPrefix}/${asset.location}`;
-        // asset = { ...asset, location: location };
-        instance.token = `${mediaPrefix}/${asset.location}`;
-      }
-
-      // MICAH PICK IT UP HERE - need to send HydratedTokenInstance (need the asset)
-      // ScenelessTokenInstance and HydratedTokenInstance are *the same* structure, but
-      // the hydrated version has a url in the token field rather than an objectid.
-      console.log(`MICAH instance would be ${JSON.stringify(instance)}`);
-      // const hydratedToken: HydratedToken = { ...token, asset };
       onToken(instance);
     },
     [assets, mediaPrefix, onToken, scene],
@@ -111,7 +98,7 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
                       <IconButton
                         edge="end"
                         aria-label="comments"
-                        onClick={() => sendHydratedToken(token, false)}
+                        onClick={() => sendHydratedToken(token, url, false)}
                       >
                         <VisibilityOffIcon />
                       </IconButton>
@@ -120,7 +107,7 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
                 >
                   <Tooltip title="Visible token" placement="left">
                     <ListItemButton
-                      onClick={() => sendHydratedToken(token, true)}
+                      onClick={() => sendHydratedToken(token, url, true)}
                     >
                       <ListItemAvatar>
                         <Avatar alt={`Avatar ${token.name}`} src={url} />

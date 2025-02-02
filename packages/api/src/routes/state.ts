@@ -33,7 +33,7 @@ export async function hydrateStateToken(
     const t = token.toObject({
       flattenObjectIds: true,
     }) as unknown as HydratedTokenInstance;
-    t.token = stuff[i].assets.location;
+    t.asset = stuff[i].assets.location;
     hydrated.push(t);
   }
   return hydrated;
