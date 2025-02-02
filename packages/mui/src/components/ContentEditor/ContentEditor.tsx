@@ -49,7 +49,7 @@ import { LoadProgress } from "../../utils/content";
 import {
   Rect,
   TokenInstance,
-  ScenelessTokenInstance,
+  HydratedTokenInstance,
 } from "@micahg/tbltp-common";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 
@@ -184,7 +184,7 @@ const ContentEditor = ({
   }, [manageScene]);
 
   const setToken = useCallback(
-    (token: ScenelessTokenInstance) => {
+    (token: HydratedTokenInstance) => {
       if (!worker) return;
       worker.postMessage({ cmd: "set_token", token: token, bearer: bearer });
     },
@@ -316,7 +316,7 @@ const ContentEditor = ({
       } else if (evt.data.cmd === "token_placed") {
         if (!("instance" in evt.data)) return;
         const instance: TokenInstance = {
-          ...(evt.data.instance as ScenelessTokenInstance),
+          ...(evt.data.instance as HydratedTokenInstance),
           scene: scene._id,
         };
         // MICAH this is the point we go from token to token instance for a scene
@@ -449,7 +449,7 @@ const ContentEditor = ({
         callback: () =>
           infoDrawer(
             <TokenInfoDrawerComponent
-              onToken={(token: ScenelessTokenInstance) => {
+              onToken={(token: HydratedTokenInstance) => {
                 setToken(token);
                 prepareRecording("token");
               }}

@@ -1,4 +1,4 @@
-import { ScenelessTokenInstance } from "@micahg/tbltp-common";
+import { HydratedTokenInstance } from "@micahg/tbltp-common";
 import React, { lazy, Suspense } from "react";
 
 const LazyTokenInfoDrawerComponent = lazy(
@@ -7,7 +7,7 @@ const LazyTokenInfoDrawerComponent = lazy(
 
 const TokenInfoDrawerComponent = (
   props: JSX.IntrinsicAttributes & {
-    onToken: (token: ScenelessTokenInstance) => void;
+    onToken: (token: HydratedTokenInstance) => void;
     closeDrawer?: () => void;
     children?: React.ReactNode;
   },

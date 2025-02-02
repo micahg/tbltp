@@ -14,18 +14,21 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { useDispatch, useSelector } from "react-redux";
 import { useCallback, useEffect, useState } from "react";
-import { ScenelessTokenInstance, Token } from "@micahg/tbltp-common";
+import { HydratedTokenInstance, Token } from "@micahg/tbltp-common";
 // import styles from "./FindTokenComponent.module.css";
 
 interface FindTokenComponentProps {
   // onToken: (token: HydratedToken) => void;
-  onToken: (token: ScenelessTokenInstance) => void;
+  onToken: (token: HydratedTokenInstance) => void;
 }
 
 const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
   const dispatch = useDispatch();
   const tokens = useSelector((state: AppReducerState) => state.content.tokens);
   const assets = useSelector((state: AppReducerState) => state.content.assets);
+  const scene = useSelector(
+    (state: AppReducerState) => state.content.currentScene,
+  );
   const mediaPrefix = useSelector(
     (state: AppReducerState) => state.content.mediaPrefix,
   );
@@ -42,17 +45,11 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
     (token: Token, visible: boolean) => {
       if (assets === undefined) return;
       if (mediaPrefix === undefined) return;
+      if (scene === undefined) return;
 
-      // if no asset selected token renders with default token image
-      let asset = assets.find((asset) => asset._id === token.asset);
-      if (asset) {
-        // copy (instead of asset.location updating) so we don't keep prepending the api url infinitely
-        const location = `${mediaPrefix}/${asset.location}`;
-        asset = { ...asset, location: location };
-      }
-
-      const instance: ScenelessTokenInstance = {
+      const instance: HydratedTokenInstance = {
         name: token.name,
+        scene: scene._id!,
         visible,
         token: token._id!,
         x: 0,
@@ -60,12 +57,24 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
         scale: 1,
         angle: 0,
       };
+
+      // if no asset selected token renders with default token image
+      const asset = assets.find((asset) => asset._id === token.asset);
+      if (asset) {
+        // copy (instead of asset.location updating) so we don't keep prepending the api url infinitely
+        // const location = `${mediaPrefix}/${asset.location}`;
+        // asset = { ...asset, location: location };
+        instance.token = `${mediaPrefix}/${asset.location}`;
+      }
+
       // MICAH PICK IT UP HERE - need to send HydratedTokenInstance (need the asset)
+      // ScenelessTokenInstance and HydratedTokenInstance are *the same* structure, but
+      // the hydrated version has a url in the token field rather than an objectid.
       console.log(`MICAH instance would be ${JSON.stringify(instance)}`);
       // const hydratedToken: HydratedToken = { ...token, asset };
       onToken(instance);
     },
-    [assets, mediaPrefix, onToken],
+    [assets, mediaPrefix, onToken, scene],
   );
 
   return (
