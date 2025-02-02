@@ -699,13 +699,10 @@ self.onmessage = async (evt) => {
     }
     case "set_token": {
       if (!("token" in evt.data) || !("bearer" in evt.data)) break;
-      // const hydrated = fromHydratedToken(evt.data.token);
       _token = (await createDrawable(
-        // hydrated,
         evt.data.token,
         evt.data.bearer,
       )) as DrawableToken;
-      // _token.token_id = evt.data.token._id;
       break;
     }
     case "move":
@@ -803,10 +800,6 @@ self.onmessage = async (evt) => {
       panning = false;
       renderToken(thingCtx);
       storeOverlay();
-      // const instance: ScenelessTokenInstance = {
-      //   ..._token.token,
-      // };
-      // postMessage({ cmd: "token_placed", instance: instance });
       postMessage({ cmd: "token_placed", instance: _token.token });
 
       _token.token.angle += _angle;
