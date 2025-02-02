@@ -23,8 +23,7 @@ import {
   zoomFromViewport,
   adjustImageToViewport,
 } from "./geometry";
-import { Rect, ScenelessTokenInstance, TableState } from "@micahg/tbltp-common";
-import { fromHydratedToken } from "./tokens";
+import { Rect, TableState } from "@micahg/tbltp-common";
 
 /**
  * Worker for offscreen drawing in the content editor.
