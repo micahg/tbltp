@@ -140,7 +140,7 @@ const RemoteDisplayComponent = () => {
         tokens = js.state.tokens;
       }
       for (const token of tokens) {
-        token.token = `${mediaPrefix}/${token.token}`;
+        token.asset = `${mediaPrefix}/${token.asset}`;
       }
       const things: (HydratedTokenInstance | Rect)[] =
         tokens.length > 0 ? [...tokens] : [];
