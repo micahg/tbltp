@@ -3,7 +3,7 @@
  * mongoose models and (if applicable) omitting/redefining the types.
  */
 import { Rect } from "./geometry";
-import { TokenInstance } from "./tokeninstance";
+import { HydratedTokenInstance } from "./tokeninstance";
 
 export interface TableState {
   overlay?: string;
@@ -13,5 +13,5 @@ export interface TableState {
   viewport: Rect;
   angle: number;
   backgroundSize?: Rect;
-  tokens: TokenInstance[];
+  tokens: HydratedTokenInstance[];
 }

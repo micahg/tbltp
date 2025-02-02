@@ -8,7 +8,6 @@ export type Token = Omit<BasicToken, "_id" | "asset"> & {
 interface IToken extends Token {
   _id?: Schema.Types.ObjectId;
   user: Schema.Types.ObjectId;
-  visible: boolean;
   asset?: Schema.Types.ObjectId;
   hitPoints?: number;
 }
@@ -17,7 +16,6 @@ const TokenSchema = new Schema<IToken>(
   {
     user: { type: Schema.Types.ObjectId, required: true },
     name: { type: String, required: true },
-    visible: { type: Boolean, default: false },
     asset: { type: Schema.Types.ObjectId, required: false, ref: "Asset" },
     hitPoints: {
       type: Number,

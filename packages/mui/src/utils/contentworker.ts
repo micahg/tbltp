@@ -23,8 +23,7 @@ import {
   zoomFromViewport,
   adjustImageToViewport,
 } from "./geometry";
-import { Rect, ScenelessTokenInstance, TableState } from "@micahg/tbltp-common";
-import { fromHydratedToken } from "./tokens";
+import { Rect, TableState } from "@micahg/tbltp-common";
 
 /**
  * Worker for offscreen drawing in the content editor.
@@ -699,14 +698,11 @@ self.onmessage = async (evt) => {
       break;
     }
     case "set_token": {
-      if ("token" in evt.data && "bearer" in evt.data) {
-        const hydrated = fromHydratedToken(evt.data.token);
-        _token = (await createDrawable(
-          hydrated,
-          evt.data.bearer,
-        )) as DrawableToken;
-        _token.token_id = evt.data.token._id;
-      }
+      if (!("token" in evt.data) || !("bearer" in evt.data)) break;
+      _token = (await createDrawable(
+        evt.data.token,
+        evt.data.bearer,
+      )) as DrawableToken;
       break;
     }
     case "move":
@@ -804,11 +800,7 @@ self.onmessage = async (evt) => {
       panning = false;
       renderToken(thingCtx);
       storeOverlay();
-      const instance: ScenelessTokenInstance = {
-        ..._token.token,
-        token: _token.token_id!,
-      };
-      postMessage({ cmd: "token_placed", instance: instance });
+      postMessage({ cmd: "token_placed", instance: _token.token });
 
       _token.token.angle += _angle;
       _token.normalize();

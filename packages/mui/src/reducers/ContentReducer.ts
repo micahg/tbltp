@@ -174,7 +174,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
         }
         hydrated.push({
           ...instance,
-          token: `${state.mediaPrefix}/${asset.location}`,
+          asset: `${state.mediaPrefix}/${asset.location}`,
         });
       }
 
