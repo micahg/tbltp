@@ -187,9 +187,6 @@ function loadAllImages(update: TableUpdate) {
   const progress = (p: LoadProgress) =>
     postMessage({ cmd: "progress", evt: p });
 
-  // load the default token image - no point blocking on this - it should load before we need it
-  // loadImage("/x.webp", bearer).then((img) => (_default_token = img));
-
   // gross - if we have a background image, only load it if the revision changed...
   // so here if we see no change we don't bother pulling the new image
   const bgsame =
