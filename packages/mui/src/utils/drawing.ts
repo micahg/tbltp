@@ -1,8 +1,19 @@
-import { Rect } from "@micahg/tbltp-common";
+/**
+ * FOR TESTING THE MAIN SCENE IS 66106a4b867826e1074c9476
+ * to remove from the other scene:
+ *  db.tokeninstances.remove({scene: ObjectId("66106a6e867826e1074c9484")})
+ *  db.tokeninstances.remove({scene: { $ne: ObjectId("66106a4b867826e1074c9476")}});
+ */
+
+import { Rect, HydratedTokenInstance } from "@micahg/tbltp-common";
+import { loadImage } from "./content";
 
 export type DrawContext = CanvasDrawPath &
   CanvasPathDrawingStyles &
   CanvasFillStrokeStyles &
+  CanvasTransform &
+  CanvasDrawImage &
+  CanvasState &
   CanvasPath;
 
 export interface Drawable {
@@ -11,8 +22,37 @@ export interface Drawable {
 
 export type Thing = SelectedRegion | Marker;
 
+type BitmapCache = {
+  [key: string]: ImageBitmap;
+};
+
+const cache: BitmapCache = {};
+
+export function isRect(d: unknown): d is Rect {
+  return (
+    !!d &&
+    typeof d === "object" &&
+    typeof (d as Rect).x === "number" &&
+    typeof (d as Rect).y === "number" &&
+    typeof (d as Rect).width === "number" &&
+    typeof (d as Rect).height === "number"
+  );
+}
+
+export function isHydratedTokenInstnace(
+  d: unknown,
+): d is HydratedTokenInstance {
+  return (
+    !!d &&
+    typeof d === "object" &&
+    typeof (d as HydratedTokenInstance).x === "number" &&
+    typeof (d as HydratedTokenInstance).y === "number" &&
+    typeof (d as HydratedTokenInstance).token === "string" &&
+    typeof (d as HydratedTokenInstance).asset === "string"
+  );
+}
+
 export type SelectedRegion = {
-  base: "SelectedRegion";
   rect: Rect;
 };
 
@@ -22,21 +62,26 @@ export type Marker = {
   value: "hi";
 };
 
-export function newSelectedRegion(rect: Rect): SelectedRegion {
-  return {
-    base: "SelectedRegion",
-    rect: rect,
-  };
+export async function createDrawable<T = Rect>(
+  d: T,
+  bearer: string,
+): Promise<Drawable> {
+  if (isRect(d)) return new DrawableSelectedRegion(d);
+  if (isHydratedTokenInstnace(d)) {
+    const img = await cacheTokenImage(d.asset, bearer);
+    return new DrawableToken(d, img);
+  }
+  throw new TypeError("Invalid Drawable");
 }
 
 class DrawableSelectedRegion implements Drawable {
-  region: SelectedRegion;
-  constructor(region: SelectedRegion) {
-    this.region = region;
+  rect: Rect;
+  constructor(rect: Rect) {
+    this.rect = rect;
   }
   draw(ctx: DrawContext) {
-    const [x, y] = [this.region.rect.x, this.region.rect.y];
-    const [x1, y1] = [x + this.region.rect.width, y + this.region.rect.height];
+    const [x, y] = [this.rect.x, this.rect.y];
+    const [x1, y1] = [x + this.rect.width, y + this.rect.height];
     ctx.beginPath();
     ctx.lineWidth = 10;
     ctx.strokeStyle = "black";
@@ -58,28 +103,67 @@ class DrawableSelectedRegion implements Drawable {
   }
 }
 
-export function newDrawableThing(thing: Thing): Drawable | undefined {
-  if (thing.base === "SelectedRegion") return new DrawableSelectedRegion(thing);
+// TODO try with bad link and see what happens before merging - ideally fallack to X
+async function cacheTokenImage(location: string, bearer: string) {
+  const url = location || "/x.webp";
+  if (url in cache) return cache[url];
+  console.warn(`Cache miss for token ${url}`);
+
+  const img = await loadImage(url, bearer);
+  cache[url] = img;
+  return img;
 }
 
-export function getRect(x1: number, y1: number, x2: number, y2: number): Rect {
-  let x: number;
-  let y: number;
-  let w: number;
-  let h: number;
-  if (x1 > x2) {
-    x = x2;
-    w = x1 - x2;
-  } else {
-    x = x1;
-    w = x2 - x1;
+export interface BetterDrawable<T> {
+  draw(ctx: DrawContext, d: T): void;
+}
+
+export class DrawableToken implements Drawable {
+  token: HydratedTokenInstance;
+  img: ImageBitmap;
+  constructor(token: HydratedTokenInstance, img: ImageBitmap) {
+    this.token = token;
+    this.img = img;
   }
-  if (y1 > y2) {
-    y = y2;
-    h = y1 - y2;
-  } else {
-    y = y1;
-    h = y2 - y1;
+
+  normalize() {
+    while (this.token.angle < 0) this.token.angle += 360;
+    while (this.token.angle >= 360) this.token.angle -= 360;
   }
-  return { x: x, y: y, width: w, height: h };
+
+  /**
+   *
+   * @param ctx
+   * @param zoom is the background divided by the visible canvas size
+   * Math.max(_fullRotW / _canvas.width, _fullRotH / _canvas.height);
+   */
+  place(ctx: DrawContext, zoom: number) {
+    // TODO: don't draw if not in region
+
+    // calcualte the size coefficient
+    const sizeCo = this.token.scale / zoom;
+    const [_token_dw, _token_dh] = [
+      this.img.width * sizeCo,
+      this.img.height * sizeCo,
+    ];
+
+    ctx.translate(this.token.x, this.token.y);
+    ctx.rotate((this.token.angle * Math.PI) / 180);
+    ctx.translate(-_token_dw / 2, -_token_dh / 2);
+    ctx.drawImage(
+      this.img,
+      // source (should always just be source dimensions)
+      0,
+      0,
+      this.img.width,
+      this.img.height,
+      // destination
+      0,
+      0,
+      _token_dw,
+      _token_dh,
+    );
+  }
+
+  draw = (ctx: DrawContext) => this.place(ctx, 1);
 }

@@ -9,8 +9,7 @@ import React, {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { getRect, newSelectedRegion } from "../../utils/drawing";
-import { equalRects } from "../../utils/geometry";
+import { createRect, equalRects } from "../../utils/geometry";
 import { MouseStateMachine } from "../../utils/mousestatemachine";
 import { setCallback } from "../../utils/statemachine";
 import styles from "./ContentEditor.module.css";
@@ -47,7 +46,11 @@ import {
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { LoadProgress } from "../../utils/content";
-import { Rect, HydratedToken } from "@micahg/tbltp-common";
+import {
+  Rect,
+  TokenInstance,
+  HydratedTokenInstance,
+} from "@micahg/tbltp-common";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 
 const sm = new MouseStateMachine();
@@ -103,10 +106,14 @@ const ContentEditor = ({
   const [ovRev, setOvRev] = useState<number>(0);
   const [sceneId, setSceneId] = useState<string>(); // used to track flipping between scenes
   const [worker, setWorker] = useState<Worker>();
+  const [sceneUpdated, setSceneUpdated] = useState<boolean>(false);
   const [downloads] = useState<Record<string, number>>({});
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   // selection is sized relative to the visible canvas size -- not the full background size
   const [selection, setSelection] = useState<Rect | null>(null);
+
+  // the viewport to draw so the dm knows what the players see
+  const [displayViewport, setDisplayViewport] = useState<Rect | null>(null);
 
   /**
    * THIS GUY RIGHT HERE IS REALLY IMPORTANT. Because we use a callback to render
@@ -177,7 +184,7 @@ const ContentEditor = ({
   }, [manageScene]);
 
   const setToken = useCallback(
-    (token: HydratedToken) => {
+    (token: HydratedTokenInstance) => {
       if (!worker) return;
       worker.postMessage({ cmd: "set_token", token: token, bearer: bearer });
     },
@@ -244,10 +251,12 @@ const ContentEditor = ({
    */
   const handleWorkerMessage = useCallback(
     (evt: MessageEvent<unknown>) => {
-      // bump the overlay version so it gets sent
+      if (!scene?._id) return;
       if (!evt.data || typeof evt.data !== "object") return;
       if (!("cmd" in evt.data)) return;
-      if (evt.data.cmd === "overlay") {
+      if (evt.data.cmd === "updated") {
+        setSceneUpdated(true);
+      } else if (evt.data.cmd === "overlay") {
         if ("blob" in evt.data) {
           setOvRev(ovRev + 1);
           dispatch({ type: "content/overlay", payload: evt.data.blob });
@@ -304,10 +313,42 @@ const ContentEditor = ({
           for (const [, v] of Object.entries(downloads)) value += v;
           setDownloadProgress((value * 100) / length);
         }
+      } else if (evt.data.cmd === "token_placed") {
+        if (!("instance" in evt.data)) return;
+        dispatch({
+          type: "content/scenetokenplaced",
+          payload: evt.data.instance,
+        });
       }
     },
-    [dispatch, downloads, ovRev],
+    [dispatch, downloads, ovRev, scene],
   );
+
+  /**
+   * Send drawables to the worker to render on the canvas
+   */
+  const handleDrawables = useCallback(() => {
+    if (!scene) return;
+    if (!worker) return;
+    if (!apiUrl) return;
+    if (!bearer) return;
+
+    // we cannot pre-translate these into drawables because properties
+    // that are methods do not survive the transfer to the worker
+    const things: (TokenInstance | Rect)[] = scene.tokens
+      ? [...scene.tokens]
+      : [];
+    if (
+      scene.viewport &&
+      scene.backgroundSize &&
+      !equalRects(scene.viewport, scene.backgroundSize)
+    )
+      things.push(scene.viewport);
+
+    // scene.tokens?.forEach((token) => things.push(token));
+    // need to delay this until we know we're in a good state.
+    worker.postMessage({ cmd: "things", values: { apiUrl, bearer, things } });
+  }, [apiUrl, bearer, worker, scene]);
 
   useEffect(() => {
     if (!internalState || !toolbarPopulated) return;
@@ -399,11 +440,10 @@ const ContentEditor = ({
         tooltip: "Token",
         hidden: () => internalState.rec && internalState.act === "token",
         disabled: () => internalState.rec && internalState.act !== "token",
-        // callback: () => prepareRecording("token"),
         callback: () =>
           infoDrawer(
             <TokenInfoDrawerComponent
-              onToken={(token: HydratedToken) => {
+              onToken={(token: HydratedTokenInstance) => {
                 setToken(token);
                 prepareRecording("token");
               }}
@@ -555,7 +595,7 @@ const ContentEditor = ({
       worker.postMessage({ cmd: "zoom", rect: selection });
     });
     setCallback(sm, "remoteZoomOut", () => {
-      const imgRect = getRect(0, 0, imageSize[0], imageSize[1]);
+      const imgRect = createRect([0, 0, imageSize[0], imageSize[1]]);
       dispatch({
         type: "content/zoom",
         payload: { backgroundSize: imgRect, viewport: imgRect },
@@ -653,6 +693,12 @@ const ContentEditor = ({
             y: e.offsetY,
             action: internalState.act,
           });
+        } else if (e.deltaX !== 0) {
+          worker.postMessage({
+            cmd: "brush_rot",
+            delta: e.deltaX,
+            action: internalState.act,
+          });
         }
       } else if (
         internalState.rec &&
@@ -702,7 +748,6 @@ const ContentEditor = ({
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
     let drawOV = oRev > ovRev;
-    let drawTH = false;
     if (drawBG) setBgRev(bRev); // takes effect next render cycle
     if (drawOV) setOvRev(oRev); // takes effect next render cycle
 
@@ -717,23 +762,14 @@ const ContentEditor = ({
       drawOV = scene.overlayContent !== undefined;
     }
 
-    if (scene.viewport) drawTH = true;
-
     // if we have nothing new to draw then cheese it
-    if (!drawBG && !drawOV && !drawTH) return;
+    if (!drawBG && !drawOV) return;
 
-    if (drawBG || drawTH) {
+    if (drawBG) {
       const overlay = drawOV ? `${apiUrl}/${oContent}` : undefined;
       const background = drawBG ? `${apiUrl}/${bContent}` : undefined;
 
       const angle = scene.angle || 0;
-      // add the viewport as a selected region if it exists and isn't just the entire background
-      const things =
-        scene.viewport &&
-        scene.backgroundSize &&
-        !equalRects(scene.viewport, scene.backgroundSize)
-          ? [newSelectedRegion(scene.viewport)]
-          : [];
 
       worker.postMessage({
         cmd: "update",
@@ -742,12 +778,76 @@ const ContentEditor = ({
           overlay,
           bearer,
           angle,
-          things,
         },
       });
     }
   }, [apiUrl, bearer, bgRev, ovRev, scene, sceneId, worker]);
 
+  /**
+   * We don't want to render the viewport until it changes in current scene server-side
+   * so we detect it here and then update the worker to redraw the viewport.
+   */
+  useEffect(() => {
+    if (!scene) return;
+    if (!sceneId) return;
+    if (!scene.viewport) return;
+    if (!worker) return;
+    if (!sceneUpdated) return;
+
+    // we *ONLY* care about the viewport changing in the context of the same scene
+    // otherwise, it should be rendered by the scene change.
+    if (!sceneId || scene._id !== sceneId) return;
+
+    // if the viewport has not *actually* changed, then we don't care
+    if (displayViewport !== null && equalRects(scene.viewport, displayViewport))
+      return;
+
+    // at this point, we know the viewport has changed and we need to update the worker...
+    setDisplayViewport(scene.viewport);
+
+    // draw the viewport (and possibly tokens) to the canvas
+    handleDrawables();
+  }, [displayViewport, scene, sceneId, worker, sceneUpdated, handleDrawables]);
+
+  /**
+   * Wait for tokens to be changed in the scene, then render them
+   */
+  useEffect(() => {
+    if (!scene) return;
+    if (!dispatch) return;
+    if (!sceneUpdated) return;
+
+    // draw the viewport (and possibly tokens) to the canvas
+    if (scene.tokens && handleDrawables) {
+      // TODO MICAH HYDRATE SCENE TOKENS HERE WHENEVER THEY CHANGE
+      console.log(scene.tokens);
+      handleDrawables();
+      return;
+    }
+
+    // if there are no tokens, set them in the scene so they can be drawn
+    dispatch({ type: "content/scenetokens", payload: { scene: scene._id } });
+  }, [dispatch, scene, sceneUpdated, handleDrawables]);
+
+  /**
+   * Its important to separate the worker message handler from the
+   * worker creation *because* the handler is a callback that
+   * depends on state that changes over time. The worker is setup
+   * once when we initialize the canvas.
+   */
+  useEffect(() => {
+    if (!worker) return;
+    if (!handleWorkerMessage) return;
+    worker.addEventListener("message", handleWorkerMessage);
+    return () => {
+      worker.removeEventListener("message", handleWorkerMessage);
+    };
+  }, [worker, handleWorkerMessage]);
+
+  /**
+   * Setup the web worker -- this should only happen once and the canvas
+   * should live on for the life of the component.
+   */
   useEffect(() => {
     /**
      * the canvas refs are not really reliable indicators of our state. They
@@ -764,7 +864,6 @@ const ContentEditor = ({
     const wrkr = setupOffscreenCanvas(bg, ov, true);
     setWorker(wrkr);
     internalState.transferred = true;
-    wrkr.onmessage = handleWorkerMessage;
     ov.oncontextmenu = (e) => {
       e.preventDefault();
       e.stopPropagation();

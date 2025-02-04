@@ -1,7 +1,11 @@
 // - test with brand new scene (that wont have a viewport)
-import { TableUpdate } from "../components/RemoteDisplayComponent/RemoteDisplayComponent";
 import { LoadProgress, loadImage } from "./content";
-import { Drawable, Thing, newDrawableThing } from "./drawing";
+import {
+  createDrawable,
+  Drawable,
+  DrawableToken,
+  DrawContext,
+} from "./drawing";
 import {
   Point,
   createPoints,
@@ -18,9 +22,8 @@ import {
   copyRect,
   zoomFromViewport,
   adjustImageToViewport,
-  adjustTokenDimensions,
 } from "./geometry";
-import { HydratedToken, Rect } from "@micahg/tbltp-common";
+import { Rect, TableState } from "@micahg/tbltp-common";
 
 /**
  * Worker for offscreen drawing in the content editor.
@@ -42,8 +45,7 @@ const _zoom_step = 0.5;
 let _max_zoom: number;
 let _first_zoom_step: number;
 let _things_on_top_of_overlay = false;
-let _default_token: ImageBitmap;
-let _token: HydratedToken | undefined = undefined;
+let _token: DrawableToken | undefined = undefined;
 
 // canvas width and height (sent from main thread)
 const _canvas: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -73,24 +75,11 @@ let green = "0";
 let blue = "0";
 let brush = MIN_BRUSH;
 
-/// _token_dw starts as the token width and then shrinks to just over zero or grows to the full width
-let _token_dw = 0;
-
-/// _token_dh starts as the token height and then shrinks to just over zero or grows to the full height
-let _token_dh = 0;
-const _token_delta = MIN_BRUSH;
-let vamp: ImageBitmap;
-
-/**
- * Set the token to an image. If no image is provided, the default token is used.
- * @param image the image to use as the token
- */
-function setToken(image?: ImageBitmap) {
-  if (image) vamp = image;
-  else vamp = _default_token;
-  _token_dw = vamp.width;
-  _token_dh = vamp.height;
-}
+export type TableUpdate = TableState & {
+  apiUrl: string;
+  bearer: string;
+  things?: unknown[];
+};
 
 function trimPanning() {
   if (_img.x <= 0) _img.x = 0;
@@ -159,18 +148,6 @@ function calculateViewport() {
   return;
 }
 
-function calculateToken(delta: number) {
-  [_token_dw, _token_dh] = adjustTokenDimensions(
-    delta,
-    vamp.width,
-    vamp.height,
-    _token_dw,
-    _token_dh,
-    overlayCtx.canvas.width,
-    overlayCtx.canvas.height,
-  );
-}
-
 /**
  * Given a desired viewport, set our current viewport accordingly, set the zoom,
  * and then center the request viewport within our screen, extending its short
@@ -209,9 +186,6 @@ function loadAllImages(update: TableUpdate) {
   const { bearer, background, backgroundRev, overlay } = update;
   const progress = (p: LoadProgress) =>
     postMessage({ cmd: "progress", evt: p });
-
-  // load the default token image - no point blocking on this - it should load before we need it
-  loadImage("/x.webp", bearer).then((img) => (_default_token = img));
 
   // gross - if we have a background image, only load it if the revision changed...
   // so here if we see no change we don't bother pulling the new image
@@ -324,60 +298,12 @@ function eraseBrush(x: number, y: number, radius: number) {
   renderImage(overlayCtx, imageCanvasses, _angle);
 }
 
-function renderToken(x: number, y: number, full = true) {
-  if (!full) {
-    overlayCtx.save();
-    // may be best to not translate since we're scaling
-    overlayCtx.translate(-_token_dw / 2, -_token_dh / 2);
-    overlayCtx.drawImage(
-      vamp,
-      // source (should always just be source dimensions)
-      0,
-      0,
-      vamp.width,
-      vamp.height,
-      // destination (adjust according to scale)
-      x,
-      y,
-      _token_dw,
-      _token_dh,
-    );
-
-    overlayCtx.restore();
-    return;
-  }
-
-  // un-rotate and scale
-  let { x: dx, y: dy } = unrotateAndScalePoints(createPoints([x, y]))[0];
-
-  // then add the image area offset (eg if we're zoomed in)
-  dx += _img.x;
-  dy += _img.y;
-
-  const [dw, dh] = rotatedWidthAndHeight(
-    _angle,
-    _token_dw * _zoom,
-    _token_dh * _zoom,
-  );
-
-  // should be thing ctx when tokens become things
-  fullCtx.save();
-  fullCtx.translate(dx, dy);
-  fullCtx.rotate((-_angle * Math.PI) / 180);
-  fullCtx.drawImage(
-    vamp,
-    0,
-    0,
-    vamp.width,
-    vamp.height,
-    -dw / 2,
-    -dh / 2,
-    dw,
-    dh,
-  );
-
-  fullCtx.restore();
-  renderImage(overlayCtx, imageCanvasses, _angle);
+function renderToken(ctx: DrawContext, place = false) {
+  if (!_token) return;
+  ctx.save();
+  if (place) _token.place(ctx, _zoom);
+  else _token.draw(ctx);
+  ctx.restore();
 }
 
 function renderBrush(x: number, y: number, radius: number, full = true) {
@@ -431,7 +357,9 @@ function renderThings(ctx: OffscreenCanvasRenderingContext2D) {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   for (const thing of _things) {
     try {
+      ctx.save();
       thing.draw(ctx);
+      ctx.restore();
     } catch (err) {
       console.error(err);
     }
@@ -491,8 +419,9 @@ function animateBrush() {
 
 function animateToken() {
   if (!recording) return;
+  if (!_token) return;
   renderImage(overlayCtx, imageCanvasses, _angle);
-  renderToken(startX, startY, false);
+  renderToken(overlayCtx, true);
   requestAnimationFrame(() => animateToken());
 }
 
@@ -539,18 +468,30 @@ function adjustZoom(zoom: number, x: number, y: number) {
   renderAllCanvasses(backgroundImage);
 }
 
-function updateThings(things?: Thing[], render = false) {
+async function updateThings(
+  apiUrl: string,
+  bearer: string,
+  things?: unknown[],
+  render = false,
+) {
   // clear the existing thing list
   _things.length = 0;
 
   // cheese it if there are no things to render
   if (!things) return;
 
-  // map things to drawable things
-  things
-    .map((thing) => newDrawableThing(thing))
-    .filter((thing) => thing)
-    .forEach((thing) => (thing ? _things.push(thing) : null));
+  const promises: Promise<Drawable>[] = [];
+  for (const thing of things.filter((thing) => thing)) {
+    promises.push(createDrawable(thing, bearer));
+  }
+  let drawables: Drawable[];
+  try {
+    drawables = await Promise.all(promises);
+  } catch (err) {
+    console.error(`Unable to load things: ${JSON.stringify(err)}`);
+    return;
+  }
+  drawables.forEach((d) => _things.push(d));
 
   // render if we're asked (avoided in cases of subsequent full renders)
   if (!render) return;
@@ -559,14 +500,14 @@ function updateThings(things?: Thing[], render = false) {
 }
 
 async function update(values: TableUpdate) {
-  const { angle, background, viewport, things } = values;
+  const { apiUrl, bearer, angle, background, viewport, things } = values;
   if (!background) {
-    if (things) return updateThings(things, true);
+    if (things) return updateThings(apiUrl, bearer, things, true);
     console.error(`Ignoring update without background`);
     return;
   }
   _angle = angle;
-  updateThings(things);
+  updateThings(apiUrl, bearer, things);
 
   if (viewport) {
     copyRect(viewport, _img_orig);
@@ -641,7 +582,11 @@ self.onmessage = async (evt) => {
     }
     case "update": {
       try {
+        // TODO micah maybe check (or return from update) if there was actually a resize!?!?!?
         await update(evt.data.values);
+
+        postMessage({ cmd: "updated" });
+
         // technically, because the background changed, we've resized due to the image changing size
         postMessage({
           cmd: "resized",
@@ -653,6 +598,11 @@ self.onmessage = async (evt) => {
       } catch (err) {
         console.error(`Unable to update: ${JSON.stringify(err)}`);
       }
+      break;
+    }
+    case "things": {
+      // refactor update to handle things on their own
+      await update(evt.data.values);
       break;
     }
     case "resize": {
@@ -730,50 +680,26 @@ self.onmessage = async (evt) => {
       break;
     }
     case "token": {
-      startX = evt.data.x;
-      startY = evt.data.y;
-      // here we do not turn recording on or off (thats handled by the move/record/end events elsewhere)
-      // also "recording" is not "painting" TODO MICAH COME BACK HERE AND CONFIRM ITS ABOUT CANVAS ANIMATION
-      // where we do not paint (painting is separate from drawing the selection or the translucent brush)
-      if (evt.data.buttons === 0) {
-        // here we don't draw BUT if you look at animateBrush, you'll see that we'll just repaint the
-        // overlay and then render the translucent brush
-        if (!recording) {
-          overlayCtx.fillStyle = GUIDE_FILL;
-          recording = true;
-          // _token_adjust = 0;
-          // _token_dw = vamp.width;
-          // _token_dh = vamp.height;
-          requestAnimationFrame(animateToken);
-        }
-      } else if (evt.data.buttons === 1) {
-        // here however we just update the canvas with the actual brush. It seems that the fill call
-        // in renderBrush will force the canvas to update so there isn't much point in using animation
-        // frames
-        if (recording) {
-          recording = false;
-          overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
-          fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
-        }
-        renderToken(evt.data.x, evt.data.y);
+      // tokens behave differently than brushes - brushes "record" the mouse movement when no button
+      // is pressed and then paint directly to the canvases when it is. Tokens just record until the
+      // the mouse button is pressed and then released. The token is then placed at the last mouse
+      // position where by the end_token command.
+      if (!_token) break;
+      _token.token.x = evt.data.x;
+      _token.token.y = evt.data.y;
+
+      if (!recording) {
+        recording = true;
+        requestAnimationFrame(animateToken);
       }
       break;
     }
     case "set_token": {
-      if ("token" in evt.data && "bearer" in evt.data) {
-        _token = evt.data.token;
-        const location = _token?.asset?.location;
-        if (location) {
-          loadImage(location, evt.data.bearer)
-            .then((img) => setToken(img))
-            .catch((err) => {
-              setToken();
-              console.error(`ERROR: unable to load token image: ${err}`);
-            });
-        } else {
-          setToken();
-        }
-      }
+      if (!("token" in evt.data) || !("bearer" in evt.data)) break;
+      _token = (await createDrawable(
+        evt.data.token,
+        evt.data.bearer,
+      )) as DrawableToken;
       break;
     }
     case "move":
@@ -848,10 +774,33 @@ self.onmessage = async (evt) => {
       break;
     }
     case "end_token": {
+      /**
+       * end_token is triggered on "complete" from the statemachine which is triggered
+       * by the mouse up event. startX and startY will be the last mouse position while
+       * the mouse was down. This is the position where the token will be placed.
+       */
+      if (!_token) {
+        // TODO report this error to the main thread
+        console.error(`ERROR: no token set in end_token`);
+        return;
+      }
+
+      const p = unrotateAndScalePoints(
+        createPoints([_token.token.x, _token.token.y]),
+      )[0];
+      _token.token.x = Math.round(p.x + _img.x);
+      _token.token.y = Math.round(p.y + _img.y);
+      _token.token.angle -= _angle;
+      _token.normalize();
+
       recording = false;
       panning = false;
-      renderToken(startX, startY, false);
+      renderToken(thingCtx);
       storeOverlay();
+      postMessage({ cmd: "token_placed", instance: _token.token });
+
+      _token.token.angle += _angle;
+      _token.normalize();
       break;
     }
     case "obscure": {
@@ -929,19 +878,29 @@ self.onmessage = async (evt) => {
       // this caused a https://github.com/micahg/tbltp/issues/319 because `vamp`
       // was undefined when calculateToken tried to access its properties.
 
-      if (evt.data.action === "token") {
-        calculateToken(_token_delta);
+      if (evt.data.action === "token" && _token) {
+        if (_token.token.scale < 1) _token.token.scale *= 2;
+        else _token.token.scale += 0.5;
       } else {
         brush += MIN_BRUSH;
       }
       break;
     }
     case "brush_dec": {
-      if (evt.data.action === "token") {
-        calculateToken(-_token_delta);
+      if (evt.data.action === "token" && _token) {
+        if (_token.token.scale < 1) _token.token.scale *= 0.5;
+        else _token.token.scale -= 0.5;
       } else {
         brush -= brush > MIN_BRUSH ? MIN_BRUSH : 0;
       }
+      break;
+    }
+    case "brush_rot": {
+      if (evt.data.action !== "token" || !_token) return;
+      const coef = evt.data.delta > 0 ? 1 : -1;
+      _token.token.angle += coef * 15;
+      _token.normalize();
+      console.log(`rotating token to ${_token.token.angle}`);
       break;
     }
     default: {

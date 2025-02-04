@@ -61,7 +61,7 @@
   ],
   "compounds": [
     {
-      "name": "Start All",
+      "name": "Backend All",
       "configurations": [ "Build API", "Build UI", "Run API"],
       "stopAll": true,
     }

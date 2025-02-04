@@ -22,10 +22,10 @@ import GameMasterActionComponent, {
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import SceneComponent from "../SceneComponent/SceneComponent.lazy";
-import { Scene } from "../../reducers/ContentReducer";
 import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
 import NavigationDrawerComponent from "../NavigationDrawerComponent/NavigationDrawerComponent.lazy";
 import TokensComponent from "../TokensComponent/TokensComponent.lazy";
+import { Scene } from "@micahg/tbltp-common";
 
 const drawerWidth = 240;
 const appBarHeight = 64;

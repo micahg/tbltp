@@ -9,14 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { Box } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
-import { Thing } from "../../utils/drawing";
-import { Rect, TableState } from "@micahg/tbltp-common";
-
-// TODO UNION MICAH DON"T SKIP NOW
-export type TableUpdate = TableState & {
-  bearer: string;
-  things?: Thing[];
-};
+import { HydratedTokenInstance, Rect, TableState } from "@micahg/tbltp-common";
 
 interface WSStateMessage {
   method?: string;
@@ -51,6 +44,10 @@ const RemoteDisplayComponent = () => {
   );
   const token: string | undefined = useSelector(
     (state: AppReducerState) => state.environment.deviceCodeToken,
+  );
+
+  const mediaPrefix = useSelector(
+    (state: AppReducerState) => state.content.mediaPrefix,
   );
   const [connected, setConnected] = useState<boolean | undefined>();
   const [tableData, setTableData] = useState<WSStateMessage>();
@@ -100,6 +97,9 @@ const RemoteDisplayComponent = () => {
    */
   const processTableData = useCallback(
     (js: WSStateMessage, apiUrl: string, bearer: string) => {
+      if (!dispatch) return;
+      if (!mediaPrefix) return;
+
       if (!worker) {
         console.error(`Received state before worker ready`);
         return;
@@ -135,6 +135,16 @@ const RemoteDisplayComponent = () => {
         return;
       }
 
+      let tokens: HydratedTokenInstance[] = [];
+      if ("tokens" in js.state && js.state.tokens) {
+        tokens = js.state.tokens;
+      }
+      for (const token of tokens) {
+        token.asset = `${mediaPrefix}/${token.asset}`;
+      }
+      const things: (HydratedTokenInstance | Rect)[] =
+        tokens.length > 0 ? [...tokens] : [];
+
       const backgroundRev = js.state.backgroundRev;
       const overlayRev = js.state.overlayRev;
 
@@ -149,10 +159,11 @@ const RemoteDisplayComponent = () => {
           viewport,
           bearer,
           angle,
+          things,
         },
       });
     },
-    [worker],
+    [dispatch, mediaPrefix, worker],
   );
 
   /**

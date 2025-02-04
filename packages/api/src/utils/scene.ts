@@ -77,8 +77,17 @@ export function sceneViewportValidator() {
     },
   });
 }
+
+// TODO DELETE THIS
 export function getSceneById(id: string, userId: string) {
   return Scene.findOne({ _id: { $eq: id }, user: userId });
+}
+
+export function getUserScene(user: IUser, id: string) {
+  return Scene.findOne({
+    _id: { $eq: id },
+    user: { $eq: user._id },
+  });
 }
 
 function getScenesByUser(user: IUser): Promise<IScene[]> {

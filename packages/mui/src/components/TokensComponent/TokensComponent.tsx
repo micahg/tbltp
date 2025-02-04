@@ -36,7 +36,7 @@ const TokensComponent = ({ populateToolbar }: TokensComponentProps) => {
         disabled: () => false,
         callback: () => {
           const name = `Token ${tokens?.length || 0}`;
-          const token: Token = { name, visible: false };
+          const token: Token = { name };
           dispatch({ type: "content/updatetoken", payload: token });
         },
       },

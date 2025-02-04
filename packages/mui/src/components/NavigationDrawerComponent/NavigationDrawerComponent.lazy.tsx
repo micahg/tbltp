@@ -1,5 +1,5 @@
+import { Scene } from "@micahg/tbltp-common";
 import React, { lazy, Suspense } from "react";
-import { Scene } from "../../reducers/ContentReducer";
 
 const LazyNavigationDrawerComponent = lazy(
   () => import("./NavigationDrawerComponent"),

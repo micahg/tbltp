@@ -9,12 +9,12 @@ import {
 } from "@mui/material";
 import { createRef, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Scene } from "../../reducers/ContentReducer";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { NewSceneBundle } from "../../middleware/ContentMiddleware";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { LoadProgress, loadImage } from "../../utils/content";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
+import { Scene } from "@micahg/tbltp-common";
 
 // TODO move to a shared file
 export const NAME_REGEX = /^[\w\s]{1,64}$/;

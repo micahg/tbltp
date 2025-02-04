@@ -50,10 +50,6 @@ export async function createOrUpdateToken(
         token.hitPoints = req.body.hitPoints;
         updated = true;
       }
-      if (token.visible != req.body.visible) {
-        token.visible = req.body.visible;
-        updated = true;
-      }
 
       if (withAsset) {
         token.asset = asset._id;

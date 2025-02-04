@@ -10,7 +10,6 @@ import {
 } from "@mui/material";
 
 // import styles from "./NavigationDrawerComponent.module.css";
-import { Scene } from "../../reducers/ContentReducer";
 import { useDispatch, useSelector } from "react-redux";
 import { ExpandLess, ExpandMore, UploadFile, Face } from "@mui/icons-material";
 import PhotoIcon from "@mui/icons-material/Photo";
@@ -18,6 +17,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { AppReducerState } from "../../reducers/AppReducer";
+import { Scene } from "@micahg/tbltp-common";
 
 interface NavigationDrawerComponentProps {
   scenesOpen: boolean;

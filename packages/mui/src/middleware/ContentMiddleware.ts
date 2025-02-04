@@ -2,8 +2,8 @@ import { Middleware } from "redux";
 import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { getToken } from "../utils/auth";
-import { ContentReducerError, Scene } from "../reducers/ContentReducer";
-import { Asset, Rect, Token } from "@micahg/tbltp-common";
+import { ContentReducerError } from "../reducers/ContentReducer";
+import { Scene, Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 
@@ -41,7 +41,7 @@ function isBlob(payload: URL | Blob): payload is File {
 
 type Operation = "get" | "put" | "delete";
 
-type OperationType = Asset | Token | SceneUpdate;
+type OperationType = Asset | Token | SceneUpdate | TokenInstance;
 
 const FriendlyOperation: { [key in Operation]: string | undefined } = {
   get: undefined,
@@ -213,6 +213,11 @@ export const ContentMiddleware: Middleware =
       return next(action);
     }
 
+    if (!state.content.mediaPrefix) {
+      // I suppose when we use R2 or S3, this will be different (and likely from the environment config)
+      next({ type: "content/mediaprefix", payload: state.environment.api });
+    }
+
     switch (action.type) {
       case "content/updatetoken": {
         operate(state, store, next, "put", "token", action);
@@ -220,6 +225,16 @@ export const ContentMiddleware: Middleware =
       }
       case "content/deletetoken": {
         operate(state, store, next, "delete", "token", action);
+        break;
+      }
+      case "content/scenetokens": {
+        const path = `scene/${action.payload.scene}/token`;
+        operate(state, store, next, "get", path, action);
+        break;
+      }
+      case "content/scenetokenplaced": {
+        const path = `scene/${action.payload.scene}/token`;
+        operate(state, store, next, "put", path, action);
         break;
       }
       case "content/updateasset":
@@ -315,6 +330,7 @@ export const ContentMiddleware: Middleware =
           progress,
         )
           .then((value) => {
+            // MICAH this is being triggered by "content/overlay" and triggering a rerender
             next({ type: "content/scene", payload: value.data });
             const err: ContentReducerError = {
               msg: "Update successful",

@@ -1,21 +1,11 @@
 import { PayloadAction } from "@reduxjs/toolkit";
-import { Asset, Rect, Token } from "@micahg/tbltp-common";
-
-// copied from api
-export interface Scene {
-  _id?: string;
-  user: string;
-  description: string;
-  overlayContent?: string;
-  overlayContentRev?: number;
-  detailContent?: string;
-  detailContentRev?: number;
-  playerContent?: string;
-  playerContentRev?: number;
-  viewport?: Rect;
-  backgroundSize?: Rect;
-  angle?: number;
-}
+import {
+  Asset,
+  HydratedTokenInstance,
+  Scene,
+  Token,
+  TokenInstance,
+} from "@micahg/tbltp-common";
 
 // copied from the api
 interface TableTop {
@@ -30,6 +20,7 @@ export type ContentReducerError = {
 };
 
 export type ContentReducerState = {
+  readonly mediaPrefix?: string;
   readonly pushTime: number | undefined;
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
@@ -49,6 +40,8 @@ const initialState: ContentReducerState = {
 
 export const ContentReducer = (state = initialState, action: PayloadAction) => {
   switch (action.type) {
+    case "content/mediaprefix":
+      return { ...state, mediaPrefix: action.payload as unknown as string };
     case "content/push":
       return { ...state, pushTime: new Date().getTime() };
     case "content/pull": {
@@ -79,8 +72,9 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     }
     case "content/scenes": {
       const scenes: Scene[] = action.payload as unknown as Scene[];
-      if (!state.currentScene)
+      if (!state.currentScene) {
         return { ...state, scenes: scenes, currentScene: scenes[0] };
+      }
       return { ...state, scenes: scenes };
     }
     case "content/scene": {
@@ -103,6 +97,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     }
     case "content/currentscene": {
       const scene: Scene = action.payload as unknown as Scene;
+      console.log(`MICAH updating current scene ${action.type}`);
       return { ...state, currentScene: scene };
     }
     case "content/updateassetdata":
@@ -143,6 +138,45 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const tokens = [...state.tokens!];
       tokens.splice(idx, 1);
       return { ...state, tokens: tokens };
+    }
+    case "content/scenetokenplaced": {
+      break;
+    }
+    case "content/scenetokens": {
+      // ensure we have a current scene
+      const scene = state.currentScene;
+      if (!scene) return state;
+
+      const tokens = action.payload as unknown as TokenInstance[];
+      const hydrated: HydratedTokenInstance[] = [];
+
+      const scenes = state.scenes;
+      const idx = state.scenes.findIndex((s) => s._id === scene._id);
+
+      for (const instance of tokens) {
+        const token = state.tokens?.find((t) => t._id === instance.token);
+        if (!token) {
+          console.error(`Unable to find token for instance ${instance._id}`);
+          continue;
+        }
+        console.log(token.asset);
+        const asset = state.assets?.find((a) => a._id === token.asset);
+        if (!asset || !asset.location) {
+          console.error(
+            `Unable to find asset for token instance ${instance._id}, asset ${token.asset}`,
+          );
+          continue;
+        }
+        hydrated.push({
+          ...instance,
+          asset: `${state.mediaPrefix}/${asset.location}`,
+        });
+      }
+
+      scenes[idx] = { ...scenes[idx], tokens: hydrated };
+      const newScene = { ...scene, tokens: hydrated };
+      return { ...state, scenes: [...scenes], currentScene: newScene };
+      break;
     }
     case "content/error": {
       // important to let undefined through. This will clear the error
