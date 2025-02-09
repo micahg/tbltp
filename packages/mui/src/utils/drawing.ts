@@ -18,6 +18,7 @@ export type DrawContext = CanvasDrawPath &
 
 export interface Drawable {
   draw(ctx: DrawContext): void;
+  region(zoom: number): Rect;
 }
 
 export type Thing = SelectedRegion | Marker;
@@ -62,7 +63,7 @@ export type Marker = {
   value: "hi";
 };
 
-export async function createDrawable<T = Rect>(
+export async function createDrawable<T = Rect | HydratedTokenInstance>(
   d: T,
   bearer: string,
 ): Promise<Drawable> {
@@ -101,6 +102,11 @@ class DrawableSelectedRegion implements Drawable {
     ctx.lineTo(x, y);
     ctx.stroke();
   }
+
+  // TODO THIS NEEDS TO HANDLE ZOOM IF I EVER USE IT
+  region(zoom: number): Rect {
+    return this.rect;
+  }
 }
 
 // TODO try with bad link and see what happens before merging - ideally fallack to X
@@ -112,10 +118,6 @@ async function cacheTokenImage(location: string, bearer: string) {
   const img = await loadImage(url, bearer);
   cache[url] = img;
   return img;
-}
-
-export interface BetterDrawable<T> {
-  draw(ctx: DrawContext, d: T): void;
 }
 
 export class DrawableToken implements Drawable {
@@ -131,6 +133,18 @@ export class DrawableToken implements Drawable {
     while (this.token.angle >= 360) this.token.angle -= 360;
   }
 
+  region(zoom: number): Rect {
+    // calcualte the size coefficient
+    const sizeCo = this.token.scale / zoom;
+    const [width, height] = [this.img.width * sizeCo, this.img.height * sizeCo];
+    const [x, y] = [this.token.x - width / 2, this.token.y - height / 2];
+    return {
+      x: x,
+      y: y,
+      width: width,
+      height: height,
+    };
+  }
   /**
    *
    * @param ctx

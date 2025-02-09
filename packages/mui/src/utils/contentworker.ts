@@ -793,10 +793,13 @@ self.onmessage = async (evt) => {
       _token.token.angle -= _angle;
       _token.normalize();
 
+      // copy {... }is important otherwise, future mouse move impacts the drawable
+      const t = await createDrawable({ ..._token.token }, "");
+
       recording = false;
       panning = false;
       renderToken(thingCtx);
-      storeOverlay();
+      _things.push(t);
       postMessage({ cmd: "token_placed", instance: _token.token });
 
       _token.token.angle += _angle;
