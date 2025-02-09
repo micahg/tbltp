@@ -489,6 +489,9 @@ async function updateThings(
     drawables = await Promise.all(promises);
   } catch (err) {
     console.error(`Unable to load things: ${JSON.stringify(err)}`);
+    if ("stack" in (err as Error)) {
+      console.error((err as Error).stack);
+    }
     return;
   }
   drawables.forEach((d) => _things.push(d));

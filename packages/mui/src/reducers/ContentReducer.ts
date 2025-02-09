@@ -147,10 +147,28 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       if (idx < 0) return state;
       if (!state.currentScene) return state;
 
+      const token = state.tokens?.find((t) => t._id === instance.token);
+      if (!token) {
+        console.error(`Unable to find token for instance ${instance._id}`);
+        return state;
+      }
+
+      const asset = state.assets?.find((a) => a._id === token.asset);
+      if (!asset || !asset.location) {
+        console.error(
+          `Unable to find asset for token instance ${instance._id}, asset ${token.asset}`,
+        );
+        return state;
+      }
+
+      const hydrated: HydratedTokenInstance = {
+        ...instance,
+        asset: `${state.mediaPrefix}/${asset.location}`,
+      };
       // updates scenes
       const scenes = [...state.scenes];
       const tokens = scenes[idx].tokens || [];
-      tokens.push(instance);
+      tokens.push(hydrated);
       scenes[idx] = { ...scenes[idx], tokens: tokens };
 
       return { ...state, scenes: scenes };
