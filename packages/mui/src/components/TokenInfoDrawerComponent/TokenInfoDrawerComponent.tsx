@@ -24,11 +24,13 @@ import { HydratedTokenInstance } from "@micahg/tbltp-common";
 
 interface TokenInfoDrawerComponentProps {
   onToken: (token: HydratedTokenInstance) => void; // pass through for token selection
+  onDelete: () => void; // pass through to indicate token deletion
   closeDrawer?: () => void;
 }
 
 const TokenInfoDrawerComponent = ({
   onToken,
+  onDelete,
   closeDrawer,
 }: TokenInfoDrawerComponentProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -43,6 +45,11 @@ const TokenInfoDrawerComponent = ({
   const tokenSelected = (token: HydratedTokenInstance) => {
     if (closeDrawer) closeDrawer();
     onToken(token);
+  };
+
+  const deleteToken = () => {
+    if (closeDrawer) closeDrawer();
+    onDelete();
   };
 
   return (
@@ -76,11 +83,10 @@ const TokenInfoDrawerComponent = ({
             <ListItemIcon>
               <PlaceIcon />
             </ListItemIcon>
-            {/* import ControlCameraIcon from '@mui/icons-material/ControlCamera'; */}
             <ListItemText primary="Move Token" />
           </ListItemButton>
         </ListItem>
-        <ListItem key="delete">
+        <ListItem key="delete" onClick={deleteToken}>
           <ListItemButton>
             <ListItemIcon>
               <DeleteIcon />

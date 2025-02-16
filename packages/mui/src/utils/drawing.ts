@@ -11,13 +11,16 @@ import { loadImage } from "./content";
 export type DrawContext = CanvasDrawPath &
   CanvasPathDrawingStyles &
   CanvasFillStrokeStyles &
+  CanvasCompositing &
   CanvasTransform &
   CanvasDrawImage &
   CanvasState &
   CanvasPath;
 
 export interface Drawable {
+  setOpacity(opacity: number): void;
   draw(ctx: DrawContext): void;
+  contains(x: number, y: number): boolean;
   region(zoom: number): Rect;
 }
 
@@ -77,8 +80,13 @@ export async function createDrawable<T = Rect | HydratedTokenInstance>(
 
 class DrawableSelectedRegion implements Drawable {
   rect: Rect;
+  opacity: number;
   constructor(rect: Rect) {
     this.rect = rect;
+    this.opacity = 1;
+  }
+  setOpacity(opacity: number): void {
+    this.opacity = opacity;
   }
   draw(ctx: DrawContext) {
     const [x, y] = [this.rect.x, this.rect.y];
@@ -107,6 +115,15 @@ class DrawableSelectedRegion implements Drawable {
   region(zoom: number): Rect {
     return this.rect;
   }
+
+  contains(x: number, y: number): boolean {
+    return (
+      x >= this.rect.x &&
+      x <= this.rect.x + this.rect.width &&
+      y >= this.rect.y &&
+      y <= this.rect.y + this.rect.height
+    );
+  }
 }
 
 // TODO try with bad link and see what happens before merging - ideally fallack to X
@@ -121,16 +138,34 @@ async function cacheTokenImage(location: string, bearer: string) {
 }
 
 export class DrawableToken implements Drawable {
+  opacity: number;
   token: HydratedTokenInstance;
   img: ImageBitmap;
   constructor(token: HydratedTokenInstance, img: ImageBitmap) {
     this.token = token;
     this.img = img;
+    this.opacity = 1;
   }
 
   normalize() {
     while (this.token.angle < 0) this.token.angle += 360;
     while (this.token.angle >= 360) this.token.angle -= 360;
+  }
+
+  setOpacity(opacity: number): void {
+    this.opacity = opacity;
+  }
+
+  contains(x: number, y: number): boolean {
+    // compensate for centered token
+    const dx = x + this.img.width / 2;
+    const dy = y + this.img.height / 2;
+    return (
+      dx >= this.token.x &&
+      dx <= this.token.x + this.img.width &&
+      dy >= this.token.y &&
+      dy <= this.token.y + this.img.height
+    );
   }
 
   region(zoom: number): Rect {
@@ -164,6 +199,7 @@ export class DrawableToken implements Drawable {
     ctx.translate(this.token.x, this.token.y);
     ctx.rotate((this.token.angle * Math.PI) / 180);
     ctx.translate(-_token_dw / 2, -_token_dh / 2);
+    ctx.globalAlpha = this.opacity;
     ctx.drawImage(
       this.img,
       // source (should always just be source dimensions)
@@ -177,6 +213,7 @@ export class DrawableToken implements Drawable {
       _token_dw,
       _token_dh,
     );
+    ctx.globalAlpha = 1;
   }
 
   draw = (ctx: DrawContext) => this.place(ctx, 1);

@@ -366,6 +366,27 @@ function renderThings(ctx: OffscreenCanvasRenderingContext2D) {
   }
 }
 
+/**
+ * Find the thing at a point
+ * @param x the unrotated and scaled x coordinate
+ * @param y the unrotated and scaled y coordinate
+ * @returns the index of the thing at the given point
+ */
+function thingAt(
+  p: Point,
+  contained?: (thing: Drawable) => void,
+  notContained?: (thing: Drawable) => void,
+): number {
+  let idx = -1;
+  for (const [i, t] of _things.entries()) {
+    if (t.contains(p.x, p.y) && idx < 0) {
+      idx = i;
+      if (contained) contained(t);
+    } else if (notContained) notContained(t);
+  }
+  return idx;
+}
+
 function clearBox(x1: number, y1: number, x2: number, y2: number) {
   overlayCtx.clearRect(x1, y1, x2 - x1, y2 - y1);
   const [x, y, w, h] = unrotateBox(x1, y1, x2, y2);
@@ -423,6 +444,16 @@ function animateToken() {
   renderImage(overlayCtx, imageCanvasses, _angle);
   renderToken(overlayCtx, true);
   requestAnimationFrame(() => animateToken());
+}
+
+function animateAllTokens() {
+  if (!recording) return;
+  // rerender the things
+  renderThings(thingCtx);
+
+  // rerender to the overlay (remember image canvasses includes the things canvas)
+  renderImage(overlayCtx, imageCanvasses, _angle);
+  requestAnimationFrame(() => animateAllTokens());
 }
 
 function animateSelection() {
@@ -705,6 +736,22 @@ self.onmessage = async (evt) => {
       )) as DrawableToken;
       break;
     }
+    case "delete_token": {
+      if (!recording) {
+        recording = true;
+        requestAnimationFrame(animateAllTokens);
+      }
+
+      const { x, y } = evt.data;
+      [startX, startY] = [x, y];
+      const p = unrotateAndScalePoints(createPoints([x, y]))[0];
+      thingAt(
+        p,
+        (thing) => thing.setOpacity(0.5),
+        (thing) => thing.setOpacity(1),
+      );
+      break;
+    }
     case "move":
     case "select":
     case "record": {
@@ -807,6 +854,14 @@ self.onmessage = async (evt) => {
 
       _token.token.angle += _angle;
       _token.normalize();
+      break;
+    }
+    case "end_delete_token": {
+      recording = false;
+      const p = unrotateAndScalePoints(createPoints([startX, startY]))[0];
+      const idx = thingAt(p);
+      if (idx < 0) return;
+      _things.splice(idx, 1);
       break;
     }
     case "obscure": {

@@ -63,7 +63,7 @@ interface ContentEditorProps {
 }
 
 type SelectAction = "select";
-type BrushAction = "paint" | "erase" | "token";
+type BrushAction = "paint" | "erase" | "token" | "delete_token";
 type RecordingAction = "move" | SelectAction | BrushAction;
 
 // hack around rerendering -- keep one object in state and update properties
@@ -447,6 +447,7 @@ const ContentEditor = ({
                 setToken(token);
                 prepareRecording("token");
               }}
+              onDelete={() => prepareRecording("delete_token")}
             />,
           ),
       },
@@ -612,7 +613,8 @@ const ContentEditor = ({
       } else if (
         internalState.act === "erase" ||
         internalState.act === "paint" ||
-        internalState.act === "token"
+        internalState.act === "token" ||
+        internalState.act === "delete_token"
       ) {
         worker.postMessage({ cmd: `end_${internalState.act}` });
         sm.transition("record");
