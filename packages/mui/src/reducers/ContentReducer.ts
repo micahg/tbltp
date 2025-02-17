@@ -171,7 +171,10 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       tokens.push(hydrated);
       scenes[idx] = { ...scenes[idx], tokens: tokens };
 
-      return { ...state, scenes: scenes };
+      // ensure that components watching the current scene realize there are new tokens
+      const currentScene = { ...state.currentScene };
+
+      return { ...state, scenes, currentScene };
     }
     case "content/scenetokendeleted": {
       const instance = action.payload as unknown as TokenInstance;
