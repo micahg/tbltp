@@ -8,6 +8,7 @@ const LazyTokenInfoDrawerComponent = lazy(
 const TokenInfoDrawerComponent = (
   props: JSX.IntrinsicAttributes & {
     onToken: (token: HydratedTokenInstance) => void;
+    onDelete: () => void;
     closeDrawer?: () => void;
     children?: React.ReactNode;
   },

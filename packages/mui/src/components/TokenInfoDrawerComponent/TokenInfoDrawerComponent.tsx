@@ -14,6 +14,8 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
+import PlaceIcon from "@mui/icons-material/Place";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { useState, Fragment } from "react";
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import CreateTokenFormComponent from "../CreateTokenFormComponent/CreateTokenFormComponent.lazy";
@@ -22,11 +24,13 @@ import { HydratedTokenInstance } from "@micahg/tbltp-common";
 
 interface TokenInfoDrawerComponentProps {
   onToken: (token: HydratedTokenInstance) => void; // pass through for token selection
+  onDelete: () => void; // pass through to indicate token deletion
   closeDrawer?: () => void;
 }
 
 const TokenInfoDrawerComponent = ({
   onToken,
+  onDelete,
   closeDrawer,
 }: TokenInfoDrawerComponentProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -43,6 +47,11 @@ const TokenInfoDrawerComponent = ({
     onToken(token);
   };
 
+  const deleteToken = () => {
+    if (closeDrawer) closeDrawer();
+    onDelete();
+  };
+
   return (
     <Box>
       <List>
@@ -52,7 +61,7 @@ const TokenInfoDrawerComponent = ({
             <ListItemIcon>
               <SearchIcon />
             </ListItemIcon>
-            <ListItemText primary="Use Token" />
+            <ListItemText primary="Add Token" />
           </ListItemButton>
         </ListItem>
         <Collapse in={searchOpen} timeout="auto" unmountOnExit>
@@ -67,6 +76,22 @@ const TokenInfoDrawerComponent = ({
               <AddIcon />
             </ListItemIcon>
             <ListItemText primary="Create Token" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem key="move">
+          <ListItemButton>
+            <ListItemIcon>
+              <PlaceIcon />
+            </ListItemIcon>
+            <ListItemText primary="Move Token" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem key="delete" onClick={deleteToken}>
+          <ListItemButton>
+            <ListItemIcon>
+              <DeleteIcon />
+            </ListItemIcon>
+            <ListItemText primary="Delete Token" />
           </ListItemButton>
         </ListItem>
       </List>

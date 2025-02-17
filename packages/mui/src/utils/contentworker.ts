@@ -3,8 +3,10 @@ import { LoadProgress, loadImage } from "./content";
 import {
   createDrawable,
   Drawable,
+  Drawables,
   DrawableToken,
   DrawContext,
+  isDrawableType,
 } from "./drawing";
 import {
   Point,
@@ -233,8 +235,16 @@ function renderAllCanvasses(background: ImageBitmap | null) {
 /**
  * Given a single point on the overlay, un-rotate and scale to the full size overlay
  */
-function unrotateAndScalePoints(points: Point[]) {
-  return scalePoints(unrotatePoints(_angle, _vp, _canvas, points), _zoom);
+function unrotateScaleTranslatePoints(points: Point[]) {
+  const ps: Point[] = [];
+  for (const p of translatePoints(
+    scalePoints(unrotatePoints(_angle, _vp, _canvas, points), _zoom),
+    _img.x,
+    _img.y,
+  )) {
+    ps.push({ x: Math.round(p.x), y: Math.round(p.y) });
+  }
+  return ps;
 }
 
 /**
@@ -276,14 +286,12 @@ function unrotateBox(x1: number, y1: number, x2: number, y2: number) {
 }
 
 function eraseBrush(x: number, y: number, radius: number) {
-  // un-rotate and scale
-  const p = unrotateAndScalePoints(createPoints([x, y]))[0];
+  // un-rotate, scale and translate
+  const p = unrotateScaleTranslatePoints(createPoints([x, y]))[0];
 
   // copy image so we can clip it shortly
   const img = fullCtx.canvas.transferToImageBitmap();
-  // then add the image area offset
-  p.x += _img.x;
-  p.y += _img.y;
+
   fullCtx.save();
   // fullCtx.clearRect(0, 0, fullCtx.canvas.width, fullCtx.canvas.height);
   // pay close attention here, rect is clockwise, arc is anticlockwise (last param)
@@ -315,11 +323,8 @@ function renderBrush(x: number, y: number, radius: number, full = true) {
     overlayCtx.restore();
     return;
   }
-  // un-rotate and scale
-  const p = unrotateAndScalePoints(createPoints([x, y]))[0];
-  // then add the image area offset (eg if we're zoomed in)
-  p.x += _img.x;
-  p.y += _img.y;
+  // un-rotate, scale and translate
+  const p = unrotateScaleTranslatePoints(createPoints([x, y]))[0];
   fullCtx.save();
   fullCtx.beginPath();
   fullCtx.arc(p.x, p.y, Math.round(radius * _zoom), 0, 2 * Math.PI);
@@ -364,6 +369,32 @@ function renderThings(ctx: OffscreenCanvasRenderingContext2D) {
       console.error(err);
     }
   }
+}
+
+/**
+ * Find the thing at a point
+ * @param x the unrotated and scaled x coordinate
+ * @param y the unrotated and scaled y coordinate
+ * @returns the index of the thing at the given point
+ */
+function thingAt<T = Drawables>(
+  p: Point,
+  dt?: T,
+  contained?: (thing: Drawable) => void,
+  notContained?: (thing: Drawable) => void,
+): number {
+  let idx = -1;
+  for (const [i, t] of _things.entries()) {
+    // ensure we enforce the type restriction
+    if (dt !== undefined && !isDrawableType(t, dt)) continue;
+
+    // check the point, apply the function
+    if (t.contains(p.x, p.y) && idx < 0) {
+      idx = i;
+      if (contained) contained(t);
+    } else if (notContained) notContained(t);
+  }
+  return idx;
 }
 
 function clearBox(x1: number, y1: number, x2: number, y2: number) {
@@ -423,6 +454,16 @@ function animateToken() {
   renderImage(overlayCtx, imageCanvasses, _angle);
   renderToken(overlayCtx, true);
   requestAnimationFrame(() => animateToken());
+}
+
+function animateAllTokens() {
+  if (!recording) return;
+  // rerender the things
+  renderThings(thingCtx);
+
+  // rerender to the overlay (remember image canvasses includes the things canvas)
+  renderImage(overlayCtx, imageCanvasses, _angle);
+  requestAnimationFrame(() => animateAllTokens());
 }
 
 function animateSelection() {
@@ -489,6 +530,9 @@ async function updateThings(
     drawables = await Promise.all(promises);
   } catch (err) {
     console.error(`Unable to load things: ${JSON.stringify(err)}`);
+    if ("stack" in (err as Error)) {
+      console.error((err as Error).stack);
+    }
     return;
   }
   drawables.forEach((d) => _things.push(d));
@@ -702,6 +746,23 @@ self.onmessage = async (evt) => {
       )) as DrawableToken;
       break;
     }
+    case "delete_token": {
+      if (!recording) {
+        recording = true;
+        requestAnimationFrame(animateAllTokens);
+      }
+
+      const { x, y } = evt.data;
+      [startX, startY] = [x, y];
+      const p = unrotateScaleTranslatePoints(createPoints([x, y]))[0];
+      thingAt(
+        p,
+        DrawableToken,
+        (thing) => thing.setOpacity(0.5),
+        (thing) => thing.setOpacity(1),
+      );
+      break;
+    }
     case "move":
     case "select":
     case "record": {
@@ -785,22 +846,33 @@ self.onmessage = async (evt) => {
         return;
       }
 
-      const p = unrotateAndScalePoints(
+      const p = unrotateScaleTranslatePoints(
         createPoints([_token.token.x, _token.token.y]),
       )[0];
-      _token.token.x = Math.round(p.x + _img.x);
-      _token.token.y = Math.round(p.y + _img.y);
+      [_token.token.x, _token.token.y] = [p.x, p.y];
       _token.token.angle -= _angle;
       _token.normalize();
+
+      // copy {... }is important otherwise, future mouse move impacts the drawable
+      const t = await createDrawable({ ..._token.token }, "");
 
       recording = false;
       panning = false;
       renderToken(thingCtx);
-      storeOverlay();
+      _things.push(t);
       postMessage({ cmd: "token_placed", instance: _token.token });
 
       _token.token.angle += _angle;
       _token.normalize();
+      break;
+    }
+    case "end_delete_token": {
+      recording = false;
+      const p = unrotateScaleTranslatePoints(createPoints([startX, startY]))[0];
+      const idx = thingAt(p, DrawableToken);
+      if (idx < 0) return;
+      const t = _things.splice(idx, 1)[0] as DrawableToken;
+      postMessage({ cmd: "token_deleted", instance: t.token });
       break;
     }
     case "obscure": {
@@ -842,11 +914,7 @@ self.onmessage = async (evt) => {
       // get the scaled down viewport
       const fullVp = normalizeRect(
         rectFromPoints(
-          translatePoints(
-            unrotateAndScalePoints(pointsFromRect(evt.data.rect)),
-            _img.x,
-            _img.y,
-          ),
+          unrotateScaleTranslatePoints(pointsFromRect(evt.data.rect)),
         ),
       );
 

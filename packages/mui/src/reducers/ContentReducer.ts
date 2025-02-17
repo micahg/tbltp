@@ -140,7 +140,56 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       return { ...state, tokens: tokens };
     }
     case "content/scenetokenplaced": {
-      break;
+      const instance = action.payload as unknown as TokenInstance;
+
+      // ensure we have a current scene
+      const idx = state.scenes.findIndex((s) => s._id === instance.scene);
+      if (idx < 0) return state;
+      if (!state.currentScene) return state;
+
+      const token = state.tokens?.find((t) => t._id === instance.token);
+      if (!token) {
+        console.error(`Unable to find token for instance ${instance._id}`);
+        return state;
+      }
+
+      const asset = state.assets?.find((a) => a._id === token.asset);
+      if (!asset || !asset.location) {
+        console.error(
+          `Unable to find asset for token instance ${instance._id}, asset ${token.asset}`,
+        );
+        return state;
+      }
+
+      const hydrated: HydratedTokenInstance = {
+        ...instance,
+        asset: `${state.mediaPrefix}/${asset.location}`,
+      };
+      // updates scenes
+      const scenes = [...state.scenes];
+      const tokens = scenes[idx].tokens || [];
+      tokens.push(hydrated);
+      scenes[idx] = { ...scenes[idx], tokens: tokens };
+
+      // ensure that components watching the current scene realize there are new tokens
+      const currentScene = { ...state.currentScene };
+
+      return { ...state, scenes, currentScene };
+    }
+    case "content/scenetokendeleted": {
+      const instance = action.payload as unknown as TokenInstance;
+      const tokens = [...(state.currentScene?.tokens || [])];
+
+      let idx = tokens.findIndex((t) => t._id === instance._id);
+      if (idx < 0) return state;
+      tokens.splice(idx, 1);
+
+      const currentScene = { ...state.currentScene, tokens: tokens };
+
+      idx = state.scenes.findIndex((s) => s._id === instance.scene);
+      const scenes = [...state.scenes];
+      scenes[idx].tokens = tokens;
+      return { ...state, currentScene, scenes };
     }
     case "content/scenetokens": {
       // ensure we have a current scene
@@ -159,7 +208,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
           console.error(`Unable to find token for instance ${instance._id}`);
           continue;
         }
-        console.log(token.asset);
         const asset = state.assets?.find((a) => a._id === token.asset);
         if (!asset || !asset.location) {
           console.error(
@@ -176,7 +224,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       scenes[idx] = { ...scenes[idx], tokens: hydrated };
       const newScene = { ...scene, tokens: hydrated };
       return { ...state, scenes: [...scenes], currentScene: newScene };
-      break;
     }
     case "content/error": {
       // important to let undefined through. This will clear the error

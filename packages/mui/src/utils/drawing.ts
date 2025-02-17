@@ -11,16 +11,19 @@ import { loadImage } from "./content";
 export type DrawContext = CanvasDrawPath &
   CanvasPathDrawingStyles &
   CanvasFillStrokeStyles &
+  CanvasCompositing &
   CanvasTransform &
   CanvasDrawImage &
   CanvasState &
   CanvasPath;
 
 export interface Drawable {
+  setOpacity(opacity: number): void;
   draw(ctx: DrawContext): void;
+  contains(x: number, y: number): boolean;
 }
 
-export type Thing = SelectedRegion | Marker;
+export type Drawables = DrawableSelectedRegion | DrawableToken;
 
 type BitmapCache = {
   [key: string]: ImageBitmap;
@@ -52,6 +55,27 @@ export function isHydratedTokenInstnace(
   );
 }
 
+export function isDrawableToken(d: unknown): d is DrawableToken {
+  return !!d && (d as DrawableToken).token !== undefined;
+}
+
+export function isDrawableSelectedRegion(
+  d: unknown,
+): d is DrawableSelectedRegion {
+  return !!d && (d as DrawableSelectedRegion).rect !== undefined;
+}
+
+export function isDrawableType<T = Drawables>(d: unknown, t: T): boolean {
+  switch (t) {
+    case DrawableToken:
+      return isDrawableToken(d);
+    case DrawableSelectedRegion:
+      return isDrawableSelectedRegion(d);
+    default:
+      return false;
+  }
+}
+
 export type SelectedRegion = {
   rect: Rect;
 };
@@ -62,7 +86,7 @@ export type Marker = {
   value: "hi";
 };
 
-export async function createDrawable<T = Rect>(
+export async function createDrawable<T = Rect | HydratedTokenInstance>(
   d: T,
   bearer: string,
 ): Promise<Drawable> {
@@ -74,10 +98,15 @@ export async function createDrawable<T = Rect>(
   throw new TypeError("Invalid Drawable");
 }
 
-class DrawableSelectedRegion implements Drawable {
+export class DrawableSelectedRegion implements Drawable {
   rect: Rect;
+  opacity: number;
   constructor(rect: Rect) {
     this.rect = rect;
+    this.opacity = 1;
+  }
+  setOpacity(opacity: number): void {
+    this.opacity = opacity;
   }
   draw(ctx: DrawContext) {
     const [x, y] = [this.rect.x, this.rect.y];
@@ -101,6 +130,15 @@ class DrawableSelectedRegion implements Drawable {
     ctx.lineTo(x, y);
     ctx.stroke();
   }
+
+  contains(x: number, y: number): boolean {
+    return (
+      x >= this.rect.x &&
+      x <= this.rect.x + this.rect.width &&
+      y >= this.rect.y &&
+      y <= this.rect.y + this.rect.height
+    );
+  }
 }
 
 // TODO try with bad link and see what happens before merging - ideally fallack to X
@@ -114,21 +152,39 @@ async function cacheTokenImage(location: string, bearer: string) {
   return img;
 }
 
-export interface BetterDrawable<T> {
-  draw(ctx: DrawContext, d: T): void;
-}
-
 export class DrawableToken implements Drawable {
+  opacity: number;
   token: HydratedTokenInstance;
   img: ImageBitmap;
   constructor(token: HydratedTokenInstance, img: ImageBitmap) {
     this.token = token;
     this.img = img;
+    this.opacity = 1;
   }
 
   normalize() {
     while (this.token.angle < 0) this.token.angle += 360;
     while (this.token.angle >= 360) this.token.angle -= 360;
+  }
+
+  setOpacity(opacity: number): void {
+    this.opacity = opacity;
+  }
+
+  contains(x: number, y: number): boolean {
+    // compensate for the scale
+    const w = this.img.width * this.token.scale;
+    const h = this.img.height * this.token.scale;
+
+    // compensate for centered token
+    const dx = x + w / 2;
+    const dy = y + h / 2;
+    return (
+      dx >= this.token.x &&
+      dx <= this.token.x + w &&
+      dy >= this.token.y &&
+      dy <= this.token.y + h
+    );
   }
 
   /**
@@ -150,6 +206,7 @@ export class DrawableToken implements Drawable {
     ctx.translate(this.token.x, this.token.y);
     ctx.rotate((this.token.angle * Math.PI) / 180);
     ctx.translate(-_token_dw / 2, -_token_dh / 2);
+    ctx.globalAlpha = this.opacity;
     ctx.drawImage(
       this.img,
       // source (should always just be source dimensions)
@@ -163,6 +220,7 @@ export class DrawableToken implements Drawable {
       _token_dw,
       _token_dh,
     );
+    ctx.globalAlpha = 1;
   }
 
   draw = (ctx: DrawContext) => this.place(ctx, 1);

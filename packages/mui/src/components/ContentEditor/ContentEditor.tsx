@@ -62,8 +62,10 @@ interface ContentEditorProps {
   manageScene?: () => void;
 }
 
+const TokenActionStrings = ["token", "delete_token"];
 type SelectAction = "select";
-type BrushAction = "paint" | "erase" | "token";
+type TokenActions = (typeof TokenActionStrings)[number];
+type BrushAction = "paint" | "erase" | TokenActions;
 type RecordingAction = "move" | SelectAction | BrushAction;
 
 // hack around rerendering -- keep one object in state and update properties
@@ -319,6 +321,12 @@ const ContentEditor = ({
           type: "content/scenetokenplaced",
           payload: evt.data.instance,
         });
+      } else if (evt.data.cmd === "token_deleted") {
+        if (!("instance" in evt.data)) return;
+        dispatch({
+          type: "content/scenetokendeleted",
+          payload: evt.data.instance,
+        });
       }
     },
     [dispatch, downloads, ovRev, scene],
@@ -438,8 +446,10 @@ const ContentEditor = ({
       {
         icon: Face,
         tooltip: "Token",
-        hidden: () => internalState.rec && internalState.act === "token",
-        disabled: () => internalState.rec && internalState.act !== "token",
+        hidden: () =>
+          internalState.rec && TokenActionStrings.includes(internalState.act),
+        disabled: () =>
+          internalState.rec && !TokenActionStrings.includes(internalState.act),
         callback: () =>
           infoDrawer(
             <TokenInfoDrawerComponent
@@ -447,13 +457,17 @@ const ContentEditor = ({
                 setToken(token);
                 prepareRecording("token");
               }}
+              onDelete={() => prepareRecording("delete_token")}
             />,
           ),
       },
       {
         icon: Face,
         tooltip: "Finish Token",
-        hidden: () => !(internalState.rec && internalState.act === "token"),
+        hidden: () =>
+          !(
+            internalState.rec && TokenActionStrings.includes(internalState.act)
+          ),
         disabled: () => false,
         callback: () => sm.transition("wait"),
       },
@@ -612,7 +626,8 @@ const ContentEditor = ({
       } else if (
         internalState.act === "erase" ||
         internalState.act === "paint" ||
-        internalState.act === "token"
+        internalState.act === "token" ||
+        internalState.act === "delete_token"
       ) {
         worker.postMessage({ cmd: `end_${internalState.act}` });
         sm.transition("record");
