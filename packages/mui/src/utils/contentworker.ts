@@ -235,8 +235,16 @@ function renderAllCanvasses(background: ImageBitmap | null) {
 /**
  * Given a single point on the overlay, un-rotate and scale to the full size overlay
  */
-function unrotateAndScalePoints(points: Point[]) {
-  return scalePoints(unrotatePoints(_angle, _vp, _canvas, points), _zoom);
+function unrotateScaleTranslatePoints(points: Point[]) {
+  const ps: Point[] = [];
+  for (const p of translatePoints(
+    scalePoints(unrotatePoints(_angle, _vp, _canvas, points), _zoom),
+    _img.x,
+    _img.y,
+  )) {
+    ps.push({ x: Math.round(p.x), y: Math.round(p.y) });
+  }
+  return ps;
 }
 
 /**
@@ -278,14 +286,12 @@ function unrotateBox(x1: number, y1: number, x2: number, y2: number) {
 }
 
 function eraseBrush(x: number, y: number, radius: number) {
-  // un-rotate and scale
-  const p = unrotateAndScalePoints(createPoints([x, y]))[0];
+  // un-rotate, scale and translate
+  const p = unrotateScaleTranslatePoints(createPoints([x, y]))[0];
 
   // copy image so we can clip it shortly
   const img = fullCtx.canvas.transferToImageBitmap();
-  // then add the image area offset
-  p.x += _img.x;
-  p.y += _img.y;
+
   fullCtx.save();
   // fullCtx.clearRect(0, 0, fullCtx.canvas.width, fullCtx.canvas.height);
   // pay close attention here, rect is clockwise, arc is anticlockwise (last param)
@@ -317,11 +323,8 @@ function renderBrush(x: number, y: number, radius: number, full = true) {
     overlayCtx.restore();
     return;
   }
-  // un-rotate and scale
-  const p = unrotateAndScalePoints(createPoints([x, y]))[0];
-  // then add the image area offset (eg if we're zoomed in)
-  p.x += _img.x;
-  p.y += _img.y;
+  // un-rotate, scale and translate
+  const p = unrotateScaleTranslatePoints(createPoints([x, y]))[0];
   fullCtx.save();
   fullCtx.beginPath();
   fullCtx.arc(p.x, p.y, Math.round(radius * _zoom), 0, 2 * Math.PI);
@@ -751,7 +754,7 @@ self.onmessage = async (evt) => {
 
       const { x, y } = evt.data;
       [startX, startY] = [x, y];
-      const p = unrotateAndScalePoints(createPoints([x, y]))[0];
+      const p = unrotateScaleTranslatePoints(createPoints([x, y]))[0];
       thingAt(
         p,
         DrawableToken,
@@ -843,11 +846,10 @@ self.onmessage = async (evt) => {
         return;
       }
 
-      const p = unrotateAndScalePoints(
+      const p = unrotateScaleTranslatePoints(
         createPoints([_token.token.x, _token.token.y]),
       )[0];
-      _token.token.x = Math.round(p.x + _img.x);
-      _token.token.y = Math.round(p.y + _img.y);
+      [_token.token.x, _token.token.y] = [p.x, p.y];
       _token.token.angle -= _angle;
       _token.normalize();
 
@@ -866,7 +868,7 @@ self.onmessage = async (evt) => {
     }
     case "end_delete_token": {
       recording = false;
-      const p = unrotateAndScalePoints(createPoints([startX, startY]))[0];
+      const p = unrotateScaleTranslatePoints(createPoints([startX, startY]))[0];
       const idx = thingAt(p, DrawableToken);
       if (idx < 0) return;
       const t = _things.splice(idx, 1)[0] as DrawableToken;
@@ -912,11 +914,7 @@ self.onmessage = async (evt) => {
       // get the scaled down viewport
       const fullVp = normalizeRect(
         rectFromPoints(
-          translatePoints(
-            unrotateAndScalePoints(pointsFromRect(evt.data.rect)),
-            _img.x,
-            _img.y,
-          ),
+          unrotateScaleTranslatePoints(pointsFromRect(evt.data.rect)),
         ),
       );
 
