@@ -173,6 +173,21 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
 
       return { ...state, scenes: scenes };
     }
+    case "content/scenetokendeleted": {
+      const instance = action.payload as unknown as TokenInstance;
+      const tokens = [...(state.currentScene?.tokens || [])];
+
+      let idx = tokens.findIndex((t) => t._id === instance._id);
+      if (idx < 0) return state;
+      tokens.splice(idx, 1);
+
+      const currentScene = { ...state.currentScene, tokens: tokens };
+
+      idx = state.scenes.findIndex((s) => s._id === instance.scene);
+      const scenes = [...state.scenes];
+      scenes[idx].tokens = tokens;
+      return { ...state, currentScene, scenes };
+    }
     case "content/scenetokens": {
       // ensure we have a current scene
       const scene = state.currentScene;
