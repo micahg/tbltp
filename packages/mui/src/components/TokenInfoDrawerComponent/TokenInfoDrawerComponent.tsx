@@ -25,12 +25,14 @@ import { HydratedTokenInstance } from "@micahg/tbltp-common";
 interface TokenInfoDrawerComponentProps {
   onToken: (token: HydratedTokenInstance) => void; // pass through for token selection
   onDelete: () => void; // pass through to indicate token deletion
+  onMove: () => void; // pass through to indicate token movement
   closeDrawer?: () => void;
 }
 
 const TokenInfoDrawerComponent = ({
   onToken,
   onDelete,
+  onMove,
   closeDrawer,
 }: TokenInfoDrawerComponentProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -52,6 +54,11 @@ const TokenInfoDrawerComponent = ({
     onDelete();
   };
 
+  const moveToken = () => {
+    if (closeDrawer) closeDrawer();
+    onMove();
+  };
+
   return (
     <Box>
       <List>
@@ -69,7 +76,7 @@ const TokenInfoDrawerComponent = ({
             <FindTokenComponent onToken={tokenSelected} />
           </ListItem>
         </Collapse>
-        <ListItem key="move">
+        <ListItem key="move" onClick={moveToken}>
           <ListItemButton>
             <ListItemIcon>
               <PlaceIcon />

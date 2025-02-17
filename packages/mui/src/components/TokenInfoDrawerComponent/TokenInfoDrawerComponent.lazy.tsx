@@ -9,6 +9,7 @@ const TokenInfoDrawerComponent = (
   props: JSX.IntrinsicAttributes & {
     onToken: (token: HydratedTokenInstance) => void;
     onDelete: () => void;
+    onMove: () => void;
     closeDrawer?: () => void;
     children?: React.ReactNode;
   },

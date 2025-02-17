@@ -62,7 +62,7 @@ interface ContentEditorProps {
   manageScene?: () => void;
 }
 
-const TokenActionStrings = ["token", "delete_token"];
+const TokenActionStrings = ["token", "move_token", "delete_token"];
 type SelectAction = "select";
 type TokenActions = (typeof TokenActionStrings)[number];
 type BrushAction = "paint" | "erase" | TokenActions;
@@ -458,6 +458,7 @@ const ContentEditor = ({
                 prepareRecording("token");
               }}
               onDelete={() => prepareRecording("delete_token")}
+              onMove={() => prepareRecording("move_token")}
             />,
           ),
       },
@@ -626,8 +627,7 @@ const ContentEditor = ({
       } else if (
         internalState.act === "erase" ||
         internalState.act === "paint" ||
-        internalState.act === "token" ||
-        internalState.act === "delete_token"
+        TokenActionStrings.includes(internalState.act)
       ) {
         worker.postMessage({ cmd: `end_${internalState.act}` });
         sm.transition("record");
