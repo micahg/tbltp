@@ -319,6 +319,12 @@ const ContentEditor = ({
           type: "content/scenetokenplaced",
           payload: evt.data.instance,
         });
+      } else if (evt.data.cmd === "token_deleted") {
+        if (!("instance" in evt.data)) return;
+        dispatch({
+          type: "content/scenetokendeleted",
+          payload: evt.data.instance,
+        });
       }
     },
     [dispatch, downloads, ovRev, scene],
@@ -438,8 +444,12 @@ const ContentEditor = ({
       {
         icon: Face,
         tooltip: "Token",
-        hidden: () => internalState.rec && internalState.act === "token",
-        disabled: () => internalState.rec && internalState.act !== "token",
+        hidden: () =>
+          internalState.rec &&
+          ["token", "delete_token"].includes(internalState.act),
+        disabled: () =>
+          internalState.rec &&
+          !["token", "delete_token"].includes(internalState.act),
         callback: () =>
           infoDrawer(
             <TokenInfoDrawerComponent
@@ -454,7 +464,11 @@ const ContentEditor = ({
       {
         icon: Face,
         tooltip: "Finish Token",
-        hidden: () => !(internalState.rec && internalState.act === "token"),
+        hidden: () =>
+          !(
+            internalState.rec &&
+            ["token", "delete_token"].includes(internalState.act)
+          ),
         disabled: () => false,
         callback: () => sm.transition("wait"),
       },

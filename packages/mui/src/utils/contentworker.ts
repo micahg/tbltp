@@ -3,8 +3,10 @@ import { LoadProgress, loadImage } from "./content";
 import {
   createDrawable,
   Drawable,
+  Drawables,
   DrawableToken,
   DrawContext,
+  isDrawableType,
 } from "./drawing";
 import {
   Point,
@@ -372,13 +374,18 @@ function renderThings(ctx: OffscreenCanvasRenderingContext2D) {
  * @param y the unrotated and scaled y coordinate
  * @returns the index of the thing at the given point
  */
-function thingAt(
+function thingAt<T = Drawables>(
   p: Point,
+  dt?: T,
   contained?: (thing: Drawable) => void,
   notContained?: (thing: Drawable) => void,
 ): number {
   let idx = -1;
   for (const [i, t] of _things.entries()) {
+    // ensure we enforce the type restriction
+    if (dt !== undefined && !isDrawableType(t, dt)) continue;
+
+    // check the point, apply the function
     if (t.contains(p.x, p.y) && idx < 0) {
       idx = i;
       if (contained) contained(t);
@@ -747,6 +754,7 @@ self.onmessage = async (evt) => {
       const p = unrotateAndScalePoints(createPoints([x, y]))[0];
       thingAt(
         p,
+        DrawableToken,
         (thing) => thing.setOpacity(0.5),
         (thing) => thing.setOpacity(1),
       );
@@ -859,9 +867,10 @@ self.onmessage = async (evt) => {
     case "end_delete_token": {
       recording = false;
       const p = unrotateAndScalePoints(createPoints([startX, startY]))[0];
-      const idx = thingAt(p);
+      const idx = thingAt(p, DrawableToken);
       if (idx < 0) return;
-      _things.splice(idx, 1);
+      const t = _things.splice(idx, 1)[0] as DrawableToken;
+      postMessage({ cmd: "token_deleted", instance: t.token });
       break;
     }
     case "obscure": {

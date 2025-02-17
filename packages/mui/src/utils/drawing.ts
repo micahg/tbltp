@@ -24,7 +24,7 @@ export interface Drawable {
   region(zoom: number): Rect;
 }
 
-export type Thing = SelectedRegion | Marker;
+export type Drawables = DrawableSelectedRegion | DrawableToken;
 
 type BitmapCache = {
   [key: string]: ImageBitmap;
@@ -56,6 +56,27 @@ export function isHydratedTokenInstnace(
   );
 }
 
+export function isDrawableToken(d: unknown): d is DrawableToken {
+  return !!d && (d as DrawableToken).token !== undefined;
+}
+
+export function isDrawableSelectedRegion(
+  d: unknown,
+): d is DrawableSelectedRegion {
+  return !!d && (d as DrawableSelectedRegion).rect !== undefined;
+}
+
+export function isDrawableType<T = Drawables>(d: unknown, t: T): boolean {
+  switch (t) {
+    case DrawableToken:
+      return isDrawableToken(d);
+    case DrawableSelectedRegion:
+      return isDrawableSelectedRegion(d);
+    default:
+      return false;
+  }
+}
+
 export type SelectedRegion = {
   rect: Rect;
 };
@@ -78,7 +99,7 @@ export async function createDrawable<T = Rect | HydratedTokenInstance>(
   throw new TypeError("Invalid Drawable");
 }
 
-class DrawableSelectedRegion implements Drawable {
+export class DrawableSelectedRegion implements Drawable {
   rect: Rect;
   opacity: number;
   constructor(rect: Rect) {
