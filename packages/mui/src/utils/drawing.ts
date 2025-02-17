@@ -172,14 +172,18 @@ export class DrawableToken implements Drawable {
   }
 
   contains(x: number, y: number): boolean {
+    // compensate for the scale
+    const w = this.img.width * this.token.scale;
+    const h = this.img.height * this.token.scale;
+
     // compensate for centered token
-    const dx = x + this.img.width / 2;
-    const dy = y + this.img.height / 2;
+    const dx = x + w / 2;
+    const dy = y + h / 2;
     return (
       dx >= this.token.x &&
-      dx <= this.token.x + this.img.width &&
+      dx <= this.token.x + w &&
       dy >= this.token.y &&
-      dy <= this.token.y + this.img.height
+      dy <= this.token.y + h
     );
   }
 
