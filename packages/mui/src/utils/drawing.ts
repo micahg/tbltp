@@ -21,7 +21,6 @@ export interface Drawable {
   setOpacity(opacity: number): void;
   draw(ctx: DrawContext): void;
   contains(x: number, y: number): boolean;
-  region(zoom: number): Rect;
 }
 
 export type Drawables = DrawableSelectedRegion | DrawableToken;
@@ -132,11 +131,6 @@ export class DrawableSelectedRegion implements Drawable {
     ctx.stroke();
   }
 
-  // TODO THIS NEEDS TO HANDLE ZOOM IF I EVER USE IT
-  region(zoom: number): Rect {
-    return this.rect;
-  }
-
   contains(x: number, y: number): boolean {
     return (
       x >= this.rect.x &&
@@ -189,18 +183,6 @@ export class DrawableToken implements Drawable {
     );
   }
 
-  region(zoom: number): Rect {
-    // calcualte the size coefficient
-    const sizeCo = this.token.scale / zoom;
-    const [width, height] = [this.img.width * sizeCo, this.img.height * sizeCo];
-    const [x, y] = [this.token.x - width / 2, this.token.y - height / 2];
-    return {
-      x: x,
-      y: y,
-      width: width,
-      height: height,
-    };
-  }
   /**
    *
    * @param ctx
