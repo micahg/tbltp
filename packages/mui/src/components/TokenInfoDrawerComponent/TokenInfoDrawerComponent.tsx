@@ -68,22 +68,22 @@ const TokenInfoDrawerComponent = ({
           <ListItem>
             <FindTokenComponent onToken={tokenSelected} />
           </ListItem>
-          <Divider />
         </Collapse>
-        <ListItem key="create" onClick={openCreate}>
-          <ListItemButton>
-            <ListItemIcon>
-              <AddIcon />
-            </ListItemIcon>
-            <ListItemText primary="Create Token" />
-          </ListItemButton>
-        </ListItem>
         <ListItem key="move">
           <ListItemButton>
             <ListItemIcon>
               <PlaceIcon />
             </ListItemIcon>
             <ListItemText primary="Move Token" />
+          </ListItemButton>
+        </ListItem>
+        <Divider />
+        <ListItem key="create" onClick={openCreate}>
+          <ListItemButton>
+            <ListItemIcon>
+              <AddIcon />
+            </ListItemIcon>
+            <ListItemText primary="Create Token" />
           </ListItemButton>
         </ListItem>
         <ListItem key="delete" onClick={deleteToken}>
