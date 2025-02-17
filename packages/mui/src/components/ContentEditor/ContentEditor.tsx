@@ -62,8 +62,10 @@ interface ContentEditorProps {
   manageScene?: () => void;
 }
 
+const TokenActionStrings = ["token", "delete_token"];
 type SelectAction = "select";
-type BrushAction = "paint" | "erase" | "token" | "delete_token";
+type TokenActions = (typeof TokenActionStrings)[number];
+type BrushAction = "paint" | "erase" | TokenActions;
 type RecordingAction = "move" | SelectAction | BrushAction;
 
 // hack around rerendering -- keep one object in state and update properties
@@ -445,11 +447,9 @@ const ContentEditor = ({
         icon: Face,
         tooltip: "Token",
         hidden: () =>
-          internalState.rec &&
-          ["token", "delete_token"].includes(internalState.act),
+          internalState.rec && TokenActionStrings.includes(internalState.act),
         disabled: () =>
-          internalState.rec &&
-          !["token", "delete_token"].includes(internalState.act),
+          internalState.rec && !TokenActionStrings.includes(internalState.act),
         callback: () =>
           infoDrawer(
             <TokenInfoDrawerComponent
@@ -466,8 +466,7 @@ const ContentEditor = ({
         tooltip: "Finish Token",
         hidden: () =>
           !(
-            internalState.rec &&
-            ["token", "delete_token"].includes(internalState.act)
+            internalState.rec && TokenActionStrings.includes(internalState.act)
           ),
         disabled: () => false,
         callback: () => sm.transition("wait"),
