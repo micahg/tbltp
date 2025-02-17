@@ -167,7 +167,6 @@ export function startWSServer(
         method: ASSETS_UPDATED_SIG,
         state: tableState,
       };
-      log.info(`Sending ${JSON.stringify(msg)}`);
       sock.send(JSON.stringify(msg));
     },
   );
