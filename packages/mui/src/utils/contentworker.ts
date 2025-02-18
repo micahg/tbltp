@@ -746,6 +746,40 @@ self.onmessage = async (evt) => {
       )) as DrawableToken;
       break;
     }
+    case "move_token": {
+      if (!recording) {
+        recording = true;
+        requestAnimationFrame(animateAllTokens);
+      }
+
+      const { x, y } = evt.data;
+      [startX, startY] = [x, y];
+      const p = unrotateScaleTranslatePoints(createPoints([x, y]))[0];
+      if (_token === undefined) {
+        const idx = thingAt(
+          p,
+          DrawableToken,
+          (thing) => thing.setOpacity(0.5),
+          (thing) => thing.setOpacity(1),
+        );
+        if (idx < 0) break;
+        if (evt.data.buttons === 1 && _token === undefined) {
+          _token = _things[idx] as DrawableToken;
+          _token.token.x = p.x;
+          _token.token.y = p.y;
+        }
+      } else if (evt.data.buttons === 1) {
+        _token.token.x = p.x;
+        _token.token.y = p.y;
+      } else if (_token !== undefined) {
+        _token.setOpacity(1);
+        const t = _token.token;
+        recording = false;
+        _token = undefined;
+        postMessage({ cmd: "token_moved", instance: t });
+      }
+      break;
+    }
     case "delete_token": {
       if (!recording) {
         recording = true;

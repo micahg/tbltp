@@ -4,7 +4,13 @@ import TokenInfoDrawerComponent from "./TokenInfoDrawerComponent";
 
 describe("<TokenInfoDrawerComponent />", () => {
   test("it should mount", () => {
-    render(<TokenInfoDrawerComponent onToken={() => {}} onDelete={() => {}} />);
+    render(
+      <TokenInfoDrawerComponent
+        onToken={() => {}}
+        onDelete={() => {}}
+        onMove={() => {}}
+      />,
+    );
 
     const tokenInfoDrawerComponent = screen.getByTestId(
       "TokenInfoDrawerComponent",

@@ -25,12 +25,14 @@ import { HydratedTokenInstance } from "@micahg/tbltp-common";
 interface TokenInfoDrawerComponentProps {
   onToken: (token: HydratedTokenInstance) => void; // pass through for token selection
   onDelete: () => void; // pass through to indicate token deletion
+  onMove: () => void; // pass through to indicate token movement
   closeDrawer?: () => void;
 }
 
 const TokenInfoDrawerComponent = ({
   onToken,
   onDelete,
+  onMove,
   closeDrawer,
 }: TokenInfoDrawerComponentProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -52,6 +54,11 @@ const TokenInfoDrawerComponent = ({
     onDelete();
   };
 
+  const moveToken = () => {
+    if (closeDrawer) closeDrawer();
+    onMove();
+  };
+
   return (
     <Box>
       <List>
@@ -68,22 +75,22 @@ const TokenInfoDrawerComponent = ({
           <ListItem>
             <FindTokenComponent onToken={tokenSelected} />
           </ListItem>
-          <Divider />
         </Collapse>
+        <ListItem key="move" onClick={moveToken}>
+          <ListItemButton>
+            <ListItemIcon>
+              <PlaceIcon />
+            </ListItemIcon>
+            <ListItemText primary="Move Token" />
+          </ListItemButton>
+        </ListItem>
+        <Divider />
         <ListItem key="create" onClick={openCreate}>
           <ListItemButton>
             <ListItemIcon>
               <AddIcon />
             </ListItemIcon>
             <ListItemText primary="Create Token" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem key="move">
-          <ListItemButton>
-            <ListItemIcon>
-              <PlaceIcon />
-            </ListItemIcon>
-            <ListItemText primary="Move Token" />
           </ListItemButton>
         </ListItem>
         <ListItem key="delete" onClick={deleteToken}>

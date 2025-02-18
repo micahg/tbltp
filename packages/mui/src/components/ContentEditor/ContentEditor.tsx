@@ -62,7 +62,7 @@ interface ContentEditorProps {
   manageScene?: () => void;
 }
 
-const TokenActionStrings = ["token", "delete_token"];
+const TokenActionStrings = ["token", "move_token", "delete_token"];
 type SelectAction = "select";
 type TokenActions = (typeof TokenActionStrings)[number];
 type BrushAction = "paint" | "erase" | TokenActions;
@@ -327,6 +327,12 @@ const ContentEditor = ({
           type: "content/scenetokendeleted",
           payload: evt.data.instance,
         });
+      } else if (evt.data.cmd === "token_moved") {
+        if (!("instance" in evt.data)) return;
+        dispatch({
+          type: "content/scenetokenmoved",
+          payload: evt.data.instance,
+        });
       }
     },
     [dispatch, downloads, ovRev, scene],
@@ -458,6 +464,7 @@ const ContentEditor = ({
                 prepareRecording("token");
               }}
               onDelete={() => prepareRecording("delete_token")}
+              onMove={() => prepareRecording("move_token")}
             />,
           ),
       },
@@ -626,8 +633,7 @@ const ContentEditor = ({
       } else if (
         internalState.act === "erase" ||
         internalState.act === "paint" ||
-        internalState.act === "token" ||
-        internalState.act === "delete_token"
+        TokenActionStrings.includes(internalState.act)
       ) {
         worker.postMessage({ cmd: `end_${internalState.act}` });
         sm.transition("record");
@@ -834,8 +840,6 @@ const ContentEditor = ({
 
     // draw the viewport (and possibly tokens) to the canvas
     if (scene.tokens && handleDrawables) {
-      // TODO MICAH HYDRATE SCENE TOKENS HERE WHENEVER THEY CHANGE
-      console.log(scene.tokens);
       handleDrawables();
       return;
     }
