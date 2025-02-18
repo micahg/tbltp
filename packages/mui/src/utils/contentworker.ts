@@ -771,10 +771,12 @@ self.onmessage = async (evt) => {
       } else if (evt.data.buttons === 1) {
         _token.token.x = p.x;
         _token.token.y = p.y;
-      } else {
+      } else if (_token !== undefined) {
         _token.setOpacity(1);
+        const t = _token.token;
         recording = false;
         _token = undefined;
+        postMessage({ cmd: "token_moved", instance: t });
       }
       break;
     }

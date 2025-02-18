@@ -38,6 +38,29 @@ const initialState: ContentReducerState = {
   err: undefined,
 };
 
+function hydrateToken(
+  state: ContentReducerState,
+  instance: TokenInstance,
+): HydratedTokenInstance | undefined {
+  const token = state.tokens?.find((t) => t._id === instance.token);
+  if (!token) {
+    console.error(`Unable to find token for instance ${instance._id}`);
+    return;
+  }
+  const asset = state.assets?.find((a) => a._id === token.asset);
+  if (!asset || !asset.location) {
+    console.error(
+      `Unable to find asset for token instance ${instance._id}, asset ${token.asset}`,
+    );
+    return;
+  }
+
+  return {
+    ...instance,
+    asset: `${state.mediaPrefix}/${asset.location}`,
+  };
+}
+
 export const ContentReducer = (state = initialState, action: PayloadAction) => {
   switch (action.type) {
     case "content/mediaprefix":
@@ -147,24 +170,9 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       if (idx < 0) return state;
       if (!state.currentScene) return state;
 
-      const token = state.tokens?.find((t) => t._id === instance.token);
-      if (!token) {
-        console.error(`Unable to find token for instance ${instance._id}`);
-        return state;
-      }
+      const hydrated = hydrateToken(state, instance);
+      if (!hydrated) return state;
 
-      const asset = state.assets?.find((a) => a._id === token.asset);
-      if (!asset || !asset.location) {
-        console.error(
-          `Unable to find asset for token instance ${instance._id}, asset ${token.asset}`,
-        );
-        return state;
-      }
-
-      const hydrated: HydratedTokenInstance = {
-        ...instance,
-        asset: `${state.mediaPrefix}/${asset.location}`,
-      };
       // updates scenes
       const scenes = [...state.scenes];
       const tokens = scenes[idx].tokens || [];
@@ -176,13 +184,21 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
 
       return { ...state, scenes, currentScene };
     }
+    case "content/scenetokenmoved":
     case "content/scenetokendeleted": {
       const instance = action.payload as unknown as TokenInstance;
       const tokens = [...(state.currentScene?.tokens || [])];
 
       let idx = tokens.findIndex((t) => t._id === instance._id);
       if (idx < 0) return state;
-      tokens.splice(idx, 1);
+
+      if (action.type === "content/scenetokenmoved") {
+        const hydrated = hydrateToken(state, instance);
+        if (!hydrated) return state;
+        tokens.splice(idx, 1, hydrated);
+      } else {
+        tokens.splice(idx, 1);
+      }
 
       const currentScene = { ...state.currentScene, tokens: tokens };
 

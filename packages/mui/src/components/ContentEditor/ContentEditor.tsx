@@ -327,6 +327,12 @@ const ContentEditor = ({
           type: "content/scenetokendeleted",
           payload: evt.data.instance,
         });
+      } else if (evt.data.cmd === "token_moved") {
+        if (!("instance" in evt.data)) return;
+        dispatch({
+          type: "content/scenetokenmoved",
+          payload: evt.data.instance,
+        });
       }
     },
     [dispatch, downloads, ovRev, scene],
@@ -834,8 +840,6 @@ const ContentEditor = ({
 
     // draw the viewport (and possibly tokens) to the canvas
     if (scene.tokens && handleDrawables) {
-      // TODO MICAH HYDRATE SCENE TOKENS HERE WHENEVER THEY CHANGE
-      console.log(scene.tokens);
       handleDrawables();
       return;
     }
