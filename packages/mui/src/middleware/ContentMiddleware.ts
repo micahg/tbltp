@@ -80,6 +80,17 @@ async function request<T extends OperationType>(
   }
 }
 
+function trackRateLimit(next: Dispatch<AnyAction>, resp: AxiosResponse) {
+  const limit = resp.headers["ratelimit-limit"];
+  const remaining = resp.headers["ratelimit-remaining"];
+  if (limit === undefined || remaining === undefined) return;
+  next({
+    type: "environment/ratelimit",
+    payload: { limit, remaining },
+  });
+  console.log(resp);
+}
+
 async function operate<T extends OperationType>(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
@@ -90,6 +101,7 @@ async function operate<T extends OperationType>(
 ) {
   try {
     const result = await request(state, store, op, action.payload, path);
+    trackRateLimit(next, result);
     next({
       type: action.type,
       payload: result.status === 204 ? action.payload : result.data,
@@ -260,6 +272,7 @@ export const ContentMiddleware: Middleware =
               file,
               progress,
             );
+            trackRateLimit(next, result);
             next({ type: action.type, payload: result.data });
           } catch (error) {
             console.error(
@@ -340,6 +353,7 @@ export const ContentMiddleware: Middleware =
         )
           .then((value) => {
             // MICAH this is being triggered by "content/overlay" and triggering a rerender
+            trackRateLimit(next, value);
             next({ type: "content/scene", payload: value.data });
             const err: ContentReducerError = {
               msg: "Update successful",
@@ -364,7 +378,10 @@ export const ContentMiddleware: Middleware =
         const scene = state.content.currentScene;
         if (!scene) return next(action);
         setViewport(state, store, scene, action.payload)
-          .then((value) => next({ type: "content/scene", payload: value.data }))
+          .then((value) => {
+            trackRateLimit(next, value);
+            next({ type: "content/scene", payload: value.data });
+          })
           .catch((err) =>
             console.error(`Unable to update viewport: ${JSON.stringify(err)}`),
           );
@@ -380,6 +397,7 @@ export const ContentMiddleware: Middleware =
         getToken(state, store)
           .then((headers) => axios.put(url, bundle, { headers: headers }))
           .then((data) => {
+            trackRateLimit(next, data);
             next({ type: "content/scene", payload: data.data });
             const asset = bundle.player;
             const progress = bundle.playerProgress;

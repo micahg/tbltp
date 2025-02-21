@@ -113,6 +113,15 @@ const GameMasterComponent = () => {
   const currentScene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
   );
+  const rateMax = useSelector(
+    (state: AppReducerState) => state.environment.ratelimitMax,
+  );
+  const rateRemaining = useSelector(
+    (state: AppReducerState) => state.environment.ratelimitRemaining,
+  );
+  const rateLimit = useSelector(
+    (state: AppReducerState) => state.environment.ratelimit,
+  );
 
   const handleNavDrawerOpen = () => setNavOpen(true);
 
@@ -315,6 +324,17 @@ const GameMasterComponent = () => {
         {focusedComponent === FocusedComponent.Tokens && (
           <TokensComponent populateToolbar={handlePopulateToolbar} />
         )}
+        <Box
+          sx={{
+            position: "absolute",
+            bottom: 0,
+            right: 0,
+            zIndex: 1000,
+            backgroundColor: "rgba(255, 255, 255, 1)",
+          }}
+        >
+          Max: {rateMax}, Remaining: {rateRemaining}, Limit: {rateLimit}
+        </Box>
       </Main>
     </Box>
   );

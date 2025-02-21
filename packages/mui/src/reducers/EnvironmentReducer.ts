@@ -47,6 +47,9 @@ export type EnvironmentReducerState = {
   readonly deviceCode?: DeviceCode;
   readonly deviceCodeToken?: string;
   readonly bearer?: string;
+  readonly ratelimitRemaining: number;
+  readonly ratelimit: number;
+  readonly ratelimitMax: number;
 };
 
 const initialState: EnvironmentReducerState = {
@@ -54,6 +57,9 @@ const initialState: EnvironmentReducerState = {
   ws: undefined,
   noauth: false,
   authStarted: false,
+  ratelimitRemaining: -1,
+  ratelimit: -1,
+  ratelimitMax: -1,
 };
 
 export const EnvironmentReducer = (
@@ -128,6 +134,18 @@ export const EnvironmentReducer = (
         deviceCode: undefined,
         deviceCodeToken: authResult.access_token,
       };
+    }
+    case "environment/ratelimit": {
+      if (action.payload === null || action.payload === undefined) return state;
+      if (!("limit" in action.payload) || !("remaining" in action.payload))
+        return state;
+      const { limit: l, remaining: r } = action.payload as unknown as {
+        limit: number;
+        remaining: number;
+      };
+      const u = l - r;
+      const m = Math.max(state.ratelimitMax, u);
+      return { ...state, ratelimit: l, ratelimitRemaining: r, ratelimitMax: m };
     }
     default:
       return state;
