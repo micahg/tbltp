@@ -5,6 +5,7 @@ import * as express from "express";
 import { Express, NextFunction } from "express";
 import * as bodyParser from "body-parser";
 import * as multer from "multer";
+import { rateLimit } from "express-rate-limit";
 import { Server } from "http";
 import {
   NO_AUTH_ASSET,
@@ -129,6 +130,13 @@ export function create(): Express {
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({ extended: true }));
 
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  });
+
   const jwtCheck = getJWTCheck(noauth);
   const meter = metrics.getMeter("ntt-api");
   const requestCounter = meter.createCounter("request-count");
@@ -168,6 +176,8 @@ export function create(): Express {
     );
     next();
   });
+
+  app.use(limiter);
 
   // authenticate everything BUT the OPTIONS call
   app.use(
