@@ -123,7 +123,7 @@ export function getAuthState(client: Auth0Client): Promise<AuthState> {
  * @param client
  * @returns
  */
-export function getToken(
+export async function getToken(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   headers?: { [key: string]: string },
@@ -134,23 +134,19 @@ export function getToken(
     const value = "NOAUTH";
     res["Authorization"] = `Bearer ${value}`;
     store.dispatch({ type: "environment/bearer", payload: value });
-    return Promise.resolve(res);
+    return res;
   }
 
   const client = state.environment.authClient;
 
-  if (!client) return Promise.reject("No auth0 client");
+  if (!client) throw new Error("No auth0 client");
 
-  return new Promise((resolve, reject) => {
-    client
-      .getTokenSilently()
-      .then((value) => {
-        store.dispatch({ type: "environment/bearer", payload: value });
-        res["Authorization"] = `Bearer ${value}`;
-        resolve(res);
-      })
-      .catch((err) => reject(err));
-  });
+  const newToken = await client.getTokenSilently();
+  if (state.environment.bearer !== newToken) {
+    store.dispatch({ type: "environment/bearer", payload: newToken });
+  }
+  res["Authorization"] = `Bearer ${newToken}`;
+  return res;
 }
 
 export function getDeviceCode(data: AuthConfig) {
