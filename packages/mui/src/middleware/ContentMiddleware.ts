@@ -295,7 +295,7 @@ export const ContentMiddleware: Middleware =
             progress: action.payload.progress,
           },
         });
-        if (!assetDataResult || assetDataResult.status !== 204) {
+        if (!assetDataResult || assetDataResult.status !== 200) {
           // delete the asset if the data update failed
           operate(state, store, next, "delete", "asset", {
             type: "content/deleteasset",
@@ -303,7 +303,20 @@ export const ContentMiddleware: Middleware =
           });
           return;
         }
-        return;
+
+        // create the token
+        const tokenResult = await operate(state, store, next, "put", "token", {
+          type: "content/updatetoken",
+          payload: { ...action.payload.token, asset: asset._id },
+        });
+        if (!tokenResult || tokenResult.status !== 201) {
+          // delete the asset if the token update failed
+          operate(state, store, next, "delete", "asset", {
+            type: "content/deleteasset",
+            payload: asset,
+          });
+        }
+        break;
       }
       case "content/updateassetdata":
         updateAssetData(state, store, next, action);

@@ -209,14 +209,15 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     }
     case "content/scenetokens": {
       // ensure we have a current scene
-      const scene = state.currentScene;
-      if (!scene) return state;
+      // const scene = state.currentScene;
+      // if (!scene) return state;
 
       const tokens = action.payload as unknown as TokenInstance[];
       const hydrated: HydratedTokenInstance[] = [];
 
       const scenes = state.scenes;
-      const idx = state.scenes.findIndex((s) => s._id === scene._id);
+      const idx = scenes.findIndex((s) => s._id === tokens[0].scene);
+      if (idx < 0) return state;
 
       for (const instance of tokens) {
         const token = state.tokens?.find((t) => t._id === instance.token);
@@ -238,8 +239,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       }
 
       scenes[idx] = { ...scenes[idx], tokens: hydrated };
-      const newScene = { ...scene, tokens: hydrated };
-      return { ...state, scenes: [...scenes], currentScene: newScene };
+      return { ...state, scenes: [...scenes] };
     }
     case "content/error": {
       // important to let undefined through. This will clear the error

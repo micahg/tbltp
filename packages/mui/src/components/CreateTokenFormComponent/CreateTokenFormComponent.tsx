@@ -2,6 +2,10 @@
 import {
   Box,
   Button,
+  Dialog,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   FormControl,
   IconButton,
   InputLabel,
@@ -58,14 +62,34 @@ const CreateTokenFormComponent = ({
   const assetField = watch("asset");
 
   const assets = useSelector((state: AppReducerState) => state.content.assets);
+  const scenes = useSelector((state: AppReducerState) => state.content.scenes);
   const [file, setFile] = useState<File | undefined>(undefined);
   const [imgUrl, setImgUrl] = useState<string | undefined>(undefined);
+  const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
+  const [tokenScenes, setTokenScenes] = useState<string[]>([]);
 
-  const deleteToken = () =>
+  const deleteToken = () => {
+    const names: string[] = [];
+    for (const scene of scenes) {
+      if (!scene.tokens) continue;
+      for (const instance of scene.tokens) {
+        if (instance.token === token?._id) {
+          if (!(scene.description in names)) {
+            names.push(scene.description);
+          }
+        }
+      }
+    }
+    if (names.length > 0) {
+      setTokenScenes(names);
+      setDeleteWarning(true);
+    }
+    return;
     dispatch({
       type: "content/deletetoken",
       payload: token,
     });
+  };
 
   /**
    * Strip the token properties that can't be edited so they don't
@@ -95,7 +119,6 @@ const CreateTokenFormComponent = ({
     // are special cases that need to be handled
     if (data.asset === "new") {
       delete update.asset;
-      console.error("NEED TO IMPLEMENT UPLOADING NEW ASSET");
       dispatch({
         type: "content/createassetandtoken",
         payload: {
@@ -168,6 +191,19 @@ const CreateTokenFormComponent = ({
           gap: "1em",
         }}
       >
+        <Dialog open={deleteWarning}>
+          <DialogTitle>Delete Token</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              The following scenes are still using this token:
+              <ul>
+                {tokenScenes.map((scene) => (
+                  <li key={scene}>{scene}</li>
+                ))}
+              </ul>
+            </DialogContentText>
+          </DialogContent>
+        </Dialog>
         {modal && <ErrorAlertComponent />}
         {modal && <TwoMinuteTableTop />}
         <FormControl fullWidth>
