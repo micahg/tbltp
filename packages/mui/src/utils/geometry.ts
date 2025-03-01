@@ -263,12 +263,12 @@ export function adjustImageToViewport(
   // increase them so x + width or y + height are greater than the source image
   // the following if block down below corrects those over/under adjustments
   if (image.height / containerHeight > image.width / containerWidth) {
-    const adj = cw * zoom;
+    const adj = Math.round(cw * zoom);
     if (adj < rw) {
       image.x -= (adj - image.width) / 2;
     }
   } else {
-    const adj = ch * zoom;
+    const adj = Math.round(ch * zoom);
     if (adj < rh) {
       image.y -= (adj - image.height) / 2;
     }
