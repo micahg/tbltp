@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Dialog,
+  DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
@@ -74,7 +75,7 @@ const CreateTokenFormComponent = ({
       if (!scene.tokens) continue;
       for (const instance of scene.tokens) {
         if (instance.token === token?._id) {
-          if (!(scene.description in names)) {
+          if (!names.includes(scene.description)) {
             names.push(scene.description);
           }
         }
@@ -89,6 +90,9 @@ const CreateTokenFormComponent = ({
       type: "content/deletetoken",
       payload: token,
     });
+  };
+  const handleClose = () => {
+    setDeleteWarning(false);
   };
 
   /**
@@ -171,12 +175,16 @@ const CreateTokenFormComponent = ({
     reset(stripToken(token));
   }, [reset, token]);
 
+  /**
+   * Watch for asset changes
+   *
+   * TODO: render asset preview
+   */
   useEffect(() => {
     if (!assetField) return;
     if (assetField === "new") {
       selectFile();
     }
-    console.log(`MICAH ASSET FIELD: ${assetField}`);
   }, [assetField]);
 
   return (
@@ -195,13 +203,21 @@ const CreateTokenFormComponent = ({
           <DialogTitle>Delete Token</DialogTitle>
           <DialogContent>
             <DialogContentText>
-              The following scenes are still using this token:
-              <ul>
-                {tokenScenes.map((scene) => (
-                  <li key={scene}>{scene}</li>
-                ))}
-              </ul>
+              <p>
+                The following scenes are still using this token:{" "}
+                {tokenScenes.join(", ")}.
+              </p>
+              <p>
+                Please confirm deletion of the token along with all instances
+                within the scenes.
+              </p>
             </DialogContentText>
+            <DialogActions>
+              <Button onClick={handleClose} autoFocus>
+                Cancel
+              </Button>
+              <Button onClick={handleClose}>Delete</Button>
+            </DialogActions>
           </DialogContent>
         </Dialog>
         {modal && <ErrorAlertComponent />}
