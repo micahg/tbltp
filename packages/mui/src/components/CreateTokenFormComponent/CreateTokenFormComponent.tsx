@@ -69,7 +69,7 @@ const CreateTokenFormComponent = ({
   const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
   const [tokenScenes, setTokenScenes] = useState<string[]>([]);
 
-  const deleteToken = () => {
+  const deleteToken = (force: boolean) => {
     const names: string[] = [];
     for (const scene of scenes) {
       if (!scene.tokens) continue;
@@ -81,15 +81,17 @@ const CreateTokenFormComponent = ({
         }
       }
     }
-    if (names.length > 0) {
+
+    if (force || !names.length) {
+      setDeleteWarning(false);
+      dispatch({
+        type: "content/deletetoken",
+        payload: token,
+      });
+    } else {
       setTokenScenes(names);
       setDeleteWarning(true);
     }
-    return;
-    dispatch({
-      type: "content/deletetoken",
-      payload: token,
-    });
   };
   const handleClose = () => {
     setDeleteWarning(false);
@@ -216,7 +218,7 @@ const CreateTokenFormComponent = ({
               <Button onClick={handleClose} autoFocus>
                 Cancel
               </Button>
-              <Button onClick={handleClose}>Delete</Button>
+              <Button onClick={() => deleteToken(true)}>Delete</Button>
             </DialogActions>
           </DialogContent>
         </Dialog>
@@ -325,7 +327,7 @@ const CreateTokenFormComponent = ({
                   <IconButton
                     aria-label="delete"
                     color="primary"
-                    onClick={deleteToken}
+                    onClick={() => deleteToken(false)}
                   >
                     <DeleteIcon />
                   </IconButton>

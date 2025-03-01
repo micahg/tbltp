@@ -10,6 +10,7 @@ import { knownMongoError } from "./errors";
 import { IUser } from "../models/user";
 import mongoose from "mongoose";
 import { IScene } from "../models/scene";
+import { IToken } from "../models/token";
 
 export function tokenInstanceValidator() {
   return checkSchema({
@@ -180,6 +181,19 @@ export function deleteUserTokenInstance(user: IUser, id: string) {
   return TokenInstanceModel.deleteOne({
     _id: { $eq: id },
     user: { $eq: user._id },
+  });
+}
+
+/**
+ * Delete the token instances associated with a user and a token.
+ * @param user the user to which the token belongs
+ * @param token the token from which the instances are created
+ * @returns the result of the deletion operation
+ */
+export function deleteUserTokenInstances(user: IUser, token: IToken) {
+  return TokenInstanceModel.deleteMany({
+    user: { $eq: user._id },
+    token: { $eq: token._id },
   });
 }
 

@@ -4,6 +4,7 @@ import { log } from "../utils/logger";
 import { createUserToken, getUserToken, listUserTokens } from "../utils/token";
 import { getUserAsset } from "../utils/asset";
 import { knownMongoError } from "../utils/errors";
+import { deleteUserTokenInstances } from "../utils/tokeninstance";
 
 export async function listTokens(
   req: Request,
@@ -85,6 +86,7 @@ export async function deleteToken(
     if (!token) {
       return res.status(404).send();
     }
+    await deleteUserTokenInstances(user, token);
     await token.deleteOne();
     // don't return yet, we will delete after sending the response
     return res.status(204).send();

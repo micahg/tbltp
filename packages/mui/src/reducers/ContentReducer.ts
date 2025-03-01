@@ -159,8 +159,12 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
           : state.tokens.findIndex((a) => a._id === token._id);
       if (idx < 0) return state;
       const tokens = [...state.tokens!];
+      const scenes = [...state.scenes];
+      for (const scene of scenes) {
+        scene.tokens = scene.tokens?.filter((t) => t.token !== token._id) || [];
+      }
       tokens.splice(idx, 1);
-      return { ...state, tokens: tokens };
+      return { ...state, tokens: tokens, scenes };
     }
     case "content/scenetokenplaced": {
       const instance = action.payload as unknown as TokenInstance;
