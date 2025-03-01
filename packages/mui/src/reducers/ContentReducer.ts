@@ -208,10 +208,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       return { ...state, currentScene, scenes };
     }
     case "content/scenetokens": {
-      // ensure we have a current scene
-      // const scene = state.currentScene;
-      // if (!scene) return state;
-
       const tokens = action.payload as unknown as TokenInstance[];
       const hydrated: HydratedTokenInstance[] = [];
 
@@ -238,7 +234,18 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
         });
       }
 
+      // update the specified scene
       scenes[idx] = { ...scenes[idx], tokens: hydrated };
+
+      // TODO BEFORE MERGE: CAN WE JUST UPDATE THE CURRENT SCENE BASED ON THE SCENES ARRAY?
+
+      // update the current scene if it's the same ... initially the scene at the index
+      // and the current scene may not be the same...
+      if (scenes[idx]._id == state.currentScene?._id) {
+        const currentScene = { ...state.currentScene, tokens: hydrated };
+        return { ...state, scenes: [...scenes], currentScene };
+      }
+
       return { ...state, scenes: [...scenes] };
     }
     case "content/error": {
