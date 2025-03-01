@@ -149,6 +149,7 @@ const CreateTokenFormComponent = ({
 
     dispatch({ type: "content/updatetoken", payload: update });
     reset(data);
+    setImgUrl(`/x.webp`);
   };
 
   const selectFile = () => {
@@ -185,15 +186,30 @@ const CreateTokenFormComponent = ({
   }, [reset, token]);
 
   /**
-   * Watch for asset changes
+   * Watch for asset upload -- this is separate from the none/existing asset
+   * selection because we need to trigger the file dialog when the user
+   * selects "new" from the dropdown
    */
   useEffect(() => {
-    if (!assetField) return;
-    if (!bearer) return;
-    if (!mediaPrefix) return;
     if (assetField === "new") {
       selectFile();
     }
+  }, [assetField]);
+
+  /**
+   * Asset changes that do not involve a new asset
+   */
+  useEffect(() => {
+    // this is important - new is handled elsewhere to avoid creating a file dialog
+    // when the assets change (after creating a new asset, for example).
+    if (!assetField) return;
+    if (assetField === "new") return;
+
+    // ensure the rest of the stuff we need to show assets is available
+    if (!bearer) return;
+    if (!mediaPrefix) return;
+    if (!assetField) return;
+
     if (!assets || assetField === "none") {
       setImgUrl(`/x.webp`);
       return;
