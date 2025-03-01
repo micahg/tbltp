@@ -64,8 +64,15 @@ const CreateTokenFormComponent = ({
 
   const assets = useSelector((state: AppReducerState) => state.content.assets);
   const scenes = useSelector((state: AppReducerState) => state.content.scenes);
+  const mediaPrefix = useSelector(
+    (state: AppReducerState) => state.content.mediaPrefix,
+  );
+  const bearer = useSelector(
+    (state: AppReducerState) => state.environment.bearer,
+  );
+
   const [file, setFile] = useState<File | undefined>(undefined);
-  const [imgUrl, setImgUrl] = useState<string | undefined>(undefined);
+  const [imgUrl, setImgUrl] = useState<string>(`/x.webp`);
   const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
   const [tokenScenes, setTokenScenes] = useState<string[]>([]);
 
@@ -179,15 +186,34 @@ const CreateTokenFormComponent = ({
 
   /**
    * Watch for asset changes
-   *
-   * TODO: render asset preview
    */
   useEffect(() => {
     if (!assetField) return;
+    if (!bearer) return;
+    if (!mediaPrefix) return;
     if (assetField === "new") {
       selectFile();
     }
-  }, [assetField]);
+    if (!assets || assetField === "none") {
+      setImgUrl(`/x.webp`);
+      return;
+    }
+
+    const asset = assets.find((asset) => asset._id === assetField);
+    if (!asset) {
+      console.error(`Unable to find asset ${assetField}`);
+      setImgUrl(`/x.webp`);
+      return;
+    }
+    if (!asset.location) {
+      console.error(`Asset ${asset} has no location`);
+      setImgUrl(`/x.webp`);
+      return;
+    }
+
+    const url = `${mediaPrefix}/${asset.location}?token=${bearer}`;
+    setImgUrl(url);
+  }, [assetField, assets, mediaPrefix, bearer]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -245,6 +271,12 @@ const CreateTokenFormComponent = ({
             )}
           />
         </FormControl>
+        <Box
+          component="img"
+          src={imgUrl}
+          alt="Asset Preview"
+          sx={{ maxHeight: "200px", maxWidth: "200px" }}
+        />
         <FormControl fullWidth>
           <InputLabel id="asset-label">Asset</InputLabel>
           <Controller
