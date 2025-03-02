@@ -100,7 +100,7 @@ async function verifyConnection(sock: WebSocket, req: IncomingMessage) {
     const scenePromise = getUserScene(user, sceneId);
     const [scene, tokens] = await Promise.all([scenePromise, tokenPromise]);
 
-    const hydrated = await hydrateStateToken(user, scene, tokens);
+    const hydrated = await hydrateStateToken(user, scene, tokens, true);
 
     const state: TableState = {
       overlay: scene.overlayContent,
