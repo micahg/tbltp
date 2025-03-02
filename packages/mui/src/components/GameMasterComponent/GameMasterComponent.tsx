@@ -240,9 +240,6 @@ const GameMasterComponent = () => {
     if (scenes.length === 0) return;
     for (const scene of scenes) {
       if (scene.tokens === undefined) {
-        console.log(
-          `loading scene tokens for scene ${scene._id} (${scene.tokens})`,
-        );
         dispatch({
           type: "content/scenetokens",
           payload: { scene: scene._id },
