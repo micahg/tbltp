@@ -74,6 +74,10 @@ const RemoteDisplayComponent = () => {
           setServerInfo("Invalid token refresh and login");
         else if (js.info === "INVALID_USER")
           setServerInfo("Invalid user - please ask your GM to sign in");
+        else if (js.info === "INVALID_SCENE_TOKEN_LENGTH")
+          setServerInfo(
+            "Invalid scene tokens - Asset or token likely deleted after being placed in current scene 💀",
+          );
         else if (js.info)
           setServerInfo(`Please contact support - Unkown error: ${js.info}`);
       } else {
