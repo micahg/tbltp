@@ -233,6 +233,21 @@ const GameMasterComponent = () => {
     setSceneCount(scenes.length);
   }, [sceneCount, sceneKey, scenes]);
 
+  /**
+   * Load all the scene tokens
+   */
+  useEffect(() => {
+    if (scenes.length === 0) return;
+    for (const scene of scenes) {
+      if (scene.tokens === undefined) {
+        dispatch({
+          type: "content/scenetokens",
+          payload: { scene: scene._id },
+        });
+      }
+    }
+  }, [dispatch, scenes]);
+
   return (
     <Box sx={{ display: "flex", width: "100vw", height: "100vh" }}>
       <CssBaseline />

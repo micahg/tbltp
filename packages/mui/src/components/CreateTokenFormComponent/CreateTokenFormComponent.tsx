@@ -2,6 +2,11 @@
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   FormControl,
   IconButton,
   InputLabel,
@@ -14,7 +19,7 @@ import { Controller, useForm } from "react-hook-form";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { Asset, Token } from "@micahg/tbltp-common";
-import { memo, useEffect } from "react";
+import { memo, useEffect, useState } from "react";
 import { NAME_REGEX } from "../SceneComponent/SceneComponent";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -46,6 +51,7 @@ const CreateTokenFormComponent = ({
   const {
     reset,
     control,
+    watch,
     handleSubmit,
     formState: { errors, isDirty },
   } = useForm<Token>({
@@ -54,13 +60,49 @@ const CreateTokenFormComponent = ({
   });
 
   const dispatch = useDispatch();
+  const assetField = watch("asset");
 
   const assets = useSelector((state: AppReducerState) => state.content.assets);
-  const deleteToken = () =>
-    dispatch({
-      type: "content/deletetoken",
-      payload: token,
-    });
+  const scenes = useSelector((state: AppReducerState) => state.content.scenes);
+  const mediaPrefix = useSelector(
+    (state: AppReducerState) => state.content.mediaPrefix,
+  );
+  const bearer = useSelector(
+    (state: AppReducerState) => state.environment.bearer,
+  );
+
+  const [file, setFile] = useState<File | undefined>(undefined);
+  const [imgUrl, setImgUrl] = useState<string>(`/x.webp`);
+  const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
+  const [tokenScenes, setTokenScenes] = useState<string[]>([]);
+
+  const deleteToken = (force: boolean) => {
+    const names: string[] = [];
+    for (const scene of scenes) {
+      if (!scene.tokens) continue;
+      for (const instance of scene.tokens) {
+        if (instance.token === token?._id) {
+          if (!names.includes(scene.description)) {
+            names.push(scene.description);
+          }
+        }
+      }
+    }
+
+    if (force || !names.length) {
+      setDeleteWarning(false);
+      dispatch({
+        type: "content/deletetoken",
+        payload: token,
+      });
+    } else {
+      setTokenScenes(names);
+      setDeleteWarning(true);
+    }
+  };
+  const handleClose = () => {
+    setDeleteWarning(false);
+  };
 
   /**
    * Strip the token properties that can't be edited so they don't
@@ -80,19 +122,55 @@ const CreateTokenFormComponent = ({
     // overlay the local changes
     const update = { ...token, ...data };
 
-    // don't send an empty asset
-    if (data.asset === "") {
-      delete update.asset;
-    }
-
     // just remove the hitpoints if they are 0
     const hp = Number(data.hitPoints);
     if (hp === 0 || Number.isNaN(hp)) {
       delete update.hitPoints;
     }
 
+    // an existing asset will be an mongo id -- new and none
+    // are special cases that need to be handled
+    if (data.asset === "new") {
+      delete update.asset;
+      dispatch({
+        type: "content/createassetandtoken",
+        payload: {
+          asset: {
+            name: data.name,
+          },
+          token: update,
+          file: file,
+        },
+      });
+      return;
+    } else if (data.asset === "none") {
+      delete update.asset;
+    }
+
     dispatch({ type: "content/updatetoken", payload: update });
     reset(data);
+    setImgUrl(`/x.webp`);
+  };
+
+  const selectFile = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = false;
+    input.onchange = () => {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (!event.target) return;
+        const data = event.target.result;
+        if (typeof data !== "string") return;
+        setImgUrl(data);
+        setFile(file);
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
   };
 
   useEffect(() => {
@@ -107,6 +185,52 @@ const CreateTokenFormComponent = ({
     reset(stripToken(token));
   }, [reset, token]);
 
+  /**
+   * Watch for asset upload -- this is separate from the none/existing asset
+   * selection because we need to trigger the file dialog when the user
+   * selects "new" from the dropdown
+   */
+  useEffect(() => {
+    if (assetField === "new") {
+      selectFile();
+    }
+  }, [assetField]);
+
+  /**
+   * Asset changes that do not involve a new asset
+   */
+  useEffect(() => {
+    // this is important - new is handled elsewhere to avoid creating a file dialog
+    // when the assets change (after creating a new asset, for example).
+    if (!assetField) return;
+    if (assetField === "new") return;
+
+    // ensure the rest of the stuff we need to show assets is available
+    if (!bearer) return;
+    if (!mediaPrefix) return;
+    if (!assetField) return;
+
+    if (!assets || assetField === "none") {
+      setImgUrl(`/x.webp`);
+      return;
+    }
+
+    const asset = assets.find((asset) => asset._id === assetField);
+    if (!asset) {
+      console.error(`Unable to find asset ${assetField}`);
+      setImgUrl(`/x.webp`);
+      return;
+    }
+    if (!asset.location) {
+      console.error(`Asset ${asset} has no location`);
+      setImgUrl(`/x.webp`);
+      return;
+    }
+
+    const url = `${mediaPrefix}/${asset.location}?token=${bearer}`;
+    setImgUrl(url);
+  }, [assetField, assets, mediaPrefix, bearer]);
+
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <Box
@@ -119,6 +243,27 @@ const CreateTokenFormComponent = ({
           gap: "1em",
         }}
       >
+        <Dialog open={deleteWarning}>
+          <DialogTitle>Delete Token</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              <p>
+                The following scenes are still using this token:{" "}
+                {tokenScenes.join(", ")}.
+              </p>
+              <p>
+                Please confirm deletion of the token along with all instances
+                within the scenes.
+              </p>
+            </DialogContentText>
+            <DialogActions>
+              <Button onClick={handleClose} autoFocus>
+                Cancel
+              </Button>
+              <Button onClick={() => deleteToken(true)}>Delete</Button>
+            </DialogActions>
+          </DialogContent>
+        </Dialog>
         {modal && <ErrorAlertComponent />}
         {modal && <TwoMinuteTableTop />}
         <FormControl fullWidth>
@@ -142,6 +287,12 @@ const CreateTokenFormComponent = ({
             )}
           />
         </FormControl>
+        <Box
+          component="img"
+          src={imgUrl}
+          alt="Asset Preview"
+          sx={{ maxHeight: "200px", maxWidth: "200px" }}
+        />
         <FormControl fullWidth>
           <InputLabel id="asset-label">Asset</InputLabel>
           <Controller
@@ -149,7 +300,10 @@ const CreateTokenFormComponent = ({
             control={control}
             render={({ field }) => (
               <Select {...field} labelId="asset-label" label="Asset">
-                <MenuItem value="">
+                <MenuItem value="new">
+                  <em>Upload New Asset</em>
+                </MenuItem>
+                <MenuItem value="none">
                   <em>None</em>
                 </MenuItem>
                 {assets !== undefined &&
@@ -221,7 +375,7 @@ const CreateTokenFormComponent = ({
                   <IconButton
                     aria-label="delete"
                     color="primary"
-                    onClick={deleteToken}
+                    onClick={() => deleteToken(false)}
                   >
                     <DeleteIcon />
                   </IconButton>

@@ -91,6 +91,40 @@ function trackRateLimit(next: Dispatch<AnyAction>, resp: AxiosResponse) {
   console.log(resp);
 }
 
+function handleError(
+  next: Dispatch<AnyAction>,
+  op: Operation,
+  path: string,
+  error: unknown,
+) {
+  let msg = `Unable to ${op} ${path}`;
+  if (error instanceof Error) {
+    if (axios.isAxiosError(error.cause)) {
+      console.error(`Operation failure: ${JSON.stringify(error.cause)}`);
+      if (error.cause.response) {
+        const status = error.cause.response.status;
+        if (status === 406) {
+          msg = "Invalid asset format";
+        } else if (status === 413) {
+          msg = "Asset too big";
+        } else if (status === 409) {
+          msg = `${path} name already exists`;
+        } else if (status >= 500) {
+          const b64err = window.btoa(
+            error.stack ? error.stack : error.toString(),
+          );
+          window.location.href = `/unavailable?error=${b64err}`;
+        }
+      }
+    }
+  }
+  const err: ContentReducerError = {
+    msg: msg,
+    success: false,
+  };
+  next({ type: "content/error", payload: err });
+}
+
 async function operate<T extends OperationType>(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
@@ -114,57 +148,42 @@ async function operate<T extends OperationType>(
       };
       next({ type: "content/error", payload: err });
     }
+    return result;
   } catch (error) {
-    let msg = `Unable to ${op} ${path}`;
-    if (error instanceof Error) {
-      if (axios.isAxiosError(error.cause)) {
-        console.error(`Operation failure: ${JSON.stringify(error.cause)}`);
-        if (error.cause.response) {
-          const status = error.cause.response.status;
-          if (status === 409) {
-            msg = `${path} name already exists`;
-          } else if (status >= 500) {
-            const b64err = window.btoa(
-              error.stack ? error.stack : error.toString(),
-            );
-            window.location.href = `/unavailable?error=${b64err}`;
-          }
-        }
-      }
-    }
-    const err: ContentReducerError = {
-      msg: msg,
-      success: false,
-    };
-    next({ type: "content/error", payload: err });
+    handleError(next, op, path, error);
   }
 }
 
 async function updateAssetData(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  id: string,
-  file: File,
-  progress?: (evt: LoadProgress) => void,
-): Promise<AxiosResponse> {
+  next: Dispatch<AnyAction>,
+  action: unknown & {
+    type: string;
+    payload: {
+      id: string;
+      file: File;
+      progress?: (evt: LoadProgress) => void;
+    };
+  },
+): Promise<AxiosResponse | undefined> {
+  const { id, file, progress } = action.payload;
   const formData = new FormData();
   formData.append("asset", file as Blob);
   const headers = await getToken(state, store);
   headers["Content-Type"] = "multipart/form-data";
+  const path = `${state.environment.api}/asset/${id}/data`;
   try {
-    const resp = await axios.put(
-      `${state.environment.api}/asset/${id}/data`,
-      formData,
-      {
-        headers: headers,
-        onUploadProgress: (e) =>
-          progress?.({ progress: e.progress || 0, img: "" }),
-      },
-    );
+    const resp = await axios.put(path, formData, {
+      headers: headers,
+      onUploadProgress: (e) =>
+        progress?.({ progress: e.progress || 0, img: "" }),
+    });
+    trackRateLimit(next, resp);
+    next({ type: action.type, payload: resp.data });
     return resp;
-  } catch (err) {
-    console.error(`Unable to upload asset: ${JSON.stringify(err)}`);
-    throw new Error("Unable to upload asset", { cause: err });
+  } catch (error) {
+    handleError(next, "put", path, error);
   }
 }
 
@@ -261,36 +280,46 @@ export const ContentMiddleware: Middleware =
       case "content/updateasset":
         operate(state, store, next, "put", "asset", action);
         break;
-      case "content/updateassetdata":
-        {
-          const { id, file, progress } = action.payload;
-          try {
-            const result = await updateAssetData(
-              state,
-              store,
-              id,
-              file,
-              progress,
-            );
-            trackRateLimit(next, result);
-            next({ type: action.type, payload: result.data });
-          } catch (error) {
-            console.error(
-              `Error updating asset data: ${JSON.stringify(error)}`,
-            );
-            let msg = "Unable to update asset data";
-            if (error instanceof Error && axios.isAxiosError(error.cause)) {
-              if (error.cause.response?.status === 413) {
-                msg = "Asset too big";
-              }
-              if (error.cause.response?.status === 406) {
-                msg = "Invalid asset format";
-              }
-            }
-            const err: ContentReducerError = { msg, success: false };
-            next({ type: "content/error", payload: err });
-          }
+      case "content/createassetandtoken": {
+        const assetResult = await operate(state, store, next, "put", "asset", {
+          type: "content/updateasset",
+          payload: action.payload.asset,
+        });
+        if (!assetResult || assetResult.status !== 201) return;
+        const asset: Asset = assetResult.data;
+        const assetDataResult = await updateAssetData(state, store, next, {
+          type: "content/updateassetdata",
+          payload: {
+            id: asset._id!,
+            file: action.payload.file,
+            progress: action.payload.progress,
+          },
+        });
+        if (!assetDataResult || assetDataResult.status !== 200) {
+          // delete the asset if the data update failed
+          operate(state, store, next, "delete", "asset", {
+            type: "content/deleteasset",
+            payload: asset,
+          });
+          return;
         }
+
+        // create the token
+        const tokenResult = await operate(state, store, next, "put", "token", {
+          type: "content/updatetoken",
+          payload: { ...action.payload.token, asset: asset._id },
+        });
+        if (!tokenResult || tokenResult.status !== 201) {
+          // delete the asset if the token update failed
+          operate(state, store, next, "delete", "asset", {
+            type: "content/deleteasset",
+            payload: asset,
+          });
+        }
+        break;
+      }
+      case "content/updateassetdata":
+        updateAssetData(state, store, next, action);
         break;
       case "content/deleteasset": {
         operate(state, store, next, "delete", "asset", action);

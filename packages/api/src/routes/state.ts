@@ -24,6 +24,14 @@ export async function hydrateStateToken(
   tokens: Document<unknown, object, ITokenInstance>[],
 ) {
   const stuff = await getSceneTokenInstanceAssets(user, scene);
+
+  // this should never happen, but it normally does in development when
+  // tokens are deleted without removing them from their instances from
+  // the scene first. To find the offending token instances, run:
+  // db.tokeninstances.aggregate([
+  //   {$project: {token: 1}},
+  //   {$lookup: { from: "tokens", localField: "token", foreignField: "_id", as: "tokens"}},
+  // ])
   if (stuff.length !== tokens.length)
     throw new Error("Token count mismatch", { cause: 400 });
 

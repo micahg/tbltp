@@ -7,6 +7,7 @@ import { app, serverPromise, shutDown, startUp } from "../src/server";
 
 import * as request from "supertest";
 import { userOne, userZero } from "./assets/auth";
+import { ScenelessTokenInstance } from "@micahg/tbltp-common";
 
 let mongodb: MongoMemoryServer;
 let mongocl: MongoClient;
@@ -470,6 +471,59 @@ describe("token", () => {
       expect(resp.body[0].hitPoints).toBe(99);
       expect(resp.body[1].name).toBe("third");
       expect(resp.body[1].hitPoints).toBe(10);
+    });
+    describe("linked token instances", () => {
+      it("Should delete associated instance tokens", async () => {
+        // create scene
+        const sceneResponse = await request(app).get("/scene");
+        expect(sceneResponse.statusCode).toBe(200);
+
+        // create tokens
+        const first = await request(app).put("/token").send({ name: "first" });
+        const second = await request(app)
+          .put("/token")
+          .send({ name: "second" });
+        expect(first.statusCode).toBe(201);
+        expect(second.statusCode).toBe(201);
+
+        const firstInstance: Omit<ScenelessTokenInstance, "angle"> = {
+          name: "first instance",
+          token: first.body._id,
+          x: 0,
+          y: 0,
+          scale: 1,
+          visible: true,
+        };
+
+        const secondInstance: Omit<ScenelessTokenInstance, "angle"> = {
+          name: "second instance",
+          token: second.body._id,
+          x: 0,
+          y: 0,
+          scale: 1,
+          visible: true,
+        };
+
+        // create scene tokens
+        const firstResp = await request(app)
+          .put(`/scene/${sceneResponse.body[0]._id}/token`)
+          .send(firstInstance);
+        expect(firstResp.statusCode).toBe(201);
+        const secondResp = await request(app)
+          .put(`/scene/${sceneResponse.body[0]._id}/token`)
+          .send(secondInstance);
+        expect(secondResp.statusCode).toBe(201);
+
+        // delete the token
+        await request(app).delete(`/token/${first.body._id}`);
+
+        // there should only be one token instance based on the second token
+        const url = `/scene/${sceneResponse.body[0]._id}/token`;
+        const resp = await request(app).get(url);
+        expect(resp.statusCode).toBe(200);
+        expect(resp.body.length).toBe(1);
+        expect(resp.body[0].token).toBe(second.body._id);
+      });
     });
   });
 });

@@ -159,8 +159,12 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
           : state.tokens.findIndex((a) => a._id === token._id);
       if (idx < 0) return state;
       const tokens = [...state.tokens!];
+      const scenes = [...state.scenes];
+      for (const scene of scenes) {
+        scene.tokens = scene.tokens?.filter((t) => t.token !== token._id) || [];
+      }
       tokens.splice(idx, 1);
-      return { ...state, tokens: tokens };
+      return { ...state, tokens: tokens, scenes };
     }
     case "content/scenetokenplaced": {
       const instance = action.payload as unknown as TokenInstance;
@@ -208,15 +212,12 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       return { ...state, currentScene, scenes };
     }
     case "content/scenetokens": {
-      // ensure we have a current scene
-      const scene = state.currentScene;
-      if (!scene) return state;
-
       const tokens = action.payload as unknown as TokenInstance[];
       const hydrated: HydratedTokenInstance[] = [];
 
       const scenes = state.scenes;
-      const idx = state.scenes.findIndex((s) => s._id === scene._id);
+      const idx = scenes.findIndex((s) => s._id === tokens[0].scene);
+      if (idx < 0) return state;
 
       for (const instance of tokens) {
         const token = state.tokens?.find((t) => t._id === instance.token);
@@ -237,9 +238,17 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
         });
       }
 
+      // update the specified scene
       scenes[idx] = { ...scenes[idx], tokens: hydrated };
-      const newScene = { ...scene, tokens: hydrated };
-      return { ...state, scenes: [...scenes], currentScene: newScene };
+
+      // update the current scene if it's the same ... initially the scene at the index
+      // and the current scene may not be the same...
+      if (scenes[idx]._id == state.currentScene?._id) {
+        const currentScene = { ...state.currentScene, tokens: hydrated };
+        return { ...state, scenes: [...scenes], currentScene };
+      }
+
+      return { ...state, scenes: [...scenes] };
     }
     case "content/error": {
       // important to let undefined through. This will clear the error
