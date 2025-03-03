@@ -2,11 +2,6 @@
 import {
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   FormControl,
   IconButton,
   InputLabel,
@@ -24,6 +19,7 @@ import { NAME_REGEX } from "../SceneComponent/SceneComponent";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent";
+import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
 
 interface CreateTokenFormComponentProps {
   token?: Token;
@@ -100,9 +96,8 @@ const CreateTokenFormComponent = ({
       setDeleteWarning(true);
     }
   };
-  const handleClose = () => {
-    setDeleteWarning(false);
-  };
+
+  const handleClose = () => setDeleteWarning(false);
 
   /**
    * Strip the token properties that can't be edited so they don't
@@ -243,27 +238,12 @@ const CreateTokenFormComponent = ({
           gap: "1em",
         }}
       >
-        <Dialog open={deleteWarning}>
-          <DialogTitle>Delete Token</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              <p>
-                The following scenes are still using this token:{" "}
-                {tokenScenes.join(", ")}.
-              </p>
-              <p>
-                Please confirm deletion of the token along with all instances
-                within the scenes.
-              </p>
-            </DialogContentText>
-            <DialogActions>
-              <Button onClick={handleClose} autoFocus>
-                Cancel
-              </Button>
-              <Button onClick={() => deleteToken(true)}>Delete</Button>
-            </DialogActions>
-          </DialogContent>
-        </Dialog>
+        <DeleteWarningComponent
+          open={deleteWarning}
+          deletionType={"Token"}
+          handleClose={handleClose}
+          handleDelete={deleteToken}
+        />
         {modal && <ErrorAlertComponent />}
         {modal && <TwoMinuteTableTop />}
         <FormControl fullWidth>

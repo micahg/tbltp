@@ -5,7 +5,7 @@ import {
   TextField,
   Tooltip,
 } from "@mui/material";
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import styles from "./AssetPanelComponent.module.css";
@@ -15,6 +15,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import { Asset } from "@micahg/tbltp-common";
+import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
 
 interface AssetPanelComponentProps {
   asset: Asset;
@@ -24,15 +25,18 @@ interface AssetPanelComponentProps {
 const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const dispatch = useDispatch();
   const api = useSelector((state: AppReducerState) => state.environment.api);
-  const token = useSelector(
+  const bearer = useSelector(
     (state: AppReducerState) => state.environment.bearer,
   );
+  const tokens = useSelector((state: AppReducerState) => state.content.tokens);
+  const scenes = useSelector((state: AppReducerState) => state.content.scenes);
   const [progress, setProgress] = useState(0);
   const [name, setName] = useState(asset.name);
   const [file, setFile] = useState<File | null>(null);
   const [expand, setExpand] = useState(false);
+  const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
   const [imgUrl, setImgUrl] = useState<string | null>(
-    asset.location ? `${api}/${asset.location}?token=${token}` : null,
+    asset.location ? `${api}/${asset.location}?token=${bearer}` : null,
   );
   const saveDisabled = name === asset.name && !file;
 
@@ -84,12 +88,58 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
     }
   };
 
-  const deleteAsset = () => {
-    dispatch({
-      type: "content/deleteasset",
-      payload: asset,
-    });
+  const handleClose = () => setDeleteWarning(false);
+
+  const deleteAsset = (force = false) => {
+    if (!tokens) {
+      console.error(`Tokens not loaded`);
+      return;
+    }
+
+    // map the tokens
+    const tokenMap = new Map();
+    for (const token of tokens) {
+      if (token.asset === asset._id && !tokenMap.has(token._id)) {
+        tokenMap.set(token._id, token);
+      }
+    }
+
+    // map the scenes
+    const sceneMap = new Map();
+    for (const scene of scenes) {
+      if (scene.tokens === undefined) {
+        console.error(`Scene ${scene._id} has no tokens loaded`);
+        return;
+      }
+      for (const instance of scene.tokens) {
+        if (tokenMap.has(instance.token)) {
+          sceneMap.set(scene._id, scene);
+          break;
+        }
+      }
+    }
+
+    if (force || (sceneMap.size === 0 && tokenMap.size === 0)) {
+      setDeleteWarning(false);
+      // dispatch({
+      //   type: "content/deleteasset",
+      //   payload: asset,
+      // });
+    } else {
+      // setTokenScenes(names);
+      setDeleteWarning(true);
+    }
+    return;
   };
+
+  /**
+   * Ensure tokens are loaded
+   */
+  useEffect(() => {
+    if (!dispatch) return;
+    if (tokens !== undefined) return;
+    dispatch({ type: "content/tokens" });
+  }, [dispatch, tokens]);
 
   return (
     <Box
@@ -103,6 +153,12 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
         WebkitJustifyContent: "space-between",
       }}
     >
+      <DeleteWarningComponent
+        open={deleteWarning}
+        deletionType={"Asset"}
+        handleClose={handleClose}
+        handleDelete={deleteAsset}
+      />
       {imgUrl ? (
         <img
           src={imgUrl}
@@ -171,7 +227,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
                 <IconButton
                   aria-label="delete"
                   color="primary"
-                  onClick={deleteAsset}
+                  onClick={() => deleteAsset(false)}
                 >
                   <DeleteIcon />
                 </IconButton>
