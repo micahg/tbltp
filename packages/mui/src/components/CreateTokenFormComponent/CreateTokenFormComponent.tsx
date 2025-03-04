@@ -59,7 +59,6 @@ const CreateTokenFormComponent = ({
   const assetField = watch("asset");
 
   const assets = useSelector((state: AppReducerState) => state.content.assets);
-  const scenes = useSelector((state: AppReducerState) => state.content.scenes);
   const mediaPrefix = useSelector(
     (state: AppReducerState) => state.content.mediaPrefix,
   );
@@ -70,34 +69,14 @@ const CreateTokenFormComponent = ({
   const [file, setFile] = useState<File | undefined>(undefined);
   const [imgUrl, setImgUrl] = useState<string>(`/x.webp`);
   const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
-  const [tokenScenes, setTokenScenes] = useState<string[]>([]);
 
-  const deleteToken = (force: boolean) => {
-    const names: string[] = [];
-    for (const scene of scenes) {
-      if (!scene.tokens) continue;
-      for (const instance of scene.tokens) {
-        if (instance.token === token?._id) {
-          if (!names.includes(scene.description)) {
-            names.push(scene.description);
-          }
-        }
-      }
-    }
-
-    if (force || !names.length) {
-      setDeleteWarning(false);
-      dispatch({
-        type: "content/deletetoken",
-        payload: token,
-      });
-    } else {
-      setTokenScenes(names);
-      setDeleteWarning(true);
-    }
+  const deleteToken = () => {
+    setDeleteWarning(false);
+    dispatch({
+      type: "content/deletetoken",
+      payload: token,
+    });
   };
-
-  const handleClose = () => setDeleteWarning(false);
 
   /**
    * Strip the token properties that can't be edited so they don't
@@ -241,8 +220,9 @@ const CreateTokenFormComponent = ({
         <DeleteWarningComponent
           open={deleteWarning}
           deletionType={"Token"}
-          handleClose={handleClose}
+          handleClose={() => setDeleteWarning(false)}
           handleDelete={deleteToken}
+          entity={token}
         />
         {modal && <ErrorAlertComponent />}
         {modal && <TwoMinuteTableTop />}
@@ -355,7 +335,7 @@ const CreateTokenFormComponent = ({
                   <IconButton
                     aria-label="delete"
                     color="primary"
-                    onClick={() => deleteToken(false)}
+                    onClick={deleteToken}
                   >
                     <DeleteIcon />
                   </IconButton>

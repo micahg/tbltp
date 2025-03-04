@@ -1,4 +1,5 @@
 import React, { lazy, Suspense } from "react";
+import { Asset, Token } from "@micahg/tbltp-common";
 
 const LazyDeleteWarningComponent = lazy(
   () => import("./DeleteWarningComponent"),
@@ -9,7 +10,8 @@ const DeleteWarningComponent = (
     open: boolean;
     deletionType: string;
     handleClose: () => void;
-    handleDelete: (force: boolean) => void;
+    handleDelete: () => void;
+    entity?: Asset | Token;
     children?: React.ReactNode;
   },
 ) => (

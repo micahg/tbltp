@@ -5,7 +5,7 @@ import {
   TextField,
   Tooltip,
 } from "@mui/material";
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import styles from "./AssetPanelComponent.module.css";
@@ -28,8 +28,6 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const bearer = useSelector(
     (state: AppReducerState) => state.environment.bearer,
   );
-  const tokens = useSelector((state: AppReducerState) => state.content.tokens);
-  const scenes = useSelector((state: AppReducerState) => state.content.scenes);
   const [progress, setProgress] = useState(0);
   const [name, setName] = useState(asset.name);
   const [file, setFile] = useState<File | null>(null);
@@ -88,58 +86,13 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
     }
   };
 
-  const handleClose = () => setDeleteWarning(false);
-
-  const deleteAsset = (force = false) => {
-    if (!tokens) {
-      console.error(`Tokens not loaded`);
-      return;
-    }
-
-    // map the tokens
-    const tokenMap = new Map();
-    for (const token of tokens) {
-      if (token.asset === asset._id && !tokenMap.has(token._id)) {
-        tokenMap.set(token._id, token);
-      }
-    }
-
-    // map the scenes
-    const sceneMap = new Map();
-    for (const scene of scenes) {
-      if (scene.tokens === undefined) {
-        console.error(`Scene ${scene._id} has no tokens loaded`);
-        return;
-      }
-      for (const instance of scene.tokens) {
-        if (tokenMap.has(instance.token)) {
-          sceneMap.set(scene._id, scene);
-          break;
-        }
-      }
-    }
-
-    if (force || (sceneMap.size === 0 && tokenMap.size === 0)) {
-      setDeleteWarning(false);
-      // dispatch({
-      //   type: "content/deleteasset",
-      //   payload: asset,
-      // });
-    } else {
-      // setTokenScenes(names);
-      setDeleteWarning(true);
-    }
-    return;
+  const deleteAsset = () => {
+    setDeleteWarning(false);
+    dispatch({
+      type: "content/deleteasset",
+      payload: asset,
+    });
   };
-
-  /**
-   * Ensure tokens are loaded
-   */
-  useEffect(() => {
-    if (!dispatch) return;
-    if (tokens !== undefined) return;
-    dispatch({ type: "content/tokens" });
-  }, [dispatch, tokens]);
 
   return (
     <Box
@@ -156,8 +109,9 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
       <DeleteWarningComponent
         open={deleteWarning}
         deletionType={"Asset"}
-        handleClose={handleClose}
+        handleClose={() => setDeleteWarning(false)}
         handleDelete={deleteAsset}
+        entity={asset}
       />
       {imgUrl ? (
         <img
@@ -227,7 +181,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
                 <IconButton
                   aria-label="delete"
                   color="primary"
-                  onClick={() => deleteAsset(false)}
+                  onClick={() => setDeleteWarning(true)}
                 >
                   <DeleteIcon />
                 </IconButton>
