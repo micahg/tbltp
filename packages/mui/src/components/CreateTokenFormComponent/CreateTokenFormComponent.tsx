@@ -2,11 +2,6 @@
 import {
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   FormControl,
   IconButton,
   InputLabel,
@@ -24,6 +19,7 @@ import { NAME_REGEX } from "../SceneComponent/SceneComponent";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent";
+import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
 
 interface CreateTokenFormComponentProps {
   token?: Token;
@@ -63,7 +59,6 @@ const CreateTokenFormComponent = ({
   const assetField = watch("asset");
 
   const assets = useSelector((state: AppReducerState) => state.content.assets);
-  const scenes = useSelector((state: AppReducerState) => state.content.scenes);
   const mediaPrefix = useSelector(
     (state: AppReducerState) => state.content.mediaPrefix,
   );
@@ -74,34 +69,13 @@ const CreateTokenFormComponent = ({
   const [file, setFile] = useState<File | undefined>(undefined);
   const [imgUrl, setImgUrl] = useState<string>(`/x.webp`);
   const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
-  const [tokenScenes, setTokenScenes] = useState<string[]>([]);
 
-  const deleteToken = (force: boolean) => {
-    const names: string[] = [];
-    for (const scene of scenes) {
-      if (!scene.tokens) continue;
-      for (const instance of scene.tokens) {
-        if (instance.token === token?._id) {
-          if (!names.includes(scene.description)) {
-            names.push(scene.description);
-          }
-        }
-      }
-    }
-
-    if (force || !names.length) {
-      setDeleteWarning(false);
-      dispatch({
-        type: "content/deletetoken",
-        payload: token,
-      });
-    } else {
-      setTokenScenes(names);
-      setDeleteWarning(true);
-    }
-  };
-  const handleClose = () => {
+  const deleteToken = () => {
     setDeleteWarning(false);
+    dispatch({
+      type: "content/deletetoken",
+      payload: token,
+    });
   };
 
   /**
@@ -243,27 +217,13 @@ const CreateTokenFormComponent = ({
           gap: "1em",
         }}
       >
-        <Dialog open={deleteWarning}>
-          <DialogTitle>Delete Token</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              <p>
-                The following scenes are still using this token:{" "}
-                {tokenScenes.join(", ")}.
-              </p>
-              <p>
-                Please confirm deletion of the token along with all instances
-                within the scenes.
-              </p>
-            </DialogContentText>
-            <DialogActions>
-              <Button onClick={handleClose} autoFocus>
-                Cancel
-              </Button>
-              <Button onClick={() => deleteToken(true)}>Delete</Button>
-            </DialogActions>
-          </DialogContent>
-        </Dialog>
+        <DeleteWarningComponent
+          open={deleteWarning}
+          deletionType={"Token"}
+          handleClose={() => setDeleteWarning(false)}
+          handleDelete={deleteToken}
+          entity={token}
+        />
         {modal && <ErrorAlertComponent />}
         {modal && <TwoMinuteTableTop />}
         <FormControl fullWidth>
@@ -375,7 +335,7 @@ const CreateTokenFormComponent = ({
                   <IconButton
                     aria-label="delete"
                     color="primary"
-                    onClick={() => deleteToken(false)}
+                    onClick={deleteToken}
                   >
                     <DeleteIcon />
                   </IconButton>
