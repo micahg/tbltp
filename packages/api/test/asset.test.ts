@@ -8,6 +8,7 @@ import { app, serverPromise, shutDown, startUp } from "../src/server";
 import * as request from "supertest";
 import { userZero } from "./assets/auth";
 import { stat } from "node:fs/promises";
+import { ScenelessTokenInstance } from "@micahg/tbltp-common/src/tokeninstance";
 
 let mongodb: MongoMemoryServer;
 let mongocl: MongoClient;
@@ -392,6 +393,101 @@ describe("asset", () => {
       } catch {
         // expected
       }
+    });
+    describe("linked tokens", () => {
+      it("Should delete associated tokens and token instances", async () => {
+        const sceneResponse = await request(app).get("/scene");
+        expect(sceneResponse.statusCode).toBe(200);
+
+        const assetOne = await request(app)
+          .put("/asset")
+          .send({ name: "FIRST_ASSET" });
+        expect(assetOne.statusCode).toBe(201);
+
+        const assetTwo = await request(app)
+          .put("/asset")
+          .send({ name: "SECOND_ASSET" });
+        expect(assetTwo.statusCode).toBe(201);
+
+        expect(
+          (
+            await request(app)
+              .put(`/asset/${assetOne.body._id}/data`)
+              .attach("asset", "test/assets/1x1.png")
+          ).statusCode,
+        ).toBe(200);
+
+        expect(
+          (
+            await request(app)
+              .put(`/asset/${assetTwo.body._id}/data`)
+              .attach("asset", "test/assets/1x1.png")
+          ).statusCode,
+        ).toBe(200);
+
+        // create tokens
+        const first = await request(app)
+          .put("/token")
+          .send({ name: "first", asset: assetOne.body._id });
+        const second = await request(app)
+          .put("/token")
+          .send({ name: "second" });
+        expect(first.statusCode).toBe(201);
+        expect(second.statusCode).toBe(201);
+
+        const firstInstance: Omit<ScenelessTokenInstance, "angle"> = {
+          name: "first instance",
+          token: first.body._id,
+          x: 0,
+          y: 0,
+          scale: 1,
+          visible: true,
+        };
+
+        const secondInstance: Omit<ScenelessTokenInstance, "angle"> = {
+          name: "second instance",
+          token: second.body._id,
+          x: 0,
+          y: 0,
+          scale: 1,
+          visible: true,
+        };
+
+        // create scene tokens
+        const firstResp = await request(app)
+          .put(`/scene/${sceneResponse.body[0]._id}/token`)
+          .send(firstInstance);
+        expect(firstResp.statusCode).toBe(201);
+        const secondResp = await request(app)
+          .put(`/scene/${sceneResponse.body[0]._id}/token`)
+          .send(secondInstance);
+        expect(secondResp.statusCode).toBe(201);
+
+        let tokens = await request(app).get(`/token`);
+        expect(tokens.statusCode).toBe(200);
+        expect(tokens.body.length).toBe(2);
+
+        const url = `/scene/${sceneResponse.body[0]._id}/token`;
+        let resp = await request(app).get(url);
+        expect(resp.statusCode).toBe(200);
+        expect(resp.body.length).toBe(2);
+        expect(resp.body[0].token).toBe(first.body._id);
+        expect(resp.body[1].token).toBe(second.body._id);
+        // delete the first asset
+        expect(
+          (await request(app).delete(`/asset/${assetOne.body._id}`)).statusCode,
+        ).toBe(204);
+
+        tokens = await request(app).get(`/token`);
+        expect(tokens.statusCode).toBe(200);
+        expect(tokens.body.length).toBe(1);
+
+        // there should only be one token instance based on the second token
+        resp = await request(app).get(url);
+        expect(resp.statusCode).toBe(200);
+        expect(resp.body.length).toBe(1);
+        expect(resp.body[0].token).toBe(second.body._id);
+      });
     });
   });
 });
