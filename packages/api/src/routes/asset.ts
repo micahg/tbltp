@@ -8,6 +8,8 @@ import {
   updateAssetFromFile,
 } from "../utils/localstore";
 import { knownMongoError } from "../utils/errors";
+import { listUserTokensByAsset } from "../utils/token";
+import { deleteUserTokenInstances } from "../utils/tokeninstance";
 
 export async function listAssets(
   req: Request,
@@ -61,12 +63,26 @@ export async function deleteAsset(
     if (!asset) {
       return res.status(404).send();
     }
-    await asset.deleteOne();
+    const promises: Promise<unknown>[] = [];
+
+    // get all the token susing this asset
+    const tokens = await listUserTokensByAsset(user, asset);
+    for (const token of tokens) {
+      // delete all instances of every token
+      promises.push(deleteUserTokenInstances(user, token));
+
+      // delete the token itself
+      promises.push(token.deleteOne());
+    }
+
+    // finally delete the asset
+    promises.push(asset.deleteOne());
+    await Promise.all(promises);
     path = asset.location;
     // don't return yet, we will delete after sending the response
     res.status(204).send();
   } catch (err) {
-    log.error(`Unable to delete asset ${err.message}`);
+    log.error(`Error deleting asset ${err.message}`);
     return next({ status: err.cause || 500 });
   }
   try {

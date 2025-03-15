@@ -4,6 +4,7 @@ import { MAX_HP, MIN_HP } from "@micahg/tbltp-common";
 import { IUser } from "../models/user";
 import { IToken, TokenModel } from "../models/token";
 import { knownMongoError } from "./errors";
+import { IAsset } from "../models/asset";
 
 const TOKEN_MASK = "name visible asset hitPoints";
 
@@ -79,6 +80,13 @@ export function getUserToken(user: IUser, id: string) {
 
 export function listUserTokens(user: IUser) {
   return TokenModel.find({ user: { $eq: user._id } }).select(TOKEN_MASK);
+}
+
+export function listUserTokensByAsset(user: IUser, asset: IAsset) {
+  return TokenModel.find({
+    user: { $eq: user },
+    asset: { $eq: asset._id },
+  });
 }
 
 export async function createUserToken(user: IUser, token: IToken) {
