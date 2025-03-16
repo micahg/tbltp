@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from "express";
 import { getUser, getOrCreateUser, userExistsOr401 } from "../utils/user";
 import {
+  getUserScene,
   createUserScene,
-  deleteUserScene,
   getOrCreateScenes,
   getSceneById,
   setSceneOverlayContent,
@@ -19,6 +19,7 @@ import {
 } from "../utils/localstore";
 import { validateAngle, validateViewPort } from "../utils/viewport";
 import { Rect } from "@micahg/tbltp-common";
+import { deleteUserSceneTokenInstances } from "../utils/tokeninstance";
 
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
 
@@ -57,12 +58,23 @@ export function getScenes(req: Request, res: Response, next: NextFunction) {
     .catch(() => next({ status: 500 }));
 }
 
-export function deleteScene(req: Request, res: Response, next: NextFunction) {
-  return getUser(req.auth)
-    .then((user) => userExistsOr401(user))
-    .then((user) => deleteUserScene(user, req.params.id))
-    .then(() => res.sendStatus(204))
-    .catch((err) => next(err));
+export async function deleteScene(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getUser(req.auth);
+    userExistsOr401(user);
+    const scene = await getUserScene(user, req.params.id);
+    await Promise.all([
+      deleteUserSceneTokenInstances(user, scene),
+      scene.deleteOne(),
+    ]);
+    res.sendStatus(204);
+  } catch (err) {
+    return next(err);
+  }
 }
 
 export function createScene(req: Request, res: Response, next: NextFunction) {

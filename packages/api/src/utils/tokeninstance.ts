@@ -184,6 +184,13 @@ export function deleteUserTokenInstance(user: IUser, id: string) {
   });
 }
 
+export function deleteUserSceneTokenInstances(user: IUser, scene: IScene) {
+  return TokenInstanceModel.deleteMany({
+    user: { $eq: user._id },
+    scene: { $eq: scene._id },
+  });
+}
+
 /**
  * Delete the token instances associated with a user and a token.
  * @param user the user to which the token belongs
