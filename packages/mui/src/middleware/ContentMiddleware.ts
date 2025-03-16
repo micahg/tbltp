@@ -88,7 +88,6 @@ function trackRateLimit(next: Dispatch<AnyAction>, resp: AxiosResponse) {
     type: "environment/ratelimit",
     payload: { limit, remaining },
   });
-  console.log(resp);
 }
 
 function handleError(

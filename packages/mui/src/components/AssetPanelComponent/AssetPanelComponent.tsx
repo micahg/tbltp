@@ -15,6 +15,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import { Asset } from "@micahg/tbltp-common";
+import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
 
 interface AssetPanelComponentProps {
   asset: Asset;
@@ -24,15 +25,16 @@ interface AssetPanelComponentProps {
 const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const dispatch = useDispatch();
   const api = useSelector((state: AppReducerState) => state.environment.api);
-  const token = useSelector(
+  const bearer = useSelector(
     (state: AppReducerState) => state.environment.bearer,
   );
   const [progress, setProgress] = useState(0);
   const [name, setName] = useState(asset.name);
   const [file, setFile] = useState<File | null>(null);
   const [expand, setExpand] = useState(false);
+  const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
   const [imgUrl, setImgUrl] = useState<string | null>(
-    asset.location ? `${api}/${asset.location}?token=${token}` : null,
+    asset.location ? `${api}/${asset.location}?token=${bearer}` : null,
   );
   const saveDisabled = name === asset.name && !file;
 
@@ -85,6 +87,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   };
 
   const deleteAsset = () => {
+    setDeleteWarning(false);
     dispatch({
       type: "content/deleteasset",
       payload: asset,
@@ -103,6 +106,13 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
         WebkitJustifyContent: "space-between",
       }}
     >
+      <DeleteWarningComponent
+        open={deleteWarning}
+        deletionType={"Asset"}
+        handleClose={() => setDeleteWarning(false)}
+        handleDelete={deleteAsset}
+        entity={asset}
+      />
       {imgUrl ? (
         <img
           src={imgUrl}
@@ -171,7 +181,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
                 <IconButton
                   aria-label="delete"
                   color="primary"
-                  onClick={deleteAsset}
+                  onClick={() => setDeleteWarning(true)}
                 >
                   <DeleteIcon />
                 </IconButton>

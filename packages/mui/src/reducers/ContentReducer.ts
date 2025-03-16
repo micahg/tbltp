@@ -134,13 +134,36 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       return { ...state, assets: newAssets };
     }
     case "content/deleteasset": {
+      // can't delete when we have no assets
+      if (!state.assets) return state;
+
+      // get the asset index to delete
       const asset = action.payload as unknown as Asset;
-      const assets = state.assets || [];
-      const idx = assets.findIndex((a) => a._id === asset._id);
+      let idx = (state.assets || []).findIndex((a) => a._id === asset._id);
       if (idx < 0) return state;
-      const newAssets = [...assets];
-      newAssets.splice(idx, 1);
-      return { ...state, assets: newAssets };
+      const assets = [...state.assets];
+      assets.splice(idx, 1);
+
+      // if there are no tokens, we can just update the asset list
+      if (!state.tokens) return { ...state, assets };
+
+      // remove referenced tokens and token instances
+      const scenes: Scene[] = [...state.scenes];
+      idx = scenes.findIndex((s) => s._id === state.currentScene?._id);
+      const tokens: Token[] = [];
+      for (const token of state.tokens) {
+        // if the token does not use the asset we are deleting, keep it
+        if (token.asset !== asset._id) {
+          tokens.push(token);
+          continue;
+        }
+        // if it does use the asset we are deleting, remove it from the scene
+        for (const scene of scenes) {
+          if (!scene.tokens) continue;
+          scene.tokens = scene.tokens.filter((t) => t.token !== token._id);
+        }
+      }
+      return { ...state, tokens, assets, scenes, currentScene: scenes[idx] };
     }
     case "content/updatetoken": {
       const token = action.payload as unknown as Token;
