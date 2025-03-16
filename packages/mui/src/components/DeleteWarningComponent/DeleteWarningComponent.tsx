@@ -115,16 +115,18 @@ const DeleteWarningComponent = ({
         <DialogContent>
           <DialogContentText>
             {affectedTokens && affectedTokens.length > 0 && (
-              <p>
+              <>
                 The following tokens are still using this asset:{" "}
                 {affectedTokens.map((token) => token.name).join(", ")}
-              </p>
+                <br />
+                <br />
+              </>
             )}
             {affectedScenes && affectedScenes.length > 0 && (
-              <p>
+              <>
                 The following scenes are still using this asset:{" "}
                 {affectedScenes.map((scene) => scene.description).join(", ")}
-              </p>
+              </>
             )}
           </DialogContentText>
           <DialogActions>
