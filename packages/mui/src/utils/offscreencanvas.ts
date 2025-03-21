@@ -1,4 +1,5 @@
 let worker: Worker;
+// import contentworkerurl from "src/utils/contentworker?worker&url";
 
 export function setupOffscreenCanvas(
   backgroundCanvas: HTMLCanvasElement,
@@ -7,7 +8,10 @@ export function setupOffscreenCanvas(
 ): Worker {
   // only create a web worker if we don't have one already
   if (!worker) {
-    worker = new Worker(new URL("./contentworker.ts", import.meta.url));
+    // worker = new Worker(contentworkerurl, { type: "module" });
+    worker = new Worker(new URL("./contentworker.ts", import.meta.url), {
+      type: "module",
+    });
   }
   // if we try to transfer something twice, its an error so the caller must keep track of it
   try {

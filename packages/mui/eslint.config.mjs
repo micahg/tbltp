@@ -28,7 +28,7 @@ export default [
       ...react.configs.flat.recommended.languageOptions,
       parserOptions: {
         ecmaVersion: "latest",
-        project: "tsconfig.json",
+        project: "tsconfig.app.json",
         ecmaFeatures: {
           modules: true,
           jsx: true,
