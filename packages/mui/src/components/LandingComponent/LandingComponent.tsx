@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Box, Paper, Typography } from "@mui/material";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router";
 
 let interval: NodeJS.Timer;
 const activityListener = () => {

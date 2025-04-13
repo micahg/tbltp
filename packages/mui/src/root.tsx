@@ -1,0 +1,39 @@
+import { Outlet, Scripts, ScrollRestoration } from "react-router";
+// import "../index.css";
+export function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <link rel="icon" href="/favicon.ico" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+        />
+
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#000000" />
+        <meta
+          name="description"
+          content="Web site created using create-react-app"
+        />
+        <link rel="apple-touch-icon" href="/logo192.png" />
+
+        <link rel="manifest" href="/manifest.json" />
+        <title>tbltp</title>
+      </head>
+      <body>
+        {children}
+        <ScrollRestoration />
+        <Scripts />
+        {/* <noscript>You need to enable JavaScript to run this app.</noscript>
+        <div id="root"></div>
+        <script type="module" src="/src/index.tsx"></script> */}
+      </body>
+    </html>
+  );
+}
+
+export default function Root() {
+  <Outlet />;
+}
