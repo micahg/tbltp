@@ -3,11 +3,10 @@
  * IT WILL BE BROKEN NOW
  */
 import { Auth0Client, createAuth0Client } from "@auth0/auth0-spa-js";
-import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
+import { UnknownAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import axios from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { AuthConfig, AuthError } from "../reducers/EnvironmentReducer";
-import { env } from "process";
 
 /**
  * Authorization state
@@ -35,7 +34,7 @@ const AUTH_ERRORS: { [key: string]: string } = {
  * @returns
  */
 export function getAuthConfig(
-  store: MiddlewareAPI<Dispatch<AnyAction>>,
+  store: MiddlewareAPI<Dispatch<UnknownAction>>,
 ): Promise<AuthState | AuthConfig> {
   return new Promise((resolve, reject) => {
     // ensure we have an authorization state
@@ -66,18 +65,18 @@ export function getAuthConfig(
  * @returns
  */
 export async function getAuthClient(
-  store: MiddlewareAPI<Dispatch<AnyAction>>,
+  store: MiddlewareAPI<Dispatch<UnknownAction>>,
 ): Promise<Auth0Client> {
   const env = store.getState().environment;
   // if (env.authClient) return Promise.resolve(env.authClient);
   return createAuth0Client(env.authConfig);
 
-  return new Promise((resolve, reject) => {
-    // if (data.noauth) reject('noauth');
-    createAuth0Client(env.authConfig)
-      .then((client) => resolve(client))
-      .catch((reason) => reject(reason));
-  });
+  // return new Promise((resolve, reject) => {
+  //   // if (data.noauth) reject('noauth');
+  //   createAuth0Client(env.authConfig)
+  //     .then((client) => resolve(client))
+  //     .catch((reason) => reject(reason));
+  // });
 }
 
 function removeUrlQuery() {
@@ -107,13 +106,9 @@ export async function getAuthState(client: Auth0Client): Promise<AuthState> {
   }
 
   if (searchParams.get("code") && searchParams.get("state")) {
-    try {
-      await client.handleRedirectCallback(window.location.href);
-      removeUrlQuery();
-      return { client, auth: true };
-    } catch (reason) {
-      throw reason;
-    }
+    await client.handleRedirectCallback(window.location.href);
+    removeUrlQuery();
+    return { client, auth: true };
   }
 
   // Force redirect to log in
@@ -132,7 +127,7 @@ export async function getAuthState(client: Auth0Client): Promise<AuthState> {
  */
 export async function getToken(
   state: AppReducerState,
-  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  store: MiddlewareAPI<Dispatch<UnknownAction>, unknown>,
   headers?: { [key: string]: string },
 ): Promise<{ [key: string]: string }> {
   const res = headers || {};
@@ -179,7 +174,7 @@ export function getDeviceCode(data: AuthConfig) {
   });
 }
 
-export function pollDeviceCode(store: MiddlewareAPI<Dispatch<AnyAction>>) {
+export function pollDeviceCode(store: MiddlewareAPI<Dispatch<UnknownAction>>) {
   if (store.getState().environment.noauth)
     return Promise.resolve({ access_token: "NOAUTH" });
 
