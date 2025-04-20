@@ -1,15 +1,20 @@
+/*********************
+ * YOU ARE NOT DONE UNTIL YOU FIX NOAUTH
+ * IT WILL BE BROKEN NOW
+ */
 import { Auth0Client, createAuth0Client } from "@auth0/auth0-spa-js";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import axios from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { AuthConfig, AuthError } from "../reducers/EnvironmentReducer";
+import { env } from "process";
 
 /**
  * Authorization state
  */
 export interface AuthState {
   // auth client if auth already done
-  client?: Auth0Client;
+  client?: Auth0Client; // TODO REMOVE THIS
   // flag indicating if authorization is complete
   auth: boolean;
   // flag indicating if authorization explicitly disabled
@@ -60,11 +65,12 @@ export function getAuthConfig(
  * @param data
  * @returns
  */
-export function getAuthClient(
+export async function getAuthClient(
   store: MiddlewareAPI<Dispatch<AnyAction>>,
 ): Promise<Auth0Client> {
   const env = store.getState().environment;
-  if (env.authClient) return Promise.resolve(env.authClient);
+  // if (env.authClient) return Promise.resolve(env.authClient);
+  return createAuth0Client(env.authConfig);
 
   return new Promise((resolve, reject) => {
     // if (data.noauth) reject('noauth');
@@ -79,43 +85,44 @@ function removeUrlQuery() {
   window.history.replaceState({}, document.title, href);
 }
 
-export function getAuthState(client: Auth0Client): Promise<AuthState> {
-  return new Promise((resolve, reject) => {
-    client.isAuthenticated().then((authn) => {
-      // if we're already authenticated we can just go get a token
-      if (authn) return resolve({ client: client, auth: true });
+export async function getAuthState(client: Auth0Client): Promise<AuthState> {
+  const authn = await client.isAuthenticated();
 
-      // if we have a auth code callback handle it
-      const searchParams = new URLSearchParams(window.location.search);
-      if (searchParams.get("error")) {
-        removeUrlQuery();
-        const err = searchParams.get("error");
-        const res: AuthError = {
-          error: err ? AUTH_ERRORS[err] : err,
-          reason: searchParams.get("error_description"),
-        };
-        return reject(res);
-      }
-      if (searchParams.get("code") && searchParams.get("state")) {
-        return client
-          .handleRedirectCallback(window.location.href)
-          .then(() => {
-            removeUrlQuery();
-            resolve({ client: client, auth: true });
-          })
-          .catch((reason) => reject(reason));
-      }
+  // If already authenticated, resolve with the client and auth state
+  if (authn) {
+    return { client, auth: true };
+  }
 
-      // force redirect to log in
-      const options = {
-        authorizationParams: { redirect_uri: window.location.href },
-      };
-      return client
-        .loginWithRedirect(options)
-        .then(() => resolve({ client: client, auth: false }))
-        .catch((reason) => reject(reason));
-    });
-  });
+  // Handle authentication errors or authorization code callbacks
+  const searchParams = new URLSearchParams(window.location.search);
+
+  if (searchParams.get("error")) {
+    removeUrlQuery();
+    const err = searchParams.get("error");
+    const res: AuthError = {
+      error: err ? AUTH_ERRORS[err] : err,
+      reason: searchParams.get("error_description"),
+    };
+    throw res;
+  }
+
+  if (searchParams.get("code") && searchParams.get("state")) {
+    try {
+      await client.handleRedirectCallback(window.location.href);
+      removeUrlQuery();
+      return { client, auth: true };
+    } catch (reason) {
+      throw reason;
+    }
+  }
+
+  // Force redirect to log in
+  const options = {
+    authorizationParams: { redirect_uri: window.location.href },
+  };
+
+  await client.loginWithRedirect(options);
+  return { client, auth: false };
 }
 
 /**
@@ -137,15 +144,18 @@ export async function getToken(
     return res;
   }
 
-  const client = state.environment.authClient;
+  // const client = state.environment.authClient;
 
-  if (!client) throw new Error("No auth0 client");
+  // if (!client) throw new Error("No auth0 client");
 
-  const newToken = await client.getTokenSilently();
-  if (state.environment.bearer !== newToken) {
-    store.dispatch({ type: "environment/bearer", payload: newToken });
-  }
-  res["Authorization"] = `Bearer ${newToken}`;
+  // const newToken = await client.getTokenSilently();
+  // if (state.environment.bearer !== newToken) {
+  //   store.dispatch({ type: "environment/bearer", payload: newToken });
+  // }
+  const token = state.environment.bearer;
+  if (!token) throw new Error("No auth0 token");
+
+  res["Authorization"] = `Bearer ${token}`;
   return res;
 }
 

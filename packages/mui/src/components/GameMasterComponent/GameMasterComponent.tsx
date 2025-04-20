@@ -106,8 +106,8 @@ const GameMasterComponent = () => {
   const noauth = useSelector(
     (state: AppReducerState) => state.environment.noauth,
   );
-  const authClient = useSelector(
-    (state: AppReducerState) => state.environment.authClient,
+  const bearer = useSelector(
+    (state: AppReducerState) => state.environment.bearer,
   );
   const scenes = useSelector((state: AppReducerState) => state.content.scenes);
   const currentScene = useSelector(
@@ -210,8 +210,11 @@ const GameMasterComponent = () => {
 
   useEffect(() => {
     if (!dispatch) return;
-    if (!noauth && !authClient) return;
-    if (noauth || auth) {
+    if (!noauth && !bearer) {
+      dispatch({ type: "environment/authenticate" });
+    }
+    // if (noauth || auth) {
+    if (noauth || bearer) {
       dispatch({ type: "content/pull" });
       dispatch({ type: "content/scenes" });
       dispatch({ type: "content/tokens" });
@@ -220,8 +223,7 @@ const GameMasterComponent = () => {
     }
     // if (noauth) return;
     // if (auth) return;
-    dispatch({ type: "environment/authenticate" });
-  }, [dispatch, noauth, auth, authClient]);
+  }, [dispatch, noauth, auth, bearer]);
 
   useEffect(() => {
     if (scenes.length === sceneCount) return;

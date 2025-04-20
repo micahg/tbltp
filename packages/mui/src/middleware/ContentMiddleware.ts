@@ -115,6 +115,10 @@ function handleError(
           window.location.href = `/unavailable?error=${b64err}`;
         }
       }
+    } else {
+      console.error(`Operation failure: ${JSON.stringify(error.message)}`);
+      const b64err = window.btoa(error.stack ? error.stack : error.message);
+      window.location.href = `/unavailable?error=${b64err}`;
     }
   }
   const err: ContentReducerError = {
