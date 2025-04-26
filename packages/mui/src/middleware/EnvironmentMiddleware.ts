@@ -52,10 +52,10 @@ export const EnvironmentMiddleware: Middleware =
         })
         .then(() => getAuthConfig(storeAPI))
         .then((data) => next({ type: "environment/authconfig", payload: data }))
-        .then(() => getAuthClient(storeAPI))
-        .then((client) =>
-          next({ type: "environment/authclient", payload: client }),
-        )
+        // .then(() => getAuthClient(storeAPI))
+        // .then((client) =>
+        //   next({ type: "environment/authclient", payload: client }),
+        // )
         .catch(() => {
           const errPath = "/unavailable";
           if (window.location.pathname === errPath) return;
@@ -68,10 +68,14 @@ export const EnvironmentMiddleware: Middleware =
       if (storeAPI.getState().environment.authStarted) return next(action);
       next({ type: "environment/authstarted", payload: true });
 
-      const authClient = storeAPI.getState().environment.authClient;
       try {
+        const authClient = await getAuthClient(storeAPI);
+
+        // WTF IS THIS DOING?
         const state = await getAuthState(authClient);
-        if (state) return next({ type: action.type, payload: state });
+        if (state) next({ type: action.type, payload: state });
+        const token = await authClient.getTokenSilently();
+        next({ type: "environment/bearer", payload: token });
       } catch (err) {
         if (err === "noauth") {
           console.warn("Authentication explicitly disabled at server");

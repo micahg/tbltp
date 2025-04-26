@@ -42,9 +42,9 @@ export type EnvironmentReducerState = {
    */
   readonly auth?: boolean;
   readonly authErr?: AuthError;
-  readonly authClient?: Auth0Client;
   readonly authConfig?: AuthConfig;
   readonly deviceCode?: DeviceCode;
+  // TODO COMNBINE THIS WITH BEARER
   readonly deviceCodeToken?: string;
   readonly bearer?: string;
   readonly ratelimitRemaining: number;

@@ -1,4 +1,4 @@
-import { Middleware } from "redux";
+import { Middleware, UnknownAction } from "redux";
 import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { getToken } from "../utils/auth";
@@ -6,6 +6,7 @@ import { ContentReducerError } from "../reducers/ContentReducer";
 import { Scene, Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
+import { Action } from "@reduxjs/toolkit/react";
 
 export interface ViewportBundle {
   backgroundSize?: Rect;
@@ -41,12 +42,31 @@ function isBlob(payload: URL | Blob): payload is File {
 
 type Operation = "get" | "put" | "delete";
 
-type OperationType = Asset | Token | SceneUpdate | TokenInstance;
+export type AssetUpdatePayload = {
+  id: string;
+  file: File;
+  progress?: (evt: LoadProgress) => void;
+};
+
+type OperationType =
+  | Asset
+  | Token
+  | SceneUpdate
+  | TokenInstance
+  | AssetUpdatePayload;
+
+type ContentAction = Action & {
+  payload: OperationType;
+};
 
 const FriendlyOperation: { [key in Operation]: string | undefined } = {
   get: undefined,
   put: "Update succesfull",
   delete: "Deletion successful",
+};
+
+type ScenePayload = {
+  scene: string;
 };
 
 function inferPath(op: Operation, path: string, t: OperationType): string {
@@ -115,6 +135,10 @@ function handleError(
           window.location.href = `/unavailable?error=${b64err}`;
         }
       }
+    } else {
+      console.error(`Operation failure: ${JSON.stringify(error.message)}`);
+      const b64err = window.btoa(error.stack ? error.stack : error.message);
+      window.location.href = `/unavailable?error=${b64err}`;
     }
   }
   const err: ContentReducerError = {
@@ -124,13 +148,13 @@ function handleError(
   next({ type: "content/error", payload: err });
 }
 
-async function operate<T extends OperationType>(
+async function operate(
   state: AppReducerState,
-  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  next: Dispatch<AnyAction>,
+  store: MiddlewareAPI<Dispatch<UnknownAction>, unknown>,
+  next: Dispatch<UnknownAction>,
   op: Operation,
   path: string,
-  action: unknown & { type: string; payload: T },
+  action: ContentAction,
 ) {
   try {
     const result = await request(state, store, op, action.payload, path);
@@ -156,17 +180,10 @@ async function operate<T extends OperationType>(
 async function updateAssetData(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  next: Dispatch<AnyAction>,
-  action: unknown & {
-    type: string;
-    payload: {
-      id: string;
-      file: File;
-      progress?: (evt: LoadProgress) => void;
-    };
-  },
+  next: Dispatch<UnknownAction>,
+  action: ContentAction,
 ): Promise<AxiosResponse | undefined> {
-  const { id, file, progress } = action.payload;
+  const { id, file, progress } = action.payload as AssetUpdatePayload;
   const formData = new FormData();
   formData.append("asset", file as Blob);
   const headers = await getToken(state, store);
@@ -188,7 +205,7 @@ async function updateAssetData(
 
 function sendFile(
   state: AppReducerState,
-  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  store: MiddlewareAPI<Dispatch<UnknownAction>, unknown>,
   scene: Scene,
   blob: File | URL,
   layer: string,
@@ -225,7 +242,7 @@ function sendFile(
 
 function setViewport(
   state: AppReducerState,
-  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  store: MiddlewareAPI<Dispatch<UnknownAction>, unknown>,
   scene: Scene,
   viewport: ViewportBundle,
 ) {
@@ -235,7 +252,242 @@ function setViewport(
   );
 }
 
-export const ContentMiddleware: Middleware =
+async function handleCRUDAction(
+  store: MiddlewareAPI<Dispatch<UnknownAction>, unknown>,
+  next: Dispatch<UnknownAction>,
+  action: ContentAction,
+  state: AppReducerState,
+) {
+  switch (action.type) {
+    case "content/updatetoken": {
+      operate(state, store, next, "put", "token", action);
+      break;
+    }
+    case "content/deletetoken": {
+      operate(state, store, next, "delete", "token", action);
+      break;
+    }
+    case "content/scenetokens": {
+      const path = `scene/${(action.payload as ScenePayload).scene}/token`;
+      operate(state, store, next, "get", path, action);
+      break;
+    }
+    case "content/scenetokenplaced": {
+      const path = `scene/${(action.payload as ScenePayload).scene}/token`;
+      operate(state, store, next, "put", path, action);
+      break;
+    }
+    case "content/scenetokendeleted": {
+      operate(state, store, next, "delete", `tokeninstance`, action);
+      break;
+    }
+    case "content/scenetokenmoved": {
+      const path = `scene/${(action.payload as ScenePayload).scene}/token`;
+      operate(state, store, next, "put", path, action);
+      break;
+    }
+    case "content/updateasset":
+      operate(state, store, next, "put", "asset", action);
+      break;
+    case "content/createassetandtoken": {
+      const assetResult = await operate(state, store, next, "put", "asset", {
+        type: "content/updateasset",
+        payload: action.payload.asset,
+      });
+      if (!assetResult || assetResult.status !== 201) return;
+      const asset: Asset = assetResult.data;
+      const assetDataResult = await updateAssetData(state, store, next, {
+        type: "content/updateassetdata",
+        payload: {
+          id: asset._id!,
+          file: action.payload.file,
+          progress: action.payload.progress,
+        },
+      });
+      if (!assetDataResult || assetDataResult.status !== 200) {
+        // delete the asset if the data update failed
+        operate(state, store, next, "delete", "asset", {
+          type: "content/deleteasset",
+          payload: asset,
+        });
+        return;
+      }
+
+      // create the token
+      const tokenResult = await operate(state, store, next, "put", "token", {
+        type: "content/updatetoken",
+        payload: { ...action.payload.token, asset: asset._id },
+      });
+      if (!tokenResult || tokenResult.status !== 201) {
+        // delete the asset if the token update failed
+        operate(state, store, next, "delete", "asset", {
+          type: "content/deleteasset",
+          payload: asset,
+        });
+      }
+      break;
+    }
+    case "content/updateassetdata":
+      updateAssetData(state, store, next, action);
+      break;
+    case "content/deleteasset": {
+      operate(state, store, next, "delete", "asset", action);
+      break;
+    }
+    case "content/tokens": {
+      operate(state, store, next, "get", "token", action);
+      break;
+    }
+    case "content/assets": {
+      operate(state, store, next, "get", "asset", action);
+      break;
+    }
+    case "content/push":
+      {
+        /**
+         * The ContentEditor doesn't actually tell us anything
+         * about the scene, just which scene we're pushing. The overlay or
+         * background updates independently, and this call just refreshes the
+         * tabletop with the current scene so the remote display is updated.
+         */
+        const scene = state.content.currentScene;
+        if (!scene) return next(action);
+        if (!scene._id) return next(action);
+        const upd: SceneUpdate = { scene: scene._id };
+        operate(state, store, next, "put", "state", {
+          ...action,
+          payload: upd,
+        });
+      }
+      break;
+    case "content/pull":
+      {
+        operate(state, store, next, "get", "state", action);
+      }
+      break;
+    case "content/player":
+    case "content/detail":
+    case "content/overlay": {
+      // undefined means we're wiping the canvas... probably a new background
+      if (action.payload === undefined) return next(action);
+      let asset = action.payload;
+      let progress;
+      if (isAssetUpdate(action.payload)) {
+        asset = action.payload.asset;
+        progress = action.payload.progress;
+      } else {
+        asset = action.payload;
+      }
+
+      const scene: Scene = state.content.currentScene;
+      // if we have an overlay payload then send it
+      sendFile(state, store, scene, asset, action.type.split("/")[1], progress)
+        .then((value) => {
+          // MICAH this is being triggered by "content/overlay" and triggering a rerender
+          trackRateLimit(next, value);
+          next({ type: "content/scene", payload: value.data });
+          const err: ContentReducerError = {
+            msg: "Update successful",
+            success: true,
+          };
+          next({ type: "content/error", payload: err });
+        })
+        .catch((err) => {
+          const error: ContentReducerError = {
+            msg: "Unkown error happened",
+            success: false,
+          };
+          if (err.response.status === 413) {
+            error.msg = "Asset too big";
+            next({ type: "content/error", payload: error });
+          }
+        });
+      break;
+    }
+    case "content/zoom": {
+      if (action.payload === undefined) return;
+      const scene = state.content.currentScene;
+      if (!scene) return next(action);
+      setViewport(state, store, scene, action.payload)
+        .then((value) => {
+          trackRateLimit(next, value);
+          next({ type: "content/scene", payload: value.data });
+        })
+        .catch((err) =>
+          console.error(`Unable to update viewport: ${JSON.stringify(err)}`),
+        );
+      break;
+    }
+    case "content/scenes": {
+      operate(state, store, next, "get", "scene", action);
+      break;
+    }
+    case "content/createscene": {
+      const url = `${state.environment.api}/scene`;
+      const bundle: NewSceneBundle = action.payload;
+      getToken(state, store)
+        .then((headers) => axios.put(url, bundle, { headers: headers }))
+        .then((data) => {
+          trackRateLimit(next, data);
+          next({ type: "content/scene", payload: data.data });
+          const asset = bundle.player;
+          const progress = bundle.playerProgress;
+          return sendFile(state, store, data.data, asset, "player", progress);
+        })
+        .then((data) => {
+          if (!bundle.detail) return data; // skip if there is no detailed view
+          next({ type: "content/scene", payload: data.data });
+          const asset = bundle.detail;
+          const progress = bundle.detailProgress;
+          return sendFile(state, store, data.data, asset, "detail", progress);
+        })
+        .then((data) =>
+          bundle.viewport
+            ? setViewport(state, store, data.data, bundle.viewport)
+            : data,
+        )
+        .then((data) => {
+          next({ type: "content/scene", payload: data.data });
+          const err: ContentReducerError = {
+            msg: "Update successful",
+            success: true,
+          };
+          next({ type: "content/error", payload: err });
+        })
+        .catch((err) => {
+          const error: ContentReducerError = {
+            msg: "Unkown error happened",
+            success: false,
+          };
+          if (err.response.status === 413) {
+            error.msg = "Asset too big";
+          }
+          if (err.response.status === 406) {
+            error.msg = "Invalid asset format";
+          }
+          next({ type: "content/error", payload: error });
+          if (err.scene) {
+            // delete the failed scene and set the current scene to nothing
+            store.dispatch({
+              type: "content/deletescene",
+              payload: err.scene,
+            });
+            store.dispatch({ type: "content/currentscene" });
+          }
+        });
+      break;
+    }
+    case "content/deletescene": {
+      operate(state, store, next, "delete", "scene", action);
+      break;
+    }
+    default:
+      next(action);
+      break;
+  }
+}
+
+export const ContentMiddleware: Middleware<unknown, AppReducerState> =
   (store) => (next) => async (action) => {
     const state = store.getState();
     if (!state.environment.api) {
@@ -248,238 +500,10 @@ export const ContentMiddleware: Middleware =
       next({ type: "content/mediaprefix", payload: state.environment.api });
     }
 
-    switch (action.type) {
-      case "content/updatetoken": {
-        operate(state, store, next, "put", "token", action);
-        break;
-      }
-      case "content/deletetoken": {
-        operate(state, store, next, "delete", "token", action);
-        break;
-      }
-      case "content/scenetokens": {
-        const path = `scene/${action.payload.scene}/token`;
-        operate(state, store, next, "get", path, action);
-        break;
-      }
-      case "content/scenetokenplaced": {
-        const path = `scene/${action.payload.scene}/token`;
-        operate(state, store, next, "put", path, action);
-        break;
-      }
-      case "content/scenetokendeleted": {
-        operate(state, store, next, "delete", `tokeninstance`, action);
-        break;
-      }
-      case "content/scenetokenmoved": {
-        const path = `scene/${action.payload.scene}/token`;
-        operate(state, store, next, "put", path, action);
-        break;
-      }
-      case "content/updateasset":
-        operate(state, store, next, "put", "asset", action);
-        break;
-      case "content/createassetandtoken": {
-        const assetResult = await operate(state, store, next, "put", "asset", {
-          type: "content/updateasset",
-          payload: action.payload.asset,
-        });
-        if (!assetResult || assetResult.status !== 201) return;
-        const asset: Asset = assetResult.data;
-        const assetDataResult = await updateAssetData(state, store, next, {
-          type: "content/updateassetdata",
-          payload: {
-            id: asset._id!,
-            file: action.payload.file,
-            progress: action.payload.progress,
-          },
-        });
-        if (!assetDataResult || assetDataResult.status !== 200) {
-          // delete the asset if the data update failed
-          operate(state, store, next, "delete", "asset", {
-            type: "content/deleteasset",
-            payload: asset,
-          });
-          return;
-        }
-
-        // create the token
-        const tokenResult = await operate(state, store, next, "put", "token", {
-          type: "content/updatetoken",
-          payload: { ...action.payload.token, asset: asset._id },
-        });
-        if (!tokenResult || tokenResult.status !== 201) {
-          // delete the asset if the token update failed
-          operate(state, store, next, "delete", "asset", {
-            type: "content/deleteasset",
-            payload: asset,
-          });
-        }
-        break;
-      }
-      case "content/updateassetdata":
-        updateAssetData(state, store, next, action);
-        break;
-      case "content/deleteasset": {
-        operate(state, store, next, "delete", "asset", action);
-        break;
-      }
-      case "content/tokens": {
-        operate(state, store, next, "get", "token", action);
-        break;
-      }
-      case "content/assets": {
-        operate(state, store, next, "get", "asset", action);
-        break;
-      }
-      case "content/push":
-        {
-          /**
-           * The ContentEditor doesn't actually tell us anything
-           * about the scene, just which scene we're pushing. The overlay or
-           * background updates independently, and this call just refreshes the
-           * tabletop with the current scene so the remote display is updated.
-           */
-          const scene: Scene = state.content.currentScene;
-          if (!scene) return next(action);
-          if (!scene._id) return next(action);
-          const upd: SceneUpdate = { scene: scene._id };
-          operate(state, store, next, "put", "state", {
-            ...action,
-            payload: upd,
-          });
-        }
-        break;
-      case "content/pull":
-        {
-          operate(state, store, next, "get", "state", action);
-        }
-        break;
-      case "content/player":
-      case "content/detail":
-      case "content/overlay": {
-        // undefined means we're wiping the canvas... probably a new background
-        if (action.payload === undefined) return next(action);
-        let asset = action.payload;
-        let progress;
-        if (isAssetUpdate(action.payload)) {
-          asset = action.payload.asset;
-          progress = action.payload.progress;
-        } else {
-          asset = action.payload;
-        }
-
-        const scene: Scene = state.content.currentScene;
-        // if we have an overlay payload then send it
-        sendFile(
-          state,
-          store,
-          scene,
-          asset,
-          action.type.split("/")[1],
-          progress,
-        )
-          .then((value) => {
-            // MICAH this is being triggered by "content/overlay" and triggering a rerender
-            trackRateLimit(next, value);
-            next({ type: "content/scene", payload: value.data });
-            const err: ContentReducerError = {
-              msg: "Update successful",
-              success: true,
-            };
-            next({ type: "content/error", payload: err });
-          })
-          .catch((err) => {
-            const error: ContentReducerError = {
-              msg: "Unkown error happened",
-              success: false,
-            };
-            if (err.response.status === 413) {
-              error.msg = "Asset too big";
-              next({ type: "content/error", payload: error });
-            }
-          });
-        break;
-      }
-      case "content/zoom": {
-        if (action.payload === undefined) return;
-        const scene = state.content.currentScene;
-        if (!scene) return next(action);
-        setViewport(state, store, scene, action.payload)
-          .then((value) => {
-            trackRateLimit(next, value);
-            next({ type: "content/scene", payload: value.data });
-          })
-          .catch((err) =>
-            console.error(`Unable to update viewport: ${JSON.stringify(err)}`),
-          );
-        break;
-      }
-      case "content/scenes": {
-        operate(state, store, next, "get", "scene", action);
-        break;
-      }
-      case "content/createscene": {
-        const url = `${state.environment.api}/scene`;
-        const bundle: NewSceneBundle = action.payload;
-        getToken(state, store)
-          .then((headers) => axios.put(url, bundle, { headers: headers }))
-          .then((data) => {
-            trackRateLimit(next, data);
-            next({ type: "content/scene", payload: data.data });
-            const asset = bundle.player;
-            const progress = bundle.playerProgress;
-            return sendFile(state, store, data.data, asset, "player", progress);
-          })
-          .then((data) => {
-            if (!bundle.detail) return data; // skip if there is no detailed view
-            next({ type: "content/scene", payload: data.data });
-            const asset = bundle.detail;
-            const progress = bundle.detailProgress;
-            return sendFile(state, store, data.data, asset, "detail", progress);
-          })
-          .then((data) =>
-            bundle.viewport
-              ? setViewport(state, store, data.data, bundle.viewport)
-              : data,
-          )
-          .then((data) => {
-            next({ type: "content/scene", payload: data.data });
-            const err: ContentReducerError = {
-              msg: "Update successful",
-              success: true,
-            };
-            next({ type: "content/error", payload: err });
-          })
-          .catch((err) => {
-            const error: ContentReducerError = {
-              msg: "Unkown error happened",
-              success: false,
-            };
-            if (err.response.status === 413) {
-              error.msg = "Asset too big";
-            }
-            if (err.response.status === 406) {
-              error.msg = "Invalid asset format";
-            }
-            next({ type: "content/error", payload: error });
-            if (err.scene) {
-              // delete the failed scene and set the current scene to nothing
-              store.dispatch({
-                type: "content/deletescene",
-                payload: err.scene,
-              });
-              store.dispatch({ type: "content/currentscene" });
-            }
-          });
-        break;
-      }
-      case "content/deletescene": {
-        operate(state, store, next, "delete", "scene", action);
-        break;
-      }
-      default:
-        next(action);
-        break;
-    }
+    handleCRUDAction(
+      store,
+      next as unknown as Dispatch<UnknownAction>,
+      action as ContentAction,
+      state,
+    );
   };
