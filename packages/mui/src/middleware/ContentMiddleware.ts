@@ -42,7 +42,18 @@ function isBlob(payload: URL | Blob): payload is File {
 
 type Operation = "get" | "put" | "delete";
 
-type OperationType = Asset | Token | SceneUpdate | TokenInstance;
+export type AssetUpdatePayload = {
+  id: string;
+  file: File;
+  progress?: (evt: LoadProgress) => void;
+};
+
+type OperationType =
+  | Asset
+  | Token
+  | SceneUpdate
+  | TokenInstance
+  | AssetUpdatePayload;
 
 type ContentAction = Action & {
   payload: OperationType;
@@ -170,16 +181,9 @@ async function updateAssetData(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   next: Dispatch<UnknownAction>,
-  action: unknown & {
-    type: string;
-    payload: {
-      id: string;
-      file: File;
-      progress?: (evt: LoadProgress) => void;
-    };
-  },
+  action: ContentAction,
 ): Promise<AxiosResponse | undefined> {
-  const { id, file, progress } = action.payload;
+  const { id, file, progress } = action.payload as AssetUpdatePayload;
   const formData = new FormData();
   formData.append("asset", file as Blob);
   const headers = await getToken(state, store);
@@ -248,7 +252,7 @@ function setViewport(
   );
 }
 
-async function handleAction(
+async function handleCRUDAction(
   store: MiddlewareAPI<Dispatch<UnknownAction>, unknown>,
   next: Dispatch<UnknownAction>,
   action: ContentAction,
@@ -285,44 +289,44 @@ async function handleAction(
     case "content/updateasset":
       operate(state, store, next, "put", "asset", action);
       break;
-    // case "content/createassetandtoken": {
-    //   const assetResult = await operate(state, store, next, "put", "asset", {
-    //     type: "content/updateasset",
-    //     payload: action.payload.asset,
-    //   });
-    //   if (!assetResult || assetResult.status !== 201) return;
-    //   const asset: Asset = assetResult.data;
-    //   const assetDataResult = await updateAssetData(state, store, next, {
-    //     type: "content/updateassetdata",
-    //     payload: {
-    //       id: asset._id!,
-    //       file: action.payload.file,
-    //       progress: action.payload.progress,
-    //     },
-    //   });
-    //   if (!assetDataResult || assetDataResult.status !== 200) {
-    //     // delete the asset if the data update failed
-    //     operate(state, store, next, "delete", "asset", {
-    //       type: "content/deleteasset",
-    //       payload: asset,
-    //     });
-    //     return;
-    //   }
+    case "content/createassetandtoken": {
+      const assetResult = await operate(state, store, next, "put", "asset", {
+        type: "content/updateasset",
+        payload: action.payload.asset,
+      });
+      if (!assetResult || assetResult.status !== 201) return;
+      const asset: Asset = assetResult.data;
+      const assetDataResult = await updateAssetData(state, store, next, {
+        type: "content/updateassetdata",
+        payload: {
+          id: asset._id!,
+          file: action.payload.file,
+          progress: action.payload.progress,
+        },
+      });
+      if (!assetDataResult || assetDataResult.status !== 200) {
+        // delete the asset if the data update failed
+        operate(state, store, next, "delete", "asset", {
+          type: "content/deleteasset",
+          payload: asset,
+        });
+        return;
+      }
 
-    //   // create the token
-    //   const tokenResult = await operate(state, store, next, "put", "token", {
-    //     type: "content/updatetoken",
-    //     payload: { ...action.payload.token, asset: asset._id },
-    //   });
-    //   if (!tokenResult || tokenResult.status !== 201) {
-    //     // delete the asset if the token update failed
-    //     operate(state, store, next, "delete", "asset", {
-    //       type: "content/deleteasset",
-    //       payload: asset,
-    //     });
-    //   }
-    //   break;
-    // }
+      // create the token
+      const tokenResult = await operate(state, store, next, "put", "token", {
+        type: "content/updatetoken",
+        payload: { ...action.payload.token, asset: asset._id },
+      });
+      if (!tokenResult || tokenResult.status !== 201) {
+        // delete the asset if the token update failed
+        operate(state, store, next, "delete", "asset", {
+          type: "content/deleteasset",
+          payload: asset,
+        });
+      }
+      break;
+    }
     case "content/updateassetdata":
       updateAssetData(state, store, next, action);
       break;
@@ -496,5 +500,10 @@ export const ContentMiddleware: Middleware<unknown, AppReducerState> =
       next({ type: "content/mediaprefix", payload: state.environment.api });
     }
 
-    handleAction(store, next, action as UnknownAction, state);
+    handleCRUDAction(
+      store,
+      next as unknown as Dispatch<UnknownAction>,
+      action as ContentAction,
+      state,
+    );
   };
