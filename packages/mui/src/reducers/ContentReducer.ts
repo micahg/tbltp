@@ -238,8 +238,8 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const tokens = action.payload as unknown as TokenInstance[];
       const hydrated: HydratedTokenInstance[] = [];
 
-      if (!tokens) {
-        console.error("No tokens to hydrate");
+      if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+        return state;
       }
 
       const scenes = [...state.scenes];
