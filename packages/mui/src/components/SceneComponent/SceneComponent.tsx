@@ -15,6 +15,8 @@ import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionC
 import { LoadProgress, loadImage } from "../../utils/content";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import { Scene } from "@micahg/tbltp-common";
+import { createSceneThunk } from "../../thunks/content";
+import { AppDispatch } from "../../store";
 
 // TODO move to a shared file
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
@@ -28,7 +30,10 @@ interface SceneComponentProps {
 
 // TODO use destructuring
 const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
-  const dispatch = useDispatch();
+  // const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
+  // const asdf = useDispatch<AppDispatch>();
+  // const qwer = useDispatch.withTypes<AppDispatch>()();
 
   const playerCanvasRef = createRef<HTMLCanvasElement>();
   const detailCanvasRef = createRef<HTMLCanvasElement>();
@@ -161,7 +166,8 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
       playerProgress: playerProgressHandler,
       detailProgress: detailProgressHandler,
     };
-    dispatch({ type: "content/createscene", payload: data });
+    // dispatch({ type: "content/createscene", payload: data });
+    dispatch(createSceneThunk(data));
   };
 
   useEffect(() => {

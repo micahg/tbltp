@@ -213,6 +213,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     }
     case "content/scenetokenmoved":
     case "content/scenetokendeleted": {
+      if (!state.currentScene) return state;
       const instance = action.payload as unknown as TokenInstance;
       const tokens = [...(state.currentScene?.tokens || [])];
 
@@ -226,7 +227,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       } else {
         tokens.splice(idx, 1);
       }
-
       const currentScene = { ...state.currentScene, tokens: tokens };
 
       idx = state.scenes.findIndex((s) => s._id === instance.scene);
@@ -237,6 +237,10 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     case "content/scenetokens": {
       const tokens = action.payload as unknown as TokenInstance[];
       const hydrated: HydratedTokenInstance[] = [];
+
+      if (!tokens) {
+        console.error("No tokens to hydrate");
+      }
 
       const scenes = [...state.scenes];
       const idx = scenes.findIndex((s) => s._id === tokens[0].scene);
@@ -266,7 +270,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
 
       // update the current scene if it's the same ... initially the scene at the index
       // and the current scene may not be the same...
-      if (scenes[idx]._id === state.currentScene?._id) {
+      if (state.currentScene && scenes[idx]._id === state.currentScene._id) {
         const currentScene = { ...state.currentScene, tokens: hydrated };
         return { ...state, scenes: [...scenes], currentScene };
       }

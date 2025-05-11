@@ -6,7 +6,7 @@ import {
   getDeviceCode,
   pollDeviceCode,
 } from "../utils/auth";
-import { Middleware } from "redux";
+import { Middleware, UnknownAction } from "redux";
 import axios from "axios";
 import { AuthConfig } from "../reducers/EnvironmentReducer";
 
@@ -71,7 +71,6 @@ export const EnvironmentMiddleware: Middleware =
       try {
         const authClient = await getAuthClient(storeAPI);
 
-        // WTF IS THIS DOING?
         const state = await getAuthState(authClient);
         if (state) next({ type: action.type, payload: state });
         const token = await authClient.getTokenSilently();

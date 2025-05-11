@@ -26,17 +26,17 @@ export interface DeviceCode {
   interval: number;
 }
 
-export type EnvironmentReducerState = {
-  readonly api: string | undefined;
-  readonly ws: string | undefined;
-  readonly noauth: boolean; // is authorization disabled
+export interface EnvironmentReducerState {
+  readonly api?: string;
+  readonly ws?: string;
+  readonly noauth?: boolean; // is authorization disabled
   /**
    * Indicates if auth was attempted. This is here because of react strict mode
    * that renders things twice to mess with your life and elicit your errors.
    */
   readonly authStarted: boolean;
   /**
-   * undefined => do not know yet - haven't hit server, auth not attmepted
+   * undefined => do not know yet - haven't hit server, auth not attempted
    * false => not authorized
    * true => auth succeeded
    */
@@ -44,13 +44,13 @@ export type EnvironmentReducerState = {
   readonly authErr?: AuthError;
   readonly authConfig?: AuthConfig;
   readonly deviceCode?: DeviceCode;
-  // TODO COMNBINE THIS WITH BEARER
+  // TODO COMBINE THIS WITH BEARER
   readonly deviceCodeToken?: string;
   readonly bearer?: string;
   readonly ratelimitRemaining: number;
   readonly ratelimit: number;
   readonly ratelimitMax: number;
-};
+}
 
 const initialState: EnvironmentReducerState = {
   api: undefined,
@@ -114,9 +114,13 @@ export const EnvironmentReducer = (
       return { ...state, authClient: client };
     }
     case "environment/bearer": {
+      if (action.payload === null || action.payload === undefined) return state;
+      if (typeof action.payload !== "string") return state;
       return { ...state, bearer: action.payload };
     }
     case "environment/devicecode": {
+      if (action.payload === null || action.payload === undefined) return state;
+      if (typeof action.payload !== "object") return state;
       return { ...state, deviceCode: action.payload };
     }
     case "environment/devicecodepoll": {
@@ -128,6 +132,7 @@ export const EnvironmentReducer = (
         !("access_token" in authResult)
       )
         return state;
+      if (typeof authResult["access_token"] !== "string") return state;
       return {
         ...state,
         auth: true,

@@ -18,7 +18,7 @@ export interface AuthState {
   auth: boolean;
   // flag indicating if authorization explicitly disabled
   noauth?: boolean;
-  config?: unknown;
+  config?: AuthConfig;
 }
 
 const AUTH_ERRORS: { [key: string]: string } = {
