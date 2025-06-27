@@ -57,7 +57,7 @@
     "@opentelemetry/auto-instrumentations-node": "^0.55.0",
     "@opentelemetry/exporter-jaeger": "^1.30.0",
     "@opentelemetry/exporter-metrics-otlp-proto": "^0.57.0",
-    "@opentelemetry/exporter-trace-otlp-proto": "^0.57.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.200.0",
     "@opentelemetry/instrumentation-lru-memoizer": "^0.44.0",
     "@opentelemetry/resources": "^1.30.0",
     "@opentelemetry/sdk-metrics": "^1.30.0",
