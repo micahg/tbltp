@@ -121,7 +121,7 @@ export async function getAuthState(client: Auth0Client): Promise<AuthState> {
 }
 
 /**
- * Step 4 - profit!
+ * Step 4 - profit! TODO DELETE THIS (use the other one instead)
  * @param client
  * @returns
  */
@@ -147,6 +147,30 @@ export async function getToken(
   // if (state.environment.bearer !== newToken) {
   //   store.dispatch({ type: "environment/bearer", payload: newToken });
   // }
+  const token = state.environment.bearer;
+  if (!token) throw new Error("No auth0 token");
+
+  res["Authorization"] = `Bearer ${token}`;
+  return res;
+}
+
+/**
+ * We aren't actually caching anything here!
+ */
+export function getAndCacheToken(
+  state: AppReducerState,
+  dispatch: Dispatch,
+  headers?: { [key: string]: string },
+): { [key: string]: string } {
+  const res = headers || {};
+
+  if (state.environment.noauth) {
+    const value = "NOAUTH";
+    res["Authorization"] = `Bearer ${value}`;
+    dispatch({ type: "environment/bearer", payload: value });
+    return res;
+  }
+
   const token = state.environment.bearer;
   if (!token) throw new Error("No auth0 token");
 

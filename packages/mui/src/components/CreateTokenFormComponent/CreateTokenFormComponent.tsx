@@ -20,6 +20,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent";
 import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
+import { AppDispatch } from "../../store";
 
 interface CreateTokenFormComponentProps {
   token?: Token;
@@ -55,7 +56,8 @@ const CreateTokenFormComponent = ({
     defaultValues: stripToken(token),
   });
 
-  const dispatch = useDispatch();
+  // const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const assetField = watch("asset");
 
   const assets = useSelector((state: AppReducerState) => state.content.assets);
@@ -96,6 +98,8 @@ const CreateTokenFormComponent = ({
     // overlay the local changes
     const update = { ...token, ...data };
 
+    if (!file) return;
+
     // just remove the hitpoints if they are 0
     const hp = Number(data.hitPoints);
     if (hp === 0 || Number.isNaN(hp)) {
@@ -106,6 +110,8 @@ const CreateTokenFormComponent = ({
     // are special cases that need to be handled
     if (data.asset === "new") {
       delete update.asset;
+      // dispatch(createSceneThunk(data));
+      // dispatch(createAssetAndTokenThunk({ name: data.name }, update, file));
       dispatch({
         type: "content/createassetandtoken",
         payload: {

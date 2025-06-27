@@ -74,7 +74,7 @@ export const EnvironmentMiddleware: Middleware =
         const state = await getAuthState(authClient);
         if (state) next({ type: action.type, payload: state });
         const token = await authClient.getTokenSilently();
-        next({ type: "environment/bearer", payload: token });
+        next({ type: "environment/bearer", payload: bearer });
       } catch (err) {
         if (err === "noauth") {
           console.warn("Authentication explicitly disabled at server");

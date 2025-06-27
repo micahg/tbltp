@@ -15,7 +15,7 @@ import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionC
 import { LoadProgress, loadImage } from "../../utils/content";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import { Scene } from "@micahg/tbltp-common";
-import { createSceneThunk } from "../../thunks/content";
+import { createSceneThunk } from "../../thunks/createScene";
 import { AppDispatch } from "../../store";
 
 // TODO move to a shared file
