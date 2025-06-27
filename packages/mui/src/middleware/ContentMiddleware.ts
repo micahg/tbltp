@@ -1,7 +1,7 @@
 import { Middleware, UnknownAction } from "redux";
 import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
-import { getToken } from "../utils/auth";
+import { getAndCacheToken, getToken } from "../utils/auth";
 import { ContentReducerError } from "../reducers/ContentReducer";
 import { Scene, Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
@@ -84,7 +84,8 @@ async function request<T extends OperationType>(
 ): Promise<AxiosResponse> {
   const path = inferPath(op, basePath, t);
   const url = `${state.environment.api}/${path}`;
-  const headers = await getToken(state, store);
+  // const headers = await getToken(state, store);
+  const headers = getAndCacheToken(state, store.dispatch);
   let fn;
   if (op === "put") {
     fn = axios[op](url, t, {
@@ -148,7 +149,7 @@ function handleError(
   next({ type: "content/error", payload: err });
 }
 
-async function operate(
+export async function operate(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<UnknownAction>, unknown>,
   next: Dispatch<UnknownAction>,
@@ -177,7 +178,7 @@ async function operate(
   }
 }
 
-async function updateAssetData(
+export async function updateAssetData(
   state: AppReducerState,
   store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   next: Dispatch<UnknownAction>,
@@ -287,8 +288,7 @@ async function handleCRUDAction(
       break;
     }
     case "content/updateasset":
-      operate(state, store, next, "put", "asset", action);
-      break;
+      return operate(state, store, next, "put", "asset", action);
     case "content/createassetandtoken": {
       const assetResult = await operate(state, store, next, "put", "asset", {
         type: "content/updateasset",
@@ -420,61 +420,6 @@ async function handleCRUDAction(
     }
     case "content/scenes": {
       operate(state, store, next, "get", "scene", action);
-      break;
-    }
-    case "content/createscene": {
-      const url = `${state.environment.api}/scene`;
-      const bundle: NewSceneBundle = action.payload;
-      getToken(state, store)
-        .then((headers) => axios.put(url, bundle, { headers: headers }))
-        .then((data) => {
-          trackRateLimit(next, data);
-          next({ type: "content/scene", payload: data.data });
-          const asset = bundle.player;
-          const progress = bundle.playerProgress;
-          return sendFile(state, store, data.data, asset, "player", progress);
-        })
-        .then((data) => {
-          if (!bundle.detail) return data; // skip if there is no detailed view
-          next({ type: "content/scene", payload: data.data });
-          const asset = bundle.detail;
-          const progress = bundle.detailProgress;
-          return sendFile(state, store, data.data, asset, "detail", progress);
-        })
-        .then((data) =>
-          bundle.viewport
-            ? setViewport(state, store, data.data, bundle.viewport)
-            : data,
-        )
-        .then((data) => {
-          next({ type: "content/scene", payload: data.data });
-          const err: ContentReducerError = {
-            msg: "Update successful",
-            success: true,
-          };
-          next({ type: "content/error", payload: err });
-        })
-        .catch((err) => {
-          const error: ContentReducerError = {
-            msg: "Unkown error happened",
-            success: false,
-          };
-          if (err.response.status === 413) {
-            error.msg = "Asset too big";
-          }
-          if (err.response.status === 406) {
-            error.msg = "Invalid asset format";
-          }
-          next({ type: "content/error", payload: error });
-          if (err.scene) {
-            // delete the failed scene and set the current scene to nothing
-            store.dispatch({
-              type: "content/deletescene",
-              payload: err.scene,
-            });
-            store.dispatch({ type: "content/currentscene" });
-          }
-        });
       break;
     }
     case "content/deletescene": {

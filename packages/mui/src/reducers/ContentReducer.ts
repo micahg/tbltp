@@ -105,13 +105,12 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const scene: Scene = action.payload as unknown as Scene;
       const idx = state.scenes.findIndex((s) => s._id === scene._id);
       if (idx < 0) return { ...state, scenes: [...state.scenes, scene] };
-      state.scenes.splice(idx, 1, scene); // remember this changes inline, hence absence of return
+      const scenes = state.scenes.toSpliced(idx, 1, scene);
       // historically there was some notion that we don't want to rerender if
       // we are just swapping in new contents. But if an image, angle or viewport of
       // the current scene is updated we do need to rerender.
-      if (scene._id !== state.currentScene?._id)
-        return { ...state, scenes: state.scenes };
-      return { ...state, currentScene: scene, scenes: state.scenes };
+      if (scene._id !== state.currentScene?._id) return { ...state, scenes };
+      return { ...state, currentScene: scene, scenes };
     }
     case "content/deletescene": {
       const scene: Scene = action.payload as unknown as Scene;
@@ -213,6 +212,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     }
     case "content/scenetokenmoved":
     case "content/scenetokendeleted": {
+      if (!state.currentScene) return state;
       const instance = action.payload as unknown as TokenInstance;
       const tokens = [...(state.currentScene?.tokens || [])];
 
@@ -226,7 +226,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       } else {
         tokens.splice(idx, 1);
       }
-
       const currentScene = { ...state.currentScene, tokens: tokens };
 
       idx = state.scenes.findIndex((s) => s._id === instance.scene);
@@ -237,6 +236,10 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
     case "content/scenetokens": {
       const tokens = action.payload as unknown as TokenInstance[];
       const hydrated: HydratedTokenInstance[] = [];
+
+      if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+        return state;
+      }
 
       const scenes = [...state.scenes];
       const idx = scenes.findIndex((s) => s._id === tokens[0].scene);
@@ -266,7 +269,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
 
       // update the current scene if it's the same ... initially the scene at the index
       // and the current scene may not be the same...
-      if (scenes[idx]._id === state.currentScene?._id) {
+      if (state.currentScene && scenes[idx]._id === state.currentScene._id) {
         const currentScene = { ...state.currentScene, tokens: hydrated };
         return { ...state, scenes: [...scenes], currentScene };
       }
