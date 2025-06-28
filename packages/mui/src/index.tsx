@@ -41,7 +41,8 @@ const router = createBrowserRouter(routes);
 
 const store = configureStore({
   reducer: AppReducer,
-  middleware: [EnvironmentMiddleware, ContentMiddleware],
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(EnvironmentMiddleware, ContentMiddleware),
 });
 
 store.dispatch({ type: "environment/config", payload: undefined });
