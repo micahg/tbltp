@@ -10,21 +10,6 @@ type EnvironmentConfig = {
   ws: string;
 };
 
-// const configQuery: BaseQueryFn<
-//   string, // Args
-//   unknown, // Result
-//   { reason: string }, // Error
-//   { shout?: boolean }, // DefinitionExtraOptions
-//   { timestamp: number } // Meta
-// > = async (args, api, extraOptions) => {
-//   const apiPort =
-//     window.location.port === "4200" ? "3000" : window.location.port;
-//   const url = `${window.location.protocol}//${window.location.hostname}:${apiPort}`;
-//   return fetchBaseQuery({
-//     baseUrl: url,
-//   })(args, api, extraOptions);
-// };
-
 export const environmentApi = createApi({
   baseQuery: fetchBaseQuery({ baseUrl: "/" }),
   tagTypes: ["Environment"],
