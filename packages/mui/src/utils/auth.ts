@@ -3,6 +3,7 @@ import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import axios from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { AuthConfig, AuthError } from "../reducers/EnvironmentReducer";
+import { environmentApi } from "../api/environment";
 
 /**
  * Authorization state
@@ -40,7 +41,7 @@ export function getAuthConfig(
     // get the client auth.json and hte server noauth setting. If the server is
     // running in auth disabled mode, /noauth will return {"noauth": true}
     // indicating that it wont even look at the Authorization header.
-    const noauthUrl = `${store.getState().environment.api}/noauth`;
+    const noauthUrl = `${environmentApi.endpoints.getEnvironmentConfig.select()(store.getState()).data?.api}/noauth`;
     Promise.all([axios.get("/auth.json"), axios.get(noauthUrl)])
       .then(([auth, noauth]) => {
         // combine the auth config into a single state

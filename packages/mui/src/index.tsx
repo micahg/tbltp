@@ -3,16 +3,14 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import reportWebVitals from "./reportWebVitals";
 import { Provider } from "react-redux";
-import { configureStore } from "@reduxjs/toolkit";
-import { AppReducer } from "./reducers/AppReducer";
-import { EnvironmentMiddleware } from "./middleware/EnvironmentMiddleware";
-import { ContentMiddleware } from "./middleware/ContentMiddleware";
 import LandingComponent from "./components/LandingComponent/LandingComponent.lazy";
 import RemoteDisplayComponent from "./components/RemoteDisplayComponent/RemoteDisplayComponent.lazy";
 import GameMasterComponent from "./components/GameMasterComponent/GameMasterComponent.lazy";
 import DeviceCodeComponent from "./components/DeviceCodeComponent/DeviceCodeComponent.lazy";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import UnavailableComponent from "./components/UnavailableComponent/UnavailableComponent";
+import { store } from "./store";
+import { environmentApi } from "./api/environment";
 
 const routes = [];
 routes.push({ path: "/", element: <LandingComponent />, errorElement: null });
@@ -39,13 +37,8 @@ routes.push({
 
 const router = createBrowserRouter(routes);
 
-const store = configureStore({
-  reducer: AppReducer,
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(EnvironmentMiddleware, ContentMiddleware),
-});
-
 store.dispatch({ type: "environment/config", payload: undefined });
+store.dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,
