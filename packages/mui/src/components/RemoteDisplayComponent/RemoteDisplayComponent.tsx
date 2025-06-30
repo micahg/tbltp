@@ -10,6 +10,8 @@ import { Box } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { HydratedTokenInstance, Rect, TableState } from "@micahg/tbltp-common";
+import { AppDispatch } from "../../store";
+import { environmentApi } from "../../api/environment";
 
 interface WSStateMessage {
   method?: string;
@@ -24,14 +26,15 @@ interface InternalState {
 
 const RemoteDisplayComponent = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
   const [internalState] = useState<InternalState>({
     transferred: false,
   });
-  const apiUrl: string | undefined = useSelector(
-    (state: AppReducerState) => state.environment.api,
+  const apiUrl = useSelector(
+    (state: AppReducerState) =>
+      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
   const wsUrl: string | undefined = useSelector(
     (state: AppReducerState) => state.environment.ws,
@@ -214,10 +217,10 @@ const RemoteDisplayComponent = () => {
     // connect to the API to get ANY auth config so start an interval to
     // retry
     if (authorized === undefined) {
-      const timer = setInterval(
-        () => dispatch({ type: "environment/config", payload: undefined }),
-        5000,
-      );
+      const timer = setInterval(() => {
+        dispatch({ type: "environment/config", payload: undefined });
+        dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
+      }, 5000);
       setAuthTimer(timer);
       return () => clearInterval(timer); // this is how you avoid the two-timer fuckery with strict mode
     }

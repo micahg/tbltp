@@ -16,6 +16,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import { Asset } from "@micahg/tbltp-common";
 import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
+import { environmentApi } from "../../api/environment";
 
 interface AssetPanelComponentProps {
   asset: Asset;
@@ -24,7 +25,11 @@ interface AssetPanelComponentProps {
 
 const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const dispatch = useDispatch();
-  const api = useSelector((state: AppReducerState) => state.environment.api);
+  const api = useSelector(
+    (state: AppReducerState) =>
+      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
+  );
+
   const bearer = useSelector(
     (state: AppReducerState) => state.environment.bearer,
   );

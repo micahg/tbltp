@@ -52,6 +52,7 @@ import {
   HydratedTokenInstance,
 } from "@micahg/tbltp-common";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
+import { environmentApi } from "../../api/environment";
 
 const sm = new MouseStateMachine();
 
@@ -137,7 +138,10 @@ const ContentEditor = ({
   const scene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
   );
-  const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
+  const apiUrl = useSelector(
+    (state: AppReducerState) =>
+      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
+  );
   const bearer = useSelector(
     (state: AppReducerState) => state.environment.bearer,
   );

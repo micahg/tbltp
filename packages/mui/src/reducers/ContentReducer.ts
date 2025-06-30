@@ -238,7 +238,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const tokens = action.payload as unknown as TokenInstance[];
       const hydrated: HydratedTokenInstance[] = [];
 
-      const scenes = state.scenes;
+      const scenes = [...state.scenes];
       const idx = scenes.findIndex((s) => s._id === tokens[0].scene);
       if (idx < 0) return state;
 
@@ -266,7 +266,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
 
       // update the current scene if it's the same ... initially the scene at the index
       // and the current scene may not be the same...
-      if (scenes[idx]._id == state.currentScene?._id) {
+      if (scenes[idx]._id === state.currentScene?._id) {
         const currentScene = { ...state.currentScene, tokens: hydrated };
         return { ...state, scenes: [...scenes], currentScene };
       }

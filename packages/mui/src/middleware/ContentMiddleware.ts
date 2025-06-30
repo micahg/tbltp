@@ -6,6 +6,7 @@ import { ContentReducerError } from "../reducers/ContentReducer";
 import { Scene, Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
+import { environmentApi } from "../api/environment";
 
 export interface ViewportBundle {
   backgroundSize?: Rect;
@@ -63,7 +64,8 @@ async function request<T extends OperationType>(
   basePath: string,
 ): Promise<AxiosResponse> {
   const path = inferPath(op, basePath, t);
-  const url = `${state.environment.api}/${path}`;
+  const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/${path}`;
+
   const headers = await getToken(state, store);
   let fn;
   if (op === "put") {
@@ -171,7 +173,7 @@ async function updateAssetData(
   formData.append("asset", file as Blob);
   const headers = await getToken(state, store);
   headers["Content-Type"] = "multipart/form-data";
-  const path = `${state.environment.api}/asset/${id}/data`;
+  const path = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/asset/${id}/data`;
   try {
     const resp = await axios.put(path, formData, {
       headers: headers,
@@ -195,7 +197,7 @@ function sendFile(
   progress?: (evt: LoadProgress) => void,
 ): Promise<AxiosResponse> {
   return new Promise((resolve, reject) => {
-    const url = `${state.environment.api}/scene/${scene._id}/content`;
+    const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/scene/${scene._id}/content`;
     const formData = new FormData();
     const contentType: string = isBlob(blob)
       ? blob.type
@@ -229,7 +231,7 @@ function setViewport(
   scene: Scene,
   viewport: ViewportBundle,
 ) {
-  const url = `${state.environment.api}/scene/${scene._id}/viewport`;
+  const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/scene/${scene._id}/viewport`;
   return getToken(state, store).then((headers) =>
     axios.put(url, viewport, { headers: headers }),
   );
@@ -238,14 +240,16 @@ function setViewport(
 export const ContentMiddleware: Middleware =
   (store) => (next) => async (action) => {
     const state = store.getState();
-    if (!state.environment.api) {
+    const apiUrl =
+      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api;
+    if (!apiUrl) {
       console.error("No API URL in environment state.");
       return next(action);
     }
 
     if (!state.content.mediaPrefix) {
       // I suppose when we use R2 or S3, this will be different (and likely from the environment config)
-      next({ type: "content/mediaprefix", payload: state.environment.api });
+      next({ type: "content/mediaprefix", payload: apiUrl });
     }
 
     switch (action.type) {
@@ -420,7 +424,7 @@ export const ContentMiddleware: Middleware =
         break;
       }
       case "content/createscene": {
-        const url = `${state.environment.api}/scene`;
+        const url = `${apiUrl}/scene`;
         const bundle: NewSceneBundle = action.payload;
         getToken(state, store)
           .then((headers) => axios.put(url, bundle, { headers: headers }))
