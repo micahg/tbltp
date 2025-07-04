@@ -3,12 +3,14 @@ import { AppReducer } from "./reducers/AppReducer";
 import { environmentApi } from "./api/environment";
 import { EnvironmentMiddleware } from "./middleware/EnvironmentMiddleware";
 import { ContentMiddleware } from "./middleware/ContentMiddleware";
+import { listenerMiddleware } from "./middleware/ListenerMiddleware";
 
 export const store = configureStore({
   reducer: AppReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
       environmentApi.middleware,
+      listenerMiddleware.middleware,
       EnvironmentMiddleware,
       ContentMiddleware,
     ),
