@@ -37,7 +37,8 @@ const RemoteDisplayComponent = () => {
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
   const wsUrl: string | undefined = useSelector(
-    (state: AppReducerState) => state.environment.ws,
+    (state: AppReducerState) =>
+      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.ws,
   );
   const authorized: boolean | undefined = useSelector(
     (state: AppReducerState) => state.environment.auth,

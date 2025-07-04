@@ -11,6 +11,7 @@ import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import UnavailableComponent from "./components/UnavailableComponent/UnavailableComponent";
 import { store } from "./store";
 import { environmentApi } from "./api/environment";
+import { authSlice } from "./slices/auth";
 
 const routes = [];
 routes.push({ path: "/", element: <LandingComponent />, errorElement: null });
@@ -37,8 +38,13 @@ routes.push({
 
 const router = createBrowserRouter(routes);
 
-store.dispatch({ type: "environment/config", payload: undefined });
+// store.dispatch({ type: "environment/config", payload: undefined });
+// TODO MICAH these should probably be a thunk
 store.dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
+store.dispatch(environmentApi.endpoints.getAuthenticationConfig.initiate());
+store.dispatch(authSlice.actions.setAuthenticated(false));
+// do something with auth0
+// store.dispatch(authSlice.actions.setDoAuthRenameThis(false));
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,
