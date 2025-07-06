@@ -225,7 +225,6 @@ function sendFile(
             progress?.({ progress: e.progress || 0, img: layer }),
         });
       })
-      )
       .then((value) => resolve(value))
       .catch((err) => {
         // tack on the scene
@@ -242,9 +241,9 @@ function setViewport(
   viewport: ViewportBundle,
 ) {
   const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/scene/${scene._id}/viewport`;
-  return authClientSingleton.getAuthHeaders().then((headers) =>
-    axios.put(url, viewport, { headers: headers }),
-  );
+  return authClientSingleton
+    .getAuthHeaders()
+    .then((headers) => axios.put(url, viewport, { headers: headers }));
 }
 
 export const ContentMiddleware: Middleware =
