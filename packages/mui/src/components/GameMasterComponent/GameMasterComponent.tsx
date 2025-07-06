@@ -1,4 +1,4 @@
-import React, { useEffect, useState, ReactElement, cloneElement } from "react";
+import { useEffect, useState, ReactElement, cloneElement } from "react";
 import {
   AppBar,
   AppBarProps,
@@ -105,15 +105,10 @@ const GameMasterComponent = () => {
   const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
     FocusedComponent.ContentEditor,
   );
-  // const auth = useSelector((state: AppReducerState) => state.environment.auth);
   const auth = useSelector(
     (state: AppReducerState) => state.auth.authenticated,
   );
-  // const noauth = useSelector(
-  //   (state: AppReducerState) => state.environment.noauth,
-  // );
-  const { data: noauth /*error: noauthError*/ } =
-    useGetAuthenticationDisabledQuery();
+  const { data: noauth } = useGetAuthenticationDisabledQuery();
   const authClient = useSelector(
     (state: AppReducerState) => state.environment.authClient,
   );
@@ -218,7 +213,6 @@ const GameMasterComponent = () => {
 
   useEffect(() => {
     if (!dispatch) return;
-    // if (!noauth && !authClient) return;
     if (noauth || auth) {
       dispatch({ type: "content/pull" });
       dispatch({ type: "content/scenes" });
@@ -226,9 +220,6 @@ const GameMasterComponent = () => {
       dispatch({ type: "content/assets" });
       return;
     }
-    // if (noauth) return;
-    // if (auth) return;
-    // dispatch({ type: "environment/authenticate" });
     dispatch(initializeAuth());
   }, [dispatch, noauth, auth, authClient]);
 

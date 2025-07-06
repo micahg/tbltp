@@ -7,6 +7,7 @@ import { Scene, Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 import { environmentApi } from "../api/environment";
+import { authClientSingleton } from "../utils/auth0";
 
 export interface ViewportBundle {
   backgroundSize?: Rect;
@@ -66,7 +67,18 @@ async function request<T extends OperationType>(
   const path = inferPath(op, basePath, t);
   const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/${path}`;
 
-  const headers = await getToken(state, store);
+  // const headers = await getToken(state, store);
+  const client = authClientSingleton.getClient();
+  if (!client) {
+    throw new Error(`Unable to ${op} ${basePath}`, {
+      cause: new Error("No auth client"),
+    });
+  }
+
+  const token = await client.getTokenSilently();
+  const headers = {
+    Authorization: `Bearer ${token}`,
+  };
   let fn;
   if (op === "put") {
     fn = axios[op](url, t, {

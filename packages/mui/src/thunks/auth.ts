@@ -2,6 +2,7 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import { AppReducerState } from "../reducers/AppReducer";
 import { authClientSingleton } from "../utils/auth0";
 import { environmentApi } from "../api/environment";
+import { authSlice } from "../slices/auth";
 
 interface AuthResult {
   isAuthenticated: boolean;
@@ -16,8 +17,10 @@ function removeUrlQuery() {
 export const initializeAuth = createAsyncThunk<
   AuthResult,
   void,
-  { state: AppReducerState }
->("auth/initialize", async (_, { getState, rejectWithValue }) => {
+  {
+    state: AppReducerState;
+  }
+>("auth/initialize", async (_, { getState, rejectWithValue, dispatch }) => {
   try {
     const state = getState();
 
@@ -56,7 +59,7 @@ export const initializeAuth = createAsyncThunk<
       await client.handleRedirectCallback(window.location.href);
       removeUrlQuery();
       // TODO MICAH what we want is to update the state at this point....
-      return { isAuthenticated: true };
+      // return { isAuthenticated: true };
     }
 
     // If not authenticated and no callback, initiate login
@@ -68,6 +71,7 @@ export const initializeAuth = createAsyncThunk<
 
     // Get user info if authenticated
     const user = await client.getUser();
+    dispatch(authSlice.actions.setAuthenticated(true));
     return { isAuthenticated: true, user };
   } catch (error) {
     return rejectWithValue(
