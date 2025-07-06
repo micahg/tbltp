@@ -19,7 +19,7 @@ class AuthClientSingleton {
     this.client = null;
   }
 
-  async getAuthHeaders(): Promise<{ Authorization: string }> {
+  async getAuthHeaders(): Promise<{ [key: string]: string }> {
     if (!this.client) {
       throw new Error("Auth client not initialized. Call initialize() first.");
     }
