@@ -70,7 +70,12 @@ export const initializeAuth = createAsyncThunk<
     }
 
     // Get user info if authenticated
-    const user = await client.getUser();
+    const [user, token] = await Promise.all([
+      client.getUser(),
+      client.getTokenSilently(),
+    ]);
+
+    dispatch(authSlice.actions.setToken(token));
     dispatch(authSlice.actions.setAuthenticated(true));
     return { isAuthenticated: true, user };
   } catch (error) {
@@ -87,22 +92,3 @@ export const logout = createAsyncThunk("auth0/logout", async () => {
   }
   authClientSingleton.reset();
 });
-
-export const getAccessToken = createAsyncThunk<string, void>(
-  "auth0/getAccessToken",
-  async (_, { rejectWithValue }) => {
-    try {
-      const client = authClientSingleton.getClient();
-      if (!client) {
-        throw new Error("Auth client not initialized");
-      }
-
-      const token = await client.getTokenSilently();
-      return token;
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : "Failed to get token",
-      );
-    }
-  },
-);

@@ -30,9 +30,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
 
-  const bearer = useSelector(
-    (state: AppReducerState) => state.environment.bearer,
-  );
+  const bearer = useSelector((state: AppReducerState) => state.auth.token);
   const [progress, setProgress] = useState(0);
   const [name, setName] = useState(asset.name);
   const [file, setFile] = useState<File | null>(null);

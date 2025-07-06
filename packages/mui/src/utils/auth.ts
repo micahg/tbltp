@@ -2,7 +2,6 @@
 import { Auth0Client, createAuth0Client } from "@auth0/auth0-spa-js";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import axios from "axios";
-import { AppReducerState } from "../reducers/AppReducer";
 import { AuthConfig, AuthError } from "../reducers/EnvironmentReducer";
 import { environmentApi } from "../api/environment";
 

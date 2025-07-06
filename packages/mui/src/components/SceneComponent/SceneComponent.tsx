@@ -60,9 +60,7 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
   const error = useSelector((state: AppReducerState) => state.content.err);
-  const bearer = useSelector(
-    (state: AppReducerState) => state.environment.bearer,
-  );
+  const bearer = useSelector((state: AppReducerState) => state.auth.token);
 
   const disabledCreate =
     creating || // currently already creating or updating

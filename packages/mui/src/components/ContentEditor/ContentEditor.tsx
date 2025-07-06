@@ -142,9 +142,8 @@ const ContentEditor = ({
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
-  const bearer = useSelector(
-    (state: AppReducerState) => state.environment.bearer,
-  );
+  const bearer = useSelector((state: AppReducerState) => state.auth.token);
+
   const pushTime = useSelector(
     (state: AppReducerState) => state.content.pushTime,
   );

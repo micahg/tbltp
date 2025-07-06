@@ -3,6 +3,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface AuthState {
   authenticated?: boolean;
+  token?: string;
   authenticationDisabled?: boolean;
 }
 
@@ -17,12 +18,9 @@ export const authSlice = createSlice({
     setAuthenticationDisabled(state, action: PayloadAction<boolean>) {
       state.authenticationDisabled = action.payload;
     },
-    // // THIS SHOULDN"T BE USED ANYWHERE (cept bullshit, it is and I should rename it to track the actual auth state)
-    // setDoAuthRenameThis(state, action: PayloadAction<boolean>) {
-    //   // This is a placeholder for a future action to handle authentication state
-    //   // Rename this action to something more meaningful when implemented
-    //   state.authenticated = action.payload;
-    // },
+    setToken(state, action: PayloadAction<string>) {
+      state.token = action.payload;
+    },
   },
 });
 
