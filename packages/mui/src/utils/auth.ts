@@ -120,6 +120,7 @@ export function getAuthState(client: Auth0Client): Promise<AuthState> {
   });
 }
 
+// TODO MICAH delete this and refactor all instances
 /**
  * Step 4 - profit!
  * @param client

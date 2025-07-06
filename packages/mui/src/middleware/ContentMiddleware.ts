@@ -67,18 +67,14 @@ async function request<T extends OperationType>(
   const path = inferPath(op, basePath, t);
   const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/${path}`;
 
-  // const headers = await getToken(state, store);
-  const client = authClientSingleton.getClient();
-  if (!client) {
+  let headers;
+  try {
+    headers = await authClientSingleton.getAuthHeaders();
+  } catch (error) {
     throw new Error(`Unable to ${op} ${basePath}`, {
-      cause: new Error("No auth client"),
+      cause: error,
     });
   }
-
-  const token = await client.getTokenSilently();
-  const headers = {
-    Authorization: `Bearer ${token}`,
-  };
   let fn;
   if (op === "put") {
     fn = axios[op](url, t, {

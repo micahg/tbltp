@@ -18,6 +18,21 @@ class AuthClientSingleton {
   reset() {
     this.client = null;
   }
+
+  async getAuthHeaders(): Promise<{ Authorization: string }> {
+    if (!this.client) {
+      throw new Error("Auth client not initialized. Call initialize() first.");
+    }
+
+    try {
+      const token = await this.client.getTokenSilently();
+      return { Authorization: `Bearer ${token}` };
+    } catch (error) {
+      throw new Error(
+        `Failed to get auth token: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
 }
 
 export const authClientSingleton = new AuthClientSingleton();
