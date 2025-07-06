@@ -109,9 +109,6 @@ const GameMasterComponent = () => {
     (state: AppReducerState) => state.auth.authenticated,
   );
   const { data: noauth } = useGetAuthenticationDisabledQuery();
-  const authClient = useSelector(
-    (state: AppReducerState) => state.environment.authClient,
-  );
   const scenes = useSelector((state: AppReducerState) => state.content.scenes);
   const currentScene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
@@ -221,7 +218,7 @@ const GameMasterComponent = () => {
       return;
     }
     dispatch(initializeAuth());
-  }, [dispatch, noauth, auth, authClient]);
+  }, [dispatch, noauth, auth]);
 
   useEffect(() => {
     if (scenes.length === sceneCount) return;
