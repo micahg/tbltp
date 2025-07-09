@@ -7,7 +7,7 @@ import {
 } from "@reduxjs/toolkit/query/react";
 import { environmentApi } from "./environment";
 import { AppReducerState } from "../reducers/AppReducer";
-// import { authClientSingleton } from "../utils/auth0";
+import { authSlice } from "../slices/auth";
 
 const customBaseQuery: BaseQueryFn<
   string | FetchArgs,
@@ -38,6 +38,12 @@ type Auth0DeviceCode = {
   expires_in: number;
   interval: number;
   verification_uri_complete: string;
+};
+
+type Auth0DeviceCodeResponse = {
+  access_token: string;
+  expires_in: number;
+  token_type: string;
 };
 
 // TODO we could move the call to authSlice.actions.setToken(token) here.
@@ -86,17 +92,52 @@ export const auth0Api = createApi({
         // return result;
       },
     }),
-    pollDeviceCode: builder.mutation({
-      query: (data) => ({
-        url: "/device/token",
-        method: "POST",
-        body: data,
-      }),
+    pollDeviceCode: builder.query<Auth0DeviceCodeResponse, string>({
+      queryFn: async (deviceCode, api, _extraOptions, baseQuery) => {
+        const state = api.getState() as AppReducerState;
+
+        // Pull parameters from state
+        const authConfig =
+          environmentApi.endpoints.getAuthenticationConfig.select()(
+            state,
+          )?.data;
+
+        if (!authConfig) {
+          return {
+            error: {
+              status: "CUSTOM_ERROR",
+              error: "No authentication configuration available",
+            } as FetchBaseQueryError,
+          };
+        }
+
+        const result = await baseQuery({
+          url: "/oauth/token",
+          method: "POST",
+          body: new URLSearchParams({
+            grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+            device_code: deviceCode,
+            client_id: authConfig.clientId,
+          }),
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        });
+
+        if (result.data) {
+          const data = result.data as Auth0DeviceCodeResponse;
+          api.dispatch(authSlice.actions.setToken(data.access_token));
+          api.dispatch(authSlice.actions.setAuthenticated(true));
+          return { data, meta: result.meta };
+        }
+
+        return { error: result.error as FetchBaseQueryError };
+      },
     }),
   }),
 });
 
-export const { useGetDeviceCodeQuery, usePollDeviceCodeMutation } = auth0Api;
+export const { useGetDeviceCodeQuery, useLazyPollDeviceCodeQuery } = auth0Api;
 
 // can i use the auth0Singleton.client to get the device code? probably!
 // queryFn(_arg, api /*extraOptions, baseQuery*/) {

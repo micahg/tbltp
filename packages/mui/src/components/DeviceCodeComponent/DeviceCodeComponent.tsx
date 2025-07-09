@@ -1,7 +1,10 @@
 import { createRef, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { useGetDeviceCodeQuery } from "../../api/auth0";
+import {
+  useGetDeviceCodeQuery,
+  useLazyPollDeviceCodeQuery,
+} from "../../api/auth0";
 import { useNavigate } from "react-router-dom";
 import { Box, Paper, Typography } from "@mui/material";
 import * as QRCode from "qrcode";
@@ -17,12 +20,13 @@ const DeviceCodeComponent = () => {
   const [expired, setExpired] = useState<boolean>(false);
 
   const { data: deviceCode } = useGetDeviceCodeQuery();
+  const [pollDeviceCode] = useLazyPollDeviceCodeQuery();
 
   const qrCanvasRef = createRef<HTMLCanvasElement>();
 
-  useEffect(() => {
-    dispatch({ type: "environment/devicecode" });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // useEffect(() => {
+  //   dispatch({ type: "environment/devicecode" });
+  // }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Loop around polling for the token (waiting for the device code to be entered)
@@ -32,7 +36,8 @@ const DeviceCodeComponent = () => {
 
     // periodically trigger polling for the auth
     const intervalId: NodeJS.Timer = setInterval(
-      () => dispatch({ type: "environment/devicecodepoll" }),
+      // () => dispatch({ type: "environment/devicecodepoll" }),
+      () => pollDeviceCode(deviceCode.device_code),
       1000 * deviceCode?.interval,
     );
 
@@ -47,7 +52,7 @@ const DeviceCodeComponent = () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-  }, [deviceCode, dispatch]);
+  }, [deviceCode, dispatch, pollDeviceCode]);
 
   /**
    * Once we're authorized head on back
