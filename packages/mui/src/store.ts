@@ -3,11 +3,13 @@ import { AppReducer } from "./reducers/AppReducer";
 import { environmentApi } from "./api/environment";
 import { EnvironmentMiddleware } from "./middleware/EnvironmentMiddleware";
 import { ContentMiddleware } from "./middleware/ContentMiddleware";
+import { auth0Api } from "./api/auth0";
 
 export const store = configureStore({
   reducer: AppReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
+      auth0Api.middleware,
       environmentApi.middleware,
       EnvironmentMiddleware,
       ContentMiddleware,

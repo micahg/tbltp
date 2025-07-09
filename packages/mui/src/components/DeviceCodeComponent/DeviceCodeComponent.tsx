@@ -1,6 +1,7 @@
 import { createRef, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
+import { useGetDeviceCodeQuery } from "../../api/auth0";
 import { useNavigate } from "react-router-dom";
 import { Box, Paper, Typography } from "@mui/material";
 import * as QRCode from "qrcode";
@@ -9,26 +10,13 @@ const DeviceCodeComponent = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const deviceCode = useSelector(
-    (state: AppReducerState) => state.environment.deviceCode,
-  );
   const authorized = useSelector(
-    (state: AppReducerState) => state.environment.auth,
-  );
-  // note, the next two can be dubious -- deviceCode is called twice in strict mode, which means the overall
-  // object changes -- we rely on the fact that the polling/expiration values dont change.
-  const deviceCodeInterval = useSelector(
-    (state: AppReducerState) => state.environment.deviceCode?.interval,
-  );
-  const deviceCodeExpiry = useSelector(
-    (state: AppReducerState) => state.environment.deviceCode?.expires_in,
-  );
-  const deviceCodeFullUrl = useSelector(
-    (state: AppReducerState) =>
-      state.environment.deviceCode?.verification_uri_complete,
+    (state: AppReducerState) => state.auth.authenticated,
   );
 
   const [expired, setExpired] = useState<boolean>(false);
+
+  const { data: deviceCode } = useGetDeviceCodeQuery();
 
   const qrCanvasRef = createRef<HTMLCanvasElement>();
 
@@ -40,26 +28,26 @@ const DeviceCodeComponent = () => {
    * Loop around polling for the token (waiting for the device code to be entered)
    */
   useEffect(() => {
-    if (!deviceCodeInterval || !deviceCodeExpiry) return;
+    if (!deviceCode) return;
 
     // periodically trigger polling for the auth
     const intervalId: NodeJS.Timer = setInterval(
       () => dispatch({ type: "environment/devicecodepoll" }),
-      1000 * deviceCodeInterval,
+      1000 * deviceCode?.interval,
     );
 
     // eventually give up on polling
     const timeoutId: NodeJS.Timer = setTimeout(() => {
       setExpired(true);
       clearInterval(intervalId);
-    }, 1000 * deviceCodeExpiry);
+    }, 1000 * deviceCode.expires_in);
 
     // cancel timers when we're destroyed
     return () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-  }, [deviceCodeInterval, deviceCodeExpiry, dispatch]);
+  }, [deviceCode, dispatch]);
 
   /**
    * Once we're authorized head on back
@@ -74,7 +62,7 @@ const DeviceCodeComponent = () => {
    */
   useEffect(() => {
     if (!qrCanvasRef.current) return;
-    if (!deviceCodeFullUrl) return;
+    if (!deviceCode) return;
 
     const canvas: HTMLCanvasElement = qrCanvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -88,14 +76,14 @@ const DeviceCodeComponent = () => {
 
     QRCode.toCanvas(
       canvas,
-      deviceCodeFullUrl,
+      deviceCode.verification_uri_complete,
       { errorCorrectionLevel: "H", width: size },
       (err) => {
         if (err)
           console.error(`Unable to render QR code: ${JSON.stringify(err)}`);
       },
     );
-  }, [deviceCodeFullUrl, qrCanvasRef]);
+  }, [deviceCode, qrCanvasRef]);
 
   return (
     <Box sx={{ padding: "1em" }}>
@@ -140,7 +128,9 @@ const DeviceCodeComponent = () => {
             <br />
             ... or scan ...
             <br />
-            <canvas ref={qrCanvasRef} />
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+              <canvas ref={qrCanvasRef} />
+            </Box>
           </Typography>
         )}
       </Paper>

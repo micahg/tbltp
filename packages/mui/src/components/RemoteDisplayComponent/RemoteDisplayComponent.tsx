@@ -41,10 +41,10 @@ const RemoteDisplayComponent = () => {
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.ws,
   );
   const authorized: boolean | undefined = useSelector(
-    (state: AppReducerState) => state.environment.auth,
+    (state: AppReducerState) => state.auth.authenticated,
   );
   const noauth: boolean = useSelector(
-    (state: AppReducerState) => state.environment.noauth,
+    (state: AppReducerState) => state.auth.authenticationDisabled,
   );
   const token: string | undefined = useSelector(
     (state: AppReducerState) => state.environment.deviceCodeToken,
