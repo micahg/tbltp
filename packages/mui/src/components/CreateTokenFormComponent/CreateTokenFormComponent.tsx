@@ -62,9 +62,7 @@ const CreateTokenFormComponent = ({
   const mediaPrefix = useSelector(
     (state: AppReducerState) => state.content.mediaPrefix,
   );
-  const bearer = useSelector(
-    (state: AppReducerState) => state.environment.bearer,
-  );
+  const bearer = useSelector((state: AppReducerState) => state.auth.token);
 
   const [file, setFile] = useState<File | undefined>(undefined);
   const [imgUrl, setImgUrl] = useState<string>(`/x.webp`);

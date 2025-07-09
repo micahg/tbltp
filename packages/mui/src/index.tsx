@@ -10,7 +10,7 @@ import DeviceCodeComponent from "./components/DeviceCodeComponent/DeviceCodeComp
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import UnavailableComponent from "./components/UnavailableComponent/UnavailableComponent";
 import { store } from "./store";
-import { environmentApi } from "./api/environment";
+import { initializeEnvironment } from "./thunks/environment";
 
 const routes = [];
 routes.push({ path: "/", element: <LandingComponent />, errorElement: null });
@@ -37,8 +37,7 @@ routes.push({
 
 const router = createBrowserRouter(routes);
 
-store.dispatch({ type: "environment/config", payload: undefined });
-store.dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
+store.dispatch(initializeEnvironment());
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,

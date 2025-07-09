@@ -1,4 +1,4 @@
-import React, { useEffect, useState, ReactElement, cloneElement } from "react";
+import { useEffect, useState, ReactElement, cloneElement } from "react";
 import {
   AppBar,
   AppBarProps,
@@ -26,6 +26,9 @@ import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
 import NavigationDrawerComponent from "../NavigationDrawerComponent/NavigationDrawerComponent.lazy";
 import TokensComponent from "../TokensComponent/TokensComponent.lazy";
 import { Scene } from "@micahg/tbltp-common";
+import { initializeAuth } from "../../thunks/auth";
+import { AppDispatch } from "../../store";
+import { useGetAuthenticationDisabledQuery } from "../../api/environment";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -89,7 +92,7 @@ const DrawerHeader = styled("div")(({ theme }) => ({
 
 const GameMasterComponent = () => {
   const theme = useTheme();
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const [navOpen, setNavOpen] = useState<boolean>(false);
   const [infoOpen, setInfoOpen] = useState<boolean>(false);
   const [infoComponent, setInfoComponent] = useState<ReactElement | null>(null);
@@ -102,13 +105,10 @@ const GameMasterComponent = () => {
   const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
     FocusedComponent.ContentEditor,
   );
-  const auth = useSelector((state: AppReducerState) => state.environment.auth);
-  const noauth = useSelector(
-    (state: AppReducerState) => state.environment.noauth,
+  const auth = useSelector(
+    (state: AppReducerState) => state.auth.authenticated,
   );
-  const authClient = useSelector(
-    (state: AppReducerState) => state.environment.authClient,
-  );
+  const { data: noauth } = useGetAuthenticationDisabledQuery();
   const scenes = useSelector((state: AppReducerState) => state.content.scenes);
   const currentScene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
@@ -210,7 +210,6 @@ const GameMasterComponent = () => {
 
   useEffect(() => {
     if (!dispatch) return;
-    if (!noauth && !authClient) return;
     if (noauth || auth) {
       dispatch({ type: "content/pull" });
       dispatch({ type: "content/scenes" });
@@ -218,10 +217,8 @@ const GameMasterComponent = () => {
       dispatch({ type: "content/assets" });
       return;
     }
-    // if (noauth) return;
-    // if (auth) return;
-    dispatch({ type: "environment/authenticate" });
-  }, [dispatch, noauth, auth, authClient]);
+    dispatch(initializeAuth());
+  }, [dispatch, noauth, auth]);
 
   useEffect(() => {
     if (scenes.length === sceneCount) return;

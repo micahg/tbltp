@@ -1,7 +1,7 @@
+// TODO DELETE THIS
 import { Auth0Client, createAuth0Client } from "@auth0/auth0-spa-js";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import axios from "axios";
-import { AppReducerState } from "../reducers/AppReducer";
 import { AuthConfig, AuthError } from "../reducers/EnvironmentReducer";
 import { environmentApi } from "../api/environment";
 
@@ -117,37 +117,6 @@ export function getAuthState(client: Auth0Client): Promise<AuthState> {
         .catch((reason) => reject(reason));
     });
   });
-}
-
-/**
- * Step 4 - profit!
- * @param client
- * @returns
- */
-export async function getToken(
-  state: AppReducerState,
-  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  headers?: { [key: string]: string },
-): Promise<{ [key: string]: string }> {
-  const res = headers || {};
-
-  if (state.environment.noauth) {
-    const value = "NOAUTH";
-    res["Authorization"] = `Bearer ${value}`;
-    store.dispatch({ type: "environment/bearer", payload: value });
-    return res;
-  }
-
-  const client = state.environment.authClient;
-
-  if (!client) throw new Error("No auth0 client");
-
-  const newToken = await client.getTokenSilently();
-  if (state.environment.bearer !== newToken) {
-    store.dispatch({ type: "environment/bearer", payload: newToken });
-  }
-  res["Authorization"] = `Bearer ${newToken}`;
-  return res;
 }
 
 export function getDeviceCode(data: AuthConfig) {

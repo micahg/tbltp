@@ -32,9 +32,7 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
   const mediaPrefix = useSelector(
     (state: AppReducerState) => state.content.mediaPrefix,
   );
-  const bearer = useSelector(
-    (state: AppReducerState) => state.environment.bearer,
-  );
+  const bearer = useSelector((state: AppReducerState) => state.auth.token);
   const [searchValue, setSearchValue] = useState("");
 
   useEffect(() => {

@@ -1,12 +1,12 @@
 import { Middleware } from "redux";
 import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
-import { getToken } from "../utils/auth";
 import { ContentReducerError } from "../reducers/ContentReducer";
 import { Scene, Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 import { environmentApi } from "../api/environment";
+import { authClientSingleton } from "../utils/auth0";
 
 export interface ViewportBundle {
   backgroundSize?: Rect;
@@ -66,7 +66,14 @@ async function request<T extends OperationType>(
   const path = inferPath(op, basePath, t);
   const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/${path}`;
 
-  const headers = await getToken(state, store);
+  let headers;
+  try {
+    headers = await authClientSingleton.getAuthHeaders();
+  } catch (error) {
+    throw new Error(`Unable to ${op} ${basePath}`, {
+      cause: error,
+    });
+  }
   let fn;
   if (op === "put") {
     fn = axios[op](url, t, {
@@ -171,10 +178,10 @@ async function updateAssetData(
   const { id, file, progress } = action.payload;
   const formData = new FormData();
   formData.append("asset", file as Blob);
-  const headers = await getToken(state, store);
-  headers["Content-Type"] = "multipart/form-data";
   const path = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/asset/${id}/data`;
   try {
+    const headers = await authClientSingleton.getAuthHeaders();
+    headers["Content-Type"] = "multipart/form-data";
     const resp = await axios.put(path, formData, {
       headers: headers,
       onUploadProgress: (e) =>
@@ -208,14 +215,16 @@ function sendFile(
     formData.append("layer", layer);
     formData.append("image", content);
 
-    getToken(state, store, { "Content-Type": contentType })
-      .then((headers) =>
+    authClientSingleton
+      .getAuthHeaders()
+      .then((headers) => {
+        headers["Content-Type"] = contentType;
         axios.put(url, formData, {
           headers: headers,
           onUploadProgress: (e) =>
             progress?.({ progress: e.progress || 0, img: layer }),
-        }),
-      )
+        });
+      })
       .then((value) => resolve(value))
       .catch((err) => {
         // tack on the scene
@@ -232,9 +241,9 @@ function setViewport(
   viewport: ViewportBundle,
 ) {
   const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/scene/${scene._id}/viewport`;
-  return getToken(state, store).then((headers) =>
-    axios.put(url, viewport, { headers: headers }),
-  );
+  return authClientSingleton
+    .getAuthHeaders()
+    .then((headers) => axios.put(url, viewport, { headers: headers }));
 }
 
 export const ContentMiddleware: Middleware =
@@ -426,7 +435,8 @@ export const ContentMiddleware: Middleware =
       case "content/createscene": {
         const url = `${apiUrl}/scene`;
         const bundle: NewSceneBundle = action.payload;
-        getToken(state, store)
+        authClientSingleton
+          .getAuthHeaders()
           .then((headers) => axios.put(url, bundle, { headers: headers }))
           .then((data) => {
             trackRateLimit(next, data);
