@@ -43,11 +43,11 @@ const RemoteDisplayComponent = () => {
   const authorized: boolean | undefined = useSelector(
     (state: AppReducerState) => state.auth.authenticated,
   );
-  const noauth: boolean = useSelector(
+  const noauth: boolean | undefined = useSelector(
     (state: AppReducerState) => state.auth.authenticationDisabled,
   );
   const token: string | undefined = useSelector(
-    (state: AppReducerState) => state.environment.deviceCodeToken,
+    (state: AppReducerState) => state.auth.token,
   );
 
   const mediaPrefix = useSelector(
