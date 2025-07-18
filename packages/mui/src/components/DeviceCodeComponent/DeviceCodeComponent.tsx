@@ -24,10 +24,6 @@ const DeviceCodeComponent = () => {
 
   const qrCanvasRef = createRef<HTMLCanvasElement>();
 
-  // useEffect(() => {
-  //   dispatch({ type: "environment/devicecode" });
-  // }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   /**
    * Loop around polling for the token (waiting for the device code to be entered)
    */

@@ -66,23 +66,6 @@ export const EnvironmentReducer = (
   action: PayloadAction,
 ) => {
   switch (action.type) {
-    case "environment/config": {
-      if (action.payload != null && "data" in action.payload) {
-        if (
-          "API_URL" in action.payload["data"] &&
-          "WS_URL" in action.payload["data"]
-        ) {
-          return {
-            ...state,
-            api: action.payload["data"]["API_URL"],
-            ws: action.payload["data"]["WS_URL"],
-          };
-        } else {
-          console.error(`environment/config payload missing API_URL or WS_URL`);
-        }
-      }
-      return state;
-    }
     case "environment/authstarted": {
       if (action.payload === null || action.payload === undefined) return state;
       const started: boolean = action.payload as unknown as boolean;
@@ -98,11 +81,6 @@ export const EnvironmentReducer = (
         authConfig: authState.config,
       };
     }
-    case "environment/authenticate": {
-      if (action.payload === null || action.payload === undefined) return state;
-      const authState: AuthState = action.payload as unknown as AuthState;
-      return { ...state, auth: authState.auth, noauth: authState.noauth };
-    }
     case "environment/authfailure": {
       const err = action.payload as unknown as AuthError;
       return { ...state, auth: false, authErr: err };
@@ -111,9 +89,6 @@ export const EnvironmentReducer = (
       if (action.payload === null || action.payload === undefined) return state;
       const client: Auth0Client = action.payload as unknown as Auth0Client;
       return { ...state, authClient: client };
-    }
-    case "environment/devicecode": {
-      return { ...state, deviceCode: action.payload };
     }
     case "environment/devicecodepoll": {
       if (action.payload === undefined || action.payload === null) return state;

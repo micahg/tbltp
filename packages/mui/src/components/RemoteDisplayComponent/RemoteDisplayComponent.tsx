@@ -219,7 +219,6 @@ const RemoteDisplayComponent = () => {
     // retry
     if (authorized === undefined) {
       const timer = setInterval(() => {
-        dispatch({ type: "environment/config", payload: undefined });
         dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
       }, 5000);
       setAuthTimer(timer);
