@@ -5,7 +5,6 @@ import {
   FetchArgs,
   fetchBaseQuery,
   FetchBaseQueryError,
-  //   type BaseQueryFn,
 } from "@reduxjs/toolkit/query/react";
 import { AppReducerState } from "../reducers/AppReducer";
 
@@ -14,50 +13,6 @@ type EnvironmentConfig = {
   ws: string;
 };
 
-/**
- * Right now this is missing the following data (that probably should go elsewhere):
- *
- * - auth: true if we are authenticated:
- *    - undefined to start
- *    - false after config is pulled
- *    - true once authorized.
- * - noauth: true if authentication is explicitly disabled.
- *
- * Once the state settles (auth, noauth, auth0 config), we setup the Auth0Client,
- * which we configure and store as state (see "environment/authclient").
- *
- * Then, with a real value in `auth`, we can start the authentication flow.
- *
- * - RemoteDisplayComponent will navigates to /device, which calls "environment/devicecode"
- *   and then starts polling for authentication to finish.
- * - GameMasterComponent will navigate to /edit, which calls "environment/authenticate"
- *   and then starts polling for authentication to finish.
- *
- * With the client in place, and calls into the middleware from components, we perform the
- * redirects/auth flow using the auth0 client, and eventually, configure the client with the
- * state (pulled from the URL) so we can get a token.
- *
- * The important bit is in that getAuthState call - it runs after we pull environment config.
- * If we are on a fresh load, it redirects to the auth flow. If we are coming back from a
- * redirect, it initializes the client with the state from the URL.
- *
- * And this is the redux problem ... its nice to have the client in state, ready for use whenever,
- * but redux wont accept a non-serializable value in state. What are we to do?
- *
- * What is a better design? A new middleware/reducer authentication? This feels like a good
- * use of a slice and a utility lib. Maybe the utility lib can singleton the client and our
- * state can just track the actual state.
- *
- *
- *
- * STEPS:
- * - slice that just contains noauth/auth/whatever other state we need
- * - refactor GameMasterComponent to use slice for auth state
- * - comment out the call to "environment/config" from index.tsx (so we know we're doing the auth)
- * - start building out the auth flow... seems like thunk makes most sense.
- * - repeat for RemoteDisplayComponent
- *
- */
 type AuthConfig = {
   domain: string;
   clientId: string;
