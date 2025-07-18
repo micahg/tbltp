@@ -8,6 +8,7 @@ import {
 import { environmentApi } from "./environment";
 import { AppReducerState } from "../reducers/AppReducer";
 import { authSlice } from "../slices/auth";
+import { authClientSingleton } from "../utils/auth0";
 
 const customBaseQuery: BaseQueryFn<
   string | FetchArgs,
@@ -54,6 +55,19 @@ export const auth0Api = createApi({
   reducerPath: "auth0Api",
   baseQuery: customBaseQuery,
   endpoints: (builder) => ({
+    logout: builder.query<void, void>({
+      queryFn: async () => {
+        const client = authClientSingleton.getClient();
+        if (client) {
+          const logoutParams = { returnTo: window.location.origin };
+          await client.logout({ logoutParams });
+        }
+
+        // anything you do to the state here might end up cancelling the redirect
+        // so just return
+        return { data: undefined };
+      },
+    }),
     getDeviceCode: builder.query<Auth0DeviceCode, void>({
       queryFn: async (_arg, api, _extraOptions, baseQuery) => {
         const state = api.getState() as AppReducerState;
@@ -137,47 +151,8 @@ export const auth0Api = createApi({
   }),
 });
 
-export const { useGetDeviceCodeQuery, useLazyPollDeviceCodeQuery } = auth0Api;
-
-// can i use the auth0Singleton.client to get the device code? probably!
-// queryFn(_arg, api /*extraOptions, baseQuery*/) {
-//   const state = api.getState() as AppReducerState;
-
-//   // Pull parameters from state
-//   const authConfig =
-//     environmentApi.endpoints.getAuthenticationConfig.select()(
-//       state,
-//     )?.data;
-
-//   if (!authConfig) {
-//     return {
-//       error: {
-//         status: "CUSTOM_ERROR",
-//         error: "No authentication configuration available",
-//       } as FetchBaseQueryError,
-//     };
-//   }
-
-//   const client = authClientSingleton.getClient();
-//   if (!client) {
-//     return {
-//       error: {
-//         status: "CUSTOM_ERROR",
-//         error: "Auth client not initialized",
-//       } as FetchBaseQueryError,
-//     };
-//   }
-
-//   // client.
-//   return { data: "there" };
-
-//   // const params: URLSearchParams = new URLSearchParams({
-//   //   client_id: data.clientId,
-//   //   audience: data.authorizationParams.audience,
-//   // });
-//   // return {
-//   //   url: "/oauth/device/code",
-//   //   method: "POST",
-//   //   body: data,
-//   // };
-// },
+export const {
+  useGetDeviceCodeQuery,
+  useLazyPollDeviceCodeQuery,
+  useLazyLogoutQuery,
+} = auth0Api;
