@@ -1,5 +1,4 @@
 import { PayloadAction } from "@reduxjs/toolkit";
-import { AuthState } from "../utils/auth";
 import { Auth0Client } from "@auth0/auth0-spa-js";
 
 export interface AuthConfig {
@@ -70,16 +69,6 @@ export const EnvironmentReducer = (
       if (action.payload === null || action.payload === undefined) return state;
       const started: boolean = action.payload as unknown as boolean;
       return { ...state, authStarted: started };
-    }
-    case "environment/authconfig": {
-      if (action.payload === null || action.payload === undefined) return state;
-      const authState: AuthState = action.payload as unknown as AuthState;
-      return {
-        ...state,
-        auth: authState.auth,
-        noauth: authState.noauth,
-        authConfig: authState.config,
-      };
     }
     case "environment/authfailure": {
       const err = action.payload as unknown as AuthError;
