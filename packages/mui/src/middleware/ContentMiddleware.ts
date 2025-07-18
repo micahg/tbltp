@@ -7,6 +7,7 @@ import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 import { environmentApi } from "../api/environment";
 import { authClientSingleton } from "../utils/auth0";
+import { setRateLimit } from "../slices/environment";
 
 export interface ViewportBundle {
   backgroundSize?: Rect;
@@ -93,10 +94,9 @@ function trackRateLimit(next: Dispatch<AnyAction>, resp: AxiosResponse) {
   const limit = resp.headers["ratelimit-limit"];
   const remaining = resp.headers["ratelimit-remaining"];
   if (limit === undefined || remaining === undefined) return;
-  next({
-    type: "environment/ratelimit",
-    payload: { limit, remaining },
-  });
+  next(
+    setRateLimit({ limit: parseInt(limit), remaining: parseInt(remaining) }),
+  );
 }
 
 function handleError(
