@@ -231,7 +231,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
 
       idx = state.scenes.findIndex((s) => s._id === instance.scene);
       const scenes = [...state.scenes];
-      scenes[idx].tokens = tokens;
+      scenes[idx] = { ...scenes[idx], tokens: tokens };
       return { ...state, currentScene, scenes };
     }
     case "content/scenetokens": {
@@ -268,10 +268,10 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       // and the current scene may not be the same...
       if (scenes[idx]._id === state.currentScene?._id) {
         const currentScene = { ...state.currentScene, tokens: hydrated };
-        return { ...state, scenes: [...scenes], currentScene };
+        return { ...state, scenes, currentScene };
       }
 
-      return { ...state, scenes: [...scenes] };
+      return { ...state, scenes };
     }
     case "content/error": {
       // important to let undefined through. This will clear the error
