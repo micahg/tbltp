@@ -15,6 +15,7 @@ import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionC
 import { LoadProgress, loadImage } from "../../utils/content";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import { Scene } from "@micahg/tbltp-common";
+import { environmentApi } from "../../api/environment";
 
 // TODO move to a shared file
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
@@ -54,7 +55,10 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   const [nameError, setNameError] = useState<string>();
   const [playerProgress, setPlayerProgress] = useState<number>(0);
   const [detailProgress, setDetailProgress] = useState<number>(0);
-  const apiUrl = useSelector((state: AppReducerState) => state.environment.api);
+  const apiUrl = useSelector(
+    (state: AppReducerState) =>
+      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
+  );
   const error = useSelector((state: AppReducerState) => state.content.err);
   const bearer = useSelector(
     (state: AppReducerState) => state.environment.bearer,
