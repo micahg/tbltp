@@ -61,7 +61,7 @@
     "@opentelemetry/instrumentation-lru-memoizer": "^0.44.0",
     "@opentelemetry/resources": "^1.30.0",
     "@opentelemetry/sdk-metrics": "^1.30.0",
-    "@opentelemetry/sdk-node": "^0.57.0",
+    "@opentelemetry/sdk-node": "^0.210.0",
     "@opentelemetry/semantic-conventions": "^1.28.0",
     "@opentelemetry/winston-transport": "^0.10.0",
     "body-parser": "^1.20.3",
