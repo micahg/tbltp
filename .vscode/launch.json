@@ -10,7 +10,6 @@
       "name": "Run (Chrome)",
       "url": "http://localhost:4200",
       "webRoot": "${workspaceFolder}/packages/mui",
-      "userDataDir": false
     },
     {
       "name": "Build UI",

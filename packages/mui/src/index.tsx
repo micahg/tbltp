@@ -37,8 +37,8 @@ routes.push({
 
 const router = createBrowserRouter(routes);
 
-store.dispatch({ type: "environment/config", payload: undefined });
 store.dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
+store.dispatch({ type: "environment/config", payload: undefined });
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,

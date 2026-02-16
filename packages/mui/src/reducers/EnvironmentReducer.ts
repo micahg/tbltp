@@ -27,8 +27,6 @@ export interface DeviceCode {
 }
 
 export type EnvironmentReducerState = {
-  readonly api: string | undefined;
-  readonly ws: string | undefined;
   readonly noauth: boolean; // is authorization disabled
   /**
    * Indicates if auth was attempted. This is here because of react strict mode
@@ -53,8 +51,6 @@ export type EnvironmentReducerState = {
 };
 
 const initialState: EnvironmentReducerState = {
-  api: undefined,
-  ws: undefined,
   noauth: false,
   authStarted: false,
   ratelimitRemaining: -1,
@@ -67,23 +63,6 @@ export const EnvironmentReducer = (
   action: PayloadAction,
 ) => {
   switch (action.type) {
-    case "environment/config": {
-      if (action.payload != null && "data" in action.payload) {
-        if (
-          "API_URL" in action.payload["data"] &&
-          "WS_URL" in action.payload["data"]
-        ) {
-          return {
-            ...state,
-            api: action.payload["data"]["API_URL"],
-            ws: action.payload["data"]["WS_URL"],
-          };
-        } else {
-          console.error(`environment/config payload missing API_URL or WS_URL`);
-        }
-      }
-      return state;
-    }
     case "environment/authstarted": {
       if (action.payload === null || action.payload === undefined) return state;
       const started: boolean = action.payload as unknown as boolean;

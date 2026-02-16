@@ -38,16 +38,16 @@ export const environmentApi = createApi({
         // protocol/host/port as the base (for the combined docker image)
         const infApiUrl = `${window.location.protocol}//${window.location.hostname}:${apiPort}`;
         const infWSUrl = `ws://${window.location.hostname}:${apiPort}`;
-        const localhost = window.location.hostname !== "localhost";
+        const isNonLocalhost = window.location.hostname !== "localhost";
 
         cfg.api =
-          response.API_URL === "http://localhost:3000" && !localhost
+          response.API_URL === "http://localhost:3000" && isNonLocalhost
             ? (cfg.api = infApiUrl)
             : response.API_URL;
 
         // same goes for webservices - as above so below
         cfg.ws =
-          response.WS_URL === "ws://localhost:3000/" && !localhost
+          response.WS_URL === "ws://localhost:3000/" && isNonLocalhost
             ? (cfg.ws = infWSUrl)
             : response.WS_URL;
 
