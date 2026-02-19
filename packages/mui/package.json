@@ -8,6 +8,7 @@
     "registry": "https://npm.pkg.github.com/@micahg"
   },
   "dependencies": {
+    "@auth0/auth0-react": "^2.15.0",
     "@auth0/auth0-spa-js": "^2.1.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
