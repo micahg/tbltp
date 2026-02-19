@@ -257,6 +257,7 @@ const ContentEditor = ({
    */
   const handleWorkerMessage = useCallback(
     (evt: MessageEvent<unknown>) => {
+      console.log(evt);
       if (!scene?._id) return;
       if (!evt.data || typeof evt.data !== "object") return;
       if (!("cmd" in evt.data)) return;
@@ -1024,6 +1025,7 @@ const ContentEditor = ({
       )}
       {scene?.playerContent && (
         <Box>
+          <p>{JSON.stringify(scene)}</p>
           <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>
             Sorry, your browser does not support canvas.
           </canvas>

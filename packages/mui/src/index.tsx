@@ -8,6 +8,7 @@ import LandingComponent from "./components/LandingComponent/LandingComponent.laz
 import RemoteDisplayComponent from "./components/RemoteDisplayComponent/RemoteDisplayComponent.lazy";
 import GameMasterComponent from "./components/GameMasterComponent/GameMasterComponent.lazy";
 import DeviceCodeComponent from "./components/DeviceCodeComponent/DeviceCodeComponent.lazy";
+import AuthTokenBridge from "./components/AuthTokenBridge/AuthTokenBridge";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import UnavailableComponent from "./components/UnavailableComponent/UnavailableComponent";
 import { store } from "./store";
@@ -36,6 +37,7 @@ const AuthenticatedGameMasterComponent = () => {
       clientId={authConfig.clientId}
       authorizationParams={authConfig.authorizationParams}
     >
+      <AuthTokenBridge />
       <GameMasterComponent />
     </Auth0Provider>
   );

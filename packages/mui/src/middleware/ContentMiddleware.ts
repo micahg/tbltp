@@ -1,7 +1,7 @@
 import { Middleware } from "redux";
 import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
-import { getToken } from "../utils/auth";
+import { getAuthHeaders } from "../utils/authBridge";
 import { ContentReducerError } from "../reducers/ContentReducer";
 import { Scene, Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
@@ -50,6 +50,19 @@ const FriendlyOperation: { [key in Operation]: string | undefined } = {
   delete: "Deletion successful",
 };
 
+async function resolveHeaders(
+  state: AppReducerState,
+  headers: { [key: string]: string } = {},
+): Promise<{ [key: string]: string }> {
+  if (state.environment.noauth) {
+    return {
+      ...headers,
+      Authorization: "Bearer NOAUTH",
+    };
+  }
+  return getAuthHeaders(headers);
+}
+
 function inferPath(op: Operation, path: string, t: OperationType): string {
   // no id for get, put expects an id in the body (or its a new entity)
   return op === "delete" && t !== undefined && "_id" in t
@@ -58,7 +71,7 @@ function inferPath(op: Operation, path: string, t: OperationType): string {
 }
 async function request<T extends OperationType>(
   state: AppReducerState,
-  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  _store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   op: Operation,
   t: T,
   basePath: string,
@@ -66,7 +79,7 @@ async function request<T extends OperationType>(
   const path = inferPath(op, basePath, t);
   const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/${path}`;
 
-  const headers = await getToken(state, store);
+  const headers = await resolveHeaders(state);
   let fn;
   if (op === "put") {
     fn = axios[op](url, t, {
@@ -157,7 +170,7 @@ async function operate<T extends OperationType>(
 
 async function updateAssetData(
   state: AppReducerState,
-  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  _store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   next: Dispatch<AnyAction>,
   action: unknown & {
     type: string;
@@ -171,7 +184,7 @@ async function updateAssetData(
   const { id, file, progress } = action.payload;
   const formData = new FormData();
   formData.append("asset", file as Blob);
-  const headers = await getToken(state, store);
+  const headers = await resolveHeaders(state);
   headers["Content-Type"] = "multipart/form-data";
   const path = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/asset/${id}/data`;
   try {
@@ -190,7 +203,7 @@ async function updateAssetData(
 
 function sendFile(
   state: AppReducerState,
-  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  _store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   scene: Scene,
   blob: File | URL,
   layer: string,
@@ -208,7 +221,7 @@ function sendFile(
     formData.append("layer", layer);
     formData.append("image", content);
 
-    getToken(state, store, { "Content-Type": contentType })
+    resolveHeaders(state, { "Content-Type": contentType })
       .then((headers) =>
         axios.put(url, formData, {
           headers: headers,
@@ -227,12 +240,12 @@ function sendFile(
 
 function setViewport(
   state: AppReducerState,
-  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  _store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   scene: Scene,
   viewport: ViewportBundle,
 ) {
   const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/scene/${scene._id}/viewport`;
-  return getToken(state, store).then((headers) =>
+  return resolveHeaders(state).then((headers) =>
     axios.put(url, viewport, { headers: headers }),
   );
 }
@@ -426,7 +439,7 @@ export const ContentMiddleware: Middleware =
       case "content/createscene": {
         const url = `${apiUrl}/scene`;
         const bundle: NewSceneBundle = action.payload;
-        getToken(state, store)
+        resolveHeaders(state)
           .then((headers) => axios.put(url, bundle, { headers: headers }))
           .then((data) => {
             trackRateLimit(next, data);
