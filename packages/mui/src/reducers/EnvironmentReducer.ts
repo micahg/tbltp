@@ -1,6 +1,5 @@
 import { PayloadAction } from "@reduxjs/toolkit";
 import { AuthState } from "../utils/auth";
-import { Auth0Client } from "@auth0/auth0-spa-js";
 
 export interface AuthConfig {
   domain: string;
@@ -44,7 +43,6 @@ export type EnvironmentReducerState = {
   readonly authConfig?: AuthConfig;
   readonly deviceCode?: DeviceCode;
   readonly deviceCodeToken?: string;
-  readonly bearer?: string;
   readonly ratelimitRemaining: number;
   readonly ratelimit: number;
   readonly ratelimitMax: number;
@@ -91,9 +89,6 @@ export const EnvironmentReducer = (
       if (action.payload === null || action.payload === undefined) return state;
       const client: Auth0Client = action.payload as unknown as Auth0Client;
       return { ...state, authClient: client };
-    }
-    case "environment/bearer": {
-      return { ...state, bearer: action.payload };
     }
     case "environment/devicecode": {
       return { ...state, deviceCode: action.payload };

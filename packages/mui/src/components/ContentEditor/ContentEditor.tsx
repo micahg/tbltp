@@ -53,6 +53,7 @@ import {
 } from "@micahg/tbltp-common";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 import { environmentApi } from "../../api/environment";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const sm = new MouseStateMachine();
 
@@ -114,6 +115,7 @@ const ContentEditor = ({
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   // selection is sized relative to the visible canvas size -- not the full background size
   const [selection, setSelection] = useState<Rect | null>(null);
+  const [bearer, setBearer] = useState<string | null>(null);
 
   // the viewport to draw so the dm knows what the players see
   const [displayViewport, setDisplayViewport] = useState<Rect | null>(null);
@@ -142,12 +144,11 @@ const ContentEditor = ({
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
-  const bearer = useSelector(
-    (state: AppReducerState) => state.environment.bearer,
-  );
   const pushTime = useSelector(
     (state: AppReducerState) => state.content.pushTime,
   );
+
+  const { getAccessTokenSilently } = useAuth0();
 
   const updateSelected = useCallback(
     (value: boolean) => {
@@ -373,6 +374,12 @@ const ContentEditor = ({
     if (!internalState || !toolbarPopulated) return;
     internalState.color = colorInputRef;
   }, [internalState, colorInputRef, toolbarPopulated]);
+
+  useEffect(() => {
+    getAccessTokenSilently()
+      .then((token) => setBearer(token))
+      .catch(() => setBearer(null));
+  }, [getAccessTokenSilently]);
 
   /**
    * Populate the toolbar with our actions. Empty deps insures this only gets
@@ -1025,7 +1032,6 @@ const ContentEditor = ({
       )}
       {scene?.playerContent && (
         <Box>
-          <p>{JSON.stringify(scene)}</p>
           <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>
             Sorry, your browser does not support canvas.
           </canvas>

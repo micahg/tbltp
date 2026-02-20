@@ -20,6 +20,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent";
 import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
+import { useAuth0 } from "@auth0/auth0-react";
 
 interface CreateTokenFormComponentProps {
   token?: Token;
@@ -62,9 +63,8 @@ const CreateTokenFormComponent = ({
   const mediaPrefix = useSelector(
     (state: AppReducerState) => state.content.mediaPrefix,
   );
-  const bearer = useSelector(
-    (state: AppReducerState) => state.environment.bearer,
-  );
+  const { getAccessTokenSilently } = useAuth0();
+  const [bearer, setBearer] = useState<string | null>(null);
 
   const [file, setFile] = useState<File | undefined>(undefined);
   const [imgUrl, setImgUrl] = useState<string>(`/x.webp`);
@@ -158,6 +158,12 @@ const CreateTokenFormComponent = ({
     if (!token) return;
     reset(stripToken(token));
   }, [reset, token]);
+
+  useEffect(() => {
+    getAccessTokenSilently()
+      .then((token) => setBearer(token))
+      .catch(() => setBearer(null));
+  }, [getAccessTokenSilently]);
 
   /**
    * Watch for asset upload -- this is separate from the none/existing asset

@@ -16,6 +16,7 @@ import { LoadProgress, loadImage } from "../../utils/content";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import { Scene } from "@micahg/tbltp-common";
 import { environmentApi } from "../../api/environment";
+import { useAuth0 } from "@auth0/auth0-react";
 
 // TODO move to a shared file
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
@@ -60,9 +61,8 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
   const error = useSelector((state: AppReducerState) => state.content.err);
-  const bearer = useSelector(
-    (state: AppReducerState) => state.environment.bearer,
-  );
+  const { getAccessTokenSilently } = useAuth0();
+  const [bearer, setBearer] = useState<string | null>(null);
 
   const disabledCreate =
     creating || // currently already creating or updating
@@ -173,6 +173,12 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     const actions: GameMasterAction[] = [];
     populateToolbar(actions);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    getAccessTokenSilently()
+      .then((token) => setBearer(token))
+      .catch(() => setBearer(null));
+  }, [getAccessTokenSilently]);
 
   useEffect(() => {
     if (!error || !dispatch) return;

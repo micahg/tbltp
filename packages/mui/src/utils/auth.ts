@@ -126,7 +126,7 @@ export function getAuthState(client: Auth0Client): Promise<AuthState> {
  */
 export async function getToken(
   state: AppReducerState,
-  store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
+  _store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
   headers?: { [key: string]: string },
 ): Promise<{ [key: string]: string }> {
   const res = headers || {};
@@ -134,7 +134,6 @@ export async function getToken(
   if (state.environment.noauth) {
     const value = "NOAUTH";
     res["Authorization"] = `Bearer ${value}`;
-    store.dispatch({ type: "environment/bearer", payload: value });
     return res;
   }
 
@@ -143,9 +142,6 @@ export async function getToken(
   if (!client) throw new Error("No auth0 client");
 
   const newToken = await client.getTokenSilently();
-  if (state.environment.bearer !== newToken) {
-    store.dispatch({ type: "environment/bearer", payload: newToken });
-  }
   res["Authorization"] = `Bearer ${newToken}`;
   return res;
 }

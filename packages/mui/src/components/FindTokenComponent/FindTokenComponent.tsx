@@ -15,6 +15,7 @@ import { AppReducerState } from "../../reducers/AppReducer";
 import { useDispatch, useSelector } from "react-redux";
 import { useCallback, useEffect, useState } from "react";
 import { HydratedTokenInstance, Token } from "@micahg/tbltp-common";
+import { useAuth0 } from "@auth0/auth0-react";
 // import styles from "./FindTokenComponent.module.css";
 
 interface FindTokenComponentProps {
@@ -32,14 +33,19 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
   const mediaPrefix = useSelector(
     (state: AppReducerState) => state.content.mediaPrefix,
   );
-  const bearer = useSelector(
-    (state: AppReducerState) => state.environment.bearer,
-  );
+  const { getAccessTokenSilently } = useAuth0();
+  const [bearer, setBearer] = useState<string | null>(null);
   const [searchValue, setSearchValue] = useState("");
 
   useEffect(() => {
     if (tokens === undefined) dispatch({ type: "content/tokens" });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    getAccessTokenSilently()
+      .then((token) => setBearer(token))
+      .catch(() => setBearer(null));
+  }, [getAccessTokenSilently]);
 
   const sendHydratedToken = useCallback(
     (token: Token, asset: string, visible: boolean) => {
