@@ -7,25 +7,6 @@ const AUTH_ERRORS: { [key: string]: string } = {
   access_denied: "Access Denied",
 };
 
-/**
- * Step 2 - create an authentication client.
- * @param data
- * @returns
- */
-export function getAuthClient(
-  store: MiddlewareAPI<Dispatch<AnyAction>>,
-): Promise<Auth0Client> {
-  // TODO GET RID OF THIS
-  const env = store.getState().environment;
-  if (env.authClient) return Promise.resolve(env.authClient);
-
-  return new Promise((resolve, reject) => {
-    // if (data.noauth) reject('noauth');
-    createAuth0Client(env.authConfig)
-      .then((client) => resolve(client))
-      .catch((reason) => reject(reason));
-  });
-}
 
 export function getDeviceCode(data: AuthConfig) {
   return new Promise((resolve, reject) => {

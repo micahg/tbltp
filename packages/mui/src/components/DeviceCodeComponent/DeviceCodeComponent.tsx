@@ -46,13 +46,13 @@ const DeviceCodeComponent = () => {
     if (!deviceCodeInterval || !deviceCodeExpiry) return;
 
     // periodically trigger polling for the auth
-    const intervalId: NodeJS.Timer = setInterval(
+    const intervalId = window.setInterval(
       () => dispatch({ type: "environment/devicecodepoll" }),
       1000 * deviceCodeInterval,
     );
 
     // eventually give up on polling
-    const timeoutId: NodeJS.Timer = setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       setExpired(true);
       clearInterval(intervalId);
     }, 1000 * deviceCodeExpiry);
@@ -122,7 +122,7 @@ const DeviceCodeComponent = () => {
           </Box>
         )}
         {!expired && (
-          <Typography variant="body1">
+          <Typography variant="body1" align="center">
             Please visit{" "}
             {deviceCode ? (
               <a

@@ -127,7 +127,7 @@ const GameMasterComponent = () => {
     (state: AppReducerState) => state.environment.ratelimit,
   );
 
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently, loginWithRedirect} = useAuth0();
 
   const handleNavDrawerOpen = () => setNavOpen(true);
 
@@ -221,9 +221,13 @@ const GameMasterComponent = () => {
         setBearer(token)
       })
       .catch((err) => {
+        setBearer(null)
+        if ("error" in err && err.error === "login_required") {
+          const options = { authorizationParams: { redirect_uri: window.location.href } };
+          loginWithRedirect(options);
+        }
         console.error("error getting token in content editor", err);
-        setBearer(null)}
-      );
+      });
   }, [getAccessTokenSilently]);
 
   useEffect(() => {

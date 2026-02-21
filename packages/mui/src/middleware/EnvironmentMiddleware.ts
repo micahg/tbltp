@@ -1,5 +1,4 @@
 import {
-  getAuthClient,
   getDeviceCode,
   pollDeviceCode,
 } from "../utils/auth";
@@ -15,14 +14,7 @@ export const EnvironmentMiddleware: Middleware =
 
     const typedAction = action as { type: string; payload?: unknown };
 
-    if (typedAction.type === "environment/logout") {
-      getAuthClient(storeAPI)
-        .then((client) => client.logout())
-        .then(() => console.log("Successfully logged out"))
-        .catch((err) =>
-          console.error(`UNABLE TO LOG OUT: ${JSON.stringify(err)}`),
-        );
-    } else if (typedAction.type === "environment/devicecode") {
+    if (typedAction.type === "environment/devicecode") {
       const started = storeAPI.getState().environment.authStarted;
       if (started) return next(action);
       next({ type: "environment/authstarted", payload: true });
