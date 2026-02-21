@@ -130,9 +130,6 @@ const ContentEditor = ({
    */
   const [toolbarPopulated, setToolbarPopulated] = useState<boolean>(false);
 
-  const authErr = useSelector(
-    (state: AppReducerState) => state.environment.authErr,
-  );
   const scene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
   );
@@ -950,7 +947,7 @@ const ContentEditor = ({
           <button onClick={() => sm.transition("link")}>Link</button>
         </div>
       )}
-      {authErr !== undefined && (
+      {/* {authErr !== undefined && (
         <Box sx={{ pt: "1em", pr: "1em", pl: "1em" }}>
           <Alert
             severity="error"
@@ -965,7 +962,7 @@ const ContentEditor = ({
             {authErr.error}: {authErr.reason}
           </Alert>
         </Box>
-      )}
+      )} */}
       {!scene?.playerContent && (
         <Box sx={{ padding: "1em" }}>
           <Paper sx={{ padding: "1em", margin: "1em 0" }} elevation={6}>

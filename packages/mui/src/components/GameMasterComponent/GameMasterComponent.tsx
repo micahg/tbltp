@@ -26,6 +26,11 @@ import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
 import NavigationDrawerComponent from "../NavigationDrawerComponent/NavigationDrawerComponent.lazy";
 import TokensComponent from "../TokensComponent/TokensComponent.lazy";
 import { Scene } from "@micahg/tbltp-common";
+import {
+  useGetEnvironmentConfigQuery,
+  useGetNoAuthConfigQuery,
+} from "../../api/environment";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -102,13 +107,12 @@ const GameMasterComponent = () => {
   const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
     FocusedComponent.ContentEditor,
   );
-  const auth = useSelector((state: AppReducerState) => state.environment.auth);
-  const noauth = useSelector(
-    (state: AppReducerState) => state.environment.noauth,
-  );
-  const authClient = useSelector(
-    (state: AppReducerState) => state.environment.authClient,
-  );
+  const [bearer, setBearer] = useState<string | null>(null);
+  const { data: environmentConfig } = useGetEnvironmentConfigQuery();
+  const { data: noAuthConfig } = useGetNoAuthConfigQuery(undefined, {
+    skip: !environmentConfig?.api,
+  });
+  const noauth = noAuthConfig?.noauth ?? false;
   const scenes = useSelector((state: AppReducerState) => state.content.scenes);
   const currentScene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
@@ -122,6 +126,8 @@ const GameMasterComponent = () => {
   const rateLimit = useSelector(
     (state: AppReducerState) => state.environment.ratelimit,
   );
+
+  const { getAccessTokenSilently } = useAuth0();
 
   const handleNavDrawerOpen = () => setNavOpen(true);
 
@@ -209,19 +215,28 @@ const GameMasterComponent = () => {
   const scenesClick = () => setScenesOpen(!scenesOpen);
 
   useEffect(() => {
+    getAccessTokenSilently()
+      .then((token) => {
+        console.log("got token in content editor", token);
+        setBearer(token)
+      })
+      .catch((err) => {
+        console.error("error getting token in content editor", err);
+        setBearer(null)}
+      );
+  }, [getAccessTokenSilently]);
+
+  useEffect(() => {
     if (!dispatch) return;
-    if (!noauth && !authClient) return;
-    if (noauth || auth) {
+
+    if (noauth || bearer) {
       dispatch({ type: "content/pull" });
       dispatch({ type: "content/scenes" });
       dispatch({ type: "content/tokens" });
       dispatch({ type: "content/assets" });
       return;
     }
-    // if (noauth) return;
-    // if (auth) return;
-    dispatch({ type: "environment/authenticate" });
-  }, [dispatch, noauth, auth, authClient]);
+  }, [dispatch, noauth, bearer]);
 
   useEffect(() => {
     if (scenes.length === sceneCount) return;

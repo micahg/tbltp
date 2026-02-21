@@ -17,7 +17,7 @@ import { environmentApi, useGetAuthConfigQuery, useGetNoAuthConfigQuery, useGetE
 // TODO i think we should be able to remove this
 store.dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
 store.dispatch(environmentApi.endpoints.getAuthConfig.initiate());
-store.dispatch({ type: "environment/config", payload: undefined });
+// store.dispatch({ type: "environment/config", payload: undefined });
 
 const AuthenticatedGameMasterComponent = () => {
   const { data: environmentConfig } = useGetEnvironmentConfigQuery();
