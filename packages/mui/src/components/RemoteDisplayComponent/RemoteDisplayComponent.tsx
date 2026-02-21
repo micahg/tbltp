@@ -11,7 +11,11 @@ import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { HydratedTokenInstance, Rect, TableState } from "@micahg/tbltp-common";
 import { AppDispatch } from "../../store";
-import { environmentApi } from "../../api/environment";
+import {
+  environmentApi,
+  useGetEnvironmentConfigQuery,
+  useGetNoAuthConfigQuery,
+} from "../../api/environment";
 
 interface WSStateMessage {
   method?: string;
@@ -32,22 +36,17 @@ const RemoteDisplayComponent = () => {
   const [internalState] = useState<InternalState>({
     transferred: false,
   });
-  const apiUrl = useSelector(
-    (state: AppReducerState) =>
-      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
-  );
-  const wsUrl: string | undefined = useSelector(
-    (state: AppReducerState) =>
-      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.ws,
-  );
+  const { data: environmentConfig } = useGetEnvironmentConfigQuery();
+  const apiUrl = environmentConfig?.api;
+  const wsUrl: string | undefined = environmentConfig?.ws;
   const authorized: boolean | undefined = useSelector(
     (state: AppReducerState) => state.environment.auth,
   );
-  const noauth: boolean = useSelector(
-    (state: AppReducerState) => state.environment.noauth,
-  );
+  const { data: noAuthConfig } = useGetNoAuthConfigQuery();
+  const noauth: boolean = noAuthConfig?.noauth ?? false;
   const token: string | undefined = useSelector(
-    (state: AppReducerState) => state.environment.deviceCodeToken,
+    (state: AppReducerState) =>
+      state.environment.deviceCodeToken as string | undefined,
   );
 
   const mediaPrefix = useSelector(
@@ -219,7 +218,6 @@ const RemoteDisplayComponent = () => {
     // retry
     if (authorized === undefined) {
       const timer = setInterval(() => {
-        dispatch({ type: "environment/config", payload: undefined });
         dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
       }, 5000);
       setAuthTimer(timer);

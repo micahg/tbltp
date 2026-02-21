@@ -130,12 +130,8 @@ const ContentEditor = ({
    */
   const [toolbarPopulated, setToolbarPopulated] = useState<boolean>(false);
 
-  const auth = useSelector((state: AppReducerState) => state.environment.auth);
   const authErr = useSelector(
     (state: AppReducerState) => state.environment.authErr,
-  );
-  const noauth = useSelector(
-    (state: AppReducerState) => state.environment.noauth,
   );
   const scene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
@@ -931,16 +927,13 @@ const ContentEditor = ({
   // but not before we have loaded the toolbar (otherwise we just get
   // rendered and do it again)
   useEffect(() => {
-    // bail if we haven't attempted authorization
-    if (auth === undefined) return;
-    if (auth === false && noauth === false) return;
 
     // otherwise wait until we have populated the toolbar before we get our state
     if (!apiUrl || !dispatch || !toolbarPopulated) return;
 
     // don't pull everything if we already scene data
     if (sceneId) return;
-  }, [apiUrl, dispatch, toolbarPopulated, auth, noauth, sceneId]);
+  }, [apiUrl, dispatch, toolbarPopulated, sceneId]);
 
   return (
     <Box

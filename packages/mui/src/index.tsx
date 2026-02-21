@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import reportWebVitals from "./reportWebVitals";
 import { Auth0Provider } from "@auth0/auth0-react";
-import { Provider, useSelector } from "react-redux";
+import { Provider } from "react-redux";
 import LandingComponent from "./components/LandingComponent/LandingComponent.lazy";
 import RemoteDisplayComponent from "./components/RemoteDisplayComponent/RemoteDisplayComponent.lazy";
 import GameMasterComponent from "./components/GameMasterComponent/GameMasterComponent.lazy";
@@ -12,22 +12,25 @@ import AuthTokenBridge from "./components/AuthTokenBridge/AuthTokenBridge";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import UnavailableComponent from "./components/UnavailableComponent/UnavailableComponent";
 import { store } from "./store";
-import type { RootState } from "./store";
-import type { AuthConfig } from "./reducers/EnvironmentReducer";
-import { environmentApi } from "./api/environment";
+import { environmentApi, useGetAuthConfigQuery, useGetNoAuthConfigQuery, useGetEnvironmentConfigQuery} from "./api/environment";
 
+// TODO i think we should be able to remove this
 store.dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
 store.dispatch(environmentApi.endpoints.getAuthConfig.initiate());
-store.dispatch(environmentApi.endpoints.getNoAuthConfig.initiate());
 store.dispatch({ type: "environment/config", payload: undefined });
 
 const AuthenticatedGameMasterComponent = () => {
-  const noauth = useSelector((state: RootState) => state.environment.noauth);
-  const authConfig = useSelector(
-    (state: RootState) => state.environment.authConfig,
-  ) as AuthConfig | undefined;
+  const { data: environmentConfig } = useGetEnvironmentConfigQuery();
+  const { data: authConfig } = useGetAuthConfigQuery();
+  
+  // skip allows the component to rerender when the useGetEnvironmentConfigQuery state changes.
+  // we need the environmentConfig to get the API URL before we can fetch the noauth config,
+  // so we skip the noauth query until we have the environmentConfig.
+  const { data: noAuthConfig } = useGetNoAuthConfigQuery(undefined, {
+    skip: !environmentConfig?.api,
+  });
 
-  if (noauth || !authConfig) {
+  if (noAuthConfig?.noauth || !authConfig) {
     return <GameMasterComponent />;
   }
 
