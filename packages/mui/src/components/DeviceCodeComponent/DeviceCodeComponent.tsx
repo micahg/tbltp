@@ -4,6 +4,7 @@ import { AppReducerState } from "../../reducers/AppReducer";
 import { useNavigate } from "react-router-dom";
 import { Box, Paper, Typography } from "@mui/material";
 import * as QRCode from "qrcode";
+import { useGetAuthConfigQuery } from "../../api/environment";
 
 const DeviceCodeComponent = () => {
   const dispatch = useDispatch();
@@ -15,6 +16,7 @@ const DeviceCodeComponent = () => {
   const authorized = useSelector(
     (state: AppReducerState) => state.environment.auth,
   );
+  const { data: authConfig } = useGetAuthConfigQuery();
   // note, the next two can be dubious -- deviceCode is called twice in strict mode, which means the overall
   // object changes -- we rely on the fact that the polling/expiration values dont change.
   const deviceCodeInterval = useSelector(
@@ -33,8 +35,9 @@ const DeviceCodeComponent = () => {
   const qrCanvasRef = createRef<HTMLCanvasElement>();
 
   useEffect(() => {
+    if (!authConfig) return;
     dispatch({ type: "environment/devicecode" });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authConfig]);
 
   /**
    * Loop around polling for the token (waiting for the device code to be entered)

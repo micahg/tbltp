@@ -12,12 +12,7 @@ import AuthTokenBridge from "./components/AuthTokenBridge/AuthTokenBridge";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import UnavailableComponent from "./components/UnavailableComponent/UnavailableComponent";
 import { store } from "./store";
-import { environmentApi, useGetAuthConfigQuery, useGetNoAuthConfigQuery, useGetEnvironmentConfigQuery} from "./api/environment";
-
-// TODO i think we should be able to remove this
-store.dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
-store.dispatch(environmentApi.endpoints.getAuthConfig.initiate());
-// store.dispatch({ type: "environment/config", payload: undefined });
+import { useGetAuthConfigQuery, useGetNoAuthConfigQuery, useGetEnvironmentConfigQuery} from "./api/environment";
 
 const AuthenticatedGameMasterComponent = () => {
   const { data: environmentConfig } = useGetEnvironmentConfigQuery();

@@ -15,6 +15,7 @@ import {
   environmentApi,
   useGetEnvironmentConfigQuery,
   useGetNoAuthConfigQuery,
+  useGetAuthConfigQuery,
 } from "../../api/environment";
 
 interface WSStateMessage {
@@ -39,11 +40,9 @@ const RemoteDisplayComponent = () => {
   const { data: environmentConfig } = useGetEnvironmentConfigQuery();
   const apiUrl = environmentConfig?.api;
   const wsUrl: string | undefined = environmentConfig?.ws;
-  const authorized: boolean | undefined = useSelector(
-    (state: AppReducerState) => state.environment.auth,
-  );
   const { data: noAuthConfig } = useGetNoAuthConfigQuery();
   const noauth: boolean = noAuthConfig?.noauth ?? false;
+  const { data: authConfig } = useGetAuthConfigQuery();
   const token: string | undefined = useSelector(
     (state: AppReducerState) =>
       state.environment.deviceCodeToken as string | undefined,
@@ -54,8 +53,8 @@ const RemoteDisplayComponent = () => {
   );
   const [connected, setConnected] = useState<boolean | undefined>();
   const [tableData, setTableData] = useState<WSStateMessage>();
-  const [authTimer, setAuthTimer] = useState<NodeJS.Timer>();
-  const [wsTimer, setWSTimer] = useState<NodeJS.Timer>();
+  const [authTimer, setAuthTimer] = useState<number>();
+  const [wsTimer, setWSTimer] = useState<number>();
   const [serverInfo, setServerInfo] = useState<string>();
   const [worker, setWorker] = useState<Worker>();
 
@@ -216,20 +215,20 @@ const RemoteDisplayComponent = () => {
     // if we are in an undetermined authorized state it means we couldn't
     // connect to the API to get ANY auth config so start an interval to
     // retry
-    if (authorized === undefined) {
-      const timer = setInterval(() => {
+    if (authConfig === undefined) {
+      const timer = window.setInterval(() => {
         dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
       }, 5000);
       setAuthTimer(timer);
-      return () => clearInterval(timer); // this is how you avoid the two-timer fuckery with strict mode
+      return () => window.clearInterval(timer); // this is how you avoid the two-timer fuckery with strict mode
     }
 
     // if we've passed rendering once and have a timer we can stop it now that
     // we have authentication configuration
-    if (authTimer) clearInterval(authTimer);
+    if (authTimer) window.clearInterval(authTimer);
 
     // if authorization is ON and we are not authorized, redirect
-    if (!noauth && !authorized) return navigate(`/device`);
+    if (!noauth && !token) return navigate(`/device`);
 
     // if auth is off this should (in the middleware/auth code) force the token to NOAUTH
     if (noauth)
@@ -239,7 +238,7 @@ const RemoteDisplayComponent = () => {
 
     // having authorized for the first time, start the connection loop
     setConnected(false);
-  }, [authorized, noauth, navigate, authTimer, dispatch]);
+  }, [authConfig, noauth, navigate, authTimer, dispatch]);
 
   /**
    * When authentication is sorted, figure out connectivity
@@ -253,7 +252,7 @@ const RemoteDisplayComponent = () => {
     const scheduleConnection = () => {
       console.log(`Connection closed`);
       setConnected(undefined);
-      const timer = setTimeout(() => setConnected(false), 1000);
+      const timer = window.setTimeout(() => setConnected(false), 1000);
       setWSTimer(timer);
     };
 
@@ -265,7 +264,7 @@ const RemoteDisplayComponent = () => {
     ws.onerror = () => ws.close();
     ws.onopen = () => {
       if (wsTimer) {
-        clearTimeout(wsTimer);
+        window.clearTimeout(wsTimer);
         setWSTimer(undefined);
       }
       if (!connected) setConnected(true);
@@ -273,7 +272,7 @@ const RemoteDisplayComponent = () => {
     };
 
     return () => {
-      if (wsTimer) clearTimeout(wsTimer);
+      if (wsTimer) window.clearTimeout(wsTimer);
     };
   }, [connected, noauth, token, wsUrl, wsTimer]);
 
@@ -307,19 +306,19 @@ const RemoteDisplayComponent = () => {
     <div className={styles.map}>
       <Stack>
         <Box sx={{ zIndex: 3, padding: "1em" }}>
-          {authorized === undefined && (
+          {authConfig === undefined && (
             <Alert severity="error">
               Unable to get authentication configuration... reattempting...
             </Alert>
           )}
-          {authorized !== undefined &&
+          {authConfig !== undefined &&
             serverInfo === undefined &&
             !connected && (
               <Alert severity="error">
                 Unable to connect... reattempting...
               </Alert>
             )}
-          {authorized !== undefined && serverInfo !== undefined && (
+          {authConfig !== undefined && serverInfo !== undefined && (
             <Alert severity="error">{serverInfo}</Alert>
           )}
         </Box>

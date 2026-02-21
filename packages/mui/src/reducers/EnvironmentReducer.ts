@@ -1,5 +1,4 @@
 import { PayloadAction } from "@reduxjs/toolkit";
-import { AuthState } from "../utils/auth";
 
 export interface AuthConfig {
   domain: string;
@@ -39,7 +38,6 @@ export type EnvironmentReducerState = {
    */
   readonly auth?: boolean;
   readonly authErr?: AuthError;
-  readonly authClient?: Auth0Client;
   readonly authConfig?: AuthConfig;
   readonly deviceCode?: DeviceCode;
   readonly deviceCodeToken?: string;
@@ -66,29 +64,9 @@ export const EnvironmentReducer = (
       const started: boolean = action.payload as unknown as boolean;
       return { ...state, authStarted: started };
     }
-    case "environment/authconfig": {
-      if (action.payload === null || action.payload === undefined) return state;
-      const authState: AuthState = action.payload as unknown as AuthState;
-      return {
-        ...state,
-        auth: authState.auth,
-        noauth: authState.noauth,
-        authConfig: authState.config,
-      };
-    }
-    case "environment/authenticate": {
-      if (action.payload === null || action.payload === undefined) return state;
-      const authState: AuthState = action.payload as unknown as AuthState;
-      return { ...state, auth: authState.auth, noauth: authState.noauth };
-    }
     case "environment/authfailure": {
       const err = action.payload as unknown as AuthError;
       return { ...state, auth: false, authErr: err };
-    }
-    case "environment/authclient": {
-      if (action.payload === null || action.payload === undefined) return state;
-      const client: Auth0Client = action.payload as unknown as Auth0Client;
-      return { ...state, authClient: client };
     }
     case "environment/devicecode": {
       return { ...state, deviceCode: action.payload };

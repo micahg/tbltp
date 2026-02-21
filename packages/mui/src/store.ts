@@ -7,17 +7,7 @@ import { ContentMiddleware } from "./middleware/ContentMiddleware";
 export const store = configureStore({
   reducer: AppReducer,
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      // TODO GET RID OF THIS BEFORE MERGING
-      serializableCheck: {
-        ignoredActions: ["environment/authclient"],
-        ignoredPaths: ["environment.authClient"],
-      },
-      // TODO GET RID OF THIS TOO BEFORE MERGING
-      immutableCheck: {
-        ignoredPaths: ["environment.authClient"],
-      },
-    }).concat(
+    getDefaultMiddleware().concat(
       environmentApi.middleware,
       EnvironmentMiddleware,
       ContentMiddleware,
