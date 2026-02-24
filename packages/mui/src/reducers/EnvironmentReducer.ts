@@ -26,21 +26,6 @@ export interface DeviceCode {
 
 export type EnvironmentReducerState = {
   readonly noauth: boolean; // is authorization disabled
-  /**
-   * Indicates if auth was attempted. This is here because of react strict mode
-   * that renders things twice to mess with your life and elicit your errors.
-   */
-  readonly authStarted: boolean;
-  /**
-   * undefined => do not know yet - haven't hit server, auth not attmepted
-   * false => not authorized
-   * true => auth succeeded
-   */
-  readonly auth?: boolean;
-  readonly authErr?: AuthError;
-  readonly authConfig?: AuthConfig;
-  readonly deviceCode?: DeviceCode;
-  readonly deviceCodeToken?: string;
   readonly ratelimitRemaining: number;
   readonly ratelimit: number;
   readonly ratelimitMax: number;
@@ -48,7 +33,6 @@ export type EnvironmentReducerState = {
 
 const initialState: EnvironmentReducerState = {
   noauth: false,
-  authStarted: false,
   ratelimitRemaining: -1,
   ratelimit: -1,
   ratelimitMax: -1,
@@ -59,34 +43,6 @@ export const EnvironmentReducer = (
   action: PayloadAction,
 ) => {
   switch (action.type) {
-    case "environment/authstarted": {
-      if (action.payload === null || action.payload === undefined) return state;
-      const started: boolean = action.payload as unknown as boolean;
-      return { ...state, authStarted: started };
-    }
-    case "environment/authfailure": {
-      const err = action.payload as unknown as AuthError;
-      return { ...state, auth: false, authErr: err };
-    }
-    case "environment/devicecode": {
-      return { ...state, deviceCode: action.payload };
-    }
-    case "environment/devicecodepoll": {
-      if (action.payload === undefined || action.payload === null) return state;
-      const authResult: unknown = action.payload;
-      if (
-        !authResult ||
-        typeof authResult !== "object" ||
-        !("access_token" in authResult)
-      )
-        return state;
-      return {
-        ...state,
-        auth: true,
-        deviceCode: undefined,
-        deviceCodeToken: authResult.access_token,
-      };
-    }
     case "environment/ratelimit": {
       if (action.payload === null || action.payload === undefined) return state;
       if (!("limit" in action.payload) || !("remaining" in action.payload))

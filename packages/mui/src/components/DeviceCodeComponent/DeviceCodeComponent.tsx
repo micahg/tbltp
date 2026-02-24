@@ -1,34 +1,30 @@
-import { createRef, useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { AppReducerState } from "../../reducers/AppReducer";
+import { createRef, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Paper, Typography } from "@mui/material";
 import * as QRCode from "qrcode";
 import { useGetAuthConfigQuery } from "../../api/environment";
+import {
+  useGetDeviceAuthStateQuery,
+  useGetDeviceCodeMutation,
+  usePollDeviceCodeMutation,
+} from "../../api/devicecode";
 
 const DeviceCodeComponent = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const deviceCode = useSelector(
-    (state: AppReducerState) => state.environment.deviceCode,
-  );
-  const authorized = useSelector(
-    (state: AppReducerState) => state.environment.auth,
-  );
+  const { data: authState } = useGetDeviceAuthStateQuery();
   const { data: authConfig } = useGetAuthConfigQuery();
+  const [getDeviceCode] = useGetDeviceCodeMutation();
+  const [pollDeviceCode] = usePollDeviceCodeMutation();
+  const startedRef = useRef<boolean>(false);
+  const deviceCode = authState?.deviceCode;
+  const authorized = authState?.authorized ?? false;
+
   // note, the next two can be dubious -- deviceCode is called twice in strict mode, which means the overall
   // object changes -- we rely on the fact that the polling/expiration values dont change.
-  const deviceCodeInterval = useSelector(
-    (state: AppReducerState) => state.environment.deviceCode?.interval,
-  );
-  const deviceCodeExpiry = useSelector(
-    (state: AppReducerState) => state.environment.deviceCode?.expires_in,
-  );
-  const deviceCodeFullUrl = useSelector(
-    (state: AppReducerState) =>
-      state.environment.deviceCode?.verification_uri_complete,
-  );
+  const deviceCodeInterval = deviceCode?.interval;
+  const deviceCodeExpiry = deviceCode?.expires_in;
+  const deviceCodeFullUrl = deviceCode?.verification_uri_complete;
 
   const [expired, setExpired] = useState<boolean>(false);
 
@@ -36,8 +32,25 @@ const DeviceCodeComponent = () => {
 
   useEffect(() => {
     if (!authConfig) return;
-    dispatch({ type: "environment/devicecode" });
-  }, [authConfig]);
+    if (deviceCode) return;
+    if (authorized) return;
+    if (startedRef.current) return;
+
+    startedRef.current = true;
+
+    getDeviceCode(authConfig)
+      .unwrap()
+      .catch((err) => {
+        startedRef.current = false;
+        console.error(
+          `Device Code Authentication Failed: ${JSON.stringify(err)}`,
+        );
+      });
+  }, [authConfig, deviceCode, authorized, getDeviceCode]);
+
+  useEffect(() => {
+    setExpired(false);
+  }, [deviceCode?.device_code]);
 
   /**
    * Loop around polling for the token (waiting for the device code to be entered)
@@ -47,7 +60,7 @@ const DeviceCodeComponent = () => {
 
     // periodically trigger polling for the auth
     const intervalId = window.setInterval(
-      () => dispatch({ type: "environment/devicecodepoll" }),
+      () => void pollDeviceCode({ noauth: false, deviceCode }),
       1000 * deviceCodeInterval,
     );
 
@@ -62,7 +75,7 @@ const DeviceCodeComponent = () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-  }, [deviceCodeInterval, deviceCodeExpiry, dispatch]);
+  }, [deviceCodeInterval, deviceCodeExpiry, deviceCode, pollDeviceCode]);
 
   /**
    * Once we're authorized head on back

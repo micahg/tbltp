@@ -1,5 +1,5 @@
 import { createRef, useCallback, useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import Alert from "@mui/material/Alert";
 import Stack from "@mui/material/Stack";
@@ -10,13 +10,15 @@ import { Box } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { HydratedTokenInstance, Rect, TableState } from "@micahg/tbltp-common";
-import { AppDispatch } from "../../store";
 import {
-  environmentApi,
   useGetEnvironmentConfigQuery,
   useGetNoAuthConfigQuery,
   useGetAuthConfigQuery,
 } from "../../api/environment";
+import {
+  useGetDeviceAuthStateQuery,
+  usePollDeviceCodeMutation,
+} from "../../api/devicecode";
 
 interface WSStateMessage {
   method?: string;
@@ -31,22 +33,21 @@ interface InternalState {
 
 const RemoteDisplayComponent = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch<AppDispatch>();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
   const [internalState] = useState<InternalState>({
     transferred: false,
   });
-  const { data: environmentConfig } = useGetEnvironmentConfigQuery();
+  const { data: environmentConfig, refetch: refetchEnvironmentConfig } =
+    useGetEnvironmentConfigQuery();
   const apiUrl = environmentConfig?.api;
   const wsUrl: string | undefined = environmentConfig?.ws;
   const { data: noAuthConfig } = useGetNoAuthConfigQuery();
   const noauth: boolean = noAuthConfig?.noauth ?? false;
   const { data: authConfig } = useGetAuthConfigQuery();
-  const token: string | undefined = useSelector(
-    (state: AppReducerState) =>
-      state.environment.deviceCodeToken as string | undefined,
-  );
+  const { data: authState } = useGetDeviceAuthStateQuery();
+  const token = authState?.token;
+  const [pollDeviceCode] = usePollDeviceCodeMutation();
 
   const mediaPrefix = useSelector(
     (state: AppReducerState) => state.content.mediaPrefix,
@@ -103,7 +104,6 @@ const RemoteDisplayComponent = () => {
    */
   const processTableData = useCallback(
     (js: WSStateMessage, apiUrl: string, bearer: string) => {
-      if (!dispatch) return;
       if (!mediaPrefix) return;
 
       if (!worker) {
@@ -169,7 +169,7 @@ const RemoteDisplayComponent = () => {
         },
       });
     },
-    [dispatch, mediaPrefix, worker],
+    [mediaPrefix, worker],
   );
 
   /**
@@ -217,7 +217,7 @@ const RemoteDisplayComponent = () => {
     // retry
     if (authConfig === undefined) {
       const timer = window.setInterval(() => {
-        dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
+        void refetchEnvironmentConfig();
       }, 5000);
       setAuthTimer(timer);
       return () => window.clearInterval(timer); // this is how you avoid the two-timer fuckery with strict mode
@@ -231,14 +231,21 @@ const RemoteDisplayComponent = () => {
     if (!noauth && !token) return navigate(`/device`);
 
     // if auth is off this should (in the middleware/auth code) force the token to NOAUTH
-    if (noauth)
-      dispatch({
-        type: "environment/devicecodepoll",
-      });
+    if (noauth && token !== "NOAUTH") {
+      pollDeviceCode({ noauth: true });
+    }
 
     // having authorized for the first time, start the connection loop
     setConnected(false);
-  }, [authConfig, noauth, navigate, authTimer, dispatch]);
+  }, [
+    authConfig,
+    noauth,
+    navigate,
+    authTimer,
+    token,
+    pollDeviceCode,
+    refetchEnvironmentConfig,
+  ]);
 
   /**
    * When authentication is sorted, figure out connectivity
