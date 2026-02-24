@@ -40,8 +40,6 @@ import {
   LinearProgress,
   Paper,
   Typography,
-  Alert,
-  IconButton,
 } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
@@ -924,7 +922,6 @@ const ContentEditor = ({
   // but not before we have loaded the toolbar (otherwise we just get
   // rendered and do it again)
   useEffect(() => {
-
     // otherwise wait until we have populated the toolbar before we get our state
     if (!apiUrl || !dispatch || !toolbarPopulated) return;
 

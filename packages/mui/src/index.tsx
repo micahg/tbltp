@@ -12,12 +12,16 @@ import AuthTokenBridge from "./components/AuthTokenBridge/AuthTokenBridge";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import UnavailableComponent from "./components/UnavailableComponent/UnavailableComponent";
 import { store } from "./store";
-import { useGetAuthConfigQuery, useGetNoAuthConfigQuery, useGetEnvironmentConfigQuery} from "./api/environment";
+import {
+  useGetAuthConfigQuery,
+  useGetNoAuthConfigQuery,
+  useGetEnvironmentConfigQuery,
+} from "./api/environment";
 
 const AuthenticatedGameMasterComponent = () => {
   const { data: environmentConfig } = useGetEnvironmentConfigQuery();
   const { data: authConfig } = useGetAuthConfigQuery();
-  
+
   // skip allows the component to rerender when the useGetEnvironmentConfigQuery state changes.
   // we need the environmentConfig to get the API URL before we can fetch the noauth config,
   // so we skip the noauth query until we have the environmentConfig.
