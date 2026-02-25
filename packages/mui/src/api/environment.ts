@@ -5,9 +5,22 @@ import {
   //   type BaseQueryFn,
 } from "@reduxjs/toolkit/query/react";
 
+export interface AuthConfig {
+  domain: string;
+  clientId: string;
+  authorizationParams: {
+    audience: string;
+    redirect_uri: string;
+  };
+}
+
 type EnvironmentConfig = {
   api: string;
   ws: string;
+};
+
+type NoAuthConfig = {
+  noauth: boolean;
 };
 
 export const environmentApi = createApi({
@@ -38,23 +51,55 @@ export const environmentApi = createApi({
         // protocol/host/port as the base (for the combined docker image)
         const infApiUrl = `${window.location.protocol}//${window.location.hostname}:${apiPort}`;
         const infWSUrl = `ws://${window.location.hostname}:${apiPort}`;
-        const localhost = window.location.hostname !== "localhost";
+        const isNonLocalhost = window.location.hostname !== "localhost";
 
         cfg.api =
-          response.API_URL === "http://localhost:3000" && !localhost
+          response.API_URL === "http://localhost:3000" && isNonLocalhost
             ? (cfg.api = infApiUrl)
             : response.API_URL;
 
         // same goes for webservices - as above so below
         cfg.ws =
-          response.WS_URL === "ws://localhost:3000/" && !localhost
+          response.WS_URL === "ws://localhost:3000/" && isNonLocalhost
             ? (cfg.ws = infWSUrl)
             : response.WS_URL;
 
         return cfg;
       },
     }),
+    getAuthConfig: build.query<AuthConfig, void>({
+      query: () => ({ url: `/auth.json` }),
+    }),
+    getNoAuthConfig: build.query<NoAuthConfig, void>({
+      async queryFn(_arg, api, _extraOptions, fetchWithBQ) {
+        const selectEnvironmentConfig =
+          environmentApi.endpoints.getEnvironmentConfig.select();
+        const env = selectEnvironmentConfig(
+          api.getState() as Parameters<typeof selectEnvironmentConfig>[0],
+        ).data;
+
+        if (!env?.api) {
+          return {
+            error: {
+              status: "CUSTOM_ERROR",
+              error: "Environment API config is not loaded",
+            },
+          };
+        }
+
+        const response = await fetchWithBQ(`${env.api}/noauth`);
+        if (response.error) {
+          return { error: response.error };
+        }
+
+        return { data: response.data as NoAuthConfig };
+      },
+    }),
   }),
 });
 
-export const { useGetEnvironmentConfigQuery } = environmentApi;
+export const {
+  useGetEnvironmentConfigQuery,
+  useGetAuthConfigQuery,
+  useGetNoAuthConfigQuery,
+} = environmentApi;

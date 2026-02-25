@@ -18,6 +18,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { Scene } from "@micahg/tbltp-common";
+import { useAuth0 } from "@auth0/auth0-react";
 
 interface NavigationDrawerComponentProps {
   scenesOpen: boolean;
@@ -37,12 +38,13 @@ const NavigationDrawerComponent = ({
   scenesClick,
 }: NavigationDrawerComponentProps) => {
   const dispatch = useDispatch();
+  const { logout } = useAuth0();
 
   const handleDeleteScene = (scene: Scene) => {
     dispatch({ type: "content/deletescene", payload: scene });
   };
 
-  const handleLogout = () => dispatch({ type: "environment/logout" });
+  const handleLogout = () => logout();
 
   const scenes = useSelector((state: AppReducerState) => state.content.scenes);
 

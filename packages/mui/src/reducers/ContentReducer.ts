@@ -105,13 +105,12 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const scene: Scene = action.payload as unknown as Scene;
       const idx = state.scenes.findIndex((s) => s._id === scene._id);
       if (idx < 0) return { ...state, scenes: [...state.scenes, scene] };
-      state.scenes.splice(idx, 1, scene); // remember this changes inline, hence absence of return
+      const scenes = state.scenes.map((s) => (s._id === scene._id ? scene : s));
       // historically there was some notion that we don't want to rerender if
       // we are just swapping in new contents. But if an image, angle or viewport of
       // the current scene is updated we do need to rerender.
-      if (scene._id !== state.currentScene?._id)
-        return { ...state, scenes: state.scenes };
-      return { ...state, currentScene: scene, scenes: state.scenes };
+      if (scene._id !== state.currentScene?._id) return { ...state, scenes };
+      return { ...state, currentScene: scene, scenes };
     }
     case "content/deletescene": {
       const scene: Scene = action.payload as unknown as Scene;
@@ -139,7 +138,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
 
       // get the asset index to delete
       const asset = action.payload as unknown as Asset;
-      let idx = (state.assets || []).findIndex((a) => a._id === asset._id);
+      const idx = state.assets.findIndex((a) => a._id === asset._id);
       if (idx < 0) return state;
       const assets = [...state.assets];
       assets.splice(idx, 1);
@@ -148,8 +147,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       if (!state.tokens) return { ...state, assets };
 
       // remove referenced tokens and token instances
-      const scenes: Scene[] = [...state.scenes];
-      idx = scenes.findIndex((s) => s._id === state.currentScene?._id);
+      const currentSceneId = state.currentScene?._id;
       const tokens: Token[] = [];
       for (const token of state.tokens) {
         // if the token does not use the asset we are deleting, keep it
@@ -157,13 +155,30 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
           tokens.push(token);
           continue;
         }
-        // if it does use the asset we are deleting, remove it from the scene
-        for (const scene of scenes) {
-          if (!scene.tokens) continue;
-          scene.tokens = scene.tokens.filter((t) => t.token !== token._id);
-        }
       }
-      return { ...state, tokens, assets, scenes, currentScene: scenes[idx] };
+
+      const removedTokenIds = new Set(
+        state.tokens
+          .filter((token) => token.asset === asset._id)
+          .map((token) => token._id),
+      );
+      const scenes: Scene[] = state.scenes.map((scene) => {
+        if (!scene.tokens || removedTokenIds.size === 0) return scene;
+        return {
+          ...scene,
+          tokens: scene.tokens.filter((t) => !removedTokenIds.has(t.token)),
+        };
+      });
+      const nextCurrentScene = currentSceneId
+        ? scenes.find((s) => s._id === currentSceneId) || state.currentScene
+        : state.currentScene;
+      return {
+        ...state,
+        tokens,
+        assets,
+        scenes,
+        currentScene: nextCurrentScene,
+      };
     }
     case "content/updatetoken": {
       const token = action.payload as unknown as Token;
@@ -182,10 +197,10 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
           : state.tokens.findIndex((a) => a._id === token._id);
       if (idx < 0) return state;
       const tokens = [...state.tokens!];
-      const scenes = [...state.scenes];
-      for (const scene of scenes) {
-        scene.tokens = scene.tokens?.filter((t) => t.token !== token._id) || [];
-      }
+      const scenes = state.scenes.map((scene) => ({
+        ...scene,
+        tokens: scene.tokens?.filter((t) => t.token !== token._id) || [],
+      }));
       tokens.splice(idx, 1);
       return { ...state, tokens: tokens, scenes };
     }
@@ -202,7 +217,7 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
 
       // updates scenes
       const scenes = [...state.scenes];
-      const tokens = scenes[idx].tokens || [];
+      const tokens = [...(scenes[idx].tokens || [])];
       tokens.push(hydrated);
       scenes[idx] = { ...scenes[idx], tokens: tokens };
 
@@ -230,8 +245,10 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const currentScene = { ...state.currentScene, tokens: tokens };
 
       idx = state.scenes.findIndex((s) => s._id === instance.scene);
-      const scenes = [...state.scenes];
-      scenes[idx].tokens = tokens;
+      if (idx < 0) return { ...state, currentScene };
+      const scenes = state.scenes.map((scene, sIdx) =>
+        sIdx === idx ? { ...scene, tokens } : scene,
+      );
       return { ...state, currentScene, scenes };
     }
     case "content/scenetokens": {

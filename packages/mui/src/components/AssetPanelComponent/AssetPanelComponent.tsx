@@ -5,7 +5,7 @@ import {
   TextField,
   Tooltip,
 } from "@mui/material";
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import styles from "./AssetPanelComponent.module.css";
@@ -17,6 +17,7 @@ import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import { Asset } from "@micahg/tbltp-common";
 import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
 import { environmentApi } from "../../api/environment";
+import { useAuth0 } from "@auth0/auth0-react";
 
 interface AssetPanelComponentProps {
   asset: Asset;
@@ -29,19 +30,30 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
+  const { getAccessTokenSilently } = useAuth0();
 
-  const bearer = useSelector(
-    (state: AppReducerState) => state.environment.bearer,
-  );
+  const [bearer, setBearer] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [name, setName] = useState(asset.name);
   const [file, setFile] = useState<File | null>(null);
   const [expand, setExpand] = useState(false);
   const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
-  const [imgUrl, setImgUrl] = useState<string | null>(
-    asset.location ? `${api}/${asset.location}?token=${bearer}` : null,
-  );
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
   const saveDisabled = name === asset.name && !file;
+
+  useEffect(() => {
+    getAccessTokenSilently()
+      .then((token) => setBearer(token))
+      .catch(() => setBearer(null));
+  }, [getAccessTokenSilently]);
+
+  useEffect(() => {
+    if (!asset.location || !api || !bearer) {
+      setImgUrl(null);
+      return;
+    }
+    setImgUrl(`${api}/${asset.location}?token=${bearer}`);
+  }, [api, asset.location, bearer]);
 
   const selectFile = () => {
     const input = document.createElement("input");

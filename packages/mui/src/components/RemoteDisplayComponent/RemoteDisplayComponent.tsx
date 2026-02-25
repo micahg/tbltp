@@ -1,5 +1,5 @@
 import { createRef, useCallback, useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import Alert from "@mui/material/Alert";
 import Stack from "@mui/material/Stack";
@@ -10,8 +10,15 @@ import { Box } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
 import { HydratedTokenInstance, Rect, TableState } from "@micahg/tbltp-common";
-import { AppDispatch } from "../../store";
-import { environmentApi } from "../../api/environment";
+import {
+  useGetEnvironmentConfigQuery,
+  useGetNoAuthConfigQuery,
+  useGetAuthConfigQuery,
+} from "../../api/environment";
+import {
+  useGetDeviceAuthStateQuery,
+  usePollDeviceCodeMutation,
+} from "../../api/devicecode";
 
 interface WSStateMessage {
   method?: string;
@@ -26,36 +33,29 @@ interface InternalState {
 
 const RemoteDisplayComponent = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch<AppDispatch>();
   const contentCanvasRef = createRef<HTMLCanvasElement>();
   const overlayCanvasRef = createRef<HTMLCanvasElement>();
   const [internalState] = useState<InternalState>({
     transferred: false,
   });
-  const apiUrl = useSelector(
-    (state: AppReducerState) =>
-      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
-  );
-  const wsUrl: string | undefined = useSelector(
-    (state: AppReducerState) => state.environment.ws,
-  );
-  const authorized: boolean | undefined = useSelector(
-    (state: AppReducerState) => state.environment.auth,
-  );
-  const noauth: boolean = useSelector(
-    (state: AppReducerState) => state.environment.noauth,
-  );
-  const token: string | undefined = useSelector(
-    (state: AppReducerState) => state.environment.deviceCodeToken,
-  );
+  const { data: environmentConfig, refetch: refetchEnvironmentConfig } =
+    useGetEnvironmentConfigQuery();
+  const apiUrl = environmentConfig?.api;
+  const wsUrl: string | undefined = environmentConfig?.ws;
+  const { data: noAuthConfig } = useGetNoAuthConfigQuery();
+  const noauth: boolean = noAuthConfig?.noauth ?? false;
+  const { data: authConfig } = useGetAuthConfigQuery();
+  const { data: authState } = useGetDeviceAuthStateQuery();
+  const token = authState?.token;
+  const [pollDeviceCode] = usePollDeviceCodeMutation();
 
   const mediaPrefix = useSelector(
     (state: AppReducerState) => state.content.mediaPrefix,
   );
   const [connected, setConnected] = useState<boolean | undefined>();
   const [tableData, setTableData] = useState<WSStateMessage>();
-  const [authTimer, setAuthTimer] = useState<NodeJS.Timer>();
-  const [wsTimer, setWSTimer] = useState<NodeJS.Timer>();
+  const [authTimer, setAuthTimer] = useState<number>();
+  const [wsTimer, setWSTimer] = useState<number>();
   const [serverInfo, setServerInfo] = useState<string>();
   const [worker, setWorker] = useState<Worker>();
 
@@ -104,7 +104,6 @@ const RemoteDisplayComponent = () => {
    */
   const processTableData = useCallback(
     (js: WSStateMessage, apiUrl: string, bearer: string) => {
-      if (!dispatch) return;
       if (!mediaPrefix) return;
 
       if (!worker) {
@@ -170,7 +169,7 @@ const RemoteDisplayComponent = () => {
         },
       });
     },
-    [dispatch, mediaPrefix, worker],
+    [mediaPrefix, worker],
   );
 
   /**
@@ -216,31 +215,37 @@ const RemoteDisplayComponent = () => {
     // if we are in an undetermined authorized state it means we couldn't
     // connect to the API to get ANY auth config so start an interval to
     // retry
-    if (authorized === undefined) {
-      const timer = setInterval(() => {
-        dispatch({ type: "environment/config", payload: undefined });
-        dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
+    if (authConfig === undefined) {
+      const timer = window.setInterval(() => {
+        void refetchEnvironmentConfig();
       }, 5000);
       setAuthTimer(timer);
-      return () => clearInterval(timer); // this is how you avoid the two-timer fuckery with strict mode
+      return () => window.clearInterval(timer); // this is how you avoid the two-timer fuckery with strict mode
     }
 
     // if we've passed rendering once and have a timer we can stop it now that
     // we have authentication configuration
-    if (authTimer) clearInterval(authTimer);
+    if (authTimer) window.clearInterval(authTimer);
 
     // if authorization is ON and we are not authorized, redirect
-    if (!noauth && !authorized) return navigate(`/device`);
+    if (!noauth && !token) return navigate(`/device`);
 
     // if auth is off this should (in the middleware/auth code) force the token to NOAUTH
-    if (noauth)
-      dispatch({
-        type: "environment/devicecodepoll",
-      });
+    if (noauth && token !== "NOAUTH") {
+      pollDeviceCode({ noauth: true });
+    }
 
     // having authorized for the first time, start the connection loop
     setConnected(false);
-  }, [authorized, noauth, navigate, authTimer, dispatch]);
+  }, [
+    authConfig,
+    noauth,
+    navigate,
+    authTimer,
+    token,
+    pollDeviceCode,
+    refetchEnvironmentConfig,
+  ]);
 
   /**
    * When authentication is sorted, figure out connectivity
@@ -254,7 +259,7 @@ const RemoteDisplayComponent = () => {
     const scheduleConnection = () => {
       console.log(`Connection closed`);
       setConnected(undefined);
-      const timer = setTimeout(() => setConnected(false), 1000);
+      const timer = window.setTimeout(() => setConnected(false), 1000);
       setWSTimer(timer);
     };
 
@@ -266,7 +271,7 @@ const RemoteDisplayComponent = () => {
     ws.onerror = () => ws.close();
     ws.onopen = () => {
       if (wsTimer) {
-        clearTimeout(wsTimer);
+        window.clearTimeout(wsTimer);
         setWSTimer(undefined);
       }
       if (!connected) setConnected(true);
@@ -274,7 +279,7 @@ const RemoteDisplayComponent = () => {
     };
 
     return () => {
-      if (wsTimer) clearTimeout(wsTimer);
+      if (wsTimer) window.clearTimeout(wsTimer);
     };
   }, [connected, noauth, token, wsUrl, wsTimer]);
 
@@ -308,19 +313,19 @@ const RemoteDisplayComponent = () => {
     <div className={styles.map}>
       <Stack>
         <Box sx={{ zIndex: 3, padding: "1em" }}>
-          {authorized === undefined && (
+          {authConfig === undefined && (
             <Alert severity="error">
               Unable to get authentication configuration... reattempting...
             </Alert>
           )}
-          {authorized !== undefined &&
+          {authConfig !== undefined &&
             serverInfo === undefined &&
             !connected && (
               <Alert severity="error">
                 Unable to connect... reattempting...
               </Alert>
             )}
-          {authorized !== undefined && serverInfo !== undefined && (
+          {authConfig !== undefined && serverInfo !== undefined && (
             <Alert severity="error">{serverInfo}</Alert>
           )}
         </Box>
