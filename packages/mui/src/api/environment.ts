@@ -4,7 +4,15 @@ import {
   fetchBaseQuery,
   //   type BaseQueryFn,
 } from "@reduxjs/toolkit/query/react";
-import type { AuthConfig } from "../reducers/EnvironmentReducer";
+
+export interface AuthConfig {
+  domain: string;
+  clientId: string;
+  authorizationParams: {
+    audience: string;
+    redirect_uri: string;
+  };
+}
 
 type EnvironmentConfig = {
   api: string;

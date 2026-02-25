@@ -1,4 +1,4 @@
-import React, { useEffect, useState, ReactElement, cloneElement } from "react";
+import { useEffect, useState, ReactElement, cloneElement } from "react";
 import {
   AppBar,
   AppBarProps,
@@ -31,6 +31,11 @@ import {
   useGetNoAuthConfigQuery,
 } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
+import {
+  selectRatelimit,
+  selectRatelimitMax,
+  selectRatelimitRemaining,
+} from "../../slices/rateLimitSlice";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -117,15 +122,9 @@ const GameMasterComponent = () => {
   const currentScene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
   );
-  const rateMax = useSelector(
-    (state: AppReducerState) => state.environment.ratelimitMax,
-  );
-  const rateRemaining = useSelector(
-    (state: AppReducerState) => state.environment.ratelimitRemaining,
-  );
-  const rateLimit = useSelector(
-    (state: AppReducerState) => state.environment.ratelimit,
-  );
+  const rateMax = useSelector(selectRatelimitMax);
+  const rateRemaining = useSelector(selectRatelimitRemaining);
+  const rateLimit = useSelector(selectRatelimit);
 
   const { getAccessTokenSilently, loginWithRedirect } = useAuth0();
 

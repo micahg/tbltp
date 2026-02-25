@@ -210,7 +210,7 @@ const ContentEditor = ({
     sm.transition(option);
   };
 
-  const gmSetOpacity = (event: Event, newValue: number | number[]) =>
+  const gmSetOpacity = (_event: Event, newValue: number | number[]) =>
     sm.transition("change", newValue as number);
 
   const gmCloseOpacitySlider = () => {

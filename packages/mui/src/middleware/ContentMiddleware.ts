@@ -7,6 +7,7 @@ import { Scene, Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 import { environmentApi } from "../api/environment";
+import { ratelimit } from "../slices/rateLimitSlice";
 
 export interface ViewportBundle {
   backgroundSize?: Rect;
@@ -54,7 +55,10 @@ async function resolveHeaders(
   state: AppReducerState,
   headers: { [key: string]: string } = {},
 ): Promise<{ [key: string]: string }> {
-  if (state.environment.noauth) {
+  const noauth =
+    environmentApi.endpoints.getNoAuthConfig.select()(state).data?.noauth ??
+    false;
+  if (noauth) {
     return {
       ...headers,
       Authorization: "Bearer NOAUTH",
@@ -99,10 +103,7 @@ function trackRateLimit(next: Dispatch<AnyAction>, resp: AxiosResponse) {
   const limit = resp.headers["ratelimit-limit"];
   const remaining = resp.headers["ratelimit-remaining"];
   if (limit === undefined || remaining === undefined) return;
-  next({
-    type: "environment/ratelimit",
-    payload: { limit, remaining },
-  });
+  next(ratelimit({ limit, remaining }));
 }
 
 function handleError(

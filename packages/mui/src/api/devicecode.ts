@@ -1,6 +1,16 @@
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
 import axios from "axios";
-import { AuthConfig, DeviceCode } from "../reducers/EnvironmentReducer";
+import { AuthConfig } from "./environment";
+
+// https://auth0.com/docs/get-started/authentication-and-authorization-flow/call-your-api-using-the-device-authorization-flow#device-code-response
+export interface DeviceCode {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  verification_uri_complete: string;
+  expires_in: number;
+  interval: number;
+}
 
 type DeviceCodeApiError = {
   status: number | "CUSTOM_ERROR";
