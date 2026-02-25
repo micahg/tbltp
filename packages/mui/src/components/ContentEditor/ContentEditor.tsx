@@ -40,8 +40,6 @@ import {
   LinearProgress,
   Paper,
   Typography,
-  Alert,
-  IconButton,
 } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
@@ -53,6 +51,7 @@ import {
 } from "@micahg/tbltp-common";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 import { environmentApi } from "../../api/environment";
+import { useAuth0 } from "@auth0/auth0-react";
 
 const sm = new MouseStateMachine();
 
@@ -114,6 +113,7 @@ const ContentEditor = ({
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   // selection is sized relative to the visible canvas size -- not the full background size
   const [selection, setSelection] = useState<Rect | null>(null);
+  const [bearer, setBearer] = useState<string | null>(null);
 
   // the viewport to draw so the dm knows what the players see
   const [displayViewport, setDisplayViewport] = useState<Rect | null>(null);
@@ -128,13 +128,6 @@ const ContentEditor = ({
    */
   const [toolbarPopulated, setToolbarPopulated] = useState<boolean>(false);
 
-  const auth = useSelector((state: AppReducerState) => state.environment.auth);
-  const authErr = useSelector(
-    (state: AppReducerState) => state.environment.authErr,
-  );
-  const noauth = useSelector(
-    (state: AppReducerState) => state.environment.noauth,
-  );
   const scene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
   );
@@ -142,12 +135,11 @@ const ContentEditor = ({
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
-  const bearer = useSelector(
-    (state: AppReducerState) => state.environment.bearer,
-  );
   const pushTime = useSelector(
     (state: AppReducerState) => state.content.pushTime,
   );
+
+  const { getAccessTokenSilently } = useAuth0();
 
   const updateSelected = useCallback(
     (value: boolean) => {
@@ -218,7 +210,7 @@ const ContentEditor = ({
     sm.transition(option);
   };
 
-  const gmSetOpacity = (event: Event, newValue: number | number[]) =>
+  const gmSetOpacity = (_event: Event, newValue: number | number[]) =>
     sm.transition("change", newValue as number);
 
   const gmCloseOpacitySlider = () => {
@@ -257,6 +249,7 @@ const ContentEditor = ({
    */
   const handleWorkerMessage = useCallback(
     (evt: MessageEvent<unknown>) => {
+      console.log(evt);
       if (!scene?._id) return;
       if (!evt.data || typeof evt.data !== "object") return;
       if (!("cmd" in evt.data)) return;
@@ -372,6 +365,12 @@ const ContentEditor = ({
     if (!internalState || !toolbarPopulated) return;
     internalState.color = colorInputRef;
   }, [internalState, colorInputRef, toolbarPopulated]);
+
+  useEffect(() => {
+    getAccessTokenSilently()
+      .then((token) => setBearer(token))
+      .catch(() => setBearer(null));
+  }, [getAccessTokenSilently]);
 
   /**
    * Populate the toolbar with our actions. Empty deps insures this only gets
@@ -923,16 +922,12 @@ const ContentEditor = ({
   // but not before we have loaded the toolbar (otherwise we just get
   // rendered and do it again)
   useEffect(() => {
-    // bail if we haven't attempted authorization
-    if (auth === undefined) return;
-    if (auth === false && noauth === false) return;
-
     // otherwise wait until we have populated the toolbar before we get our state
     if (!apiUrl || !dispatch || !toolbarPopulated) return;
 
     // don't pull everything if we already scene data
     if (sceneId) return;
-  }, [apiUrl, dispatch, toolbarPopulated, auth, noauth, sceneId]);
+  }, [apiUrl, dispatch, toolbarPopulated, sceneId]);
 
   return (
     <Box
@@ -949,7 +944,7 @@ const ContentEditor = ({
           <button onClick={() => sm.transition("link")}>Link</button>
         </div>
       )}
-      {authErr !== undefined && (
+      {/* {authErr !== undefined && (
         <Box sx={{ pt: "1em", pr: "1em", pl: "1em" }}>
           <Alert
             severity="error"
@@ -964,7 +959,7 @@ const ContentEditor = ({
             {authErr.error}: {authErr.reason}
           </Alert>
         </Box>
-      )}
+      )} */}
       {!scene?.playerContent && (
         <Box sx={{ padding: "1em" }}>
           <Paper sx={{ padding: "1em", margin: "1em 0" }} elevation={6}>

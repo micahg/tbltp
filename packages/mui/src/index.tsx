@@ -2,15 +2,48 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import reportWebVitals from "./reportWebVitals";
+import { Auth0Provider } from "@auth0/auth0-react";
 import { Provider } from "react-redux";
 import LandingComponent from "./components/LandingComponent/LandingComponent.lazy";
 import RemoteDisplayComponent from "./components/RemoteDisplayComponent/RemoteDisplayComponent.lazy";
 import GameMasterComponent from "./components/GameMasterComponent/GameMasterComponent.lazy";
 import DeviceCodeComponent from "./components/DeviceCodeComponent/DeviceCodeComponent.lazy";
+import AuthTokenBridge from "./components/AuthTokenBridge/AuthTokenBridge";
 import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import UnavailableComponent from "./components/UnavailableComponent/UnavailableComponent";
 import { store } from "./store";
-import { environmentApi } from "./api/environment";
+import {
+  useGetAuthConfigQuery,
+  useGetNoAuthConfigQuery,
+  useGetEnvironmentConfigQuery,
+} from "./api/environment";
+
+const AuthenticatedGameMasterComponent = () => {
+  const { data: environmentConfig } = useGetEnvironmentConfigQuery();
+  const { data: authConfig } = useGetAuthConfigQuery();
+
+  // skip allows the component to rerender when the useGetEnvironmentConfigQuery state changes.
+  // we need the environmentConfig to get the API URL before we can fetch the noauth config,
+  // so we skip the noauth query until we have the environmentConfig.
+  const { data: noAuthConfig } = useGetNoAuthConfigQuery(undefined, {
+    skip: !environmentConfig?.api,
+  });
+
+  if (noAuthConfig?.noauth || !authConfig) {
+    return <GameMasterComponent />;
+  }
+
+  return (
+    <Auth0Provider
+      domain={authConfig.domain}
+      clientId={authConfig.clientId}
+      authorizationParams={authConfig.authorizationParams}
+    >
+      <AuthTokenBridge />
+      <GameMasterComponent />
+    </Auth0Provider>
+  );
+};
 
 const routes = [];
 routes.push({ path: "/", element: <LandingComponent />, errorElement: null });
@@ -21,7 +54,7 @@ routes.push({
 });
 routes.push({
   path: "/edit",
-  element: <GameMasterComponent />,
+  element: <AuthenticatedGameMasterComponent />,
   errorElement: <UnavailableComponent />,
 });
 routes.push({
@@ -36,9 +69,6 @@ routes.push({
 });
 
 const router = createBrowserRouter(routes);
-
-store.dispatch(environmentApi.endpoints.getEnvironmentConfig.initiate());
-store.dispatch({ type: "environment/config", payload: undefined });
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,

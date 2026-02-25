@@ -1,7 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { AppReducer } from "./reducers/AppReducer";
 import { environmentApi } from "./api/environment";
-import { EnvironmentMiddleware } from "./middleware/EnvironmentMiddleware";
+import { deviceCodeApi } from "./api/devicecode";
 import { ContentMiddleware } from "./middleware/ContentMiddleware";
 
 export const store = configureStore({
@@ -9,7 +9,7 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
       environmentApi.middleware,
-      EnvironmentMiddleware,
+      deviceCodeApi.middleware,
       ContentMiddleware,
     ),
 });

@@ -1,40 +1,56 @@
-import { createRef, useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { AppReducerState } from "../../reducers/AppReducer";
+import { createRef, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Paper, Typography } from "@mui/material";
 import * as QRCode from "qrcode";
+import { useGetAuthConfigQuery } from "../../api/environment";
+import {
+  useGetDeviceAuthStateQuery,
+  useGetDeviceCodeMutation,
+  usePollDeviceCodeMutation,
+} from "../../api/devicecode";
 
 const DeviceCodeComponent = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const deviceCode = useSelector(
-    (state: AppReducerState) => state.environment.deviceCode,
-  );
-  const authorized = useSelector(
-    (state: AppReducerState) => state.environment.auth,
-  );
+  const { data: authState } = useGetDeviceAuthStateQuery();
+  const { data: authConfig } = useGetAuthConfigQuery();
+  const [getDeviceCode] = useGetDeviceCodeMutation();
+  const [pollDeviceCode] = usePollDeviceCodeMutation();
+  const startedRef = useRef<boolean>(false);
+  const deviceCode = authState?.deviceCode;
+  const authorized = authState?.authorized ?? false;
+
   // note, the next two can be dubious -- deviceCode is called twice in strict mode, which means the overall
   // object changes -- we rely on the fact that the polling/expiration values dont change.
-  const deviceCodeInterval = useSelector(
-    (state: AppReducerState) => state.environment.deviceCode?.interval,
-  );
-  const deviceCodeExpiry = useSelector(
-    (state: AppReducerState) => state.environment.deviceCode?.expires_in,
-  );
-  const deviceCodeFullUrl = useSelector(
-    (state: AppReducerState) =>
-      state.environment.deviceCode?.verification_uri_complete,
-  );
+  const deviceCodeInterval = deviceCode?.interval;
+  const deviceCodeExpiry = deviceCode?.expires_in;
+  const deviceCodeFullUrl = deviceCode?.verification_uri_complete;
 
   const [expired, setExpired] = useState<boolean>(false);
 
   const qrCanvasRef = createRef<HTMLCanvasElement>();
 
   useEffect(() => {
-    dispatch({ type: "environment/devicecode" });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!authConfig) return;
+    if (deviceCode) return;
+    if (authorized) return;
+    if (startedRef.current) return;
+
+    startedRef.current = true;
+
+    getDeviceCode(authConfig)
+      .unwrap()
+      .catch((err) => {
+        startedRef.current = false;
+        console.error(
+          `Device Code Authentication Failed: ${JSON.stringify(err)}`,
+        );
+      });
+  }, [authConfig, deviceCode, authorized, getDeviceCode]);
+
+  useEffect(() => {
+    setExpired(false);
+  }, [deviceCode?.device_code]);
 
   /**
    * Loop around polling for the token (waiting for the device code to be entered)
@@ -43,13 +59,13 @@ const DeviceCodeComponent = () => {
     if (!deviceCodeInterval || !deviceCodeExpiry) return;
 
     // periodically trigger polling for the auth
-    const intervalId: NodeJS.Timer = setInterval(
-      () => dispatch({ type: "environment/devicecodepoll" }),
+    const intervalId = window.setInterval(
+      () => void pollDeviceCode({ noauth: false, deviceCode }),
       1000 * deviceCodeInterval,
     );
 
     // eventually give up on polling
-    const timeoutId: NodeJS.Timer = setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       setExpired(true);
       clearInterval(intervalId);
     }, 1000 * deviceCodeExpiry);
@@ -59,7 +75,7 @@ const DeviceCodeComponent = () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-  }, [deviceCodeInterval, deviceCodeExpiry, dispatch]);
+  }, [deviceCodeInterval, deviceCodeExpiry, deviceCode, pollDeviceCode]);
 
   /**
    * Once we're authorized head on back
@@ -119,7 +135,7 @@ const DeviceCodeComponent = () => {
           </Box>
         )}
         {!expired && (
-          <Typography variant="body1">
+          <Typography variant="body1" align="center">
             Please visit{" "}
             {deviceCode ? (
               <a
