@@ -1,4 +1,4 @@
-apiDomain: "api.ntt.steakholdermeating.com"
+apiDomain: "nttapi.steakholdermeating.com"
 apiStorageClass: microk8s-hostpath
 apiStorageClassSize: 10Gi
 uiDomain: "ntt.steakholdermeating.com"
