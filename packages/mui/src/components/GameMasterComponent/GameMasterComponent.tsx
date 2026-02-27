@@ -221,15 +221,24 @@ const GameMasterComponent = () => {
       })
       .catch((err) => {
         setBearer(null);
-        if ("error" in err && err.error === "login_required") {
+        const authError =
+          typeof err === "object" && err !== null && "error" in err
+            ? String((err as { error?: unknown }).error)
+            : undefined;
+        if (
+          authError === "login_required" ||
+          authError === "interaction_required" ||
+          authError === "consent_required"
+        ) {
           const options = {
             authorizationParams: { redirect_uri: window.location.href },
           };
-          loginWithRedirect(options);
+          void loginWithRedirect(options);
         }
-        console.error("error getting token in content editor", err);
-        console.error(err);
-        console.error(JSON.stringify(err));
+        console.error("error getting token in content editor", {
+          authError,
+          err,
+        });
       });
   }, [getAccessTokenSilently, loginWithRedirect]);
 

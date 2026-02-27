@@ -29,8 +29,20 @@ const AuthenticatedGameMasterComponent = () => {
     skip: !environmentConfig?.api,
   });
 
-  if (noAuthConfig?.noauth || !authConfig) {
+  if (!environmentConfig?.api) {
+    return <div>Loading...</div>;
+  }
+
+  if (!noAuthConfig) {
+    return <div>Loading...</div>;
+  }
+
+  if (noAuthConfig.noauth) {
     return <GameMasterComponent />;
+  }
+
+  if (!authConfig) {
+    return <div>Loading...</div>;
   }
 
   return (
