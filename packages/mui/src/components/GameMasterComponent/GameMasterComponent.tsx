@@ -228,6 +228,8 @@ const GameMasterComponent = () => {
           loginWithRedirect(options);
         }
         console.error("error getting token in content editor", err);
+        console.error(err);
+        console.error(JSON.stringify(err));
       });
   }, [getAccessTokenSilently, loginWithRedirect]);
 
