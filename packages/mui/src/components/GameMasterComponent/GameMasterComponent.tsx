@@ -36,6 +36,8 @@ import {
   selectRatelimitMax,
   selectRatelimitRemaining,
 } from "../../slices/rateLimitSlice";
+import AuthLoadingComponent from "../AuthLoadingComponent/AuthLoadingComponent.lazy";
+import AuthRedirectingComponent from "../AuthRedirectingComponent/AuthRedirectingComponent.lazy";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -45,6 +47,8 @@ enum FocusedComponent {
   Scene,
   Assets,
   Tokens,
+  Loading,
+  Redirecting,
 }
 
 const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
@@ -110,7 +114,7 @@ const GameMasterComponent = () => {
   const [sceneKey, setSceneKey] = useState<number>(0);
   const [sceneCount, setSceneCount] = useState<number>(0);
   const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
-    FocusedComponent.ContentEditor,
+    FocusedComponent.Loading,
   );
   const [bearer, setBearer] = useState<string | null>(null);
   const { data: environmentConfig } = useGetEnvironmentConfigQuery();
@@ -126,7 +130,12 @@ const GameMasterComponent = () => {
   const rateRemaining = useSelector(selectRatelimitRemaining);
   const rateLimit = useSelector(selectRatelimit);
 
-  const { getAccessTokenSilently, loginWithRedirect } = useAuth0();
+  const {
+    getAccessTokenSilently,
+    loginWithRedirect,
+    isLoading,
+    isAuthenticated,
+  } = useAuth0();
 
   const handleNavDrawerOpen = () => setNavOpen(true);
 
@@ -213,11 +222,24 @@ const GameMasterComponent = () => {
 
   const scenesClick = () => setScenesOpen(!scenesOpen);
 
+  const focusedComponentToRender =
+    noauth === false && isLoading === true
+      ? FocusedComponent.Loading
+      : noauth === false && isAuthenticated === false
+        ? FocusedComponent.Redirecting
+        : focusedComponent;
+
   useEffect(() => {
+    if (noauth) return;
+    if (isLoading) return;
+    if (!isAuthenticated) {
+      void loginWithRedirect();
+      return;
+    }
     getAccessTokenSilently()
       .then((token) => {
-        console.log("got token in content editor", token);
         setBearer(token);
+        setFocusedComponent(FocusedComponent.ContentEditor);
       })
       .catch((err) => {
         setBearer(null);
@@ -240,7 +262,13 @@ const GameMasterComponent = () => {
           err,
         });
       });
-  }, [getAccessTokenSilently, loginWithRedirect]);
+  }, [
+    getAccessTokenSilently,
+    loginWithRedirect,
+    isLoading,
+    isAuthenticated,
+    noauth,
+  ]);
 
   useEffect(() => {
     if (!dispatch) return;
@@ -347,7 +375,13 @@ const GameMasterComponent = () => {
         {infoComponent}
       </Drawer>
       <Main open={navOpen}>
-        {focusedComponent === FocusedComponent.ContentEditor && (
+        {focusedComponentToRender === FocusedComponent.Loading && (
+          <AuthLoadingComponent />
+        )}
+        {focusedComponentToRender === FocusedComponent.Redirecting && (
+          <AuthRedirectingComponent />
+        )}
+        {focusedComponentToRender === FocusedComponent.ContentEditor && (
           <ContentEditor
             infoDrawer={handleInfoDrawerOpen}
             populateToolbar={handlePopulateToolbar}
@@ -355,7 +389,7 @@ const GameMasterComponent = () => {
             manageScene={handleManageScene}
           />
         )}
-        {focusedComponent === FocusedComponent.Scene && (
+        {focusedComponentToRender === FocusedComponent.Scene && (
           <SceneComponent
             key={sceneKey} // increments on ever new scene press to reset state
             populateToolbar={handlePopulateToolbar}
@@ -364,10 +398,10 @@ const GameMasterComponent = () => {
             editScene={handleEditScene}
           />
         )}
-        {focusedComponent === FocusedComponent.Assets && (
+        {focusedComponentToRender === FocusedComponent.Assets && (
           <AssetsComponent populateToolbar={handlePopulateToolbar} />
         )}
-        {focusedComponent === FocusedComponent.Tokens && (
+        {focusedComponentToRender === FocusedComponent.Tokens && (
           <TokensComponent populateToolbar={handlePopulateToolbar} />
         )}
         <Box
