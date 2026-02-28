@@ -36,8 +36,8 @@ const EditorIntroductionComponent = () => {
             </li>
             <li>
               When you have set your images, come back and edit the
-              <MenuIcon sx={{ verticalAlign: "bottom" }} /> and the scene by
-              its name.
+              <MenuIcon sx={{ verticalAlign: "bottom" }} /> and the scene by its
+              name.
             </li>
           </ul>
           <li>
@@ -50,11 +50,13 @@ const EditorIntroductionComponent = () => {
           <ul>
             <li>
               Selected regions can be obscured &#40;
-              <VisibilityOff sx={{ verticalAlign: "bottom" }} />&#41;, revealed
-              &#40;<Visibility sx={{ verticalAlign: "bottom" }} />&#41; revealed,
-              and zoomed &#40;<ZoomIn sx={{ verticalAlign: "bottom" }} />
-              <ZoomOut sx={{ verticalAlign: "bottom" }} />&#41;on the remote
-              display.
+              <VisibilityOff sx={{ verticalAlign: "bottom" }} />
+              &#41;, revealed &#40;
+              <Visibility sx={{ verticalAlign: "bottom" }} />
+              &#41; revealed, and zoomed &#40;
+              <ZoomIn sx={{ verticalAlign: "bottom" }} />
+              <ZoomOut sx={{ verticalAlign: "bottom" }} />
+              &#41;on the remote display.
             </li>
           </ul>
         </ul>

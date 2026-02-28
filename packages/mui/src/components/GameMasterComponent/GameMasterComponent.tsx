@@ -130,8 +130,12 @@ const GameMasterComponent = () => {
   const rateRemaining = useSelector(selectRatelimitRemaining);
   const rateLimit = useSelector(selectRatelimit);
 
-  const { getAccessTokenSilently, loginWithRedirect, isLoading, isAuthenticated } =
-    useAuth0();
+  const {
+    getAccessTokenSilently,
+    loginWithRedirect,
+    isLoading,
+    isAuthenticated,
+  } = useAuth0();
 
   const handleNavDrawerOpen = () => setNavOpen(true);
 
@@ -258,7 +262,13 @@ const GameMasterComponent = () => {
           err,
         });
       });
-  }, [getAccessTokenSilently, loginWithRedirect, isLoading, isAuthenticated, noauth]);
+  }, [
+    getAccessTokenSilently,
+    loginWithRedirect,
+    isLoading,
+    isAuthenticated,
+    noauth,
+  ]);
 
   useEffect(() => {
     if (!dispatch) return;
