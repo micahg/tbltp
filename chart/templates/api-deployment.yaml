@@ -28,6 +28,11 @@ spec:
         ports:
         - containerPort: 3000
         env:
+        - name: UI_URL
+          valueFrom:
+            configMapKeyRef:
+              name: env-config
+              key: ui.url
         - name: AUDIENCE_URL
           valueFrom:
             configMapKeyRef:

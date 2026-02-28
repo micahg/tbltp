@@ -10,6 +10,7 @@ data:
   auth.client: {{ .Values.clientId }}
   auth.audience: https://{{ .Values.apiDomain }}
   api.url: https://{{ .Values.apiDomain }}
+  ui.url: https://{{ .Values.uiDomain }}
   ws.url: wss://{{ .Values.apiDomain }}
   ws.readTimeout: "{{ .Values.wsReadTimeout }}"
   ws.sendTimeout: "{{ .Values.wsSendTimeout }}"
