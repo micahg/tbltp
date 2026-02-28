@@ -9,7 +9,7 @@ uiImagePath: ghcr.io/micahg/tbltp-mui
 uiDomain: "tbltp.dev"
 apiAppName: ntt-api
 apiAppReplicas: 1
-apiImageVers: "0.27.0"
+apiImageVers: "0.28.0"
 apiImagePath: ghcr.io/micahg/tbltp-api
 apiDomain: "api.tbltp.dev"
 apiStorageClass: do-block-storage
