@@ -45,6 +45,8 @@ enum FocusedComponent {
   Scene,
   Assets,
   Tokens,
+  Loading,
+  Redirecting,
 }
 
 const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
@@ -126,7 +128,8 @@ const GameMasterComponent = () => {
   const rateRemaining = useSelector(selectRatelimitRemaining);
   const rateLimit = useSelector(selectRatelimit);
 
-  const { getAccessTokenSilently, loginWithRedirect } = useAuth0();
+  const { getAccessTokenSilently, loginWithRedirect, isLoading, isAuthenticated } =
+    useAuth0();
 
   const handleNavDrawerOpen = () => setNavOpen(true);
 
@@ -213,7 +216,20 @@ const GameMasterComponent = () => {
 
   const scenesClick = () => setScenesOpen(!scenesOpen);
 
+  const focusedComponentToRender =
+    noauth === false && isLoading === true
+      ? FocusedComponent.Loading
+      : noauth === false && isAuthenticated === false
+        ? FocusedComponent.Redirecting
+        : focusedComponent;
+
   useEffect(() => {
+    if (noauth) return;
+    if (isLoading) return;
+    if (!isAuthenticated) {
+      void loginWithRedirect();
+      return;
+    }
     getAccessTokenSilently()
       .then((token) => {
         console.log("got token in content editor", token);
@@ -240,7 +256,7 @@ const GameMasterComponent = () => {
           err,
         });
       });
-  }, [getAccessTokenSilently, loginWithRedirect]);
+  }, [getAccessTokenSilently, loginWithRedirect, isLoading, isAuthenticated, noauth]);
 
   useEffect(() => {
     if (!dispatch) return;
@@ -347,7 +363,11 @@ const GameMasterComponent = () => {
         {infoComponent}
       </Drawer>
       <Main open={navOpen}>
-        {focusedComponent === FocusedComponent.ContentEditor && (
+        {focusedComponentToRender === FocusedComponent.Loading && <div>loading...</div>}
+        {focusedComponentToRender === FocusedComponent.Redirecting && (
+          <div>redirecting to login...</div>
+        )}
+        {focusedComponentToRender === FocusedComponent.ContentEditor && (
           <ContentEditor
             infoDrawer={handleInfoDrawerOpen}
             populateToolbar={handlePopulateToolbar}
@@ -355,7 +375,7 @@ const GameMasterComponent = () => {
             manageScene={handleManageScene}
           />
         )}
-        {focusedComponent === FocusedComponent.Scene && (
+        {focusedComponentToRender === FocusedComponent.Scene && (
           <SceneComponent
             key={sceneKey} // increments on ever new scene press to reset state
             populateToolbar={handlePopulateToolbar}
@@ -364,10 +384,10 @@ const GameMasterComponent = () => {
             editScene={handleEditScene}
           />
         )}
-        {focusedComponent === FocusedComponent.Assets && (
+        {focusedComponentToRender === FocusedComponent.Assets && (
           <AssetsComponent populateToolbar={handlePopulateToolbar} />
         )}
-        {focusedComponent === FocusedComponent.Tokens && (
+        {focusedComponentToRender === FocusedComponent.Tokens && (
           <TokensComponent populateToolbar={handlePopulateToolbar} />
         )}
         <Box
