@@ -5,9 +5,9 @@
   "main": "server.js",
   "files": [],
   "scripts": {
-    "dev": "webpack --watch --progress --config webpack.prod.js",
+    "dev": "UI_URL=http://localhost:4200 webpack --watch --progress --config webpack.prod.js",
     "build": "webpack --progress --config webpack.prod.js",
-    "start": "node --watch server.js",
+    "start": "UI_URL=http://localhost:4200 node --watch server.js",
     "test": "jest --verbose --detectOpenHandles --coverage",
     "test:debug": "node --inspect-brk node_modules/jest/bin/jest --runInBand --testTimeout=999999",
     "prune": "ts-prune",

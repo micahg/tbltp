@@ -126,6 +126,17 @@ function schemaErrorCheck(
 export function create(): Express {
   const noauth: boolean = process.env.DISABLE_AUTH?.toLowerCase() === "true";
   const app = express();
+  const configuredOrigins = [process.env.UI_URL]
+    .filter((url): url is string => Boolean(url))
+    .map((url) => url.trim())
+    .filter((url) => url.length > 0);
+
+  if (configuredOrigins.length === 0) {
+    log.warn("CORS env not configured: UI_URL is not set");
+  }
+
+  const allowedOrigins = new Set(configuredOrigins);
+  log.info(`CORS allowed origins: ${Array.from(allowedOrigins).join(", ")}`);
 
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({ extended: true }));
@@ -161,24 +172,30 @@ export function create(): Express {
     next();
   });
 
-  // TODO FIX environment specific cors headers
-  app.use((_req, res, next) => {
-    // TODO FIX THIS (DEV ONLY)
-    res.header("Access-Control-Allow-Origin", "*");
-    // TODO FIX THIS (DEV ONLY)
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Origin, X-Requested-With, Content-Type, Content-Length, Accept, Authorization, Spoof-UID",
-    );
-    // TODO FIX THIS (DEV ONLY)!
-    res.header(
-      "Access-Control-Allow-Methods",
-      "POST, PUT, PATCH, GET, OPTIONS, DELETE",
-    );
-    res.header(
-      "Access-Control-Expose-Headers",
-      "RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset",
-    );
+  app.use((req, res, next) => {
+    const origin = req.header("Origin");
+    if (origin && allowedOrigins.has(origin)) {
+      res.header("Access-Control-Allow-Origin", origin);
+      res.header("Vary", "Origin");
+      res.header(
+        "Access-Control-Allow-Headers",
+        "Origin, X-Requested-With, Content-Type, Content-Length, Accept, Authorization, Spoof-UID",
+      );
+      res.header(
+        "Access-Control-Allow-Methods",
+        "POST, PUT, PATCH, GET, OPTIONS, DELETE",
+      );
+      res.header(
+        "Access-Control-Expose-Headers",
+        "RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset",
+      );
+    }
+
+    if (req.method === "OPTIONS") {
+      res.sendStatus(204);
+      return;
+    }
+
     next();
   });
 
