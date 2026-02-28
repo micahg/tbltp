@@ -36,6 +36,8 @@ import {
   selectRatelimitMax,
   selectRatelimitRemaining,
 } from "../../slices/rateLimitSlice";
+import AuthLoadingComponent from "../AuthLoadingComponent/AuthLoadingComponent.lazy";
+import AuthRedirectingComponent from "../AuthRedirectingComponent/AuthRedirectingComponent.lazy";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -112,7 +114,7 @@ const GameMasterComponent = () => {
   const [sceneKey, setSceneKey] = useState<number>(0);
   const [sceneCount, setSceneCount] = useState<number>(0);
   const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
-    FocusedComponent.ContentEditor,
+    FocusedComponent.Loading,
   );
   const [bearer, setBearer] = useState<string | null>(null);
   const { data: environmentConfig } = useGetEnvironmentConfigQuery();
@@ -232,8 +234,8 @@ const GameMasterComponent = () => {
     }
     getAccessTokenSilently()
       .then((token) => {
-        console.log("got token in content editor", token);
         setBearer(token);
+        setFocusedComponent(FocusedComponent.ContentEditor);
       })
       .catch((err) => {
         setBearer(null);
@@ -363,9 +365,11 @@ const GameMasterComponent = () => {
         {infoComponent}
       </Drawer>
       <Main open={navOpen}>
-        {focusedComponentToRender === FocusedComponent.Loading && <div>loading...</div>}
+        {focusedComponentToRender === FocusedComponent.Loading && (
+          <AuthLoadingComponent />
+        )}
         {focusedComponentToRender === FocusedComponent.Redirecting && (
-          <div>redirecting to login...</div>
+          <AuthRedirectingComponent />
         )}
         {focusedComponentToRender === FocusedComponent.ContentEditor && (
           <ContentEditor
