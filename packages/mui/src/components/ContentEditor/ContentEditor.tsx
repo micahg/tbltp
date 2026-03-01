@@ -942,22 +942,6 @@ const ContentEditor = ({
           <button onClick={() => sm.transition("link")}>Link</button>
         </div>
       )}
-      {/* {authErr !== undefined && (
-        <Box sx={{ pt: "1em", pr: "1em", pl: "1em" }}>
-          <Alert
-            severity="error"
-            action={
-              <IconButton
-                aria-label="close"
-                color="inherit"
-                size="small"
-              ></IconButton>
-            }
-          >
-            {authErr.error}: {authErr.reason}
-          </Alert>
-        </Box>
-      )} */}
       {!scene?.playerContent && <EditorIntroductionComponent />}
       {scene?.playerContent && (
         <Box>

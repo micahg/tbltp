@@ -27,17 +27,10 @@ import NavigationDrawerComponent from "../NavigationDrawerComponent/NavigationDr
 import TokensComponent from "../TokensComponent/TokensComponent.lazy";
 import { Scene } from "@micahg/tbltp-common";
 import {
-  useGetEnvironmentConfigQuery,
-  useGetNoAuthConfigQuery,
-} from "../../api/environment";
-import { useAuth0 } from "@auth0/auth0-react";
-import {
   selectRatelimit,
   selectRatelimitMax,
   selectRatelimitRemaining,
 } from "../../slices/rateLimitSlice";
-import AuthLoadingComponent from "../AuthLoadingComponent/AuthLoadingComponent.lazy";
-import AuthRedirectingComponent from "../AuthRedirectingComponent/AuthRedirectingComponent.lazy";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -47,8 +40,6 @@ enum FocusedComponent {
   Scene,
   Assets,
   Tokens,
-  Loading,
-  Redirecting,
 }
 
 const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
@@ -114,14 +105,8 @@ const GameMasterComponent = () => {
   const [sceneKey, setSceneKey] = useState<number>(0);
   const [sceneCount, setSceneCount] = useState<number>(0);
   const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
-    FocusedComponent.Loading,
+    FocusedComponent.ContentEditor,
   );
-  const [bearer, setBearer] = useState<string | null>(null);
-  const { data: environmentConfig } = useGetEnvironmentConfigQuery();
-  const { data: noAuthConfig } = useGetNoAuthConfigQuery(undefined, {
-    skip: !environmentConfig?.api,
-  });
-  const noauth = noAuthConfig?.noauth ?? false;
   const scenes = useSelector((state: AppReducerState) => state.content.scenes);
   const currentScene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
@@ -129,13 +114,6 @@ const GameMasterComponent = () => {
   const rateMax = useSelector(selectRatelimitMax);
   const rateRemaining = useSelector(selectRatelimitRemaining);
   const rateLimit = useSelector(selectRatelimit);
-
-  const {
-    getAccessTokenSilently,
-    loginWithRedirect,
-    isLoading,
-    isAuthenticated,
-  } = useAuth0();
 
   const handleNavDrawerOpen = () => setNavOpen(true);
 
@@ -222,65 +200,14 @@ const GameMasterComponent = () => {
 
   const scenesClick = () => setScenesOpen(!scenesOpen);
 
-  const focusedComponentToRender =
-    noauth === false && isLoading === true
-      ? FocusedComponent.Loading
-      : noauth === false && isAuthenticated === false
-        ? FocusedComponent.Redirecting
-        : focusedComponent;
-
-  useEffect(() => {
-    if (noauth) return;
-    if (isLoading) return;
-    if (!isAuthenticated) {
-      void loginWithRedirect();
-      return;
-    }
-    getAccessTokenSilently()
-      .then((token) => {
-        setBearer(token);
-        setFocusedComponent(FocusedComponent.ContentEditor);
-      })
-      .catch((err) => {
-        setBearer(null);
-        const authError =
-          typeof err === "object" && err !== null && "error" in err
-            ? String((err as { error?: unknown }).error)
-            : undefined;
-        if (
-          authError === "login_required" ||
-          authError === "interaction_required" ||
-          authError === "consent_required"
-        ) {
-          const options = {
-            authorizationParams: { redirect_uri: window.location.href },
-          };
-          void loginWithRedirect(options);
-        }
-        console.error("error getting token in content editor", {
-          authError,
-          err,
-        });
-      });
-  }, [
-    getAccessTokenSilently,
-    loginWithRedirect,
-    isLoading,
-    isAuthenticated,
-    noauth,
-  ]);
-
   useEffect(() => {
     if (!dispatch) return;
-
-    if (noauth || bearer) {
-      dispatch({ type: "content/pull" });
-      dispatch({ type: "content/scenes" });
-      dispatch({ type: "content/tokens" });
-      dispatch({ type: "content/assets" });
-      return;
-    }
-  }, [dispatch, noauth, bearer]);
+    dispatch({ type: "content/pull" });
+    dispatch({ type: "content/scenes" });
+    dispatch({ type: "content/tokens" });
+    dispatch({ type: "content/assets" });
+    return;
+  }, [dispatch]);
 
   useEffect(() => {
     if (scenes.length === sceneCount) return;
@@ -375,13 +302,7 @@ const GameMasterComponent = () => {
         {infoComponent}
       </Drawer>
       <Main open={navOpen}>
-        {focusedComponentToRender === FocusedComponent.Loading && (
-          <AuthLoadingComponent />
-        )}
-        {focusedComponentToRender === FocusedComponent.Redirecting && (
-          <AuthRedirectingComponent />
-        )}
-        {focusedComponentToRender === FocusedComponent.ContentEditor && (
+        {focusedComponent === FocusedComponent.ContentEditor && (
           <ContentEditor
             infoDrawer={handleInfoDrawerOpen}
             populateToolbar={handlePopulateToolbar}
@@ -389,7 +310,7 @@ const GameMasterComponent = () => {
             manageScene={handleManageScene}
           />
         )}
-        {focusedComponentToRender === FocusedComponent.Scene && (
+        {focusedComponent === FocusedComponent.Scene && (
           <SceneComponent
             key={sceneKey} // increments on ever new scene press to reset state
             populateToolbar={handlePopulateToolbar}
@@ -398,10 +319,10 @@ const GameMasterComponent = () => {
             editScene={handleEditScene}
           />
         )}
-        {focusedComponentToRender === FocusedComponent.Assets && (
+        {focusedComponent === FocusedComponent.Assets && (
           <AssetsComponent populateToolbar={handlePopulateToolbar} />
         )}
-        {focusedComponentToRender === FocusedComponent.Tokens && (
+        {focusedComponent === FocusedComponent.Tokens && (
           <TokensComponent populateToolbar={handlePopulateToolbar} />
         )}
         <Box
