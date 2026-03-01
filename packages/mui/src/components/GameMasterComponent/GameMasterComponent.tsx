@@ -104,7 +104,9 @@ const GameMasterComponent = () => {
   // scene key is used to force rerender of scene creation component
   const [sceneKey, setSceneKey] = useState<number>(0);
   const [sceneCount, setSceneCount] = useState<number>(0);
-  const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>();
+  const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
+    FocusedComponent.ContentEditor,
+  );
   const scenes = useSelector((state: AppReducerState) => state.content.scenes);
   const currentScene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
