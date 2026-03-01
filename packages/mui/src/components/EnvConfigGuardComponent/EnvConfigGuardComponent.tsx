@@ -41,8 +41,9 @@ const EnvConfigGuardComponent = () => {
       clientId={authConfig.clientId}
       authorizationParams={authConfig.authorizationParams}
     >
-      <AuthenticationGuardComponent />
-      <GameMasterComponent />
+      <AuthenticationGuardComponent>
+        <GameMasterComponent />
+      </AuthenticationGuardComponent>
     </Auth0Provider>
   );
 };
