@@ -14,13 +14,24 @@ jest.mock("../../api/environment", () => ({
   useGetNoAuthConfigQuery: jest.fn(),
 }));
 
-jest.mock("../GameMasterComponent/GameMasterComponent.lazy", () => () => (
-  <div data-testid="GameMasterComponent" />
-));
+jest.mock("../GameMasterComponent/GameMasterComponent.lazy", () => {
+  const MockGameMasterComponent = () => (
+    <div data-testid="GameMasterComponent" />
+  );
+  MockGameMasterComponent.displayName = "MockGameMasterComponent";
+  return MockGameMasterComponent;
+});
 
 jest.mock(
   "../AuthenticationGuardComponent/AuthenticationGuardComponent.lazy",
-  () => () => <div data-testid="AuthenticationGuardComponent" />,
+  () => {
+    const MockAuthenticationGuardComponent = () => (
+      <div data-testid="AuthenticationGuardComponent" />
+    );
+    MockAuthenticationGuardComponent.displayName =
+      "MockAuthenticationGuardComponent";
+    return MockAuthenticationGuardComponent;
+  },
 );
 
 jest.mock("@auth0/auth0-react", () => ({
