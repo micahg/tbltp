@@ -5,7 +5,7 @@ import {
   registerAccessTokenGetter,
 } from "../../utils/authBridge";
 
-const AuthTokenBridge = () => {
+const AuthenticationGuardComponent = () => {
   const { getAccessTokenSilently } = useAuth0();
 
   useEffect(() => {
@@ -18,4 +18,4 @@ const AuthTokenBridge = () => {
   return null;
 };
 
-export default AuthTokenBridge;
+export default AuthenticationGuardComponent;
