@@ -31,6 +31,7 @@ import {
   selectRatelimitMax,
   selectRatelimitRemaining,
 } from "../../slices/rateLimitSlice";
+import { useGetScenesQuery } from "../../api/scene";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -107,7 +108,7 @@ const GameMasterComponent = () => {
   const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
     FocusedComponent.ContentEditor,
   );
-  const scenes = useSelector((state: AppReducerState) => state.content.scenes);
+  const { data: scenes = [] } = useGetScenesQuery();
   const currentScene = useSelector(
     (state: AppReducerState) => state.content.currentScene,
   );
@@ -203,7 +204,6 @@ const GameMasterComponent = () => {
   useEffect(() => {
     if (!dispatch) return;
     dispatch({ type: "content/pull" });
-    dispatch({ type: "content/scenes" });
     dispatch({ type: "content/tokens" });
     dispatch({ type: "content/assets" });
     return;

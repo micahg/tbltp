@@ -10,13 +10,13 @@ import {
 import { createRef, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { NewSceneBundle } from "../../middleware/ContentMiddleware";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { LoadProgress, loadImage } from "../../utils/content";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import { Scene } from "@micahg/tbltp-common";
 import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
+import { useCreateSceneMutation } from "../../api/scene";
 
 // TODO move to a shared file
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
@@ -62,15 +62,17 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   );
   const error = useSelector((state: AppReducerState) => state.content.err);
   const { getAccessTokenSilently } = useAuth0();
+  const [createScene] = useCreateSceneMutation();
   const [bearer, setBearer] = useState<string | null>(null);
+  const hasUpdates = playerUpdated || detailUpdated;
 
   const disabledCreate =
     creating || // currently already creating or updating
     (!name && !scene) || // neither name nor scene (existing scene would have name)
     !!nameError || // don't create with name error
-    !(playerUpdated || detailUpdated) || // don't send if neither updated
+    (!!scene && !hasUpdates) || // only require image changes when editing
     error !== undefined ||
-    resolutionMismatch; // for now, don't send on resolution mismatch
+    (!!scene && resolutionMismatch); // only block edit flow on resolution mismatch
   // we should probably send if resolution is different but aspect ratio same
 
   const handleNameChange = (
@@ -156,16 +158,21 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
       return;
     }
     if (!name) return; // TODO ERROR
-    if (!playerFile) return; // TODO ERROR
-    const data: NewSceneBundle = {
-      description: name,
-      player: playerFile,
-      detail: detailFile,
-      viewport: vpData,
-      playerProgress: playerProgressHandler,
-      detailProgress: detailProgressHandler,
-    };
-    dispatch({ type: "content/createscene", payload: data });
+
+    createScene({ description: name })
+      .unwrap()
+      .then(() => {
+        dispatch({
+          type: "content/error",
+          payload: { msg: "Update successful", success: true },
+        });
+      })
+      .catch(() => {
+        dispatch({
+          type: "content/error",
+          payload: { msg: "Unkown error happened", success: false },
+        });
+      });
   };
 
   useEffect(() => {

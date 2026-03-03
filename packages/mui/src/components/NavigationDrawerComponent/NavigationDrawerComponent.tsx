@@ -10,15 +10,15 @@ import {
 } from "@mui/material";
 
 // import styles from "./NavigationDrawerComponent.module.css";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { ExpandLess, ExpandMore, UploadFile, Face } from "@mui/icons-material";
 import PhotoIcon from "@mui/icons-material/Photo";
 import LogoutIcon from "@mui/icons-material/Logout";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
-import { AppReducerState } from "../../reducers/AppReducer";
 import { Scene } from "@micahg/tbltp-common";
 import { useAuth0 } from "@auth0/auth0-react";
+import { useDeleteSceneMutation, useGetScenesQuery } from "../../api/scene";
 
 interface NavigationDrawerComponentProps {
   scenesOpen: boolean;
@@ -39,14 +39,22 @@ const NavigationDrawerComponent = ({
 }: NavigationDrawerComponentProps) => {
   const dispatch = useDispatch();
   const { logout } = useAuth0();
+  const { data: scenes = [] } = useGetScenesQuery();
+  const [deleteScene] = useDeleteSceneMutation();
 
   const handleDeleteScene = (scene: Scene) => {
-    dispatch({ type: "content/deletescene", payload: scene });
+    if (!scene._id) return;
+    deleteScene(scene._id)
+      .unwrap()
+      .catch(() => {
+        dispatch({
+          type: "content/error",
+          payload: { msg: "Unkown error happened", success: false },
+        });
+      });
   };
 
   const handleLogout = () => logout();
-
-  const scenes = useSelector((state: AppReducerState) => state.content.scenes);
 
   return (
     <List>
