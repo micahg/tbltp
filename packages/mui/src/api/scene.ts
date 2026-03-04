@@ -1,4 +1,4 @@
-import { Scene } from "@micahg/tbltp-common";
+import { Rect, Scene } from "@micahg/tbltp-common";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type {
   BaseQueryFn,
@@ -25,6 +25,15 @@ export interface SceneUploadResponse<TData = unknown> {
   data: TData;
   status: number;
   headers: Record<string, string>;
+}
+
+export interface SceneViewportUpdate {
+  sceneId: string;
+  viewport: {
+    backgroundSize?: Rect;
+    viewport?: Rect;
+    angle?: number;
+  };
 }
 
 function isBlob(payload: URL | Blob): payload is File {
@@ -248,6 +257,17 @@ export const sceneApi = createApi({
         { type: "Scene", id: "LIST" },
       ],
     }),
+    updateSceneViewport: build.mutation<Scene, SceneViewportUpdate>({
+      query: ({ sceneId, viewport }) => ({
+        url: `/scene/${sceneId}/viewport`,
+        method: "PUT",
+        body: viewport,
+      }),
+      invalidatesTags: (_result, _error, args) => [
+        { type: "Scene", id: args.sceneId },
+        { type: "Scene", id: "LIST" },
+      ],
+    }),
   }),
 });
 
@@ -257,4 +277,5 @@ export const {
   useCreateSceneMutation,
   useDeleteSceneMutation,
   useSendSceneFileMutation,
+  useUpdateSceneViewportMutation,
 } = sceneApi;
