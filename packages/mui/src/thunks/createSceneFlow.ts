@@ -19,17 +19,12 @@ export interface CreateSceneFlowOps {
   onScene: (scene: Scene) => void;
   onSuccess: () => void;
   onFailure: (message: string) => void;
-  onDeleteScene: (scene: Scene) => void;
   onClearCurrentScene: () => void;
 }
 
 export type CreateSceneFlowLifecycleOps = Pick<
   CreateSceneFlowOps,
-  | "onScene"
-  | "onSuccess"
-  | "onFailure"
-  | "onDeleteScene"
-  | "onClearCurrentScene"
+  "onScene" | "onSuccess" | "onFailure" | "onClearCurrentScene"
 >;
 
 function inferStatus(err: unknown): number | undefined {
@@ -102,7 +97,6 @@ export async function createSceneFlow(
         // ignore cleanup errors so we still surface the original failure
       }
 
-      ops.onDeleteScene(createdScene);
       ops.onClearCurrentScene();
     }
 

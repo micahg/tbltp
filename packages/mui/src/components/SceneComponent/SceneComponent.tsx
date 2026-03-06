@@ -18,7 +18,6 @@ import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
 import { createSceneFlow } from "../../thunks/createSceneFlow";
 import {
-  createSceneFlowOpsFromSceneApi,
   useCreateSceneMutation,
   useDeleteSceneMutation,
   useSendSceneFileMutation,
@@ -179,31 +178,25 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
         playerProgress: playerProgressHandler,
         detailProgress: detailProgressHandler,
       },
-      createSceneFlowOpsFromSceneApi(
-        {
-          createScene,
-          sendSceneFile,
-          updateSceneViewport,
-          deleteScene,
-        },
-        {
-          onScene: (nextScene) =>
-            dispatch({ type: "content/scene", payload: nextScene }),
-          onSuccess: () =>
-            dispatch({
-              type: "content/error",
-              payload: { msg: "Update successful", success: true },
-            }),
-          onFailure: (message) =>
-            dispatch({
-              type: "content/error",
-              payload: { msg: message, success: false },
-            }),
-          onDeleteScene: (failedScene) =>
-            dispatch({ type: "content/deletescene", payload: failedScene }),
-          onClearCurrentScene: () => dispatch({ type: "content/currentscene" }),
-        },
-      ),
+      {
+        createScene: (payload) => createScene(payload).unwrap(),
+        sendSceneFile: (payload) => sendSceneFile(payload).unwrap(),
+        updateSceneViewport: (payload) => updateSceneViewport(payload).unwrap(),
+        deleteScene: (sceneId) => deleteScene(sceneId).unwrap(),
+        onScene: (nextScene) =>
+          dispatch({ type: "content/scene", payload: nextScene }),
+        onSuccess: () =>
+          dispatch({
+            type: "content/error",
+            payload: { msg: "Update successful", success: true },
+          }),
+        onFailure: (message) =>
+          dispatch({
+            type: "content/error",
+            payload: { msg: message, success: false },
+          }),
+        onClearCurrentScene: () => dispatch({ type: "content/currentscene" }),
+      },
     )
       .then(() => {
         setPlayerUpdated(false);

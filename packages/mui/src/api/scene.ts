@@ -9,10 +9,6 @@ import { environmentApi } from "./environment";
 import { getAuthHeaders } from "../utils/authBridge";
 import { AppReducerState } from "../reducers/AppReducer";
 import { LoadProgress } from "../utils/content";
-import type {
-  CreateSceneFlowLifecycleOps,
-  CreateSceneFlowOps,
-} from "../thunks/createSceneFlow";
 
 type SceneTag = { type: "Scene"; id: string };
 
@@ -37,39 +33,6 @@ export interface SceneViewportUpdate {
     backgroundSize?: Rect;
     viewport?: Rect;
     angle?: number;
-  };
-}
-
-type UnwrappablePromise<T> = {
-  unwrap: () => Promise<T>;
-};
-
-export interface SceneFlowMutationTriggers {
-  createScene: (
-    payload: Parameters<CreateSceneFlowOps["createScene"]>[0],
-  ) => UnwrappablePromise<Scene>;
-  sendSceneFile: (
-    payload: Parameters<CreateSceneFlowOps["sendSceneFile"]>[0],
-  ) => UnwrappablePromise<Scene>;
-  updateSceneViewport: (
-    payload: Parameters<CreateSceneFlowOps["updateSceneViewport"]>[0],
-  ) => UnwrappablePromise<Scene>;
-  deleteScene: (
-    sceneId: Parameters<CreateSceneFlowOps["deleteScene"]>[0],
-  ) => UnwrappablePromise<void>;
-}
-
-export function createSceneFlowOpsFromSceneApi(
-  triggers: SceneFlowMutationTriggers,
-  lifecycle: CreateSceneFlowLifecycleOps,
-): CreateSceneFlowOps {
-  return {
-    createScene: (payload) => triggers.createScene(payload).unwrap(),
-    sendSceneFile: (payload) => triggers.sendSceneFile(payload).unwrap(),
-    updateSceneViewport: (payload) =>
-      triggers.updateSceneViewport(payload).unwrap(),
-    deleteScene: (sceneId) => triggers.deleteScene(sceneId).unwrap(),
-    ...lifecycle,
   };
 }
 

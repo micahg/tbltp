@@ -112,11 +112,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       if (scene._id !== state.currentScene?._id) return { ...state, scenes };
       return { ...state, currentScene: scene, scenes };
     }
-    case "content/deletescene": {
-      const scene: Scene = action.payload as unknown as Scene;
-      const scenes = state.scenes.filter((s) => s._id !== scene._id);
-      return { ...state, scenes: scenes };
-    }
     case "content/currentscene": {
       const scene: Scene = action.payload as unknown as Scene;
       console.log(`MICAH updating current scene ${action.type}`);

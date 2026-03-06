@@ -437,10 +437,6 @@ export const ContentMiddleware: Middleware =
         operate(state, store, next, "get", "scene", action);
         break;
       }
-      case "content/deletescene": {
-        operate(state, store, next, "delete", "scene", action);
-        break;
-      }
       default:
         next(action);
         break;
