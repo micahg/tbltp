@@ -16,7 +16,14 @@ import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy
 import { Scene } from "@micahg/tbltp-common";
 import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
-import { useCreateSceneMutation } from "../../api/scene";
+import { createSceneFlow } from "../../thunks/createSceneFlow";
+import {
+  createSceneFlowOpsFromSceneApi,
+  useCreateSceneMutation,
+  useDeleteSceneMutation,
+  useSendSceneFileMutation,
+  useUpdateSceneViewportMutation,
+} from "../../api/scene";
 
 // TODO move to a shared file
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
@@ -63,12 +70,16 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   const error = useSelector((state: AppReducerState) => state.content.err);
   const { getAccessTokenSilently } = useAuth0();
   const [createScene] = useCreateSceneMutation();
+  const [sendSceneFile] = useSendSceneFileMutation();
+  const [updateSceneViewport] = useUpdateSceneViewportMutation();
+  const [deleteScene] = useDeleteSceneMutation();
   const [bearer, setBearer] = useState<string | null>(null);
   const hasUpdates = playerUpdated || detailUpdated;
 
   const disabledCreate =
     creating || // currently already creating or updating
     (!name && !scene) || // neither name nor scene (existing scene would have name)
+    (!scene && !playerFile) || // new scene requires a player layer
     !!nameError || // don't create with name error
     (!!scene && !hasUpdates) || // only require image changes when editing
     error !== undefined ||
@@ -157,21 +168,49 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
       dispatch({ type: "content/zoom", payload: vpData });
       return;
     }
-    if (!name) return; // TODO ERROR
+    if (!name || !playerFile) return; // TODO ERROR
 
-    createScene({ description: name })
-      .unwrap()
+    createSceneFlow(
+      {
+        description: name,
+        player: playerFile,
+        detail: detailFile,
+        viewport: vpData,
+        playerProgress: playerProgressHandler,
+        detailProgress: detailProgressHandler,
+      },
+      createSceneFlowOpsFromSceneApi(
+        {
+          createScene,
+          sendSceneFile,
+          updateSceneViewport,
+          deleteScene,
+        },
+        {
+          onScene: (nextScene) =>
+            dispatch({ type: "content/scene", payload: nextScene }),
+          onSuccess: () =>
+            dispatch({
+              type: "content/error",
+              payload: { msg: "Update successful", success: true },
+            }),
+          onFailure: (message) =>
+            dispatch({
+              type: "content/error",
+              payload: { msg: message, success: false },
+            }),
+          onDeleteScene: (failedScene) =>
+            dispatch({ type: "content/deletescene", payload: failedScene }),
+          onClearCurrentScene: () => dispatch({ type: "content/currentscene" }),
+        },
+      ),
+    )
       .then(() => {
-        dispatch({
-          type: "content/error",
-          payload: { msg: "Update successful", success: true },
-        });
+        setPlayerUpdated(false);
+        setDetailUpdated(false);
       })
       .catch(() => {
-        dispatch({
-          type: "content/error",
-          payload: { msg: "Unkown error happened", success: false },
-        });
+        // banner/error state is handled by createSceneFlow callbacks
       });
   };
 
@@ -261,7 +300,9 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
         defaultValue={scene?.description}
         helperText={nameError}
         error={!!nameError}
-        onChange={(event) => handleNameChange(event)}
+        onChange={(
+          event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>,
+        ) => handleNameChange(event)}
       ></TextField>
       <Box
         sx={{

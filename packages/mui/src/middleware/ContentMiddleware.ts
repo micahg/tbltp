@@ -437,61 +437,6 @@ export const ContentMiddleware: Middleware =
         operate(state, store, next, "get", "scene", action);
         break;
       }
-      case "content/createscene": {
-        const url = `${apiUrl}/scene`;
-        const bundle: NewSceneBundle = action.payload;
-        resolveHeaders(state)
-          .then((headers) => axios.put(url, bundle, { headers: headers }))
-          .then((data) => {
-            trackRateLimit(next, data);
-            next({ type: "content/scene", payload: data.data });
-            const asset = bundle.player;
-            const progress = bundle.playerProgress;
-            return sendFile(state, store, data.data, asset, "player", progress);
-          })
-          .then((data) => {
-            if (!bundle.detail) return data; // skip if there is no detailed view
-            next({ type: "content/scene", payload: data.data });
-            const asset = bundle.detail;
-            const progress = bundle.detailProgress;
-            return sendFile(state, store, data.data, asset, "detail", progress);
-          })
-          .then((data) =>
-            bundle.viewport
-              ? setViewport(state, store, data.data, bundle.viewport)
-              : data,
-          )
-          .then((data) => {
-            next({ type: "content/scene", payload: data.data });
-            const err: ContentReducerError = {
-              msg: "Update successful",
-              success: true,
-            };
-            next({ type: "content/error", payload: err });
-          })
-          .catch((err) => {
-            const error: ContentReducerError = {
-              msg: "Unkown error happened",
-              success: false,
-            };
-            if (err.response.status === 413) {
-              error.msg = "Asset too big";
-            }
-            if (err.response.status === 406) {
-              error.msg = "Invalid asset format";
-            }
-            next({ type: "content/error", payload: error });
-            if (err.scene) {
-              // delete the failed scene and set the current scene to nothing
-              store.dispatch({
-                type: "content/deletescene",
-                payload: err.scene,
-              });
-              store.dispatch({ type: "content/currentscene" });
-            }
-          });
-        break;
-      }
       case "content/deletescene": {
         operate(state, store, next, "delete", "scene", action);
         break;
