@@ -52,6 +52,7 @@ import { useAuth0 } from "@auth0/auth0-react";
 import EditorIntroductionComponent from "../EditorIntroductionComponent/EditorIntroductionComponent.lazy";
 import {
   useGetScenesQuery,
+  useSendSceneFileMutation,
   useUpdateSceneViewportMutation,
 } from "../../api/scene";
 import { useUpdateTableStateMutation } from "../../api/tableState";
@@ -145,6 +146,7 @@ const ContentEditor = ({
   );
   const pushTime = useSelector(selectEditorUiPushTime);
   const { getAccessTokenSilently } = useAuth0();
+  const [sendSceneFile] = useSendSceneFileMutation();
   const [updateSceneViewport] = useUpdateSceneViewportMutation();
   const [updateTableState] = useUpdateTableStateMutation();
 
@@ -277,7 +279,11 @@ const ContentEditor = ({
       } else if (evt.data.cmd === "overlay") {
         if ("blob" in evt.data) {
           setOvRev(ovRev + 1);
-          dispatch({ type: "content/overlay", payload: evt.data.blob });
+          void sendSceneFile({
+            scene,
+            blob: evt.data.blob as File,
+            layer: "overlay",
+          });
         } else console.error("Error: no blob in worker message");
       } else if (evt.data.cmd === "viewport") {
         if ("viewport" in evt.data) {
@@ -351,7 +357,7 @@ const ContentEditor = ({
         });
       }
     },
-    [dispatch, downloads, ovRev, scene, updateViewport],
+    [dispatch, downloads, ovRev, scene, sendSceneFile, updateViewport],
   );
 
   /**
@@ -704,7 +710,7 @@ const ContentEditor = ({
       updateTableState({ scene: scene._id })
         .unwrap()
         .then(() => {
-          dispatch(setPushTime(new Date().getTime()))
+          dispatch(setPushTime(new Date().getTime()));
         })
         .catch((err) =>
           console.error(`Unable to update table state: ${JSON.stringify(err)}`),

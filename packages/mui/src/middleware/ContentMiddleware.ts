@@ -203,63 +203,6 @@ async function updateAssetData(
   }
 }
 
-function sendFile(
-  state: AppReducerState,
-  _store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  scene: Scene,
-  blob: File | URL,
-  layer: string,
-  progress?: (evt: LoadProgress) => void,
-): Promise<AxiosResponse> {
-  return new Promise((resolve, reject) => {
-    const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/scene/${scene._id}/content`;
-    const formData = new FormData();
-    const contentType: string = isBlob(blob)
-      ? blob.type
-      : "multipart/form-data";
-    const content: Blob | string = isBlob(blob)
-      ? (blob as Blob)
-      : blob.toString();
-    formData.append("layer", layer);
-    formData.append("image", content);
-
-    resolveHeaders(state, { "Content-Type": contentType })
-      .then((headers) =>
-        axios.put(url, formData, {
-          headers: headers,
-          onUploadProgress: (e) =>
-            progress?.({ progress: e.progress || 0, img: layer }),
-        }),
-      )
-      .then((value) => resolve(value))
-      .catch((err) => {
-        // tack on the scene
-        err.scene = scene;
-        reject(err);
-      });
-  });
-}
-
-function setViewport(
-  state: AppReducerState,
-  _store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  scene: Scene,
-  viewport: ViewportBundle,
-) {
-  const url = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/scene/${scene._id}/viewport`;
-  return resolveHeaders(state).then((headers) =>
-    axios.put(url, viewport, { headers: headers }),
-  );
-}
-
-function getEditingScene(state: AppReducerState): Scene | undefined {
-  const editingSceneId = state.editorUi.editingSceneId;
-  if (!editingSceneId) return;
-  const scenes = sceneApi.endpoints.getScenes.select()(state).data;
-  if (!scenes) return;
-  return scenes.find((scene) => scene._id === editingSceneId);
-}
-
 export const ContentMiddleware: Middleware =
   (store) => (next) => async (action) => {
     const state = store.getState();
@@ -357,53 +300,6 @@ export const ContentMiddleware: Middleware =
       }
       case "content/assets": {
         operate(state, store, next, "get", "asset", action);
-        break;
-      }
-      case "content/player":
-      case "content/detail":
-      case "content/overlay": {
-        // undefined means we're wiping the canvas... probably a new background
-        if (action.payload === undefined) return next(action);
-        let asset = action.payload;
-        let progress;
-        if (isAssetUpdate(action.payload)) {
-          asset = action.payload.asset;
-          progress = action.payload.progress;
-        } else {
-          asset = action.payload;
-        }
-
-        const scene = getEditingScene(state);
-        if (!scene) return next(action);
-        // if we have an overlay payload then send it
-        sendFile(
-          state,
-          store,
-          scene,
-          asset,
-          action.type.split("/")[1],
-          progress,
-        )
-          .then((value) => {
-            // MICAH this is being triggered by "content/overlay" and triggering a rerender
-            trackRateLimit(next, value);
-            next({ type: "content/scene", payload: value.data });
-            const err: ContentReducerError = {
-              msg: "Update successful",
-              success: true,
-            };
-            next({ type: "content/error", payload: err });
-          })
-          .catch((err) => {
-            const error: ContentReducerError = {
-              msg: "Unkown error happened",
-              success: false,
-            };
-            if (err.response.status === 413) {
-              error.msg = "Asset too big";
-              next({ type: "content/error", payload: error });
-            }
-          });
         break;
       }
       default:
