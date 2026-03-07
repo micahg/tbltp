@@ -7,13 +7,6 @@ import {
   TokenInstance,
 } from "@micahg/tbltp-common";
 
-// copied from the api
-interface TableTop {
-  _id: string;
-  user: string;
-  scene?: string;
-}
-
 export type ContentReducerError = {
   msg: string;
   success: boolean;
@@ -21,7 +14,6 @@ export type ContentReducerError = {
 
 export type ContentReducerState = {
   readonly mediaPrefix?: string;
-  readonly pushTime: number | undefined;
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
   readonly assets?: Asset[];
@@ -30,7 +22,6 @@ export type ContentReducerState = {
 };
 
 const initialState: ContentReducerState = {
-  pushTime: undefined,
   currentScene: undefined,
   scenes: [],
   assets: undefined,
@@ -65,23 +56,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
   switch (action.type) {
     case "content/mediaprefix":
       return { ...state, mediaPrefix: action.payload as unknown as string };
-    case "content/push":
-      return { ...state, pushTime: new Date().getTime() };
-    case "content/pull": {
-      const table: TableTop = action.payload as unknown as TableTop;
-      const tableSceneIdx = state.scenes.findIndex(
-        (s) => s._id === table.scene,
-      );
-      if (tableSceneIdx < 0) {
-        console.error(
-          `Unable to find scene ${table.scene} in ${JSON.stringify(
-            state.scenes,
-          )}`,
-        );
-        return state;
-      }
-      return { ...state, currentScene: state.scenes[tableSceneIdx] };
-    }
     case "content/assets": {
       const assets: Asset[] = action.payload as unknown as Asset[];
       return { ...state, assets };
@@ -90,13 +64,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       const tokens: Token[] = action.payload as unknown as Token[];
       const ret = { ...state, tokens };
       return ret;
-    }
-    case "content/scenes": {
-      const scenes: Scene[] = action.payload as unknown as Scene[];
-      if (!state.currentScene) {
-        return { ...state, scenes: scenes, currentScene: scenes[0] };
-      }
-      return { ...state, scenes: scenes };
     }
     case "content/scene": {
       // load an updated or new scene

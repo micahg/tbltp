@@ -359,29 +359,6 @@ export const ContentMiddleware: Middleware =
         operate(state, store, next, "get", "asset", action);
         break;
       }
-      case "content/push":
-        {
-          /**
-           * The ContentEditor doesn't actually tell us anything
-           * about the scene, just which scene we're pushing. The overlay or
-           * background updates independently, and this call just refreshes the
-           * tabletop with the current scene so the remote display is updated.
-           */
-          const scene = getEditingScene(state);
-          if (!scene) return next(action);
-          if (!scene._id) return next(action);
-          const upd: SceneUpdate = { scene: scene._id };
-          operate(state, store, next, "put", "state", {
-            ...action,
-            payload: upd,
-          });
-        }
-        break;
-      case "content/pull":
-        {
-          operate(state, store, next, "get", "state", action);
-        }
-        break;
       case "content/player":
       case "content/detail":
       case "content/overlay": {
@@ -427,10 +404,6 @@ export const ContentMiddleware: Middleware =
               next({ type: "content/error", payload: error });
             }
           });
-        break;
-      }
-      case "content/scenes": {
-        operate(state, store, next, "get", "scene", action);
         break;
       }
       default:

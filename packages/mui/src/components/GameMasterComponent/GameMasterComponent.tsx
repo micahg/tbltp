@@ -31,6 +31,7 @@ import {
   selectRatelimitRemaining,
 } from "../../slices/rateLimitSlice";
 import { useGetScenesQuery } from "../../api/scene";
+import { useGetTableStateQuery } from "../../api/tableState";
 import {
   clearEditingSceneId,
   selectEditingSceneId,
@@ -117,6 +118,7 @@ const GameMasterComponent = () => {
     FocusedComponent.ContentEditor,
   );
   const { data: scenes = [] } = useGetScenesQuery();
+  const { data: tableState } = useGetTableStateQuery();
   const editingSceneId = useSelector(selectEditingSceneId);
   const currentScene = scenes.find((scene) => scene._id === editingSceneId);
   const rateMax = useSelector(selectRatelimitMax);
@@ -210,11 +212,15 @@ const GameMasterComponent = () => {
 
   useEffect(() => {
     if (!dispatch) return;
-    dispatch({ type: "content/pull" });
     dispatch({ type: "content/tokens" });
     dispatch({ type: "content/assets" });
     return;
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!tableState?.scene) return;
+    dispatch(setEditingSceneId(tableState.scene));
+  }, [dispatch, tableState]);
 
   useEffect(() => {
     if (scenes.length === sceneCount) return;

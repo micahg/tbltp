@@ -54,7 +54,12 @@ import {
   useGetScenesQuery,
   useUpdateSceneViewportMutation,
 } from "../../api/scene";
-import { selectEditingSceneId } from "../../slices/editorUiSlice";
+import { useUpdateTableStateMutation } from "../../api/tableState";
+import {
+  selectEditorUiPushTime,
+  selectEditingSceneId,
+  setPushTime,
+} from "../../slices/editorUiSlice";
 
 const sm = new MouseStateMachine();
 
@@ -138,12 +143,10 @@ const ContentEditor = ({
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
-  const pushTime = useSelector(
-    (state: AppReducerState) => state.content.pushTime,
-  );
-
+  const pushTime = useSelector(selectEditorUiPushTime);
   const { getAccessTokenSilently } = useAuth0();
   const [updateSceneViewport] = useUpdateSceneViewportMutation();
+  const [updateTableState] = useUpdateTableStateMutation();
 
   const updateViewport = useCallback(
     (viewport: { backgroundSize?: Rect; viewport?: Rect; angle?: number }) => {
@@ -692,7 +695,21 @@ const ContentEditor = ({
       worker.postMessage({ cmd: "opacity", opacity: args[0] }),
     );
     sm.setMoveCallback(handleMouseMove);
-    setCallback(sm, "push", () => dispatch({ type: "content/push" }));
+    setCallback(sm, "push", () => {
+      if (!scene?._id) {
+        console.error("Unable to push table state without selected scene");
+        return;
+      }
+
+      updateTableState({ scene: scene._id })
+        .unwrap()
+        .then(() => {
+          dispatch(setPushTime(new Date().getTime()))
+        })
+        .catch((err) =>
+          console.error(`Unable to update table state: ${JSON.stringify(err)}`),
+        );
+    });
     setCallback(sm, "clear", () => {
       worker.postMessage({ cmd: "clear" });
       sm.transition("done");
@@ -757,6 +774,7 @@ const ContentEditor = ({
     sceneManager,
     handleMouseMove,
     updateSelected,
+    updateTableState,
     scene,
     overlayCanvasRef,
     worker,
