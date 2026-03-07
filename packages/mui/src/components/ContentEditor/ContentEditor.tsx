@@ -50,7 +50,10 @@ import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawe
 import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
 import EditorIntroductionComponent from "../EditorIntroductionComponent/EditorIntroductionComponent.lazy";
-import { useGetScenesQuery } from "../../api/scene";
+import {
+  useGetScenesQuery,
+  useUpdateSceneViewportMutation,
+} from "../../api/scene";
 import { selectEditingSceneId } from "../../slices/editorUiSlice";
 
 const sm = new MouseStateMachine();
@@ -140,6 +143,19 @@ const ContentEditor = ({
   );
 
   const { getAccessTokenSilently } = useAuth0();
+  const [updateSceneViewport] = useUpdateSceneViewportMutation();
+
+  const updateViewport = useCallback(
+    (viewport: { backgroundSize?: Rect; viewport?: Rect; angle?: number }) => {
+      if (!scene?._id) return;
+      updateSceneViewport({ sceneId: scene._id, viewport })
+        .unwrap()
+        .catch((err) =>
+          console.error(`Unable to update viewport: ${JSON.stringify(err)}`),
+        );
+    },
+    [scene, updateSceneViewport],
+  );
 
   const updateSelected = useCallback(
     (value: boolean) => {
@@ -263,7 +279,7 @@ const ContentEditor = ({
       } else if (evt.data.cmd === "viewport") {
         if ("viewport" in evt.data) {
           const vp = evt.data.viewport;
-          dispatch({ type: "content/zoom", payload: { viewport: vp } });
+          updateViewport({ viewport: vp as Rect });
         } else console.error("No viewport in worker message");
       } else if (evt.data.cmd === "resized") {
         if (!("width" in evt.data) || typeof evt.data.width !== "number") {
@@ -332,7 +348,7 @@ const ContentEditor = ({
         });
       }
     },
-    [dispatch, downloads, ovRev, scene],
+    [dispatch, downloads, ovRev, scene, updateViewport],
   );
 
   /**
@@ -620,10 +636,7 @@ const ContentEditor = ({
     });
     setCallback(sm, "remoteZoomOut", () => {
       const imgRect = createRect([0, 0, imageSize[0], imageSize[1]]);
-      dispatch({
-        type: "content/zoom",
-        payload: { backgroundSize: imgRect, viewport: imgRect },
-      });
+      updateViewport({ backgroundSize: imgRect, viewport: imgRect });
     });
     setCallback(sm, "complete", () => {
       if (!internalState.rec) {
@@ -735,7 +748,7 @@ const ContentEditor = ({
     setCallback(sm, "rotate_clock", () => {
       const angle = ((scene.angle || 0) + 90) % 360;
       worker.postMessage({ cmd: "rotate", angle: angle });
-      dispatch({ type: "content/zoom", payload: { angle: angle } });
+      updateViewport({ angle: angle });
       sm.transition("done");
     });
   }, [
@@ -750,6 +763,7 @@ const ContentEditor = ({
     internalState,
     selection,
     updateRecording,
+    updateViewport,
   ]);
 
   /**
