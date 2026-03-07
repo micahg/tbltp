@@ -429,20 +429,6 @@ export const ContentMiddleware: Middleware =
           });
         break;
       }
-      case "content/zoom": {
-        if (action.payload === undefined) return;
-        const scene = getEditingScene(state);
-        if (!scene) return next(action);
-        setViewport(state, store, scene, action.payload)
-          .then((value) => {
-            trackRateLimit(next, value);
-            next({ type: "content/scene", payload: value.data });
-          })
-          .catch((err) =>
-            console.error(`Unable to update viewport: ${JSON.stringify(err)}`),
-          );
-        break;
-      }
       case "content/scenes": {
         operate(state, store, next, "get", "scene", action);
         break;

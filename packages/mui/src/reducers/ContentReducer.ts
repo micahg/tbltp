@@ -82,8 +82,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       }
       return { ...state, currentScene: state.scenes[tableSceneIdx] };
     }
-    case "content/zoom":
-      return { ...state, scene: action.payload as unknown as Scene };
     case "content/assets": {
       const assets: Asset[] = action.payload as unknown as Asset[];
       return { ...state, assets };
