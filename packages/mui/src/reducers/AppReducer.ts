@@ -4,12 +4,14 @@ import { environmentApi } from "../api/environment";
 import { deviceCodeApi } from "../api/devicecode";
 import { sceneApi } from "../api/scene";
 import { RateLimitReducer } from "../slices/rateLimitSlice";
+import { EditorUiReducer } from "../slices/editorUiSlice";
 
 export const AppReducer = combineReducers({
   [environmentApi.reducerPath]: environmentApi.reducer,
   [deviceCodeApi.reducerPath]: deviceCodeApi.reducer,
   [sceneApi.reducerPath]: sceneApi.reducer,
   rateLimit: RateLimitReducer,
+  editorUi: EditorUiReducer,
   content: ContentReducer,
 });
 

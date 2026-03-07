@@ -23,6 +23,10 @@ import {
   useSendSceneFileMutation,
   useUpdateSceneViewportMutation,
 } from "../../api/scene";
+import {
+  clearEditingSceneId,
+  setEditingSceneId,
+} from "../../slices/editorUiSlice";
 
 // TODO move to a shared file
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
@@ -147,27 +151,72 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     input.click();
   };
 
-  const updateScene = () => {
+  const updateScene = async () => {
     setCreating(true);
     // if we are changing any images reset the viewport
     const rect = { x: 0, y: 0, width: playerWH[0], height: playerWH[1] };
     const vpData = { backgroundSize: rect, viewport: rect };
     if (scene) {
-      // TODO clear overlay
-      if (playerFile && playerUpdated) {
-        const payload = { asset: playerFile, progress: playerProgressHandler };
-        dispatch({ type: "content/player", payload: payload });
-        setPlayerUpdated(false);
+      if (!scene._id) {
+        setCreating(false);
+        dispatch({
+          type: "content/error",
+          payload: { msg: "Unkown error happened", success: false },
+        });
+        return;
       }
-      if (detailFile && detailUpdated) {
-        const payload = { asset: detailFile, progress: detailProgressHandler };
-        dispatch({ type: "content/detail", payload: payload });
-        setDetailUpdated(false);
+
+      try {
+        let updatedScene = scene;
+
+        if (playerFile && playerUpdated) {
+          updatedScene = await sendSceneFile({
+            scene: updatedScene,
+            blob: playerFile,
+            layer: "player",
+            progress: playerProgressHandler,
+          }).unwrap();
+          setPlayerUpdated(false);
+        }
+
+        if (detailFile && detailUpdated) {
+          updatedScene = await sendSceneFile({
+            scene: updatedScene,
+            blob: detailFile,
+            layer: "detail",
+            progress: detailProgressHandler,
+          }).unwrap();
+          setDetailUpdated(false);
+        }
+
+        if (!updatedScene._id) {
+          throw new Error("Scene missing id");
+        }
+
+        await updateSceneViewport({
+          sceneId: updatedScene._id,
+          viewport: vpData,
+        }).unwrap();
+
+        dispatch({
+          type: "content/error",
+          payload: { msg: "Update successful", success: true },
+        });
+        dispatch(setEditingSceneId(updatedScene._id));
+      } catch {
+        dispatch({
+          type: "content/error",
+          payload: { msg: "Unkown error happened", success: false },
+        });
+      } finally {
+        setCreating(false);
       }
-      dispatch({ type: "content/zoom", payload: vpData });
       return;
     }
-    if (!name || !playerFile) return; // TODO ERROR
+    if (!name || !playerFile) {
+      setCreating(false);
+      return; // TODO ERROR
+    }
 
     createSceneFlow(
       {
@@ -183,8 +232,7 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
         sendSceneFile: (payload) => sendSceneFile(payload).unwrap(),
         updateSceneViewport: (payload) => updateSceneViewport(payload).unwrap(),
         deleteScene: (sceneId) => deleteScene(sceneId).unwrap(),
-        onScene: (nextScene) =>
-          dispatch({ type: "content/scene", payload: nextScene }),
+        onScene: (nextScene) => dispatch(setEditingSceneId(nextScene._id)),
         onSuccess: () =>
           dispatch({
             type: "content/error",
@@ -195,15 +243,17 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
             type: "content/error",
             payload: { msg: message, success: false },
           }),
-        onClearCurrentScene: () => dispatch({ type: "content/currentscene" }),
+        onClearCurrentScene: () => dispatch(clearEditingSceneId()),
       },
     )
       .then(() => {
         setPlayerUpdated(false);
         setDetailUpdated(false);
+        setCreating(false);
       })
       .catch(() => {
         // banner/error state is handled by createSceneFlow callbacks
+        setCreating(false);
       });
   };
 

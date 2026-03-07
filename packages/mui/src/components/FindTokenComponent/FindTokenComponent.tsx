@@ -13,9 +13,11 @@ import {
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { AppReducerState } from "../../reducers/AppReducer";
 import { useDispatch, useSelector } from "react-redux";
-import { useCallback, useEffect, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useState } from "react";
 import { HydratedTokenInstance, Token } from "@micahg/tbltp-common";
 import { useAuth0 } from "@auth0/auth0-react";
+import { useGetScenesQuery } from "../../api/scene";
+import { selectEditingSceneId } from "../../slices/editorUiSlice";
 // import styles from "./FindTokenComponent.module.css";
 
 interface FindTokenComponentProps {
@@ -27,9 +29,9 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
   const dispatch = useDispatch();
   const tokens = useSelector((state: AppReducerState) => state.content.tokens);
   const assets = useSelector((state: AppReducerState) => state.content.assets);
-  const scene = useSelector(
-    (state: AppReducerState) => state.content.currentScene,
-  );
+  const { data: scenes = [] } = useGetScenesQuery();
+  const editingSceneId = useSelector(selectEditingSceneId);
+  const scene = scenes.find((s) => s._id === editingSceneId);
   const mediaPrefix = useSelector(
     (state: AppReducerState) => state.content.mediaPrefix,
   );
@@ -78,7 +80,9 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
         label="Name"
         variant="standard"
         // if this ever hits the backend, it should debounce
-        onChange={(event) => setSearchValue(event.target.value)}
+        onChange={(
+          event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+        ) => setSearchValue(event.target.value)}
         sx={{ m: 1, margin: "1em" }}
       ></TextField>
       <List>

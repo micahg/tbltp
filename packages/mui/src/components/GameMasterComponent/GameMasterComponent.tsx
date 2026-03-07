@@ -20,7 +20,6 @@ import GameMasterActionComponent, {
   GameMasterAction,
 } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useDispatch, useSelector } from "react-redux";
-import { AppReducerState } from "../../reducers/AppReducer";
 import SceneComponent from "../SceneComponent/SceneComponent.lazy";
 import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
 import NavigationDrawerComponent from "../NavigationDrawerComponent/NavigationDrawerComponent.lazy";
@@ -32,6 +31,11 @@ import {
   selectRatelimitRemaining,
 } from "../../slices/rateLimitSlice";
 import { useGetScenesQuery } from "../../api/scene";
+import {
+  clearEditingSceneId,
+  selectEditingSceneId,
+  setEditingSceneId,
+} from "../../slices/editorUiSlice";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -93,6 +97,10 @@ const DrawerHeader = styled("div")(({ theme }) => ({
   justifyContent: "flex-end",
 }));
 
+type ClosableInfoProps = {
+  closeDrawer?: () => void;
+};
+
 const GameMasterComponent = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -109,9 +117,8 @@ const GameMasterComponent = () => {
     FocusedComponent.ContentEditor,
   );
   const { data: scenes = [] } = useGetScenesQuery();
-  const currentScene = useSelector(
-    (state: AppReducerState) => state.content.currentScene,
-  );
+  const editingSceneId = useSelector(selectEditingSceneId);
+  const currentScene = scenes.find((scene) => scene._id === editingSceneId);
   const rateMax = useSelector(selectRatelimitMax);
   const rateRemaining = useSelector(selectRatelimitRemaining);
   const rateLimit = useSelector(selectRatelimit);
@@ -122,7 +129,7 @@ const GameMasterComponent = () => {
 
   const handleInfoDrawerOpen = (info: ReactElement) => {
     // inject this drawers close method into the info component
-    const closableInfo = cloneElement(info, {
+    const closableInfo = cloneElement(info as ReactElement<ClosableInfoProps>, {
       closeDrawer: handleInfoDrawerClose,
     });
     setInfoComponent(closableInfo);
@@ -139,7 +146,7 @@ const GameMasterComponent = () => {
     setSceneKey(sceneKey + 1);
 
     // unset the current scene
-    dispatch({ type: "content/currentscene" });
+    dispatch(clearEditingSceneId());
 
     // display the scene component
     setFocusedComponent(FocusedComponent.Scene);
@@ -149,7 +156,7 @@ const GameMasterComponent = () => {
   const handleViewAssets = () => setFocusedComponent(FocusedComponent.Assets);
 
   const handleEditScene = (scene?: Scene) => {
-    if (scene) dispatch({ type: "content/currentscene", payload: scene });
+    dispatch(setEditingSceneId(scene?._id));
     setFocusedComponent(FocusedComponent.ContentEditor);
   };
 

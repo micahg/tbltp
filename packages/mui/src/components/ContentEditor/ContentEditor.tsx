@@ -50,6 +50,8 @@ import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawe
 import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
 import EditorIntroductionComponent from "../EditorIntroductionComponent/EditorIntroductionComponent.lazy";
+import { useGetScenesQuery } from "../../api/scene";
+import { selectEditingSceneId } from "../../slices/editorUiSlice";
 
 const sm = new MouseStateMachine();
 
@@ -69,7 +71,7 @@ type RecordingAction = "move" | SelectAction | BrushAction;
 // hack around rerendering -- keep one object in state and update properties
 // so that the object itself remains unchanged.
 interface InternalState {
-  color: RefObject<HTMLInputElement>;
+  color: RefObject<HTMLInputElement | null>;
   selected: boolean;
   zoom: boolean;
   act: RecordingAction;
@@ -126,9 +128,9 @@ const ContentEditor = ({
    */
   const [toolbarPopulated, setToolbarPopulated] = useState<boolean>(false);
 
-  const scene = useSelector(
-    (state: AppReducerState) => state.content.currentScene,
-  );
+  const { data: scenes = [] } = useGetScenesQuery();
+  const editingSceneId = useSelector(selectEditingSceneId);
+  const scene = scenes.find((s) => s._id === editingSceneId);
   const apiUrl = useSelector(
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,

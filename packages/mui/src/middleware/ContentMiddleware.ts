@@ -8,6 +8,7 @@ import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 import { environmentApi } from "../api/environment";
 import { ratelimit } from "../slices/rateLimitSlice";
+import { sceneApi } from "../api/scene";
 
 export interface ViewportBundle {
   backgroundSize?: Rect;
@@ -251,6 +252,14 @@ function setViewport(
   );
 }
 
+function getEditingScene(state: AppReducerState): Scene | undefined {
+  const editingSceneId = state.editorUi.editingSceneId;
+  if (!editingSceneId) return;
+  const scenes = sceneApi.endpoints.getScenes.select()(state).data;
+  if (!scenes) return;
+  return scenes.find((scene) => scene._id === editingSceneId);
+}
+
 export const ContentMiddleware: Middleware =
   (store) => (next) => async (action) => {
     const state = store.getState();
@@ -358,7 +367,7 @@ export const ContentMiddleware: Middleware =
            * background updates independently, and this call just refreshes the
            * tabletop with the current scene so the remote display is updated.
            */
-          const scene: Scene = state.content.currentScene;
+          const scene = getEditingScene(state);
           if (!scene) return next(action);
           if (!scene._id) return next(action);
           const upd: SceneUpdate = { scene: scene._id };
@@ -387,7 +396,8 @@ export const ContentMiddleware: Middleware =
           asset = action.payload;
         }
 
-        const scene: Scene = state.content.currentScene;
+        const scene = getEditingScene(state);
+        if (!scene) return next(action);
         // if we have an overlay payload then send it
         sendFile(
           state,
@@ -421,7 +431,7 @@ export const ContentMiddleware: Middleware =
       }
       case "content/zoom": {
         if (action.payload === undefined) return;
-        const scene = state.content.currentScene;
+        const scene = getEditingScene(state);
         if (!scene) return next(action);
         setViewport(state, store, scene, action.payload)
           .then((value) => {
