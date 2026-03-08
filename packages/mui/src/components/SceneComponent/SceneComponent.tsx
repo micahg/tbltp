@@ -16,7 +16,7 @@ import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy
 import { Scene } from "@micahg/tbltp-common";
 import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
-import { createSceneFlow } from "../../thunks/createSceneFlow";
+import { saveSceneFlow } from "../../thunks/createSceneFlow";
 import {
   useCreateSceneMutation,
   useDeleteSceneMutation,
@@ -153,77 +153,21 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
 
   const updateScene = async () => {
     setCreating(true);
-    // if we are changing any images reset the viewport
+    // Only set viewport on create; existing scenes already have one.
     const rect = { x: 0, y: 0, width: playerWH[0], height: playerWH[1] };
     const vpData = { backgroundSize: rect, viewport: rect };
-    if (scene) {
-      if (!scene._id) {
-        setCreating(false);
-        dispatch({
-          type: "content/error",
-          payload: { msg: "Unkown error happened", success: false },
-        });
-        return;
-      }
-
-      try {
-        let updatedScene = scene;
-
-        if (playerFile && playerUpdated) {
-          updatedScene = await sendSceneFile({
-            scene: updatedScene,
-            blob: playerFile,
-            layer: "player",
-            progress: playerProgressHandler,
-          }).unwrap();
-          setPlayerUpdated(false);
-        }
-
-        if (detailFile && detailUpdated) {
-          updatedScene = await sendSceneFile({
-            scene: updatedScene,
-            blob: detailFile,
-            layer: "detail",
-            progress: detailProgressHandler,
-          }).unwrap();
-          setDetailUpdated(false);
-        }
-
-        if (!updatedScene._id) {
-          throw new Error("Scene missing id");
-        }
-
-        await updateSceneViewport({
-          sceneId: updatedScene._id,
-          viewport: vpData,
-        }).unwrap();
-
-        dispatch({
-          type: "content/error",
-          payload: { msg: "Update successful", success: true },
-        });
-        dispatch(setEditingSceneId(updatedScene._id));
-      } catch {
-        dispatch({
-          type: "content/error",
-          payload: { msg: "Unkown error happened", success: false },
-        });
-      } finally {
-        setCreating(false);
-      }
-      return;
-    }
-    if (!name || !playerFile) {
+    if (!scene && (!name || !playerFile)) {
       setCreating(false);
       return; // TODO ERROR
     }
 
-    createSceneFlow(
+    saveSceneFlow(
       {
+        scene,
         description: name,
-        player: playerFile,
-        detail: detailFile,
-        viewport: vpData,
+        player: scene ? (playerUpdated ? playerFile : undefined) : playerFile,
+        detail: scene ? (detailUpdated ? detailFile : undefined) : detailFile,
+        viewport: scene ? undefined : vpData,
         playerProgress: playerProgressHandler,
         detailProgress: detailProgressHandler,
       },

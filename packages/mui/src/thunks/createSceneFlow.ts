@@ -2,28 +2,29 @@ import { Scene } from "@micahg/tbltp-common";
 import { SceneViewportUpdate, SendSceneFileArgs } from "../api/scene";
 import { LoadProgress } from "../utils/content";
 
-export interface CreateSceneFlowArgs {
-  description: string;
-  player: File;
+export interface SaveSceneFlowArgs {
+  scene?: Scene;
+  description?: string;
+  player?: File;
   detail?: File;
   viewport?: SceneViewportUpdate["viewport"];
   playerProgress?: (evt: LoadProgress) => void;
   detailProgress?: (evt: LoadProgress) => void;
 }
 
-export interface CreateSceneFlowOps {
-  createScene: (payload: { description: string }) => Promise<Scene>;
+export interface SaveSceneFlowOps {
+  createScene?: (payload: { description: string }) => Promise<Scene>;
   sendSceneFile: (payload: SendSceneFileArgs) => Promise<Scene>;
   updateSceneViewport: (payload: SceneViewportUpdate) => Promise<Scene>;
-  deleteScene: (sceneId: string) => Promise<void>;
+  deleteScene?: (sceneId: string) => Promise<void>;
   onScene: (scene: Scene) => void;
   onSuccess: () => void;
   onFailure: (message: string) => void;
   onClearCurrentScene: () => void;
 }
 
-export type CreateSceneFlowLifecycleOps = Pick<
-  CreateSceneFlowOps,
+export type SaveSceneFlowLifecycleOps = Pick<
+  SaveSceneFlowOps,
   "onScene" | "onSuccess" | "onFailure" | "onClearCurrentScene"
 >;
 
@@ -45,54 +46,79 @@ function errorMessage(err: unknown): string {
   return "Unkown error happened";
 }
 
-export async function createSceneFlow(
-  args: CreateSceneFlowArgs,
-  ops: CreateSceneFlowOps,
+export async function saveSceneFlow(
+  args: SaveSceneFlowArgs,
+  ops: SaveSceneFlowOps,
 ): Promise<Scene> {
-  let createdScene: Scene | undefined;
-  try {
-    createdScene = await ops.createScene({ description: args.description });
+  const isCreate = !args.scene;
+  let scene: Scene | undefined = args.scene;
 
-    if (!createdScene._id) {
-      throw new Error("Created scene missing id");
+  if (isCreate && (!args.description || !args.player)) {
+    const err = new Error("Create flow requires description and player file");
+    ops.onFailure(errorMessage(err));
+    throw err;
+  }
+
+  if (!isCreate && !scene?._id) {
+    const err = new Error("Scene missing id");
+    ops.onFailure(errorMessage(err));
+    throw err;
+  }
+
+  try {
+    if (isCreate) {
+      if (!ops.createScene) {
+        throw new Error("Create operation not configured");
+      }
+      scene = await ops.createScene({ description: args.description! });
+
+      if (!scene._id) {
+        throw new Error("Created scene missing id");
+      }
+
+      ops.onScene(scene);
     }
 
-    ops.onScene(createdScene);
+    if (args.player && scene) {
+      scene = await ops.sendSceneFile({
+        scene: scene,
+        blob: args.player,
+        layer: "player",
+        progress: args.playerProgress,
+      });
+      ops.onScene(scene);
+    }
 
-    createdScene = await ops.sendSceneFile({
-      scene: createdScene,
-      blob: args.player,
-      layer: "player",
-      progress: args.playerProgress,
-    });
-    ops.onScene(createdScene);
-
-    if (args.detail) {
-      createdScene = await ops.sendSceneFile({
-        scene: createdScene,
+    if (args.detail && scene) {
+      scene = await ops.sendSceneFile({
+        scene: scene,
         blob: args.detail,
         layer: "detail",
         progress: args.detailProgress,
       });
-      ops.onScene(createdScene);
+      ops.onScene(scene);
     }
 
-    if (args.viewport && createdScene._id) {
-      createdScene = await ops.updateSceneViewport({
-        sceneId: createdScene._id,
+    if (args.viewport && scene?._id) {
+      scene = await ops.updateSceneViewport({
+        sceneId: scene._id,
         viewport: args.viewport,
       });
-      ops.onScene(createdScene);
+      ops.onScene(scene);
+    }
+
+    if (!scene) {
+      throw new Error("Unable to save scene");
     }
 
     ops.onSuccess();
-    return createdScene;
+    return scene;
   } catch (err) {
     ops.onFailure(errorMessage(err));
 
-    if (createdScene?._id) {
+    if (isCreate && scene?._id && ops.deleteScene) {
       try {
-        await ops.deleteScene(createdScene._id);
+        await ops.deleteScene(scene._id);
       } catch {
         // ignore cleanup errors so we still surface the original failure
       }
@@ -103,3 +129,6 @@ export async function createSceneFlow(
     throw err;
   }
 }
+
+// Backward-compatible alias for existing callsites.
+export const createSceneFlow = saveSceneFlow;

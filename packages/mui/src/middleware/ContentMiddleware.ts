@@ -3,12 +3,11 @@ import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { getAuthHeaders } from "../utils/authBridge";
 import { ContentReducerError } from "../reducers/ContentReducer";
-import { Scene, Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
+import { Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
 import { LoadProgress } from "../utils/content";
 import { environmentApi } from "../api/environment";
 import { ratelimit } from "../slices/rateLimitSlice";
-import { sceneApi } from "../api/scene";
 
 export interface ViewportBundle {
   backgroundSize?: Rect;
@@ -32,14 +31,6 @@ export interface AssetUpdate {
 
 interface SceneUpdate {
   scene: string;
-}
-
-function isAssetUpdate(payload: File | AssetUpdate): payload is AssetUpdate {
-  return (payload as AssetUpdate).asset !== undefined;
-}
-
-function isBlob(payload: URL | Blob): payload is File {
-  return (payload as Blob).type !== undefined;
 }
 
 type Operation = "get" | "put" | "delete";
