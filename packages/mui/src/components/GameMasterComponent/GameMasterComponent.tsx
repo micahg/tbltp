@@ -213,7 +213,6 @@ const GameMasterComponent = () => {
   useEffect(() => {
     if (!dispatch) return;
     dispatch({ type: "content/tokens" });
-    dispatch({ type: "content/assets" });
     return;
   }, [dispatch]);
 

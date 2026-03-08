@@ -5,12 +5,11 @@ import {
   TextField,
   Tooltip,
 } from "@mui/material";
-import { memo, useCallback, useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { ChangeEvent, memo, useCallback, useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import styles from "./AssetPanelComponent.module.css";
 import ImageSearchIcon from "@mui/icons-material/ImageSearch";
-import { LoadProgress } from "../../utils/content";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
@@ -18,6 +17,11 @@ import { Asset } from "@micahg/tbltp-common";
 import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
 import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
+import {
+  useDeleteAssetMutation,
+  useUpdateAssetDataMutation,
+  useUpdateAssetMutation,
+} from "../../api/asset";
 
 interface AssetPanelComponentProps {
   asset: Asset;
@@ -25,12 +29,14 @@ interface AssetPanelComponentProps {
 }
 
 const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
-  const dispatch = useDispatch();
   const api = useSelector(
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
   const { getAccessTokenSilently } = useAuth0();
+  const [updateAssetMutation] = useUpdateAssetMutation();
+  const [updateAssetDataMutation] = useUpdateAssetDataMutation();
+  const [deleteAssetMutation] = useDeleteAssetMutation();
 
   const [bearer, setBearer] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -80,35 +86,31 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
     setExpand(!expand);
   }, [expand]);
 
-  const updateAsset = () => {
+  const updateAsset = async () => {
     // even though this component is memoized, after updating we need to clear name and file
     // to prevent saveDisabled from being false (on account of File being truthy)
-    if (name !== asset.name) {
-      dispatch({
-        type: "content/updateasset",
-        payload: { ...asset, name },
-      });
-      setName(name);
-    }
-    if (file) {
-      dispatch({
-        type: "content/updateassetdata",
-        payload: {
+    try {
+      if (name !== asset.name) {
+        await updateAssetMutation({ ...asset, name }).unwrap();
+        setName(name);
+      }
+
+      if (file && asset._id) {
+        await updateAssetDataMutation({
           id: asset._id,
           file,
-          progress: (p: LoadProgress) => setProgress(p.progress * 100),
-        },
-      });
-      setFile(null);
+          progress: (p) => setProgress(p.progress * 100),
+        }).unwrap();
+        setFile(null);
+      }
+    } finally {
+      setProgress(0);
     }
   };
 
   const deleteAsset = () => {
     setDeleteWarning(false);
-    dispatch({
-      type: "content/deleteasset",
-      payload: asset,
-    });
+    deleteAssetMutation(asset);
   };
 
   return (
@@ -161,7 +163,9 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
             label="Name"
             variant="standard"
             defaultValue={asset.name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setName(e.target.value)
+            }
           />
           <Box
             sx={{

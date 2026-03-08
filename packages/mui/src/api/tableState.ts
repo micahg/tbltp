@@ -6,6 +6,7 @@ import type {
 } from "@reduxjs/toolkit/query";
 import { environmentApi } from "./environment";
 import { getAuthHeaders } from "../utils/authBridge";
+import { ratelimit } from "../slices/rateLimitSlice";
 
 export interface TableStateResponse {
   _id?: string;
@@ -15,6 +16,33 @@ export interface TableStateResponse {
 
 export interface UpdateTableStateRequest {
   scene: string;
+}
+
+function dispatchRateLimitFromHeaders(
+  dispatch: (action: unknown) => void,
+  limit: string | null,
+  remaining: string | null,
+) {
+  if (!limit || !remaining) {
+    return;
+  }
+
+  dispatch(ratelimit({ limit, remaining }));
+}
+
+function dispatchRateLimitFromMeta(
+  dispatch: (action: unknown) => void,
+  meta: unknown,
+) {
+  const response =
+    typeof meta === "object" && meta !== null && "response" in meta
+      ? (meta as { response?: Response }).response
+      : undefined;
+  dispatchRateLimitFromHeaders(
+    dispatch,
+    response?.headers.get("ratelimit-limit") ?? null,
+    response?.headers.get("ratelimit-remaining") ?? null,
+  );
 }
 
 const rawBaseQuery = fetchBaseQuery({ baseUrl: "/" });
@@ -56,7 +84,9 @@ const tableStateBaseQuery: BaseQueryFn<
             },
           };
 
-    return rawBaseQuery(request, api, extraOptions);
+    const result = await rawBaseQuery(request, api, extraOptions);
+    dispatchRateLimitFromMeta(api.dispatch, result.meta);
+    return result;
   } catch (error) {
     return {
       error: {

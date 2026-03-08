@@ -9,6 +9,8 @@ import { environmentApi } from "./environment";
 import { getAuthHeaders } from "../utils/authBridge";
 import { AppReducerState } from "../reducers/AppReducer";
 import { LoadProgress } from "../utils/content";
+import { UploadResponse, uploadFormData, type UploadError } from "./upload";
+import { ratelimit } from "../slices/rateLimitSlice";
 
 type SceneTag = { type: "Scene"; id: string };
 
@@ -21,11 +23,7 @@ export interface SendSceneFileArgs {
   progress?: (evt: LoadProgress) => void;
 }
 
-export interface SceneUploadResponse<TData = unknown> {
-  data: TData;
-  status: number;
-  headers: Record<string, string>;
-}
+export type SceneUploadResponse<TData = unknown> = UploadResponse<TData>;
 
 export interface SceneViewportUpdate {
   sceneId: string;
@@ -47,92 +45,40 @@ export function sendFile(
   layer: SceneLayer,
   progress?: (evt: LoadProgress) => void,
 ): Promise<SceneUploadResponse> {
-  return new Promise((resolve, reject) => {
-    const api =
-      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api;
-    if (!api || !scene._id) {
-      reject(new Error("Unable to resolve scene upload endpoint"));
-      return;
-    }
+  const api =
+    environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api;
+  if (!api || !scene._id) {
+    return Promise.reject(new Error("Unable to resolve scene upload endpoint"));
+  }
 
-    const url = `${api}/scene/${scene._id}/content`;
-    const formData = new FormData();
-    const content: Blob | string = isBlob(blob)
-      ? (blob as Blob)
-      : blob.toString();
-    formData.append("layer", layer);
-    formData.append("image", content);
+  const url = `${api}/scene/${scene._id}/content`;
+  const formData = new FormData();
+  const content: Blob | string = isBlob(blob)
+    ? (blob as Blob)
+    : blob.toString();
+  formData.append("layer", layer);
+  formData.append("image", content);
 
-    getAuthHeaders()
-      .then((headers) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", url);
-
-        Object.entries(headers).forEach(([key, value]) => {
-          xhr.setRequestHeader(key, value);
-        });
-
-        xhr.upload.onprogress = (event: ProgressEvent<EventTarget>) => {
+  return getAuthHeaders()
+    .then((headers) =>
+      uploadFormData({
+        url,
+        formData,
+        headers,
+        onProgress: (event) => {
           if (!event.lengthComputable) {
             return;
           }
           progress?.({ progress: event.loaded / event.total, img: layer });
-        };
-
-        xhr.onload = () => {
-          const responseHeaders = xhr
-            .getAllResponseHeaders()
-            .trim()
-            .split("\r\n")
-            .filter((line) => line.includes(":"))
-            .reduce<Record<string, string>>((acc, line) => {
-              const idx = line.indexOf(":");
-              const key = line.slice(0, idx).trim().toLowerCase();
-              const value = line.slice(idx + 1).trim();
-              acc[key] = value;
-              return acc;
-            }, {});
-
-          let data: unknown = xhr.responseText;
-          try {
-            data = xhr.responseText ? JSON.parse(xhr.responseText) : undefined;
-          } catch {
-            data = xhr.responseText;
-          }
-
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve({
-              data,
-              status: xhr.status,
-              headers: responseHeaders,
-            });
-            return;
-          }
-
-          const err = new Error(`Upload failed with status ${xhr.status}`) as {
-            scene?: Scene;
-          };
-          err.scene = scene;
-          reject(err);
-        };
-
-        xhr.onerror = () => {
-          const err = new Error("Upload request failed") as {
-            scene?: Scene;
-          };
-          err.scene = scene;
-          reject(err);
-        };
-
-        xhr.send(formData);
-      })
-      .catch((err: unknown) => {
-        if (typeof err === "object" && err !== null) {
-          (err as { scene?: Scene }).scene = scene;
-        }
-        reject(err);
-      });
-  });
+        },
+      }),
+    )
+    .catch((err: unknown) => {
+      if (typeof err === "object" && err !== null) {
+        (err as UploadError & { scene?: Scene }).scene = scene;
+      }
+      throw err;
+    });
 }
 
 function sceneTagsForList(scenes: Scene[] | undefined): SceneTag[] {
@@ -145,6 +91,33 @@ function sceneTagsForList(scenes: Scene[] | undefined): SceneTag[] {
       .map((scene) => ({ type: "Scene" as const, id: scene._id! })),
     { type: "Scene", id: "LIST" },
   ];
+}
+
+function dispatchRateLimitFromHeaders(
+  dispatch: (action: unknown) => void,
+  limit: string | null,
+  remaining: string | null,
+) {
+  if (!limit || !remaining) {
+    return;
+  }
+
+  dispatch(ratelimit({ limit, remaining }));
+}
+
+function dispatchRateLimitFromMeta(
+  dispatch: (action: unknown) => void,
+  meta: unknown,
+) {
+  const response =
+    typeof meta === "object" && meta !== null && "response" in meta
+      ? (meta as { response?: Response }).response
+      : undefined;
+  dispatchRateLimitFromHeaders(
+    dispatch,
+    response?.headers.get("ratelimit-limit") ?? null,
+    response?.headers.get("ratelimit-remaining") ?? null,
+  );
 }
 
 const rawBaseQuery = fetchBaseQuery({ baseUrl: "/" });
@@ -186,7 +159,9 @@ const sceneBaseQuery: BaseQueryFn<
             },
           };
 
-    return rawBaseQuery(request, api, extraOptions);
+    const result = await rawBaseQuery(request, api, extraOptions);
+    dispatchRateLimitFromMeta(api.dispatch, result.meta);
+    return result;
   } catch (error) {
     return {
       error: {
@@ -240,6 +215,12 @@ export const sceneApi = createApi({
             args.blob,
             args.layer,
             args.progress,
+          );
+
+          dispatchRateLimitFromHeaders(
+            api.dispatch,
+            response.headers["ratelimit-limit"] ?? null,
+            response.headers["ratelimit-remaining"] ?? null,
           );
 
           return { data: response.data as Scene };
