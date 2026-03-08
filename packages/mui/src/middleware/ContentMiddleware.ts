@@ -210,14 +210,6 @@ export const ContentMiddleware: Middleware =
     }
 
     switch (action.type) {
-      case "content/updatetoken": {
-        operate(state, store, next, "put", "token", action);
-        break;
-      }
-      case "content/deletetoken": {
-        operate(state, store, next, "delete", "token", action);
-        break;
-      }
       case "content/scenetokens": {
         const path = `scene/${action.payload.scene}/token`;
         operate(state, store, next, "get", path, action);
@@ -235,62 +227,6 @@ export const ContentMiddleware: Middleware =
       case "content/scenetokenmoved": {
         const path = `scene/${action.payload.scene}/token`;
         operate(state, store, next, "put", path, action);
-        break;
-      }
-      case "content/updateasset":
-        operate(state, store, next, "put", "asset", action);
-        break;
-      case "content/createassetandtoken": {
-        const assetResult = await operate(state, store, next, "put", "asset", {
-          type: "content/updateasset",
-          payload: action.payload.asset,
-        });
-        if (!assetResult || assetResult.status !== 201) return;
-        const asset: Asset = assetResult.data;
-        const assetDataResult = await updateAssetData(state, store, next, {
-          type: "content/updateassetdata",
-          payload: {
-            id: asset._id!,
-            file: action.payload.file,
-            progress: action.payload.progress,
-          },
-        });
-        if (!assetDataResult || assetDataResult.status !== 200) {
-          // delete the asset if the data update failed
-          operate(state, store, next, "delete", "asset", {
-            type: "content/deleteasset",
-            payload: asset,
-          });
-          return;
-        }
-
-        // create the token
-        const tokenResult = await operate(state, store, next, "put", "token", {
-          type: "content/updatetoken",
-          payload: { ...action.payload.token, asset: asset._id },
-        });
-        if (!tokenResult || tokenResult.status !== 201) {
-          // delete the asset if the token update failed
-          operate(state, store, next, "delete", "asset", {
-            type: "content/deleteasset",
-            payload: asset,
-          });
-        }
-        break;
-      }
-      case "content/updateassetdata":
-        updateAssetData(state, store, next, action);
-        break;
-      case "content/deleteasset": {
-        operate(state, store, next, "delete", "asset", action);
-        break;
-      }
-      case "content/tokens": {
-        operate(state, store, next, "get", "token", action);
-        break;
-      }
-      case "content/assets": {
-        operate(state, store, next, "get", "asset", action);
         break;
       }
       default:

@@ -56,15 +56,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
   switch (action.type) {
     case "content/mediaprefix":
       return { ...state, mediaPrefix: action.payload as unknown as string };
-    case "content/assets": {
-      const assets: Asset[] = action.payload as unknown as Asset[];
-      return { ...state, assets };
-    }
-    case "content/tokens": {
-      const tokens: Token[] = action.payload as unknown as Token[];
-      const ret = { ...state, tokens };
-      return ret;
-    }
     case "content/scene": {
       // load an updated or new scene
       const scene: Scene = action.payload as unknown as Scene;
@@ -76,88 +67,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       // the current scene is updated we do need to rerender.
       if (scene._id !== state.currentScene?._id) return { ...state, scenes };
       return { ...state, currentScene: scene, scenes };
-    }
-    case "content/updateassetdata":
-    case "content/updateasset": {
-      const asset = action.payload as unknown as Asset;
-      const assets = state.assets || [];
-      const idx = assets.findIndex((a) => a._id === asset._id);
-      if (idx < 0) return { ...state, assets: [...assets, asset] };
-      const newAssets = [...assets];
-      newAssets.splice(idx, 1, asset);
-      return { ...state, assets: newAssets };
-    }
-    case "content/deleteasset": {
-      // can't delete when we have no assets
-      if (!state.assets) return state;
-
-      // get the asset index to delete
-      const asset = action.payload as unknown as Asset;
-      const idx = state.assets.findIndex((a) => a._id === asset._id);
-      if (idx < 0) return state;
-      const assets = [...state.assets];
-      assets.splice(idx, 1);
-
-      // if there are no tokens, we can just update the asset list
-      if (!state.tokens) return { ...state, assets };
-
-      // remove referenced tokens and token instances
-      const currentSceneId = state.currentScene?._id;
-      const tokens: Token[] = [];
-      for (const token of state.tokens) {
-        // if the token does not use the asset we are deleting, keep it
-        if (token.asset !== asset._id) {
-          tokens.push(token);
-          continue;
-        }
-      }
-
-      const removedTokenIds = new Set(
-        state.tokens
-          .filter((token) => token.asset === asset._id)
-          .map((token) => token._id),
-      );
-      const scenes: Scene[] = state.scenes.map((scene) => {
-        if (!scene.tokens || removedTokenIds.size === 0) return scene;
-        return {
-          ...scene,
-          tokens: scene.tokens.filter((t) => !removedTokenIds.has(t.token)),
-        };
-      });
-      const nextCurrentScene = currentSceneId
-        ? scenes.find((s) => s._id === currentSceneId) || state.currentScene
-        : state.currentScene;
-      return {
-        ...state,
-        tokens,
-        assets,
-        scenes,
-        currentScene: nextCurrentScene,
-      };
-    }
-    case "content/updatetoken": {
-      const token = action.payload as unknown as Token;
-      const tokens = state.tokens || [];
-      const idx = tokens.findIndex((a) => a._id === token._id);
-      if (idx < 0) return { ...state, tokens: [...tokens, token] };
-      const newTokens = [...tokens];
-      newTokens.splice(idx, 1, token);
-      return { ...state, tokens: newTokens };
-    }
-    case "content/deletetoken": {
-      const token = action.payload as unknown as Token;
-      const idx =
-        state.tokens === undefined
-          ? -1
-          : state.tokens.findIndex((a) => a._id === token._id);
-      if (idx < 0) return state;
-      const tokens = [...state.tokens!];
-      const scenes = state.scenes.map((scene) => ({
-        ...scene,
-        tokens: scene.tokens?.filter((t) => t.token !== token._id) || [],
-      }));
-      tokens.splice(idx, 1);
-      return { ...state, tokens: tokens, scenes };
     }
     case "content/scenetokenplaced": {
       const instance = action.payload as unknown as TokenInstance;

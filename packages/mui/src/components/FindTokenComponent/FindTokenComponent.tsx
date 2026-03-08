@@ -12,12 +12,13 @@ import {
 } from "@mui/material";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { ChangeEvent, useCallback, useEffect, useState } from "react";
 import { HydratedTokenInstance, Token } from "@micahg/tbltp-common";
 import { useAuth0 } from "@auth0/auth0-react";
 import { useGetScenesQuery } from "../../api/scene";
 import { selectEditingSceneId } from "../../slices/editorUiSlice";
+import { useGetTokensQuery } from "../../api/token";
 // import styles from "./FindTokenComponent.module.css";
 
 interface FindTokenComponentProps {
@@ -26,8 +27,7 @@ interface FindTokenComponentProps {
 }
 
 const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
-  const dispatch = useDispatch();
-  const tokens = useSelector((state: AppReducerState) => state.content.tokens);
+  const { data: tokens = [] } = useGetTokensQuery();
   const assets = useSelector((state: AppReducerState) => state.content.assets);
   const { data: scenes = [] } = useGetScenesQuery();
   const editingSceneId = useSelector(selectEditingSceneId);
@@ -38,10 +38,6 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
   const { getAccessTokenSilently } = useAuth0();
   const [bearer, setBearer] = useState<string | null>(null);
   const [searchValue, setSearchValue] = useState("");
-
-  useEffect(() => {
-    if (tokens === undefined) dispatch({ type: "content/tokens" });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     getAccessTokenSilently()
@@ -86,48 +82,45 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
         sx={{ m: 1, margin: "1em" }}
       ></TextField>
       <List>
-        {tokens !== undefined &&
-          tokens
-            .filter(
-              (token) =>
-                searchValue === "" ||
-                token.name.toLowerCase().includes(searchValue.toLowerCase()),
-            )
-            .map((token) => {
-              const asset = assets?.find(
-                (a) => a._id === token.asset,
-              )?.location;
-              const url = asset
-                ? `${mediaPrefix}/${asset}${bearer ? `?token=${bearer}` : ""}`
-                : "/x.webp";
-              return (
-                <ListItem
-                  key={token._id}
-                  secondaryAction={
-                    <Tooltip title="Invisible token" placement="left">
-                      <IconButton
-                        edge="end"
-                        aria-label="comments"
-                        onClick={() => sendHydratedToken(token, url, false)}
-                      >
-                        <VisibilityOffIcon />
-                      </IconButton>
-                    </Tooltip>
-                  }
-                >
-                  <Tooltip title="Visible token" placement="left">
-                    <ListItemButton
-                      onClick={() => sendHydratedToken(token, url, true)}
+        {tokens
+          .filter(
+            (token) =>
+              searchValue === "" ||
+              token.name.toLowerCase().includes(searchValue.toLowerCase()),
+          )
+          .map((token) => {
+            const asset = assets?.find((a) => a._id === token.asset)?.location;
+            const url = asset
+              ? `${mediaPrefix}/${asset}${bearer ? `?token=${bearer}` : ""}`
+              : "/x.webp";
+            return (
+              <ListItem
+                key={token._id}
+                secondaryAction={
+                  <Tooltip title="Invisible token" placement="left">
+                    <IconButton
+                      edge="end"
+                      aria-label="comments"
+                      onClick={() => sendHydratedToken(token, url, false)}
                     >
-                      <ListItemAvatar>
-                        <Avatar alt={`Avatar ${token.name}`} src={url} />
-                      </ListItemAvatar>
-                      <ListItemText primary={token.name}></ListItemText>
-                    </ListItemButton>
+                      <VisibilityOffIcon />
+                    </IconButton>
                   </Tooltip>
-                </ListItem>
-              );
-            })}
+                }
+              >
+                <Tooltip title="Visible token" placement="left">
+                  <ListItemButton
+                    onClick={() => sendHydratedToken(token, url, true)}
+                  >
+                    <ListItemAvatar>
+                      <Avatar alt={`Avatar ${token.name}`} src={url} />
+                    </ListItemAvatar>
+                    <ListItemText primary={token.name}></ListItemText>
+                  </ListItemButton>
+                </Tooltip>
+              </ListItem>
+            );
+          })}
       </List>
     </Box>
   );

@@ -211,12 +211,6 @@ const GameMasterComponent = () => {
   const scenesClick = () => setScenesOpen(!scenesOpen);
 
   useEffect(() => {
-    if (!dispatch) return;
-    dispatch({ type: "content/tokens" });
-    return;
-  }, [dispatch]);
-
-  useEffect(() => {
     if (!tableState?.scene) return;
     dispatch(setEditingSceneId(tableState.scene));
   }, [dispatch, tableState]);

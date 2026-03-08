@@ -5,6 +5,7 @@ import { deviceCodeApi } from "./api/devicecode";
 import { sceneApi } from "./api/scene";
 import { tableStateApi } from "./api/tableState";
 import { assetApi } from "./api/asset";
+import { tokenApi } from "./api/token";
 import { ContentMiddleware } from "./middleware/ContentMiddleware";
 
 export const store = configureStore({
@@ -16,6 +17,7 @@ export const store = configureStore({
       sceneApi.middleware,
       tableStateApi.middleware,
       assetApi.middleware,
+      tokenApi.middleware,
       ContentMiddleware,
     ),
 });

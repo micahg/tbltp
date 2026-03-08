@@ -5,6 +5,7 @@ import { deviceCodeApi } from "../api/devicecode";
 import { sceneApi } from "../api/scene";
 import { tableStateApi } from "../api/tableState";
 import { assetApi } from "../api/asset";
+import { tokenApi } from "../api/token";
 import { RateLimitReducer } from "../slices/rateLimitSlice";
 import { EditorUiReducer } from "../slices/editorUiSlice";
 
@@ -14,6 +15,7 @@ export const AppReducer = combineReducers({
   [sceneApi.reducerPath]: sceneApi.reducer,
   [tableStateApi.reducerPath]: tableStateApi.reducer,
   [assetApi.reducerPath]: assetApi.reducer,
+  [tokenApi.reducerPath]: tokenApi.reducer,
   rateLimit: RateLimitReducer,
   editorUi: EditorUiReducer,
   content: ContentReducer,
