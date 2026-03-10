@@ -25,6 +25,8 @@ import {
 } from "../../api/scene";
 import {
   clearEditingSceneId,
+  selectEditorUiError,
+  setError,
   setEditingSceneId,
 } from "../../slices/editorUiSlice";
 
@@ -70,7 +72,7 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
-  const error = useSelector((state: AppReducerState) => state.content.err);
+  const error = useSelector(selectEditorUiError);
   const { getAccessTokenSilently } = useAuth0();
   const [createScene] = useCreateSceneMutation();
   const [sendSceneFile] = useSendSceneFileMutation();
@@ -178,15 +180,9 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
         deleteScene: (sceneId) => deleteScene(sceneId).unwrap(),
         onScene: (nextScene) => dispatch(setEditingSceneId(nextScene._id)),
         onSuccess: () =>
-          dispatch({
-            type: "content/error",
-            payload: { msg: "Update successful", success: true },
-          }),
+          dispatch(setError({ msg: "Update successful", success: true })),
         onFailure: (message) =>
-          dispatch({
-            type: "content/error",
-            payload: { msg: message, success: false },
-          }),
+          dispatch(setError({ msg: message, success: false })),
         onClearCurrentScene: () => dispatch(clearEditingSceneId()),
       },
     )
@@ -221,7 +217,7 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
 
     // on success, clear the banner eventually
     if (error.success) {
-      const id = setTimeout(() => dispatch({ type: "content/error" }), 5000);
+      const id = setTimeout(() => dispatch(setError(undefined)), 5000);
       return () => clearTimeout(id);
     }
   }, [dispatch, error]);

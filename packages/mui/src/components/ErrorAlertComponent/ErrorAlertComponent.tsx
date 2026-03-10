@@ -1,8 +1,8 @@
 import { Alert, Box, IconButton } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
-import { AppReducerState } from "../../reducers/AppReducer";
 import CloseIcon from "@mui/icons-material/Close";
 import { useEffect } from "react";
+import { selectEditorUiError, setError } from "../../slices/editorUiSlice";
 
 interface ErrorAlertComponentProps {
   sticky?: boolean;
@@ -10,12 +10,12 @@ interface ErrorAlertComponentProps {
 
 const ErrorAlertComponent = ({ sticky }: ErrorAlertComponentProps) => {
   const dispatch = useDispatch();
-  const error = useSelector((state: AppReducerState) => state.content.err);
+  const error = useSelector(selectEditorUiError);
 
   useEffect(() => {
     // clear the error if there is one
     return () => {
-      dispatch({ type: "content/error" });
+      dispatch(setError(undefined));
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -37,7 +37,7 @@ const ErrorAlertComponent = ({ sticky }: ErrorAlertComponentProps) => {
               color="inherit"
               size="small"
               onClick={() => {
-                dispatch({ type: "content/error" });
+                dispatch(setError(undefined));
               }}
             >
               <CloseIcon fontSize="inherit" />
@@ -56,7 +56,7 @@ const ErrorAlertComponent = ({ sticky }: ErrorAlertComponentProps) => {
               color="inherit"
               size="small"
               onClick={() => {
-                dispatch({ type: "content/error" });
+                dispatch(setError(undefined));
               }}
             >
               <CloseIcon fontSize="inherit" />

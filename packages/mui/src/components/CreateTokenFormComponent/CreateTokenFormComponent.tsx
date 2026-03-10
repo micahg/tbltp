@@ -33,6 +33,7 @@ import {
 } from "../../api/token";
 import { createAssetAndTokenFlow } from "../../thunks/createAssetAndTokenFlow";
 import { environmentApi } from "../../api/environment";
+import { setError } from "../../slices/editorUiSlice";
 
 interface CreateTokenFormComponentProps {
   token?: Token;
@@ -96,12 +97,9 @@ const CreateTokenFormComponent = ({
     if (!token?._id) return;
     try {
       await deleteTokenMutation(token).unwrap();
-      dispatch({ type: "content/error", payload: undefined });
+      dispatch(setError(undefined));
     } catch {
-      dispatch({
-        type: "content/error",
-        payload: { msg: "Unable to delete token", success: false },
-      });
+      dispatch(setError({ msg: "Unable to delete token", success: false }));
     }
   };
 
@@ -146,13 +144,10 @@ const CreateTokenFormComponent = ({
             updateToken: (payload) => updateToken(payload).unwrap(),
             deleteAsset: (payload) => deleteAsset(payload).unwrap(),
             onSuccess: () => {
-              dispatch({ type: "content/error", payload: undefined });
+              dispatch(setError(undefined));
             },
             onFailure: (message) => {
-              dispatch({
-                type: "content/error",
-                payload: { msg: message, success: false },
-              });
+              dispatch(setError({ msg: message, success: false }));
             },
           },
         );
@@ -166,14 +161,11 @@ const CreateTokenFormComponent = ({
 
     try {
       await updateToken(update).unwrap();
-      dispatch({ type: "content/error", payload: undefined });
+      dispatch(setError(undefined));
       reset(data);
       setImgUrl(`/x.webp`);
     } catch {
-      dispatch({
-        type: "content/error",
-        payload: { msg: "Unable to update token", success: false },
-      });
+      dispatch(setError({ msg: "Unable to update token", success: false }));
     }
   };
 

@@ -7,18 +7,12 @@ import {
   TokenInstance,
 } from "@micahg/tbltp-common";
 
-export type ContentReducerError = {
-  msg: string;
-  success: boolean;
-};
-
 export type ContentReducerState = {
   readonly mediaPrefix?: string;
   readonly currentScene?: Scene;
   readonly scenes: Scene[];
   readonly assets?: Asset[];
   readonly tokens?: Token[];
-  readonly err?: ContentReducerError;
 };
 
 const initialState: ContentReducerState = {
@@ -26,7 +20,6 @@ const initialState: ContentReducerState = {
   scenes: [],
   assets: undefined,
   tokens: undefined,
-  err: undefined,
 };
 
 function hydrateToken(
@@ -153,12 +146,6 @@ export const ContentReducer = (state = initialState, action: PayloadAction) => {
       }
 
       return { ...state, scenes: [...scenes] };
-    }
-    case "content/error": {
-      // important to let undefined through. This will clear the error
-      // and allow components to get it off screen when their state updates
-      const err = action.payload as unknown as ContentReducerError;
-      return { ...state, err: err };
     }
     default:
       return state;

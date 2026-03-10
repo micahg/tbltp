@@ -2,12 +2,11 @@ import { Middleware } from "redux";
 import axios, { AxiosProgressEvent, AxiosResponse } from "axios";
 import { AppReducerState } from "../reducers/AppReducer";
 import { getAuthHeaders } from "../utils/authBridge";
-import { ContentReducerError } from "../reducers/ContentReducer";
 import { Asset, Rect, Token, TokenInstance } from "@micahg/tbltp-common";
 import { AnyAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
-import { LoadProgress } from "../utils/content";
 import { environmentApi } from "../api/environment";
 import { ratelimit } from "../slices/rateLimitSlice";
+import { EditorUiError, setError } from "../slices/editorUiSlice";
 
 export interface ViewportBundle {
   backgroundSize?: Rect;
@@ -125,11 +124,11 @@ function handleError(
       }
     }
   }
-  const err: ContentReducerError = {
+  const err: EditorUiError = {
     msg: msg,
     success: false,
   };
-  next({ type: "content/error", payload: err });
+  next(setError(err));
 }
 
 async function operate<T extends OperationType>(
@@ -149,48 +148,15 @@ async function operate<T extends OperationType>(
     });
     const msg = FriendlyOperation[op];
     if (msg) {
-      const err: ContentReducerError = {
+      const err: EditorUiError = {
         msg: msg,
         success: true,
       };
-      next({ type: "content/error", payload: err });
+      next(setError(err));
     }
     return result;
   } catch (error) {
     handleError(next, op, path, error);
-  }
-}
-
-async function updateAssetData(
-  state: AppReducerState,
-  _store: MiddlewareAPI<Dispatch<AnyAction>, unknown>,
-  next: Dispatch<AnyAction>,
-  action: unknown & {
-    type: string;
-    payload: {
-      id: string;
-      file: File;
-      progress?: (evt: LoadProgress) => void;
-    };
-  },
-): Promise<AxiosResponse | undefined> {
-  const { id, file, progress } = action.payload;
-  const formData = new FormData();
-  formData.append("asset", file as Blob);
-  const headers = await resolveHeaders(state);
-  headers["Content-Type"] = "multipart/form-data";
-  const path = `${environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api}/asset/${id}/data`;
-  try {
-    const resp = await axios.put(path, formData, {
-      headers: headers,
-      onUploadProgress: (e) =>
-        progress?.({ progress: e.progress || 0, img: "" }),
-    });
-    trackRateLimit(next, resp);
-    next({ type: action.type, payload: resp.data });
-    return resp;
-  } catch (error) {
-    handleError(next, "put", path, error);
   }
 }
 
