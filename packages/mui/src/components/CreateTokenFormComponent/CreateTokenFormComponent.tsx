@@ -163,7 +163,6 @@ const CreateTokenFormComponent = ({
       await updateToken(update).unwrap();
       dispatch(setError(undefined));
       reset(data);
-      setImgUrl(`/x.webp`);
     } catch {
       dispatch(setError({ msg: "Unable to update token", success: false }));
     }
