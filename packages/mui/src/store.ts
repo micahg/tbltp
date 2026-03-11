@@ -6,7 +6,7 @@ import { sceneApi } from "./api/scene";
 import { tableStateApi } from "./api/tableState";
 import { assetApi } from "./api/asset";
 import { tokenApi } from "./api/token";
-import { ContentMiddleware } from "./middleware/ContentMiddleware";
+import { sceneTokenApi } from "./api/scenetoken";
 
 export const store = configureStore({
   reducer: AppReducer,
@@ -18,7 +18,7 @@ export const store = configureStore({
       tableStateApi.middleware,
       assetApi.middleware,
       tokenApi.middleware,
-      ContentMiddleware,
+      sceneTokenApi.middleware,
     ),
 });
 

@@ -19,6 +19,8 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { useGetScenesQuery } from "../../api/scene";
 import { selectEditingSceneId } from "../../slices/editorUiSlice";
 import { useGetTokensQuery } from "../../api/token";
+import { useGetAssetsQuery } from "../../api/asset";
+import { environmentApi } from "../../api/environment";
 // import styles from "./FindTokenComponent.module.css";
 
 interface FindTokenComponentProps {
@@ -28,12 +30,13 @@ interface FindTokenComponentProps {
 
 const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
   const { data: tokens = [] } = useGetTokensQuery();
-  const assets = useSelector((state: AppReducerState) => state.content.assets);
+  const { data: assets = [] } = useGetAssetsQuery();
   const { data: scenes = [] } = useGetScenesQuery();
   const editingSceneId = useSelector(selectEditingSceneId);
   const scene = scenes.find((s) => s._id === editingSceneId);
-  const mediaPrefix = useSelector(
-    (state: AppReducerState) => state.content.mediaPrefix,
+  const api = useSelector(
+    (state: AppReducerState) =>
+      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
   const { getAccessTokenSilently } = useAuth0();
   const [bearer, setBearer] = useState<string | null>(null);
@@ -48,7 +51,7 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
   const sendHydratedToken = useCallback(
     (token: Token, asset: string, visible: boolean) => {
       if (assets === undefined) return;
-      if (mediaPrefix === undefined) return;
+      if (api === undefined) return;
       if (scene === undefined) return;
 
       const instance: HydratedTokenInstance = {
@@ -65,7 +68,7 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
 
       onToken(instance);
     },
-    [assets, mediaPrefix, onToken, scene],
+    [api, assets, onToken, scene],
   );
 
   return (
@@ -91,7 +94,7 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
           .map((token) => {
             const asset = assets?.find((a) => a._id === token.asset)?.location;
             const url = asset
-              ? `${mediaPrefix}/${asset}${bearer ? `?token=${bearer}` : ""}`
+              ? `${api}/${asset}${bearer ? `?token=${bearer}` : ""}`
               : "/x.webp";
             return (
               <ListItem

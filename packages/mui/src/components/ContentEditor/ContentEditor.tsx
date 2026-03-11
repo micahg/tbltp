@@ -5,6 +5,7 @@ import React, {
   createRef,
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -21,7 +22,7 @@ import {
   ZoomOut,
   LayersClear,
   Sync,
-  Map,
+  Map as MapIcon,
   Palette,
   VisibilityOff,
   Visibility,
@@ -57,10 +58,18 @@ import {
 } from "../../api/scene";
 import { useUpdateTableStateMutation } from "../../api/tableState";
 import {
+  useDeleteSceneTokenInstanceMutation,
+  useGetSceneTokenInstancesQuery,
+  useUpsertSceneTokenInstanceMutation,
+} from "../../api/scenetoken";
+import { useGetAssetsQuery } from "../../api/asset";
+import { useGetTokensQuery } from "../../api/token";
+import {
   selectEditorUiPushTime,
   selectEditingSceneId,
   setPushTime,
 } from "../../slices/editorUiSlice";
+import { skipToken } from "@reduxjs/toolkit/query";
 
 const sm = new MouseStateMachine();
 
@@ -138,8 +147,13 @@ const ContentEditor = ({
   const [toolbarPopulated, setToolbarPopulated] = useState<boolean>(false);
 
   const { data: scenes = [] } = useGetScenesQuery();
+  const { data: tokens = [] } = useGetTokensQuery();
+  const { data: assets = [] } = useGetAssetsQuery();
   const editingSceneId = useSelector(selectEditingSceneId);
   const scene = scenes.find((s) => s._id === editingSceneId);
+  const { data: sceneTokenInstances = [] } = useGetSceneTokenInstancesQuery(
+    scene?._id ?? skipToken,
+  );
   const apiUrl = useSelector(
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
@@ -149,6 +163,41 @@ const ContentEditor = ({
   const [sendSceneFile] = useSendSceneFileMutation();
   const [updateSceneViewport] = useUpdateSceneViewportMutation();
   const [updateTableState] = useUpdateTableStateMutation();
+  const [upsertSceneTokenInstance] = useUpsertSceneTokenInstanceMutation();
+  const [deleteSceneTokenInstance] = useDeleteSceneTokenInstanceMutation();
+
+  const hydratedSceneTokens = useMemo(() => {
+    if (!apiUrl) return [];
+
+    const tokenAssetById = new Map(
+      tokens
+        .filter((token) => !!token._id)
+        .map((token) => [token._id!, token.asset] as const),
+    );
+    const assetLocationById = new Map(
+      assets
+        .filter((asset) => !!asset._id && !!asset.location)
+        .map((asset) => [asset._id!, asset.location!] as const),
+    );
+
+    return sceneTokenInstances
+      .map((instance) => {
+        const assetId = tokenAssetById.get(instance.token);
+        if (!assetId) {
+          return undefined;
+        }
+        const assetLocation = assetLocationById.get(assetId);
+        if (!assetLocation) {
+          return undefined;
+        }
+
+        return {
+          ...instance,
+          asset: `${apiUrl}/${assetLocation}`,
+        } as HydratedTokenInstance;
+      })
+      .filter((instance): instance is HydratedTokenInstance => !!instance);
+  }, [apiUrl, assets, sceneTokenInstances, tokens]);
 
   const updateViewport = useCallback(
     (viewport: { backgroundSize?: Rect; viewport?: Rect; angle?: number }) => {
@@ -339,25 +388,36 @@ const ContentEditor = ({
         }
       } else if (evt.data.cmd === "token_placed") {
         if (!("instance" in evt.data)) return;
-        dispatch({
-          type: "content/scenetokenplaced",
-          payload: evt.data.instance,
-        });
+        void upsertSceneTokenInstance(evt.data.instance as TokenInstance)
+          .unwrap()
+          .catch((err) =>
+            console.error(`Unable to place token: ${JSON.stringify(err)}`),
+          );
       } else if (evt.data.cmd === "token_deleted") {
         if (!("instance" in evt.data)) return;
-        dispatch({
-          type: "content/scenetokendeleted",
-          payload: evt.data.instance,
-        });
+        void deleteSceneTokenInstance(evt.data.instance as TokenInstance)
+          .unwrap()
+          .catch((err) =>
+            console.error(`Unable to delete token: ${JSON.stringify(err)}`),
+          );
       } else if (evt.data.cmd === "token_moved") {
         if (!("instance" in evt.data)) return;
-        dispatch({
-          type: "content/scenetokenmoved",
-          payload: evt.data.instance,
-        });
+        void upsertSceneTokenInstance(evt.data.instance as TokenInstance)
+          .unwrap()
+          .catch((err) =>
+            console.error(`Unable to move token: ${JSON.stringify(err)}`),
+          );
       }
     },
-    [dispatch, downloads, ovRev, scene, sendSceneFile, updateViewport],
+    [
+      deleteSceneTokenInstance,
+      downloads,
+      ovRev,
+      scene,
+      sendSceneFile,
+      updateViewport,
+      upsertSceneTokenInstance,
+    ],
   );
 
   /**
@@ -371,9 +431,7 @@ const ContentEditor = ({
 
     // we cannot pre-translate these into drawables because properties
     // that are methods do not survive the transfer to the worker
-    const things: (TokenInstance | Rect)[] = scene.tokens
-      ? [...scene.tokens]
-      : [];
+    const things: (TokenInstance | Rect)[] = [...hydratedSceneTokens];
     if (
       scene.viewport &&
       scene.backgroundSize &&
@@ -381,10 +439,9 @@ const ContentEditor = ({
     )
       things.push(scene.viewport);
 
-    // scene.tokens?.forEach((token) => things.push(token));
     // need to delay this until we know we're in a good state.
     worker.postMessage({ cmd: "things", values: { apiUrl, bearer, things } });
-  }, [apiUrl, bearer, worker, scene]);
+  }, [apiUrl, bearer, worker, scene, hydratedSceneTokens]);
 
   useEffect(() => {
     if (!internalState || !toolbarPopulated) return;
@@ -415,7 +472,7 @@ const ContentEditor = ({
         callback: () => sm.transition("push"),
       },
       {
-        icon: Map,
+        icon: MapIcon,
         tooltip: "Scene Backgrounds",
         hidden: () => false,
         disabled: () => internalState.rec || internalState.act !== "move",
@@ -876,18 +933,13 @@ const ContentEditor = ({
    */
   useEffect(() => {
     if (!scene) return;
-    if (!dispatch) return;
     if (!sceneUpdated) return;
 
     // draw the viewport (and possibly tokens) to the canvas
-    if (scene.tokens && handleDrawables) {
+    if (handleDrawables) {
       handleDrawables();
-      return;
     }
-
-    // if there are no tokens, set them in the scene so they can be drawn
-    dispatch({ type: "content/scenetokens", payload: { scene: scene._id } });
-  }, [dispatch, scene, sceneUpdated, handleDrawables]);
+  }, [scene, sceneUpdated, handleDrawables, hydratedSceneTokens]);
 
   /**
    * Its important to separate the worker message handler from the

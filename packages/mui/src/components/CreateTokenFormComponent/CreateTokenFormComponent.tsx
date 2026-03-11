@@ -78,9 +78,6 @@ const CreateTokenFormComponent = ({
   const [updateToken] = useUpdateTokenMutation();
   const [deleteTokenMutation] = useDeleteTokenMutation();
 
-  const mediaPrefix = useSelector(
-    (state: AppReducerState) => state.content.mediaPrefix,
-  );
   const api = useSelector(
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
@@ -223,7 +220,7 @@ const CreateTokenFormComponent = ({
 
     // ensure the rest of the stuff we need to show assets is available
     if (!bearer) return;
-    const mediaUrlPrefix = mediaPrefix || api;
+    const mediaUrlPrefix = api;
     if (!mediaUrlPrefix) return;
     if (!assetField) return;
 
@@ -246,7 +243,7 @@ const CreateTokenFormComponent = ({
 
     const url = `${mediaUrlPrefix}/${asset.location}?token=${bearer}`;
     setImgUrl(url);
-  }, [api, assetField, assets, mediaPrefix, bearer]);
+  }, [api, assetField, assets, bearer]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>

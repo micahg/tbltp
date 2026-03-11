@@ -1,6 +1,4 @@
 import { createRef, useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
-import { AppReducerState } from "../../reducers/AppReducer";
 import Alert from "@mui/material/Alert";
 import Stack from "@mui/material/Stack";
 
@@ -48,10 +46,6 @@ const RemoteDisplayComponent = () => {
   const { data: authState } = useGetDeviceAuthStateQuery();
   const token = authState?.token;
   const [pollDeviceCode] = usePollDeviceCodeMutation();
-
-  const mediaPrefix = useSelector(
-    (state: AppReducerState) => state.content.mediaPrefix,
-  );
   const [connected, setConnected] = useState<boolean | undefined>();
   const [tableData, setTableData] = useState<WSStateMessage>();
   const [authTimer, setAuthTimer] = useState<number>();
@@ -104,8 +98,6 @@ const RemoteDisplayComponent = () => {
    */
   const processTableData = useCallback(
     (js: WSStateMessage, apiUrl: string, bearer: string) => {
-      if (!mediaPrefix) return;
-
       if (!worker) {
         console.error(`Received state before worker ready`);
         return;
@@ -146,7 +138,7 @@ const RemoteDisplayComponent = () => {
         tokens = js.state.tokens;
       }
       for (const token of tokens) {
-        token.asset = `${mediaPrefix}/${token.asset}`;
+        token.asset = `${apiUrl}/${token.asset}`;
       }
       const things: (HydratedTokenInstance | Rect)[] =
         tokens.length > 0 ? [...tokens] : [];
@@ -169,7 +161,7 @@ const RemoteDisplayComponent = () => {
         },
       });
     },
-    [mediaPrefix, worker],
+    [worker],
   );
 
   /**
