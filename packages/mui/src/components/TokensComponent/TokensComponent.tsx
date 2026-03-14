@@ -3,7 +3,7 @@ import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionC
 // import styles from "./TokensComponent.module.css";
 import { useDispatch } from "react-redux";
 import { Box, Grid } from "@mui/material";
-import { Add } from "@mui/icons-material";
+import Add from "@mui/icons-material/Add";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import { Token } from "@micahg/tbltp-common";
 import CreateTokenFormComponent from "../CreateTokenFormComponent/CreateTokenFormComponent.lazy";

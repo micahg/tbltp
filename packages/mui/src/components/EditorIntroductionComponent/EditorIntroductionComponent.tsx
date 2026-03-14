@@ -1,13 +1,11 @@
 import MenuIcon from "@mui/icons-material/Menu";
-import {
-  Edit,
-  Map,
-  Rectangle,
-  Visibility,
-  VisibilityOff,
-  ZoomIn,
-  ZoomOut,
-} from "@mui/icons-material";
+import Edit from "@mui/icons-material/Edit";
+import Map from "@mui/icons-material/Map";
+import Rectangle from "@mui/icons-material/Rectangle";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import ZoomIn from "@mui/icons-material/ZoomIn";
+import ZoomOut from "@mui/icons-material/ZoomOut";
 import { Box, Paper, Typography } from "@mui/material";
 
 const EditorIntroductionComponent = () => {

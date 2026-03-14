@@ -14,22 +14,20 @@ import { createRect, equalRects } from "../../utils/geometry";
 import { MouseStateMachine } from "../../utils/mousestatemachine";
 import { setCallback } from "../../utils/statemachine";
 import styles from "./ContentEditor.module.css";
-import {
-  Rectangle,
-  RotateRight,
-  Opacity,
-  ZoomIn,
-  ZoomOut,
-  LayersClear,
-  Sync,
-  Map as MapIcon,
-  Palette,
-  VisibilityOff,
-  Visibility,
-  Edit,
-  EditOff,
-  Face,
-} from "@mui/icons-material";
+import Rectangle from "@mui/icons-material/Rectangle";
+import RotateRight from "@mui/icons-material/RotateRight";
+import Opacity from "@mui/icons-material/Opacity";
+import ZoomIn from "@mui/icons-material/ZoomIn";
+import ZoomOut from "@mui/icons-material/ZoomOut";
+import LayersClear from "@mui/icons-material/LayersClear";
+import Sync from "@mui/icons-material/Sync";
+import MapIcon from "@mui/icons-material/Map";
+import Palette from "@mui/icons-material/Palette";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import Visibility from "@mui/icons-material/Visibility";
+import Edit from "@mui/icons-material/Edit";
+import EditOff from "@mui/icons-material/EditOff";
+import Face from "@mui/icons-material/Face";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import {
   Box,

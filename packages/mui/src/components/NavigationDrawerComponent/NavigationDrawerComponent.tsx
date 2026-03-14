@@ -11,7 +11,10 @@ import {
 
 // import styles from "./NavigationDrawerComponent.module.css";
 import { useDispatch } from "react-redux";
-import { ExpandLess, ExpandMore, UploadFile, Face } from "@mui/icons-material";
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import ExpandMore from "@mui/icons-material/ExpandMore";
+import UploadFile from "@mui/icons-material/UploadFile";
+import Face from "@mui/icons-material/Face";
 import PhotoIcon from "@mui/icons-material/Photo";
 import LogoutIcon from "@mui/icons-material/Logout";
 import DeleteIcon from "@mui/icons-material/Delete";

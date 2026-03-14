@@ -3,7 +3,7 @@
 import { Box, Grid } from "@mui/material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useEffect } from "react";
-import { Add } from "@mui/icons-material";
+import Add from "@mui/icons-material/Add";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import AssetPanelComponent from "../AssetPanelComponent/AssetPanelComponent.lazy";
 import { Asset } from "@micahg/tbltp-common";
