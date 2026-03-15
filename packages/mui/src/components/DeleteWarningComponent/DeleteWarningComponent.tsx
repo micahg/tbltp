@@ -9,8 +9,9 @@ import {
 } from "@mui/material";
 import { Asset, Token, Scene } from "@micahg/tbltp-common";
 import { useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
-import { AppReducerState } from "../../reducers/AppReducer";
+import { useGetTokensQuery } from "../../api/token";
+import { useGetScenesQuery } from "../../api/scene";
+import { useLazyGetSceneTokenInstancesQuery } from "../../api/scenetoken";
 // import styles from "./DeleteWarningComponent.module.css";
 
 type EntityType = Asset | Token;
@@ -29,21 +30,19 @@ const DeleteWarningComponent = ({
   handleClose,
   handleDelete,
 }: DeleteWarningComponentProps) => {
-  const tokens = useSelector((state: AppReducerState) => state.content.tokens);
-  const scenes = useSelector((state: AppReducerState) => state.content.scenes);
+  const { data: tokens = [] } = useGetTokensQuery();
+  const { data: scenes = [] } = useGetScenesQuery();
+  const [getSceneTokenInstances] = useLazyGetSceneTokenInstancesQuery();
   const [affectedTokens, setAffectedTokens] = useState<Token[] | undefined>(
     undefined,
   );
   const [affectedScenes, setAffectedScenes] = useState<Scene[] | undefined>(
     undefined,
   );
+  const [analysisComplete, setAnalysisComplete] = useState(false);
 
   const checkAsset = useCallback(
-    (asset: Asset) => {
-      if (!tokens) {
-        console.error(`Tokens not loaded`);
-        return;
-      }
+    async (asset: Asset) => {
       // map the tokens
       const tokenMap = new Map();
       for (const token of tokens) {
@@ -55,59 +54,67 @@ const DeleteWarningComponent = ({
         tokenMap.size ? Array.from(tokenMap.values()) : undefined,
       );
 
-      // map the scenes
+      // map the scenes by checking token instances for each scene
       const sceneMap = new Map();
       for (const scene of scenes) {
-        if (scene.tokens === undefined) {
-          console.error(`Scene ${scene._id} has no tokens loaded`);
-          return;
-        }
-        for (const instance of scene.tokens) {
-          if (tokenMap.has(instance.token)) {
+        if (!scene._id) continue;
+        try {
+          const instances = await getSceneTokenInstances(scene._id).unwrap();
+          if (instances.some((instance) => tokenMap.has(instance.token))) {
             sceneMap.set(scene._id, scene);
-            break;
           }
+        } catch (err) {
+          console.error(`Unable to fetch scene tokens for ${scene._id}`, err);
         }
       }
       setAffectedScenes(
         sceneMap.size ? Array.from(sceneMap.values()) : undefined,
       );
+      setAnalysisComplete(true);
     },
-    [scenes, tokens],
+    [getSceneTokenInstances, scenes, tokens],
   );
   const checkToken = useCallback(
-    (token: Token) => {
+    async (token: Token) => {
       const sceneMap = new Map();
       for (const scene of scenes) {
-        if (!scene.tokens) continue;
-        for (const instance of scene.tokens) {
-          if (instance.token === token?._id) {
+        if (!scene._id) continue;
+        try {
+          const instances = await getSceneTokenInstances(scene._id).unwrap();
+          if (instances.some((instance) => instance.token === token._id)) {
             sceneMap.set(scene._id, scene);
           }
+        } catch (err) {
+          console.error(`Unable to fetch scene tokens for ${scene._id}`, err);
         }
       }
       setAffectedScenes(
         sceneMap.size ? Array.from(sceneMap.values()) : undefined,
       );
       setAffectedTokens(undefined);
+      setAnalysisComplete(true);
     },
-    [scenes],
+    [getSceneTokenInstances, scenes],
   );
 
   useEffect(() => {
     if (!open) return;
+    if (!analysisComplete) return;
     if (affectedScenes === undefined && affectedTokens === undefined) {
       handleDelete();
     }
-  }, [affectedScenes, affectedTokens, handleDelete, open]);
+  }, [affectedScenes, affectedTokens, analysisComplete, handleDelete, open]);
+
   useEffect(() => {
+    if (!open) return;
     if (!entity) return;
+    setAnalysisComplete(false);
     if ((entity as Token).asset) {
-      checkToken(entity as Token);
+      void checkToken(entity as Token);
     } else {
-      checkAsset(entity as Asset);
+      void checkAsset(entity as Asset);
     }
-  }, [checkAsset, checkToken, entity]);
+  }, [checkAsset, checkToken, entity, open]);
   return (
     <Box>
       <Dialog open={open}>

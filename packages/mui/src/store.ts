@@ -2,7 +2,11 @@ import { configureStore } from "@reduxjs/toolkit";
 import { AppReducer } from "./reducers/AppReducer";
 import { environmentApi } from "./api/environment";
 import { deviceCodeApi } from "./api/devicecode";
-import { ContentMiddleware } from "./middleware/ContentMiddleware";
+import { sceneApi } from "./api/scene";
+import { tableStateApi } from "./api/tableState";
+import { assetApi } from "./api/asset";
+import { tokenApi } from "./api/token";
+import { sceneTokenApi } from "./api/scenetoken";
 
 export const store = configureStore({
   reducer: AppReducer,
@@ -10,7 +14,11 @@ export const store = configureStore({
     getDefaultMiddleware().concat(
       environmentApi.middleware,
       deviceCodeApi.middleware,
-      ContentMiddleware,
+      sceneApi.middleware,
+      tableStateApi.middleware,
+      assetApi.middleware,
+      tokenApi.middleware,
+      sceneTokenApi.middleware,
     ),
 });
 

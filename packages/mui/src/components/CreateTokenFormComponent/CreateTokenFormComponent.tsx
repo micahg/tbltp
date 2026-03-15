@@ -21,6 +21,19 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent";
 import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
 import { useAuth0 } from "@auth0/auth0-react";
+import {
+  useDeleteAssetMutation,
+  useGetAssetsQuery,
+  useUpdateAssetDataMutation,
+  useUpdateAssetMutation,
+} from "../../api/asset";
+import {
+  useDeleteTokenMutation,
+  useUpdateTokenMutation,
+} from "../../api/token";
+import { createAssetAndTokenFlow } from "../../thunks/createAssetAndTokenFlow";
+import { environmentApi } from "../../api/environment";
+import { setError } from "../../slices/editorUiSlice";
 
 interface CreateTokenFormComponentProps {
   token?: Token;
@@ -58,10 +71,16 @@ const CreateTokenFormComponent = ({
 
   const dispatch = useDispatch();
   const assetField = watch("asset");
+  const { data: assets = [] } = useGetAssetsQuery();
+  const [updateAsset] = useUpdateAssetMutation();
+  const [updateAssetData] = useUpdateAssetDataMutation();
+  const [deleteAsset] = useDeleteAssetMutation();
+  const [updateToken] = useUpdateTokenMutation();
+  const [deleteTokenMutation] = useDeleteTokenMutation();
 
-  const assets = useSelector((state: AppReducerState) => state.content.assets);
-  const mediaPrefix = useSelector(
-    (state: AppReducerState) => state.content.mediaPrefix,
+  const api = useSelector(
+    (state: AppReducerState) =>
+      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
   const { getAccessTokenSilently } = useAuth0();
   const [bearer, setBearer] = useState<string | null>(null);
@@ -70,12 +89,15 @@ const CreateTokenFormComponent = ({
   const [imgUrl, setImgUrl] = useState<string>(`/x.webp`);
   const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
 
-  const deleteToken = () => {
+  const deleteToken = async () => {
     setDeleteWarning(false);
-    dispatch({
-      type: "content/deletetoken",
-      payload: token,
-    });
+    if (!token?._id) return;
+    try {
+      await deleteTokenMutation(token).unwrap();
+      dispatch(setError(undefined));
+    } catch {
+      dispatch(setError({ msg: "Unable to delete token", success: false }));
+    }
   };
 
   /**
@@ -92,7 +114,7 @@ const CreateTokenFormComponent = ({
     };
   }
 
-  const onSubmit = (data: Token) => {
+  const onSubmit = async (data: Token) => {
     // overlay the local changes
     const update = { ...token, ...data };
 
@@ -106,24 +128,41 @@ const CreateTokenFormComponent = ({
     // are special cases that need to be handled
     if (data.asset === "new") {
       delete update.asset;
-      dispatch({
-        type: "content/createassetandtoken",
-        payload: {
-          asset: {
-            name: data.name,
+      try {
+        await createAssetAndTokenFlow(
+          {
+            asset: { name: data.name },
+            token: update,
+            file,
           },
-          token: update,
-          file: file,
-        },
-      });
+          {
+            updateAsset: (payload) => updateAsset(payload).unwrap(),
+            updateAssetData: (payload) => updateAssetData(payload).unwrap(),
+            updateToken: (payload) => updateToken(payload).unwrap(),
+            deleteAsset: (payload) => deleteAsset(payload).unwrap(),
+            onSuccess: () => {
+              dispatch(setError(undefined));
+            },
+            onFailure: (message) => {
+              dispatch(setError({ msg: message, success: false }));
+            },
+          },
+        );
+      } catch {
+        // Error state handled by onFailure callback above.
+      }
       return;
     } else if (data.asset === "none") {
       delete update.asset;
     }
 
-    dispatch({ type: "content/updatetoken", payload: update });
-    reset(data);
-    setImgUrl(`/x.webp`);
+    try {
+      await updateToken(update).unwrap();
+      dispatch(setError(undefined));
+      reset(data);
+    } catch {
+      dispatch(setError({ msg: "Unable to update token", success: false }));
+    }
   };
 
   const selectFile = () => {
@@ -146,12 +185,6 @@ const CreateTokenFormComponent = ({
     };
     input.click();
   };
-
-  useEffect(() => {
-    if (!dispatch) return;
-    if (assets) return;
-    dispatch({ type: "content/assets" });
-  }, [assets, dispatch]);
 
   useEffect(() => {
     if (!reset) return;
@@ -187,10 +220,11 @@ const CreateTokenFormComponent = ({
 
     // ensure the rest of the stuff we need to show assets is available
     if (!bearer) return;
-    if (!mediaPrefix) return;
+    const mediaUrlPrefix = api;
+    if (!mediaUrlPrefix) return;
     if (!assetField) return;
 
-    if (!assets || assetField === "none") {
+    if (assetField === "none") {
       setImgUrl(`/x.webp`);
       return;
     }
@@ -207,9 +241,9 @@ const CreateTokenFormComponent = ({
       return;
     }
 
-    const url = `${mediaPrefix}/${asset.location}?token=${bearer}`;
+    const url = `${mediaUrlPrefix}/${asset.location}?token=${bearer}`;
     setImgUrl(url);
-  }, [assetField, assets, mediaPrefix, bearer]);
+  }, [api, assetField, assets, bearer]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -272,12 +306,11 @@ const CreateTokenFormComponent = ({
                 <MenuItem value="none">
                   <em>None</em>
                 </MenuItem>
-                {assets !== undefined &&
-                  assets.map((asset: Asset) => (
-                    <MenuItem key={asset._id} value={asset._id}>
-                      {asset.name}
-                    </MenuItem>
-                  ))}
+                {assets.map((asset: Asset) => (
+                  <MenuItem key={asset._id} value={asset._id}>
+                    {asset.name}
+                  </MenuItem>
+                ))}
               </Select>
             )}
           />

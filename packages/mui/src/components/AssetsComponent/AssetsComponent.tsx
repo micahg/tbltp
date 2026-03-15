@@ -3,25 +3,19 @@
 import { Box, Grid } from "@mui/material";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { Add } from "@mui/icons-material";
-import { AppReducerState } from "../../reducers/AppReducer";
+import Add from "@mui/icons-material/Add";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import AssetPanelComponent from "../AssetPanelComponent/AssetPanelComponent.lazy";
 import { Asset } from "@micahg/tbltp-common";
+import { useGetAssetsQuery, useUpdateAssetMutation } from "../../api/asset";
 
 interface AssetsComponentProps {
   populateToolbar?: (actions: GameMasterAction[]) => void;
 }
 
 const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
-  const dispatch = useDispatch();
-  const assets = useSelector((state: AppReducerState) => state.content.assets);
-
-  useEffect(() => {
-    if (!dispatch) return;
-    dispatch({ type: "content/assets" });
-  }, [dispatch]);
+  const { data: assets = [] } = useGetAssetsQuery();
+  const [updateAsset] = useUpdateAssetMutation();
 
   useEffect(() => {
     if (!populateToolbar) return;
@@ -34,7 +28,7 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
         callback: () => {
           const name = `ASSET ${assets?.length || 0}`;
           const asset: Asset = { name };
-          dispatch({ type: "content/updateasset", payload: asset });
+          updateAsset(asset);
         },
       },
       {
@@ -49,18 +43,17 @@ const AssetsComponent = ({ populateToolbar }: AssetsComponentProps) => {
     ];
 
     populateToolbar(actions);
-  }, [assets, dispatch, populateToolbar]);
+  }, [assets, populateToolbar, updateAsset]);
   return (
     // 100vh - 64px for the toolbar - 8px for the paddings
     <Box sx={{ overflow: "auto", height: `calc(100vh - 72px)` }}>
       <ErrorAlertComponent sticky={true} />
       <Grid container columns={{ xs: 2, sm: 2, md: 2 }}>
-        {assets !== undefined &&
-          assets.map((asset: Asset) => (
-            <Box key={asset._id} sx={{ margin: "12px" }}>
-              <AssetPanelComponent asset={asset} readonly={false} />
-            </Box>
-          ))}
+        {assets.map((asset: Asset) => (
+          <Box key={asset._id} sx={{ margin: "12px" }}>
+            <AssetPanelComponent asset={asset} readonly={false} />
+          </Box>
+        ))}
       </Grid>
     </Box>
   );

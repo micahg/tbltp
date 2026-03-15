@@ -10,13 +10,25 @@ import {
 import { createRef, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
-import { NewSceneBundle } from "../../middleware/ContentMiddleware";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { LoadProgress, loadImage } from "../../utils/content";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import { Scene } from "@micahg/tbltp-common";
 import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
+import { saveSceneFlow } from "../../thunks/createSceneFlow";
+import {
+  useCreateSceneMutation,
+  useDeleteSceneMutation,
+  useSendSceneFileMutation,
+  useUpdateSceneViewportMutation,
+} from "../../api/scene";
+import {
+  clearEditingSceneId,
+  selectEditorUiError,
+  setError,
+  setEditingSceneId,
+} from "../../slices/editorUiSlice";
 
 // TODO move to a shared file
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
@@ -60,17 +72,23 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
-  const error = useSelector((state: AppReducerState) => state.content.err);
+  const error = useSelector(selectEditorUiError);
   const { getAccessTokenSilently } = useAuth0();
+  const [createScene] = useCreateSceneMutation();
+  const [sendSceneFile] = useSendSceneFileMutation();
+  const [updateSceneViewport] = useUpdateSceneViewportMutation();
+  const [deleteScene] = useDeleteSceneMutation();
   const [bearer, setBearer] = useState<string | null>(null);
+  const hasUpdates = playerUpdated || detailUpdated;
 
   const disabledCreate =
     creating || // currently already creating or updating
     (!name && !scene) || // neither name nor scene (existing scene would have name)
+    (!scene && !playerFile) || // new scene requires a player layer
     !!nameError || // don't create with name error
-    !(playerUpdated || detailUpdated) || // don't send if neither updated
+    (!!scene && !hasUpdates) || // only require image changes when editing
     error !== undefined ||
-    resolutionMismatch; // for now, don't send on resolution mismatch
+    (!!scene && resolutionMismatch); // only block edit flow on resolution mismatch
   // we should probably send if resolution is different but aspect ratio same
 
   const handleNameChange = (
@@ -135,37 +153,48 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     input.click();
   };
 
-  const updateScene = () => {
+  const updateScene = async () => {
     setCreating(true);
-    // if we are changing any images reset the viewport
+    // Only set viewport on create; existing scenes already have one.
     const rect = { x: 0, y: 0, width: playerWH[0], height: playerWH[1] };
     const vpData = { backgroundSize: rect, viewport: rect };
-    if (scene) {
-      // TODO clear overlay
-      if (playerFile && playerUpdated) {
-        const payload = { asset: playerFile, progress: playerProgressHandler };
-        dispatch({ type: "content/player", payload: payload });
-        setPlayerUpdated(false);
-      }
-      if (detailFile && detailUpdated) {
-        const payload = { asset: detailFile, progress: detailProgressHandler };
-        dispatch({ type: "content/detail", payload: payload });
-        setDetailUpdated(false);
-      }
-      dispatch({ type: "content/zoom", payload: vpData });
-      return;
+    if (!scene && (!name || !playerFile)) {
+      setCreating(false);
+      return; // TODO ERROR
     }
-    if (!name) return; // TODO ERROR
-    if (!playerFile) return; // TODO ERROR
-    const data: NewSceneBundle = {
-      description: name,
-      player: playerFile,
-      detail: detailFile,
-      viewport: vpData,
-      playerProgress: playerProgressHandler,
-      detailProgress: detailProgressHandler,
-    };
-    dispatch({ type: "content/createscene", payload: data });
+
+    saveSceneFlow(
+      {
+        scene,
+        description: name,
+        player: scene ? (playerUpdated ? playerFile : undefined) : playerFile,
+        detail: scene ? (detailUpdated ? detailFile : undefined) : detailFile,
+        viewport: scene ? undefined : vpData,
+        playerProgress: playerProgressHandler,
+        detailProgress: detailProgressHandler,
+      },
+      {
+        createScene: (payload) => createScene(payload).unwrap(),
+        sendSceneFile: (payload) => sendSceneFile(payload).unwrap(),
+        updateSceneViewport: (payload) => updateSceneViewport(payload).unwrap(),
+        deleteScene: (sceneId) => deleteScene(sceneId).unwrap(),
+        onScene: (nextScene) => dispatch(setEditingSceneId(nextScene._id)),
+        onSuccess: () =>
+          dispatch(setError({ msg: "Update successful", success: true })),
+        onFailure: (message) =>
+          dispatch(setError({ msg: message, success: false })),
+        onClearCurrentScene: () => dispatch(clearEditingSceneId()),
+      },
+    )
+      .then(() => {
+        setPlayerUpdated(false);
+        setDetailUpdated(false);
+        setCreating(false);
+      })
+      .catch(() => {
+        // banner/error state is handled by createSceneFlow callbacks
+        setCreating(false);
+      });
   };
 
   useEffect(() => {
@@ -188,7 +217,7 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
 
     // on success, clear the banner eventually
     if (error.success) {
-      const id = setTimeout(() => dispatch({ type: "content/error" }), 5000);
+      const id = setTimeout(() => dispatch(setError(undefined)), 5000);
       return () => clearTimeout(id);
     }
   }, [dispatch, error]);
@@ -254,7 +283,9 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
         defaultValue={scene?.description}
         helperText={nameError}
         error={!!nameError}
-        onChange={(event) => handleNameChange(event)}
+        onChange={(
+          event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>,
+        ) => handleNameChange(event)}
       ></TextField>
       <Box
         sx={{

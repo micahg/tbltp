@@ -5,6 +5,7 @@ import React, {
   createRef,
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -13,22 +14,20 @@ import { createRect, equalRects } from "../../utils/geometry";
 import { MouseStateMachine } from "../../utils/mousestatemachine";
 import { setCallback } from "../../utils/statemachine";
 import styles from "./ContentEditor.module.css";
-import {
-  Rectangle,
-  RotateRight,
-  Opacity,
-  ZoomIn,
-  ZoomOut,
-  LayersClear,
-  Sync,
-  Map,
-  Palette,
-  VisibilityOff,
-  Visibility,
-  Edit,
-  EditOff,
-  Face,
-} from "@mui/icons-material";
+import Rectangle from "@mui/icons-material/Rectangle";
+import RotateRight from "@mui/icons-material/RotateRight";
+import Opacity from "@mui/icons-material/Opacity";
+import ZoomIn from "@mui/icons-material/ZoomIn";
+import ZoomOut from "@mui/icons-material/ZoomOut";
+import LayersClear from "@mui/icons-material/LayersClear";
+import Sync from "@mui/icons-material/Sync";
+import MapIcon from "@mui/icons-material/Map";
+import Palette from "@mui/icons-material/Palette";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import Visibility from "@mui/icons-material/Visibility";
+import Edit from "@mui/icons-material/Edit";
+import EditOff from "@mui/icons-material/EditOff";
+import Face from "@mui/icons-material/Face";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import {
   Box,
@@ -50,6 +49,25 @@ import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawe
 import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
 import EditorIntroductionComponent from "../EditorIntroductionComponent/EditorIntroductionComponent.lazy";
+import {
+  useGetScenesQuery,
+  useSendSceneFileMutation,
+  useUpdateSceneViewportMutation,
+} from "../../api/scene";
+import { useUpdateTableStateMutation } from "../../api/tableState";
+import {
+  useDeleteSceneTokenInstanceMutation,
+  useGetSceneTokenInstancesQuery,
+  useUpsertSceneTokenInstanceMutation,
+} from "../../api/scenetoken";
+import { useGetAssetsQuery } from "../../api/asset";
+import { useGetTokensQuery } from "../../api/token";
+import {
+  selectEditorUiPushTime,
+  selectEditingSceneId,
+  setPushTime,
+} from "../../slices/editorUiSlice";
+import { skipToken } from "@reduxjs/toolkit/query";
 
 const sm = new MouseStateMachine();
 
@@ -69,7 +87,7 @@ type RecordingAction = "move" | SelectAction | BrushAction;
 // hack around rerendering -- keep one object in state and update properties
 // so that the object itself remains unchanged.
 interface InternalState {
-  color: RefObject<HTMLInputElement>;
+  color: RefObject<HTMLInputElement | null>;
   selected: boolean;
   zoom: boolean;
   act: RecordingAction;
@@ -126,18 +144,70 @@ const ContentEditor = ({
    */
   const [toolbarPopulated, setToolbarPopulated] = useState<boolean>(false);
 
-  const scene = useSelector(
-    (state: AppReducerState) => state.content.currentScene,
+  const { data: scenes = [] } = useGetScenesQuery();
+  const { data: tokens = [] } = useGetTokensQuery();
+  const { data: assets = [] } = useGetAssetsQuery();
+  const editingSceneId = useSelector(selectEditingSceneId);
+  const scene = scenes.find((s) => s._id === editingSceneId);
+  const { data: sceneTokenInstances = [] } = useGetSceneTokenInstancesQuery(
+    scene?._id ?? skipToken,
   );
   const apiUrl = useSelector(
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
-  const pushTime = useSelector(
-    (state: AppReducerState) => state.content.pushTime,
-  );
-
+  const pushTime = useSelector(selectEditorUiPushTime);
   const { getAccessTokenSilently } = useAuth0();
+  const [sendSceneFile] = useSendSceneFileMutation();
+  const [updateSceneViewport] = useUpdateSceneViewportMutation();
+  const [updateTableState] = useUpdateTableStateMutation();
+  const [upsertSceneTokenInstance] = useUpsertSceneTokenInstanceMutation();
+  const [deleteSceneTokenInstance] = useDeleteSceneTokenInstanceMutation();
+
+  const hydratedSceneTokens = useMemo(() => {
+    if (!apiUrl) return [];
+
+    const tokenAssetById = new Map(
+      tokens
+        .filter((token) => !!token._id)
+        .map((token) => [token._id!, token.asset] as const),
+    );
+    const assetLocationById = new Map(
+      assets
+        .filter((asset) => !!asset._id && !!asset.location)
+        .map((asset) => [asset._id!, asset.location!] as const),
+    );
+
+    return sceneTokenInstances
+      .map((instance) => {
+        const assetId = tokenAssetById.get(instance.token);
+        if (!assetId) {
+          return undefined;
+        }
+        const assetLocation = assetLocationById.get(assetId);
+        if (!assetLocation) {
+          return undefined;
+        }
+
+        return {
+          ...instance,
+          asset: `${apiUrl}/${assetLocation}`,
+        } as HydratedTokenInstance;
+      })
+      .filter((instance): instance is HydratedTokenInstance => !!instance);
+  }, [apiUrl, assets, sceneTokenInstances, tokens]);
+
+  const updateViewport = useCallback(
+    (viewport: { backgroundSize?: Rect; viewport?: Rect; angle?: number }) => {
+      if (!scene?._id) return;
+      updateSceneViewport({ sceneId: scene._id, viewport })
+        .unwrap()
+        .catch((err) =>
+          console.error(`Unable to update viewport: ${JSON.stringify(err)}`),
+        );
+    },
+    [scene, updateSceneViewport],
+  );
 
   const updateSelected = useCallback(
     (value: boolean) => {
@@ -256,12 +326,16 @@ const ContentEditor = ({
       } else if (evt.data.cmd === "overlay") {
         if ("blob" in evt.data) {
           setOvRev(ovRev + 1);
-          dispatch({ type: "content/overlay", payload: evt.data.blob });
+          void sendSceneFile({
+            scene,
+            blob: evt.data.blob as File,
+            layer: "overlay",
+          });
         } else console.error("Error: no blob in worker message");
       } else if (evt.data.cmd === "viewport") {
         if ("viewport" in evt.data) {
           const vp = evt.data.viewport;
-          dispatch({ type: "content/zoom", payload: { viewport: vp } });
+          updateViewport({ viewport: vp as Rect });
         } else console.error("No viewport in worker message");
       } else if (evt.data.cmd === "resized") {
         if (!("width" in evt.data) || typeof evt.data.width !== "number") {
@@ -312,25 +386,36 @@ const ContentEditor = ({
         }
       } else if (evt.data.cmd === "token_placed") {
         if (!("instance" in evt.data)) return;
-        dispatch({
-          type: "content/scenetokenplaced",
-          payload: evt.data.instance,
-        });
+        void upsertSceneTokenInstance(evt.data.instance as TokenInstance)
+          .unwrap()
+          .catch((err) =>
+            console.error(`Unable to place token: ${JSON.stringify(err)}`),
+          );
       } else if (evt.data.cmd === "token_deleted") {
         if (!("instance" in evt.data)) return;
-        dispatch({
-          type: "content/scenetokendeleted",
-          payload: evt.data.instance,
-        });
+        void deleteSceneTokenInstance(evt.data.instance as TokenInstance)
+          .unwrap()
+          .catch((err) =>
+            console.error(`Unable to delete token: ${JSON.stringify(err)}`),
+          );
       } else if (evt.data.cmd === "token_moved") {
         if (!("instance" in evt.data)) return;
-        dispatch({
-          type: "content/scenetokenmoved",
-          payload: evt.data.instance,
-        });
+        void upsertSceneTokenInstance(evt.data.instance as TokenInstance)
+          .unwrap()
+          .catch((err) =>
+            console.error(`Unable to move token: ${JSON.stringify(err)}`),
+          );
       }
     },
-    [dispatch, downloads, ovRev, scene],
+    [
+      deleteSceneTokenInstance,
+      downloads,
+      ovRev,
+      scene,
+      sendSceneFile,
+      updateViewport,
+      upsertSceneTokenInstance,
+    ],
   );
 
   /**
@@ -344,9 +429,7 @@ const ContentEditor = ({
 
     // we cannot pre-translate these into drawables because properties
     // that are methods do not survive the transfer to the worker
-    const things: (TokenInstance | Rect)[] = scene.tokens
-      ? [...scene.tokens]
-      : [];
+    const things: (TokenInstance | Rect)[] = [...hydratedSceneTokens];
     if (
       scene.viewport &&
       scene.backgroundSize &&
@@ -354,10 +437,9 @@ const ContentEditor = ({
     )
       things.push(scene.viewport);
 
-    // scene.tokens?.forEach((token) => things.push(token));
     // need to delay this until we know we're in a good state.
     worker.postMessage({ cmd: "things", values: { apiUrl, bearer, things } });
-  }, [apiUrl, bearer, worker, scene]);
+  }, [apiUrl, bearer, worker, scene, hydratedSceneTokens]);
 
   useEffect(() => {
     if (!internalState || !toolbarPopulated) return;
@@ -388,7 +470,7 @@ const ContentEditor = ({
         callback: () => sm.transition("push"),
       },
       {
-        icon: Map,
+        icon: MapIcon,
         tooltip: "Scene Backgrounds",
         hidden: () => false,
         disabled: () => internalState.rec || internalState.act !== "move",
@@ -618,10 +700,7 @@ const ContentEditor = ({
     });
     setCallback(sm, "remoteZoomOut", () => {
       const imgRect = createRect([0, 0, imageSize[0], imageSize[1]]);
-      dispatch({
-        type: "content/zoom",
-        payload: { backgroundSize: imgRect, viewport: imgRect },
-      });
+      updateViewport({ backgroundSize: imgRect, viewport: imgRect });
     });
     setCallback(sm, "complete", () => {
       if (!internalState.rec) {
@@ -677,7 +756,21 @@ const ContentEditor = ({
       worker.postMessage({ cmd: "opacity", opacity: args[0] }),
     );
     sm.setMoveCallback(handleMouseMove);
-    setCallback(sm, "push", () => dispatch({ type: "content/push" }));
+    setCallback(sm, "push", () => {
+      if (!scene?._id) {
+        console.error("Unable to push table state without selected scene");
+        return;
+      }
+
+      updateTableState({ scene: scene._id })
+        .unwrap()
+        .then(() => {
+          dispatch(setPushTime(new Date().getTime()));
+        })
+        .catch((err) =>
+          console.error(`Unable to update table state: ${JSON.stringify(err)}`),
+        );
+    });
     setCallback(sm, "clear", () => {
       worker.postMessage({ cmd: "clear" });
       sm.transition("done");
@@ -733,7 +826,7 @@ const ContentEditor = ({
     setCallback(sm, "rotate_clock", () => {
       const angle = ((scene.angle || 0) + 90) % 360;
       worker.postMessage({ cmd: "rotate", angle: angle });
-      dispatch({ type: "content/zoom", payload: { angle: angle } });
+      updateViewport({ angle: angle });
       sm.transition("done");
     });
   }, [
@@ -742,12 +835,14 @@ const ContentEditor = ({
     sceneManager,
     handleMouseMove,
     updateSelected,
+    updateTableState,
     scene,
     overlayCanvasRef,
     worker,
     internalState,
     selection,
     updateRecording,
+    updateViewport,
   ]);
 
   /**
@@ -836,18 +931,13 @@ const ContentEditor = ({
    */
   useEffect(() => {
     if (!scene) return;
-    if (!dispatch) return;
     if (!sceneUpdated) return;
 
     // draw the viewport (and possibly tokens) to the canvas
-    if (scene.tokens && handleDrawables) {
+    if (handleDrawables) {
       handleDrawables();
-      return;
     }
-
-    // if there are no tokens, set them in the scene so they can be drawn
-    dispatch({ type: "content/scenetokens", payload: { scene: scene._id } });
-  }, [dispatch, scene, sceneUpdated, handleDrawables]);
+  }, [scene, sceneUpdated, handleDrawables, hydratedSceneTokens]);
 
   /**
    * Its important to separate the worker message handler from the
@@ -942,7 +1032,7 @@ const ContentEditor = ({
           <button onClick={() => sm.transition("link")}>Link</button>
         </div>
       )}
-      {!scene?.playerContent && <EditorIntroductionComponent />}
+      {!sceneUpdated && <EditorIntroductionComponent />}
       {scene?.playerContent && (
         <Box>
           <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>

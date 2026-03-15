@@ -20,7 +20,6 @@ import GameMasterActionComponent, {
   GameMasterAction,
 } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { useDispatch, useSelector } from "react-redux";
-import { AppReducerState } from "../../reducers/AppReducer";
 import SceneComponent from "../SceneComponent/SceneComponent.lazy";
 import AssetsComponent from "../AssetsComponent/AssetsComponent.lazy";
 import NavigationDrawerComponent from "../NavigationDrawerComponent/NavigationDrawerComponent.lazy";
@@ -31,6 +30,14 @@ import {
   selectRatelimitMax,
   selectRatelimitRemaining,
 } from "../../slices/rateLimitSlice";
+import { useGetScenesQuery } from "../../api/scene";
+import { useGetTableStateQuery } from "../../api/tableState";
+import { sceneTokenApi } from "../../api/scenetoken";
+import {
+  clearEditingSceneId,
+  selectEditingSceneId,
+  setEditingSceneId,
+} from "../../slices/editorUiSlice";
 
 const drawerWidth = 240;
 const appBarHeight = 64;
@@ -92,6 +99,10 @@ const DrawerHeader = styled("div")(({ theme }) => ({
   justifyContent: "flex-end",
 }));
 
+type ClosableInfoProps = {
+  closeDrawer?: () => void;
+};
+
 const GameMasterComponent = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -107,10 +118,13 @@ const GameMasterComponent = () => {
   const [focusedComponent, setFocusedComponent] = useState<FocusedComponent>(
     FocusedComponent.ContentEditor,
   );
-  const scenes = useSelector((state: AppReducerState) => state.content.scenes);
-  const currentScene = useSelector(
-    (state: AppReducerState) => state.content.currentScene,
+  const { data: scenes = [] } = useGetScenesQuery();
+  const { data: tableState } = useGetTableStateQuery();
+  const prefetchSceneTokens = sceneTokenApi.usePrefetch(
+    "getSceneTokenInstances",
   );
+  const editingSceneId = useSelector(selectEditingSceneId);
+  const currentScene = scenes.find((scene) => scene._id === editingSceneId);
   const rateMax = useSelector(selectRatelimitMax);
   const rateRemaining = useSelector(selectRatelimitRemaining);
   const rateLimit = useSelector(selectRatelimit);
@@ -121,7 +135,7 @@ const GameMasterComponent = () => {
 
   const handleInfoDrawerOpen = (info: ReactElement) => {
     // inject this drawers close method into the info component
-    const closableInfo = cloneElement(info, {
+    const closableInfo = cloneElement(info as ReactElement<ClosableInfoProps>, {
       closeDrawer: handleInfoDrawerClose,
     });
     setInfoComponent(closableInfo);
@@ -138,7 +152,7 @@ const GameMasterComponent = () => {
     setSceneKey(sceneKey + 1);
 
     // unset the current scene
-    dispatch({ type: "content/currentscene" });
+    dispatch(clearEditingSceneId());
 
     // display the scene component
     setFocusedComponent(FocusedComponent.Scene);
@@ -148,7 +162,7 @@ const GameMasterComponent = () => {
   const handleViewAssets = () => setFocusedComponent(FocusedComponent.Assets);
 
   const handleEditScene = (scene?: Scene) => {
-    if (scene) dispatch({ type: "content/currentscene", payload: scene });
+    dispatch(setEditingSceneId(scene?._id));
     setFocusedComponent(FocusedComponent.ContentEditor);
   };
 
@@ -201,13 +215,9 @@ const GameMasterComponent = () => {
   const scenesClick = () => setScenesOpen(!scenesOpen);
 
   useEffect(() => {
-    if (!dispatch) return;
-    dispatch({ type: "content/pull" });
-    dispatch({ type: "content/scenes" });
-    dispatch({ type: "content/tokens" });
-    dispatch({ type: "content/assets" });
-    return;
-  }, [dispatch]);
+    if (!tableState?.scene) return;
+    dispatch(setEditingSceneId(tableState.scene));
+  }, [dispatch, tableState]);
 
   useEffect(() => {
     if (scenes.length === sceneCount) return;
@@ -225,14 +235,10 @@ const GameMasterComponent = () => {
   useEffect(() => {
     if (scenes.length === 0) return;
     for (const scene of scenes) {
-      if (scene.tokens === undefined) {
-        dispatch({
-          type: "content/scenetokens",
-          payload: { scene: scene._id },
-        });
-      }
+      if (!scene._id) continue;
+      prefetchSceneTokens(scene._id);
     }
-  }, [dispatch, scenes]);
+  }, [prefetchSceneTokens, scenes]);
 
   return (
     <Box sx={{ display: "flex", width: "100vw", height: "100vh" }}>

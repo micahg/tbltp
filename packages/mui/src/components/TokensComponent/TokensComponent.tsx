@@ -1,14 +1,14 @@
 import { useEffect } from "react";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 // import styles from "./TokensComponent.module.css";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { Box, Grid } from "@mui/material";
-import { Add } from "@mui/icons-material";
+import Add from "@mui/icons-material/Add";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import { Token } from "@micahg/tbltp-common";
-import { AppReducerState } from "../../reducers/AppReducer";
 import CreateTokenFormComponent from "../CreateTokenFormComponent/CreateTokenFormComponent.lazy";
 import { TwoMinuteTableTop } from "../CreateTokenFormComponent/CreateTokenFormComponent";
+import { useGetTokensQuery, useUpdateTokenMutation } from "../../api/token";
 
 interface TokensComponentProps {
   populateToolbar?: (actions: GameMasterAction[]) => void;
@@ -16,15 +16,8 @@ interface TokensComponentProps {
 
 const TokensComponent = ({ populateToolbar }: TokensComponentProps) => {
   const dispatch = useDispatch();
-  const tokens = useSelector((state: AppReducerState) => {
-    return state.content.tokens;
-  });
-
-  useEffect(() => {
-    if (!dispatch) return;
-    if (tokens) return; // tokens are undefined until they are fetched
-    dispatch({ type: "content/tokens" });
-  }, [tokens, dispatch]);
+  const { data: tokens = [] } = useGetTokensQuery();
+  const [updateToken] = useUpdateTokenMutation();
 
   useEffect(() => {
     if (!populateToolbar) return;
@@ -37,7 +30,7 @@ const TokensComponent = ({ populateToolbar }: TokensComponentProps) => {
         callback: () => {
           const name = `Token ${tokens?.length || 0}`;
           const token: Token = { name };
-          dispatch({ type: "content/updatetoken", payload: token });
+          updateToken(token);
         },
       },
       {
@@ -52,7 +45,7 @@ const TokensComponent = ({ populateToolbar }: TokensComponentProps) => {
     ];
 
     populateToolbar(actions);
-  }, [tokens, dispatch, populateToolbar]);
+  }, [dispatch, populateToolbar, tokens, updateToken]);
 
   return (
     // 100vh - 64px for the toolbar - 8px for the paddings
@@ -62,20 +55,19 @@ const TokensComponent = ({ populateToolbar }: TokensComponentProps) => {
         <TwoMinuteTableTop />
       </Box>
       <Grid container columns={{ xs: 2, sm: 2, md: 2 }}>
-        {tokens &&
-          tokens.map((token: Token) => (
-            <Box
-              key={token._id}
-              sx={{
-                margin: "12px",
-                boxShadow: 4,
-                borderRadius: 2,
-                padding: "1em",
-              }}
-            >
-              <CreateTokenFormComponent token={token} />
-            </Box>
-          ))}
+        {tokens.map((token: Token) => (
+          <Box
+            key={token._id}
+            sx={{
+              margin: "12px",
+              boxShadow: 4,
+              borderRadius: 2,
+              padding: "1em",
+            }}
+          >
+            <CreateTokenFormComponent token={token} />
+          </Box>
+        ))}
       </Grid>
     </Box>
   );
