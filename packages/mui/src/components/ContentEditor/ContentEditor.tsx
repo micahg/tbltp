@@ -1032,7 +1032,7 @@ const ContentEditor = ({
           <button onClick={() => sm.transition("link")}>Link</button>
         </div>
       )}
-      {!scene?.playerContent && <EditorIntroductionComponent />}
+      {!sceneUpdated && <EditorIntroductionComponent />}
       {scene?.playerContent && (
         <Box>
           <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>
