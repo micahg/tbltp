@@ -12,11 +12,7 @@ import {
 } from "../utils/scene";
 import { OBJECT_ID_LEN, VALID_LAYERS } from "../utils/constants";
 import { IScene } from "../models/scene";
-import {
-  LayerUpdate,
-  updateAssetFromLink,
-  updateAssetFromUpload,
-} from "../utils/localstore";
+import { LayerUpdate, updateAssetFromUpload } from "../utils/localstore";
 import { validateAngle, validateViewPort } from "../utils/viewport";
 import { Rect } from "@micahg/tbltp-common";
 import { deleteUserSceneTokenInstances } from "../utils/tokeninstance";
@@ -88,52 +84,56 @@ export function createScene(req: Request, res: Response, next: NextFunction) {
     .catch((err) => next(err));
 }
 
-export function updateSceneContent(
+export async function updateSceneContent(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
   if (req.params.id.length != OBJECT_ID_LEN) return res.sendStatus(400);
 
-  return getUser(req.auth)
-    .then((user) => userExistsOr401(user)) // valid token but no user => 401
-    .then((user) => getSceneById(req.params.id, user._id.toString()))
-    .then((scene) => sceneExistsOr404(scene)) // valid  user but no scene => 404
-    .then((scene) => {
-      // ensure valid layer
-      if (!("layer" in req.body))
-        throw new Error("Unspecified layer in asset update request!", {
-          cause: 400,
-        });
+  try {
+    const user = await getUser(req.auth);
+    userExistsOr401(user); // valid token but no user => 401
 
-      const layer: string = req.body.layer.toLowerCase();
-      if (!VALID_LAYERS.includes(layer))
-        throw new Error(
-          `Invalid layer name in asset update request: ${layer}`,
-          { cause: 400 },
-        );
+    const scene = sceneExistsOr404(
+      await getSceneById(req.params.id, user._id.toString()),
+    ); // valid user but no scene => 404
 
-      // if there is an image upload, handle it
-      if (req.file) return updateAssetFromUpload(scene, layer, req);
+    // ensure valid layer
+    if (!("layer" in req.body))
+      throw new Error("Unspecified layer in asset update request!", {
+        cause: 400,
+      });
 
-      // if there is an image, but its not in file format, assume its a link
-      if ("image" in req.body) return updateAssetFromLink(scene, layer, req);
+    const layer: string = req.body.layer.toLowerCase();
+    if (!VALID_LAYERS.includes(layer))
+      throw new Error(`Invalid layer name in asset update request: ${layer}`, {
+        cause: 400,
+      });
 
-      throw new Error("No file or link in layer update request.", {
+    // only file uploads are supported for scene content updates
+    if (!req.file) {
+      throw new Error("No file in layer update request.", {
         cause: 406,
       });
-    })
-    .then((update: LayerUpdate) => {
-      if (update.layer === "player")
-        return setScenePlayerContent(update.id, update.path);
-      else if (update.layer === "overlay")
-        return setSceneOverlayContent(update.id, update.path);
-      else if (update.layer === "detail")
-        return setSceneDetailContent(update.id, update.path);
-      throw new Error(`Invalid layer ${update.layer}`, { cause: 404 });
-    })
-    .then((scene) => res.json(scene))
-    .catch((err) => next(err));
+    }
+
+    const update: LayerUpdate = await updateAssetFromUpload(scene, layer, req);
+
+    if (update.layer === "player") {
+      return res.json(await setScenePlayerContent(update.id, update.path));
+    }
+    if (update.layer === "overlay") {
+      return res.json(await setSceneOverlayContent(update.id, update.path));
+    }
+    if (update.layer === "detail") {
+      return res.json(await setSceneDetailContent(update.id, update.path));
+    }
+
+    throw new Error(`Invalid layer ${update.layer}`, { cause: 404 });
+  } catch (err) {
+    return next(err);
+  }
 }
 
 export function updateSceneViewport(

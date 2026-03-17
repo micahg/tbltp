@@ -1,9 +1,5 @@
 import { Request } from "express";
-import { createWriteStream } from "node:fs";
 import { cp, rm } from "node:fs/promises";
-
-import { IncomingMessage } from "node:http";
-import { get } from "node:https";
 
 import { log } from "./logger";
 import {
@@ -57,68 +53,6 @@ export async function updateAssetFromFile(
   // do not catch (let exception through)
   await copyAndDelete(file.path, dest);
   return dest;
-}
-
-export function updateAssetFromLink(
-  scene: IScene,
-  layer: string,
-  req: Request,
-) {
-  let source: URL;
-  try {
-    source = new URL(req.body.image);
-  } catch {
-    throw new Error("Invalid URL in body", { cause: 400 });
-  }
-
-  // we probalby could do both... but does it matter?!
-  if (source.protocol !== "https:")
-    throw new Error("Only HTTPS supported", { cause: 400 });
-
-  return new Promise((resolve) => {
-    get(source, (response: IncomingMessage) => {
-      const { statusCode, headers } = response;
-      if (statusCode !== 200)
-        throw new Error(
-          `Unable to download ${layer} from ${source}: status was ${statusCode}`,
-          { cause: 500 },
-        );
-
-      if (!("content-type" in headers))
-        throw new Error(
-          `Unable to infer content type for ${source} from headers: ${headers}`,
-          { cause: 500 },
-        );
-
-      const ext = getContentTypeExtension(headers["content-type"]);
-      if (!ext)
-        throw new Error(`Invalid mime type: ${headers["content-type"]}`, {
-          cause: 406,
-        });
-
-      const fileName = `${layer}.${ext}`;
-      const dest = `${DEST_FOLDER}/${fileName}`;
-      const update: LayerUpdate = {
-        id: scene._id.toString(),
-        layer: layer,
-        path: fileName,
-      };
-      response.pipe(
-        createWriteStream(dest)
-          .on("finish", () => {
-            // updateTableState(layer, fileName);
-            resolve(update);
-          })
-          .on("error", () => {
-            throw new Error(`Error while writing to destination ${dest}`, {
-              cause: 500,
-            });
-          }),
-      );
-    }).on("error", () => {
-      throw new Error(`Unable to fetch from URL ${source}`, { cause: 500 });
-    });
-  });
 }
 
 async function copyAndDelete(src: string, dest: string) {
