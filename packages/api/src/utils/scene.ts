@@ -2,6 +2,22 @@ import { checkSchema } from "express-validator";
 import { IScene, Scene } from "../models/scene";
 import { IUser } from "../models/user";
 import { Rect } from "@micahg/tbltp-common";
+import { createUserAsset, getUserAsset } from "./asset";
+
+export type SceneLayer = "overlay" | "detail" | "player";
+
+function getSceneLayerAssetId(scene: IScene, layer: SceneLayer) {
+  if (layer === "overlay") return scene.overlayId?.toString();
+  if (layer === "detail") return scene.detailId?.toString();
+  return scene.playerId?.toString();
+}
+
+export function sceneLayerAssetName(
+  sceneId: string,
+  layer: SceneLayer,
+): string {
+  return `scene-${sceneId}-${layer}`;
+}
 
 function validateRect(value: Rect): boolean {
   if (!value) return false;
@@ -94,26 +110,40 @@ function getScenesByUser(user: IUser): Promise<IScene[]> {
   return Scene.find({ user: { $eq: user._id } });
 }
 
-export function setScenePlayerContent(id: string, path: string) {
+function sceneLayerFields(layer: SceneLayer) {
+  return {
+    idField: `${layer}Id`,
+    contentField: `${layer}Content`,
+    revField: `${layer}ContentRev`,
+  };
+}
+
+export function setSceneLayerContent(
+  id: string,
+  layer: SceneLayer,
+  path: string,
+) {
+  const { contentField, revField } = sceneLayerFields(layer);
   return Scene.findOneAndUpdate(
     { _id: { $eq: id } },
-    { $set: { playerContent: path }, $inc: { playerContentRev: 1 } },
+    { $set: { [contentField]: path }, $inc: { [revField]: 1 } },
     { new: true },
   );
 }
 
-export function setSceneDetailContent(id: string, path: string) {
+export function setSceneLayerAsset(
+  id: string,
+  layer: SceneLayer,
+  assetId: string,
+  path: string,
+) {
+  const { idField, contentField, revField } = sceneLayerFields(layer);
   return Scene.findOneAndUpdate(
     { _id: { $eq: id } },
-    { $set: { detailContent: path }, $inc: { detailContentRev: 1 } },
-    { new: true },
-  );
-}
-
-export function setSceneOverlayContent(id: string, path: string) {
-  return Scene.findOneAndUpdate(
-    { _id: { $eq: id } },
-    { $set: { overlayContent: path }, $inc: { overlayContentRev: 1 } },
+    {
+      $set: { [idField]: assetId, [contentField]: path },
+      $inc: { [revField]: 1 },
+    },
     { new: true },
   );
 }
@@ -162,4 +192,113 @@ export function setSceneViewport(
     { backgroundSize: bg, viewport: vp, angle: angle },
     { new: true },
   );
+}
+
+export async function upsertSceneLayerAsset(
+  user: IUser,
+  scene: IScene,
+  layer: SceneLayer,
+  location: string,
+  incrementRevision = true,
+) {
+  const layerAssetId = getSceneLayerAssetId(scene, layer);
+  const name = sceneLayerAssetName(scene._id.toString(), layer);
+
+  const asset = layerAssetId ? await getUserAsset(user, layerAssetId) : null;
+
+  if (!asset) {
+    const created = await createUserAsset(user, {
+      name,
+      location,
+      revision: 1,
+      tags: ["scene"],
+    });
+
+    if (!created) {
+      throw new Error("Unable to create scene asset", { cause: 500 });
+    }
+    return created;
+  }
+
+  const tags = asset.tags || [];
+  if (!tags.includes("scene")) {
+    tags.push("scene");
+    asset.tags = tags;
+  }
+
+  if (asset.location !== location) {
+    asset.location = location;
+    if (incrementRevision) asset.revision = (asset.revision || 0) + 1;
+  }
+
+  return asset.save();
+}
+
+export async function migrateLegacySceneContentToAssets() {
+  const scenes = await Scene.find({
+    $or: [
+      {
+        $and: [
+          { playerContent: { $exists: true, $ne: null } },
+          { playerId: { $exists: false } },
+        ],
+      },
+      {
+        $and: [
+          { detailContent: { $exists: true, $ne: null } },
+          { detailId: { $exists: false } },
+        ],
+      },
+      {
+        $and: [
+          { overlayContent: { $exists: true, $ne: null } },
+          { overlayId: { $exists: false } },
+        ],
+      },
+    ],
+  });
+
+  for (const scene of scenes) {
+    const user = { _id: scene.user } as IUser;
+    const setOps: Record<string, unknown> = {};
+
+    if (scene.playerContent && !scene.playerId) {
+      const asset = await upsertSceneLayerAsset(
+        user,
+        scene,
+        "player",
+        scene.playerContent,
+        false,
+      );
+      setOps.playerId = asset._id;
+    }
+
+    if (scene.detailContent && !scene.detailId) {
+      const asset = await upsertSceneLayerAsset(
+        user,
+        scene,
+        "detail",
+        scene.detailContent,
+        false,
+      );
+      setOps.detailId = asset._id;
+    }
+
+    if (scene.overlayContent && !scene.overlayId) {
+      const asset = await upsertSceneLayerAsset(
+        user,
+        scene,
+        "overlay",
+        scene.overlayContent,
+        false,
+      );
+      setOps.overlayId = asset._id;
+    }
+
+    if (Object.keys(setOps).length > 0) {
+      await Scene.updateOne({ _id: { $eq: scene._id } }, { $set: setOps });
+    }
+  }
+
+  return scenes.length;
 }

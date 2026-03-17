@@ -5,10 +5,11 @@ import {
   createUserScene,
   getOrCreateScenes,
   getSceneById,
-  setSceneOverlayContent,
-  setScenePlayerContent,
-  setSceneDetailContent,
+  SceneLayer,
+  setSceneLayerAsset,
+  setSceneLayerContent,
   setSceneViewport,
+  upsertSceneLayerAsset,
 } from "../utils/scene";
 import { OBJECT_ID_LEN, VALID_LAYERS } from "../utils/constants";
 import { IScene } from "../models/scene";
@@ -16,8 +17,13 @@ import { LayerUpdate, updateAssetFromUpload } from "../utils/localstore";
 import { validateAngle, validateViewPort } from "../utils/viewport";
 import { Rect } from "@micahg/tbltp-common";
 import { deleteUserSceneTokenInstances } from "../utils/tokeninstance";
+import { deleteUserSceneAssetInstances } from "../utils/asset";
 
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
+
+function sceneAssetDisabled(): boolean {
+  return process.env.SCENE_ASSET_DISABLED?.toLowerCase() === "true";
+}
 
 function sceneExistsOr404(scene: IScene) {
   if (!scene) throw new Error("No scene", { cause: 404 });
@@ -65,6 +71,7 @@ export async function deleteScene(
     const scene = await getUserScene(user, req.params.id);
     await Promise.all([
       deleteUserSceneTokenInstances(user, scene),
+      deleteUserSceneAssetInstances(user, scene),
       scene.deleteOne(),
     ]);
     res.sendStatus(204);
@@ -119,18 +126,30 @@ export async function updateSceneContent(
     }
 
     const update: LayerUpdate = await updateAssetFromUpload(scene, layer, req);
+    const sceneLayer = update.layer as SceneLayer;
 
-    if (update.layer === "player") {
-      return res.json(await setScenePlayerContent(update.id, update.path));
-    }
-    if (update.layer === "overlay") {
-      return res.json(await setSceneOverlayContent(update.id, update.path));
-    }
-    if (update.layer === "detail") {
-      return res.json(await setSceneDetailContent(update.id, update.path));
+    if (sceneAssetDisabled()) {
+      return res.json(
+        await setSceneLayerContent(update.id, sceneLayer, update.path),
+      );
     }
 
-    throw new Error(`Invalid layer ${update.layer}`, { cause: 404 });
+    const sceneAsset = await upsertSceneLayerAsset(
+      user,
+      scene,
+      sceneLayer,
+      update.path,
+    );
+    const sceneAssetId = sceneAsset._id.toString();
+
+    return res.json(
+      await setSceneLayerAsset(
+        update.id,
+        sceneLayer,
+        sceneAssetId,
+        update.path,
+      ),
+    );
   } catch (err) {
     return next(err);
   }

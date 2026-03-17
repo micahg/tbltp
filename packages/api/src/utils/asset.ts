@@ -1,8 +1,10 @@
 import { Asset, AssetModel, IAsset } from "../models/asset";
+import { IScene } from "../models/scene";
 import { IUser } from "../models/user";
 import { NAME_REGEX } from "../routes/scene";
 import { checkSchema } from "express-validator";
 import { knownMongoError } from "./errors";
+import { deleteAssetFile } from "./localstore";
 
 export function assetValidator() {
   return checkSchema({
@@ -55,7 +57,7 @@ export function assetDeleteValiator() {
 
 export function listUserAssets(user: IUser) {
   return AssetModel.find({ user: { $eq: user._id } }).select(
-    "name location revision",
+    "name location revision tags",
   );
 }
 
@@ -78,4 +80,27 @@ export async function setAssetLocation(asset: IAsset, location: string) {
     { _id: { $eq: asset._id } },
     { location: location },
   );
+}
+
+export async function deleteUserSceneAssetInstances(
+  user: IUser,
+  scene: IScene,
+) {
+  const ids = [scene.playerId, scene.overlayId, scene.detailId]
+    .filter((id) => !!id)
+    .map((id) => id.toString());
+  const uniqIds = [...new Set(ids)];
+
+  const deleteFileOps: Promise<unknown>[] = [];
+  for (const id of uniqIds) {
+    const asset = await AssetModel.findOneAndDelete({
+      _id: { $eq: id },
+      user: { $eq: user._id },
+    });
+    if (asset?.location) {
+      deleteFileOps.push(deleteAssetFile(asset.location));
+    }
+  }
+
+  await Promise.all(deleteFileOps);
 }

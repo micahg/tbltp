@@ -87,6 +87,7 @@ describe("scene", () => {
     expect(resp.statusCode).toBe(200);
     expect(resp.body.viewport.width).toBe(1);
     expect(resp.body.playerContentRev).toBe(1);
+    expect(resp.body.playerId).toMatch(/[a-f0-9]{24}/);
     expect(resp.body.backgroundSize.width).toBe(1);
   });
 
@@ -122,6 +123,7 @@ describe("scene", () => {
       .attach("image", "test/assets/1x1.png");
     expect(resp.statusCode).toBe(200);
     expect(resp.body.playerContentRev).toBe(2);
+    expect(resp.body.playerId).toMatch(/[a-f0-9]{24}/);
   });
 
   it("Should should have a overlayContentRev of 1 on a first update", async () => {

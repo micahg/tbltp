@@ -24,6 +24,7 @@ let mongodb: MongoMemoryServer;
 let mongocl: MongoClient;
 let scenesCollection: Collection;
 let usersCollection: Collection;
+let assetsCollection: Collection;
 let tokensCollection: Collection;
 let tokenInstancesCollection: Collection;
 
@@ -42,6 +43,7 @@ beforeAll((done) => {
       const db = mongocl.db("ntt");
       usersCollection = db.collection("users");
       scenesCollection = db.collection("scenes");
+      assetsCollection = db.collection("assets");
       tokensCollection = db.collection("tokens");
       tokenInstancesCollection = db.collection("tokeninstances");
 
@@ -136,6 +138,13 @@ describe("scene", () => {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(200);
+      expect(resp.body.playerId).toMatch(/[a-f0-9]{24}/);
+      const asset = await assetsCollection.findOne({
+        name: `scene-${u0DefScene._id}-player`,
+      });
+      expect(asset).toBeTruthy();
+      expect(asset.name).toBe(`scene-${u0DefScene._id}-player`);
+      expect(asset.tags).toEqual(["scene"]);
     });
 
     it("Should accept a overlay", async () => {
@@ -150,6 +159,7 @@ describe("scene", () => {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(200);
+      expect(resp.body.overlayId).toMatch(/[a-f0-9]{24}/);
     });
 
     it("Should accept a gamemaster", async () => {
@@ -164,6 +174,26 @@ describe("scene", () => {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(200);
+      expect(resp.body.detailId).toMatch(/[a-f0-9]{24}/);
+    });
+
+    it("Should skip scene asset ids when scene assets are disabled", async () => {
+      process.env["SCENE_ASSET_DISABLED"] = "true";
+
+      const scene = await request(app)
+        .put("/scene")
+        .send({ description: "disabled scene" });
+      const url = `/scene/${scene.body._id}/content`;
+
+      const resp = await request(app)
+        .put(url)
+        .field("layer", "player")
+        .attach("image", "test/assets/1x1.png");
+
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body.playerId).toBeUndefined();
+
+      delete process.env["SCENE_ASSET_DISABLED"];
     });
 
     it("Should update the viewport", async () => {
@@ -244,12 +274,14 @@ describe("scene", () => {
       (getFakeUser as jest.Mock).mockReturnValue(userZero);
       await tokensCollection.deleteMany({}); // Clean up the database
       await usersCollection.deleteMany({}); // Clean up the database
+      await assetsCollection.deleteMany({}); // Clean up the database
       await tokenInstancesCollection.deleteMany({}); // Clean up the database
       await scenesCollection.deleteMany({}); // Clean up the database
     });
     afterEach(async () => {
       await tokensCollection.deleteMany({}); // Clean up the database
       await usersCollection.deleteMany({}); // Clean up the database
+      await assetsCollection.deleteMany({}); // Clean up the database
       await tokenInstancesCollection.deleteMany({}); // Clean up the database
       await scenesCollection.deleteMany({}); // Clean up the database
     });
@@ -329,6 +361,9 @@ describe("scene", () => {
       ).toBe(204);
       scenes = await scenesCollection.find({}).toArray();
       expect(scenes.length).toBe(1);
+
+      const assets = await assetsCollection.find({}).toArray();
+      expect(assets.length).toBe(0);
 
       tokens = await tokensCollection.find({}).toArray();
       expect(tokens.length).toBe(2);
