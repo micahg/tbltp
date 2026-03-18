@@ -209,14 +209,8 @@ export function startWSServer(
       try {
         const userID = scene.user.toString();
         if (!SOCKET_SESSIONS.has(userID)) return;
-        const user = await getUserByID(userID);
-        if (!user) {
-          log.warn(`Unable to resolve websocket state: missing user ${userID}`);
-          return;
-        }
-
         const tableState: TableState = await buildTableState(
-          user,
+          { _id: userID } as unknown as IUser,
           scene,
           tokens,
         );
