@@ -349,7 +349,13 @@ export function create(): Express {
 }
 
 export function listen(app: express.Express): Server {
-  return app.listen(3000, () => {
-    log.info(`Listening on port 3000`);
+  const isTest = process.env.NODE_ENV === "test";
+  const defaultPort = isTest ? 0 : 3000;
+  const configured = process.env.PORT;
+  const parsed = configured ? Number(configured) : defaultPort;
+  const port = Number.isInteger(parsed) && parsed >= 0 ? parsed : defaultPort;
+
+  return app.listen(port, () => {
+    log.info(`Listening on port ${port}`);
   });
 }

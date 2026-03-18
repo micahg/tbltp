@@ -210,7 +210,6 @@ export async function upsertSceneLayerAsset(
     const created = await createUserAsset(user, {
       name,
       location,
-      revision: 1,
       tags: ["scene"],
     });
 
