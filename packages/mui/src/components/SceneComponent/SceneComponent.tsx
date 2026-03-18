@@ -23,12 +23,14 @@ import {
   useSendSceneFileMutation,
   useUpdateSceneViewportMutation,
 } from "../../api/scene";
+import { useGetAssetByIdQuery } from "../../api/asset";
 import {
   clearEditingSceneId,
   selectEditorUiError,
   setError,
   setEditingSceneId,
 } from "../../slices/editorUiSlice";
+import { skipToken } from "@reduxjs/toolkit/query";
 
 // TODO move to a shared file
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
@@ -78,6 +80,12 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   const [sendSceneFile] = useSendSceneFileMutation();
   const [updateSceneViewport] = useUpdateSceneViewportMutation();
   const [deleteScene] = useDeleteSceneMutation();
+  const { data: playerAsset } = useGetAssetByIdQuery(
+    scene?.playerId ?? skipToken,
+  );
+  const { data: detailAsset } = useGetAssetByIdQuery(
+    scene?.detailId ?? skipToken,
+  );
   const [bearer, setBearer] = useState<string | null>(null);
   const hasUpdates = playerUpdated || detailUpdated;
 
@@ -240,24 +248,30 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     const canvas = playerCanvasRef?.current;
     if (!bearer || !apiUrl || !canvas || loadingPlayer) return;
     setLoadingPlayer(true);
-    if (scene?.playerContent) {
-      const url = `${apiUrl}/${scene.playerContent}`;
+    const playerContent = scene?.playerId
+      ? playerAsset?.location || scene.playerContent
+      : scene?.playerContent;
+    if (playerContent) {
+      const url = `${apiUrl}/${playerContent}`;
       loadImage(url, bearer, playerProgressHandler).then((img) => {
         renderImage(img, canvas);
       });
     }
-  }, [apiUrl, bearer, loadingPlayer, playerCanvasRef, scene]);
+  }, [apiUrl, bearer, loadingPlayer, playerCanvasRef, scene, playerAsset]);
   useEffect(() => {
     const canvas = detailCanvasRef?.current;
     if (!bearer || !apiUrl || !canvas || loadingDetail) return;
     setLoadingDetail(true);
-    if (scene?.detailContent) {
-      const url = `${apiUrl}/${scene.detailContent}`;
+    const detailContent = scene?.detailId
+      ? detailAsset?.location || scene.detailContent
+      : scene?.detailContent;
+    if (detailContent) {
+      const url = `${apiUrl}/${detailContent}`;
       loadImage(url, bearer, detailProgressHandler).then((img) => {
         renderImage(img, canvas);
       });
     }
-  }, [apiUrl, bearer, detailCanvasRef, scene, loadingDetail]);
+  }, [apiUrl, bearer, detailCanvasRef, scene, loadingDetail, detailAsset]);
 
   return (
     <Box

@@ -39,6 +39,7 @@ import { hrtime } from "process";
 import {
   setAssetData,
   listAssets,
+  getAssetById,
   createOrUpdateAsset,
   deleteAsset,
 } from "../routes/asset";
@@ -263,6 +264,13 @@ export function create(): Express {
   );
   // fetched by user (jwt) -- no input validation
   app.get(ALL_ASSETS_PATH, jwtCheck, listAssets);
+  app.get(
+    ASSET_PATH,
+    jwtCheck,
+    assetDataValidator(),
+    schemaErrorCheck,
+    getAssetById,
+  );
   app.put(
     ALL_ASSETS_PATH,
     jwtCheck,

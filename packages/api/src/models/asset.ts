@@ -14,9 +14,9 @@ const AssetSchema = new Schema<IAsset>(
   {
     user: { type: Schema.Types.ObjectId, required: true },
     name: { type: String, required: true },
+    tags: [{ type: String }],
     location: { type: String },
     revision: { type: Number, default: 0 },
-    tags: { type: [String], default: [] },
   },
   { timestamps: true },
 );

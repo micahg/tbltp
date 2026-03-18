@@ -60,7 +60,7 @@ import {
   useGetSceneTokenInstancesQuery,
   useUpsertSceneTokenInstanceMutation,
 } from "../../api/scenetoken";
-import { useGetAssetsQuery } from "../../api/asset";
+import { useGetAssetByIdQuery, useGetAssetsQuery } from "../../api/asset";
 import { useGetTokensQuery } from "../../api/token";
 import {
   selectEditorUiPushTime,
@@ -149,6 +149,15 @@ const ContentEditor = ({
   const { data: assets = [] } = useGetAssetsQuery();
   const editingSceneId = useSelector(selectEditingSceneId);
   const scene = scenes.find((s) => s._id === editingSceneId);
+  const { data: playerAsset } = useGetAssetByIdQuery(
+    scene?.playerId ?? skipToken,
+  );
+  const { data: detailAsset } = useGetAssetByIdQuery(
+    scene?.detailId ?? skipToken,
+  );
+  const { data: overlayAsset } = useGetAssetByIdQuery(
+    scene?.overlayId ?? skipToken,
+  );
   const { data: sceneTokenInstances = [] } = useGetSceneTokenInstancesQuery(
     scene?._id ?? skipToken,
   );
@@ -852,15 +861,37 @@ const ContentEditor = ({
   useEffect(() => {
     if (!apiUrl || !scene || !bearer || !worker) return;
 
-    // get the detailed or player content
-    const [bRev, bContent] = [
-      scene.detailContentRev || scene.playerContentRev || 0,
-      scene.detailContent || scene.playerContent,
-    ];
-    const [oRev, oContent] = [
-      scene.overlayContentRev || 0,
-      scene.overlayContent,
-    ];
+    const playerLayer = {
+      rev: scene.playerId
+        ? (playerAsset?.revision ?? scene.playerContentRev ?? 0)
+        : scene.playerContentRev || 0,
+      content: scene.playerId
+        ? playerAsset?.location || scene.playerContent
+        : scene.playerContent,
+    };
+    const detailLayer = {
+      rev: scene.detailId
+        ? (detailAsset?.revision ?? scene.detailContentRev ?? 0)
+        : scene.detailContentRev || 0,
+      content: scene.detailId
+        ? detailAsset?.location || scene.detailContent
+        : scene.detailContent,
+    };
+    const overlayLayer = {
+      rev: scene.overlayId
+        ? (overlayAsset?.revision ?? scene.overlayContentRev ?? 0)
+        : scene.overlayContentRev || 0,
+      content: scene.overlayId
+        ? overlayAsset?.location || scene.overlayContent
+        : scene.overlayContent,
+    };
+
+    // Prefer detail layer when present; otherwise use player layer.
+    const baseLayer = detailLayer.content ? detailLayer : playerLayer;
+    const bRev = baseLayer.rev;
+    const bContent = baseLayer.content;
+    const oRev = overlayLayer.rev;
+    const oContent = overlayLayer.content;
 
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
@@ -876,7 +907,7 @@ const ContentEditor = ({
       setBgRev(bRev);
       setOvRev(oRev);
       drawBG = true;
-      drawOV = scene.overlayContent !== undefined;
+      drawOV = oContent !== undefined;
     }
 
     // if we have nothing new to draw then cheese it
@@ -898,7 +929,18 @@ const ContentEditor = ({
         },
       });
     }
-  }, [apiUrl, bearer, bgRev, ovRev, scene, sceneId, worker]);
+  }, [
+    apiUrl,
+    bearer,
+    bgRev,
+    ovRev,
+    scene,
+    sceneId,
+    worker,
+    playerAsset,
+    detailAsset,
+    overlayAsset,
+  ]);
 
   /**
    * We don't want to render the viewport until it changes in current scene server-side

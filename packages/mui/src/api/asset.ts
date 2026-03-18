@@ -120,6 +120,10 @@ export const assetApi = createApi({
       query: () => ({ url: "/asset" }),
       providesTags: (result) => assetTagsForList(result),
     }),
+    getAssetById: build.query<Asset, string>({
+      query: (id) => ({ url: `/asset/${id}` }),
+      providesTags: (_result, _error, id) => [{ type: "Asset", id }],
+    }),
     updateAsset: build.mutation<Asset, Asset>({
       query: (asset) => ({
         url: "/asset",
@@ -254,6 +258,7 @@ export const assetApi = createApi({
 
 export const {
   useGetAssetsQuery,
+  useGetAssetByIdQuery,
   useUpdateAssetMutation,
   useUpdateAssetDataMutation,
   useDeleteAssetMutation,

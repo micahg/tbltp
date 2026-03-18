@@ -20,11 +20,76 @@ import { getUserScene } from "./scene";
 import { getSceneTokenInstances } from "./tokeninstance";
 import { HydratedTokenInstance } from "@micahg/tbltp-common";
 import { hydrateStateToken } from "../routes/state";
+import { getUserAsset } from "./asset";
+import { IUser } from "../models/user";
 
 interface WSStateMessage {
   method?: string;
   info?: string;
   state?: TableState;
+}
+
+type SceneLayer = "overlay" | "player";
+
+function getSceneLayerFields(layer: SceneLayer) {
+  if (layer === "overlay") {
+    return {
+      idField: "overlayId" as const,
+      contentField: "overlayContent" as const,
+      revField: "overlayContentRev" as const,
+    };
+  }
+  return {
+    idField: "playerId" as const,
+    contentField: "playerContent" as const,
+    revField: "playerContentRev" as const,
+  };
+}
+
+async function resolveSceneLayerState(
+  user: IUser,
+  scene: IScene,
+  layer: SceneLayer,
+) {
+  const { idField, contentField, revField } = getSceneLayerFields(layer);
+  const assetId = scene[idField]?.toString();
+
+  if (assetId) {
+    const asset = await getUserAsset(user, assetId);
+    if (asset?.location) {
+      return {
+        content: asset.location,
+        revision: asset.revision,
+      };
+    }
+  }
+
+  return {
+    content: scene[contentField],
+    revision: scene[revField],
+  };
+}
+
+async function buildTableState(
+  user: IUser,
+  scene: IScene,
+  tokens: HydratedTokenInstance[],
+): Promise<TableState> {
+  const [overlay, player] = await Promise.all([
+    resolveSceneLayerState(user, scene, "overlay"),
+    resolveSceneLayerState(user, scene, "player"),
+  ]);
+
+  return {
+    overlay: overlay.content,
+    overlayRev: overlay.revision,
+    background: player.content,
+    backgroundRev: player.revision,
+    viewport: scene.viewport,
+    backgroundSize: scene.backgroundSize,
+    angle: scene.angle || 0,
+    tokens: tokens,
+  };
 }
 
 const READ_TIMEOUT = parseInt(process.env.WS_READ_TIMEOUT) || 60;
@@ -102,16 +167,7 @@ async function verifyConnection(sock: WebSocket, req: IncomingMessage) {
 
     const hydrated = await hydrateStateToken(user, scene, tokens, true);
 
-    const state: TableState = {
-      overlay: scene.overlayContent,
-      overlayRev: scene.overlayContentRev,
-      background: scene.playerContent,
-      backgroundRev: scene.playerContentRev,
-      viewport: scene.viewport,
-      backgroundSize: scene.backgroundSize,
-      angle: scene.angle || 0,
-      tokens: hydrated,
-    };
+    const state: TableState = await buildTableState(user, scene, hydrated);
     const msg: WSStateMessage = {
       method: "connection",
       state: state,
@@ -149,25 +205,30 @@ export function startWSServer(
 
   emitter.on(
     ASSETS_UPDATED_SIG,
-    (scene: IScene, tokens: HydratedTokenInstance[]) => {
-      const userID = scene.user.toString();
-      if (!SOCKET_SESSIONS.has(userID)) return;
-      const tableState: TableState = {
-        overlay: scene.overlayContent,
-        overlayRev: scene.overlayContentRev,
-        background: scene.playerContent,
-        backgroundRev: scene.playerContentRev,
-        viewport: scene.viewport,
-        backgroundSize: scene.backgroundSize,
-        angle: scene.angle || 0,
-        tokens: tokens,
-      };
-      const sock: WebSocket = SOCKET_SESSIONS.get(userID);
-      const msg: WSStateMessage = {
-        method: ASSETS_UPDATED_SIG,
-        state: tableState,
-      };
-      sock.send(JSON.stringify(msg));
+    async (scene: IScene, tokens: HydratedTokenInstance[]) => {
+      try {
+        const userID = scene.user.toString();
+        if (!SOCKET_SESSIONS.has(userID)) return;
+        const user = await getUserByID(userID);
+        if (!user) {
+          log.warn(`Unable to resolve websocket state: missing user ${userID}`);
+          return;
+        }
+
+        const tableState: TableState = await buildTableState(
+          user,
+          scene,
+          tokens,
+        );
+        const sock: WebSocket = SOCKET_SESSIONS.get(userID);
+        const msg: WSStateMessage = {
+          method: ASSETS_UPDATED_SIG,
+          state: tableState,
+        };
+        sock.send(JSON.stringify(msg));
+      } catch (err) {
+        log.error("Unable to broadcast websocket update", err);
+      }
     },
   );
 
