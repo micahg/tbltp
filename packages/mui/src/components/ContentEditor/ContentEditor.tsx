@@ -861,6 +861,18 @@ const ContentEditor = ({
   useEffect(() => {
     if (!apiUrl || !scene || !bearer || !worker) return;
 
+    if (!scene.overlayId && scene.overlayContent) {
+      console.error("SCENE MISSING OVERLAY ID"); // this should never happen, but just in case
+    }
+
+    if (!scene.playerId && scene.playerContent) {
+      console.error("SCENE MISSING PLAYER ID"); // this should never happen, but just in case
+    }
+
+    if (!scene.detailId && scene.detailContent) {
+      console.error("SCENE MISSING DETAIL ID"); // this should never happen, but just in case
+    }
+
     const playerLayer = {
       rev: scene.playerId
         ? (playerAsset?.revision ?? scene.playerContentRev ?? 0)

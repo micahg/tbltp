@@ -248,6 +248,9 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     const canvas = playerCanvasRef?.current;
     if (!bearer || !apiUrl || !canvas || loadingPlayer) return;
     setLoadingPlayer(true);
+    if (!scene?.playerId && scene?.playerContent) {
+      console.error("SCENE MISSING PLAYER ID"); // this should never happen, but just in case
+    }
     const playerContent = scene?.playerId
       ? playerAsset?.location || scene.playerContent
       : scene?.playerContent;
@@ -262,6 +265,9 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     const canvas = detailCanvasRef?.current;
     if (!bearer || !apiUrl || !canvas || loadingDetail) return;
     setLoadingDetail(true);
+    if (!scene?.detailId && scene?.detailContent) {
+      console.error("SCENE MISSING DETAIL ID"); // this should never happen, but just in case
+    }
     const detailContent = scene?.detailId
       ? detailAsset?.location || scene.detailContent
       : scene?.detailContent;
