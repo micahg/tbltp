@@ -5,6 +5,7 @@ import type {
   FetchArgs,
   FetchBaseQueryError,
 } from "@reduxjs/toolkit/query";
+import { assetApi } from "./asset";
 import { environmentApi } from "./environment";
 import { getAuthHeaders } from "../utils/authBridge";
 import { ratelimit } from "../slices/rateLimitSlice";
@@ -26,6 +27,18 @@ export interface SceneViewportUpdate {
     viewport?: Rect;
     angle?: number;
   };
+}
+
+function assetTagsForDeletedScene(scene: Scene | undefined) {
+  const ids = [scene?.overlayId, scene?.detailId, scene?.playerId].filter(
+    (id): id is string => !!id,
+  );
+  const uniqueIds = [...new Set(ids)];
+
+  return [
+    { type: "Asset" as const, id: "LIST" },
+    ...uniqueIds.map((id) => ({ type: "Asset" as const, id })),
+  ];
 }
 
 function sceneTagsForList(scenes: Scene[] | undefined): SceneTag[] {
@@ -151,6 +164,43 @@ export const sceneApi = createApi({
         { type: "Scene", id: "LIST" },
         { type: "Scene", id: sceneId },
       ],
+      async onQueryStarted(sceneId, { dispatch, getState, queryFulfilled }) {
+        // get the scene we just deleted
+        const cachedScene = sceneApi.endpoints.getScene.select(sceneId)(
+          getState() as Parameters<
+            ReturnType<typeof sceneApi.endpoints.getScene.select>
+          >[0],
+        ).data;
+
+        const scenePromise = async () => {
+          if (cachedScene) {
+            return cachedScene;
+          }
+
+          const sceneRequest = dispatch(
+            sceneApi.endpoints.getScene.initiate(sceneId, {
+              forceRefetch: true,
+            }),
+          );
+          try {
+            return await sceneRequest.unwrap();
+          } catch {
+            return undefined;
+          } finally {
+            sceneRequest.unsubscribe();
+          }
+        };
+
+        try {
+          const scene = await scenePromise();
+          await queryFulfilled;
+          dispatch(
+            assetApi.util.invalidateTags(assetTagsForDeletedScene(scene)),
+          );
+        } catch {
+          // Keep asset cache unchanged when scene deletion fails.
+        }
+      },
     }),
     assignSceneLayerAsset: build.mutation<Scene, AssignSceneLayerAssetArgs>({
       query: ({ sceneId, layer, assetId }) => ({
