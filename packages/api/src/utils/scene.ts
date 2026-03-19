@@ -94,6 +94,30 @@ export function sceneViewportValidator() {
   });
 }
 
+export function sceneLayerAssetValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      isMongoId: {
+        errorMessage: "Invalid scene ID",
+      },
+    },
+    layer: {
+      in: ["params"],
+      isIn: {
+        options: [["overlay", "detail", "player"]],
+        errorMessage: "Invalid scene layer",
+      },
+    },
+    assetId: {
+      in: ["body"],
+      isMongoId: {
+        errorMessage: "Invalid asset ID",
+      },
+    },
+  });
+}
+
 // TODO DELETE THIS
 export function getSceneById(id: string, userId: string) {
   return Scene.findOne({ _id: { $eq: id }, user: userId });

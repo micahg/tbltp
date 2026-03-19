@@ -23,6 +23,29 @@ let mongodb: MongoMemoryServer;
 let mongocl: MongoClient;
 let server: Server;
 
+async function assignSceneLayer(
+  sceneId: string,
+  layer: "player" | "detail" | "overlay",
+) {
+  const scene = await request(app).get(`/scene/${sceneId}`);
+  let assetId = scene.body[`${layer}Id`] as string | undefined;
+
+  if (!assetId) {
+    const created = await request(app)
+      .put("/asset")
+      .send({ name: `scene ${sceneId} ${layer}`, tags: ["scene"] });
+    assetId = created.body._id;
+  }
+
+  await request(app)
+    .put(`/asset/${assetId}/data`)
+    .attach("asset", "test/assets/1x1.png");
+
+  return request(app)
+    .put(`/scene/${sceneId}/${layer}`)
+    .send({ assetId });
+}
+
 function wsUrl(bearer: string) {
   const address = server.address();
   if (!address || typeof address === "string") {
@@ -88,19 +111,13 @@ describe("scene", () => {
   it("Should create scenes", async () => {
     const sceneOneId = (await request(app).get("/scene")).body[0]._id;
     await request(app).put("/state").send({ scene: sceneOneId });
-    await request(app)
-      .put(`/scene/${sceneOneId}/content`)
-      .field("layer", "player")
-      .attach("image", "test/assets/1x1.png");
+    await assignSceneLayer(sceneOneId, "player");
 
     (getFakeUser as jest.Mock).mockReturnValue(userOne);
 
     const sceneTwoId = (await request(app).get("/scene")).body[0]._id;
     await request(app).put("/state").send({ scene: sceneTwoId });
-    await request(app)
-      .put(`/scene/${sceneTwoId}/content`)
-      .field("layer", "player")
-      .attach("image", "test/assets/1x1.png");
+    await assignSceneLayer(sceneTwoId, "player");
 
     expect(sceneOneId).not.toBe(sceneTwoId);
   });
@@ -158,7 +175,7 @@ describe("scene", () => {
           const data = JSON.parse(msg.utf8Data);
           expect(data.method).toBe("connection");
           expect(data.state.background).toMatch(
-            /public.*\/scene\/.*\/player\.png/,
+            /public.*\/assets\/.*\.png/,
           );
         } finally {
           conn.close();

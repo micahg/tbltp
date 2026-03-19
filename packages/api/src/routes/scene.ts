@@ -7,23 +7,16 @@ import {
   getSceneById,
   SceneLayer,
   setSceneLayerAsset,
-  setSceneLayerContent,
   setSceneViewport,
-  upsertSceneLayerAsset,
 } from "../utils/scene";
-import { OBJECT_ID_LEN, VALID_LAYERS } from "../utils/constants";
+import { OBJECT_ID_LEN } from "../utils/constants";
 import { IScene } from "../models/scene";
-import { LayerUpdate, updateAssetFromUpload } from "../utils/localstore";
 import { validateAngle, validateViewPort } from "../utils/viewport";
 import { Rect } from "@micahg/tbltp-common";
 import { deleteUserSceneTokenInstances } from "../utils/tokeninstance";
-import { deleteUserSceneAssetInstances } from "../utils/asset";
+import { deleteUserSceneAssetInstances, getUserAsset } from "../utils/asset";
 
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
-
-function sceneAssetDisabled(): boolean {
-  return process.env.SCENE_ASSET_DISABLED?.toLowerCase() === "true";
-}
 
 function sceneExistsOr404(scene: IScene) {
   if (!scene) throw new Error("No scene", { cause: 404 });
@@ -106,48 +99,18 @@ export async function updateSceneContent(
       await getSceneById(req.params.id, user._id.toString()),
     ); // valid user but no scene => 404
 
-    // ensure valid layer
-    if (!("layer" in req.body))
-      throw new Error("Unspecified layer in asset update request!", {
-        cause: 400,
-      });
-
-    const layer: string = req.body.layer.toLowerCase();
-    if (!VALID_LAYERS.includes(layer))
-      throw new Error(`Invalid layer name in asset update request: ${layer}`, {
-        cause: 400,
-      });
-
-    // only file uploads are supported for scene content updates
-    if (!req.file) {
-      throw new Error("No file in layer update request.", {
-        cause: 406,
-      });
+    const layer = req.params.layer as SceneLayer;
+    const asset = await getUserAsset(user, req.body.assetId);
+    if (!asset) {
+      throw new Error("No asset", { cause: 404 });
     }
-
-    const update: LayerUpdate = await updateAssetFromUpload(scene, layer, req);
-    const sceneLayer = update.layer as SceneLayer;
-
-    if (sceneAssetDisabled()) {
-      return res.json(
-        await setSceneLayerContent(update.id, sceneLayer, update.path),
-      );
-    }
-
-    const sceneAsset = await upsertSceneLayerAsset(
-      user,
-      scene,
-      sceneLayer,
-      update.path,
-    );
-    const sceneAssetId = sceneAsset._id.toString();
 
     return res.json(
       await setSceneLayerAsset(
-        update.id,
-        sceneLayer,
-        sceneAssetId,
-        update.path,
+        scene._id.toString(),
+        layer,
+        asset._id.toString(),
+        asset.location,
       ),
     );
   } catch (err) {

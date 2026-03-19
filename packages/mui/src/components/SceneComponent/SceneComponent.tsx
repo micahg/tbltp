@@ -18,12 +18,17 @@ import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
 import { saveSceneFlow } from "../../thunks/createSceneFlow";
 import {
+  useAssignSceneLayerAssetMutation,
   useCreateSceneMutation,
   useDeleteSceneMutation,
-  useSendSceneFileMutation,
   useUpdateSceneViewportMutation,
 } from "../../api/scene";
-import { useGetAssetByIdQuery } from "../../api/asset";
+import {
+  useDeleteAssetMutation,
+  useGetAssetByIdQuery,
+  useUpdateAssetDataMutation,
+  useUpdateAssetMutation,
+} from "../../api/asset";
 import {
   clearEditingSceneId,
   selectEditorUiError,
@@ -77,9 +82,12 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   const error = useSelector(selectEditorUiError);
   const { getAccessTokenSilently } = useAuth0();
   const [createScene] = useCreateSceneMutation();
-  const [sendSceneFile] = useSendSceneFileMutation();
+  const [updateAsset] = useUpdateAssetMutation();
+  const [updateAssetData] = useUpdateAssetDataMutation();
+  const [assignSceneLayerAsset] = useAssignSceneLayerAssetMutation();
   const [updateSceneViewport] = useUpdateSceneViewportMutation();
   const [deleteScene] = useDeleteSceneMutation();
+  const [deleteAsset] = useDeleteAssetMutation();
   const { data: playerAsset } = useGetAssetByIdQuery(
     scene?.playerId ?? skipToken,
   );
@@ -183,9 +191,13 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
       },
       {
         createScene: (payload) => createScene(payload).unwrap(),
-        sendSceneFile: (payload) => sendSceneFile(payload).unwrap(),
+        updateAsset: (payload) => updateAsset(payload).unwrap(),
+        updateAssetData: (payload) => updateAssetData(payload).unwrap(),
+        assignSceneLayerAsset: (payload) =>
+          assignSceneLayerAsset(payload).unwrap(),
         updateSceneViewport: (payload) => updateSceneViewport(payload).unwrap(),
         deleteScene: (sceneId) => deleteScene(sceneId).unwrap(),
+        deleteAsset: (asset) => deleteAsset(asset).unwrap(),
         onScene: (nextScene) => dispatch(setEditingSceneId(nextScene._id)),
         onSuccess: () =>
           dispatch(setError({ msg: "Update successful", success: true })),

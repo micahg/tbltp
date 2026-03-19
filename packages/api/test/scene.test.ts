@@ -32,6 +32,29 @@ let tokenInstancesCollection: Collection;
 let u0DefScene;
 let u1DefScene;
 
+async function assignSceneLayer(
+  sceneId: string,
+  layer: "player" | "detail" | "overlay",
+) {
+  const scene = await request(app).get(`/scene/${sceneId}`);
+  let assetId = scene.body[`${layer}Id`] as string | undefined;
+
+  if (!assetId) {
+    const created = await request(app)
+      .put("/asset")
+      .send({ name: `scene ${sceneId} ${layer}`, tags: ["scene"] });
+    assetId = created.body._id;
+  }
+
+  await request(app)
+    .put(`/asset/${assetId}/data`)
+    .attach("asset", "test/assets/1x1.png");
+
+  return request(app)
+    .put(`/scene/${sceneId}/${layer}`)
+    .send({ assetId });
+}
+
 jest.mock("../src/utils/auth");
 
 beforeAll((done) => {
@@ -128,34 +151,26 @@ describe("scene", () => {
     });
 
     it("Should accept a background", async () => {
-      const url = `/scene/${u0DefScene._id}/content`;
       let resp;
       try {
-        resp = await request(app)
-          .put(url)
-          .field("layer", "player")
-          .attach("image", "test/assets/1x1.png");
+        resp = await assignSceneLayer(u0DefScene._id, "player");
       } catch (err) {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(200);
       expect(resp.body.playerId).toMatch(/[a-f0-9]{24}/);
       const asset = await assetsCollection.findOne({
-        name: `scene-${u0DefScene._id}-player`,
+        name: `scene ${u0DefScene._id} player`,
       });
       expect(asset).toBeTruthy();
-      expect(asset.name).toBe(`scene-${u0DefScene._id}-player`);
+      expect(asset.name).toBe(`scene ${u0DefScene._id} player`);
       expect(asset.tags).toEqual(["scene"]);
     });
 
     it("Should accept a overlay", async () => {
-      const url = `/scene/${u0DefScene._id}/content`;
       let resp;
       try {
-        resp = await request(app)
-          .put(url)
-          .field("layer", "overlay")
-          .attach("image", "test/assets/1x1.png");
+        resp = await assignSceneLayer(u0DefScene._id, "overlay");
       } catch (err) {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
@@ -164,37 +179,14 @@ describe("scene", () => {
     });
 
     it("Should accept a gamemaster", async () => {
-      const url = `/scene/${u0DefScene._id}/content`;
       let resp;
       try {
-        resp = await request(app)
-          .put(url)
-          .field("layer", "detail")
-          .attach("image", "test/assets/1x1.png");
+        resp = await assignSceneLayer(u0DefScene._id, "detail");
       } catch (err) {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(200);
       expect(resp.body.detailId).toMatch(/[a-f0-9]{24}/);
-    });
-
-    it("Should skip scene asset ids when scene assets are disabled", async () => {
-      process.env["SCENE_ASSET_DISABLED"] = "true";
-
-      const scene = await request(app)
-        .put("/scene")
-        .send({ description: "disabled scene" });
-      const url = `/scene/${scene.body._id}/content`;
-
-      const resp = await request(app)
-        .put(url)
-        .field("layer", "player")
-        .attach("image", "test/assets/1x1.png");
-
-      expect(resp.statusCode).toBe(200);
-      expect(resp.body.playerId).toBeUndefined();
-
-      delete process.env["SCENE_ASSET_DISABLED"];
     });
 
     it("Should update the viewport", async () => {

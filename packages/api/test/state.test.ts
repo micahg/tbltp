@@ -23,6 +23,29 @@ let usersCollection: Collection;
 
 let u0DefScene;
 
+async function assignSceneLayer(
+  sceneId: string,
+  layer: "player" | "detail" | "overlay",
+) {
+  const scene = await request(app).get(`/scene/${sceneId}`);
+  let assetId = scene.body[`${layer}Id`] as string | undefined;
+
+  if (!assetId) {
+    const created = await request(app)
+      .put("/asset")
+      .send({ name: `scene ${sceneId} ${layer}`, tags: ["scene"] });
+    assetId = created.body._id;
+  }
+
+  await request(app)
+    .put(`/asset/${assetId}/data`)
+    .attach("asset", "test/assets/1x1.png");
+
+  return request(app)
+    .put(`/scene/${sceneId}/${layer}`)
+    .send({ assetId });
+}
+
 jest.mock("../src/utils/auth");
 
 beforeAll((done) => {
@@ -73,11 +96,7 @@ describe("scene", () => {
     expect(sceneCount0).toBe(1);
     const userCount0 = await usersCollection.countDocuments();
     expect(userCount0).toBe(1);
-    const url = `/scene/${u0DefScene._id}/content`;
-    await request(app)
-      .put(url)
-      .field("layer", "player")
-      .attach("image", "test/assets/1x1.png");
+    await assignSceneLayer(u0DefScene._id, "player");
     const resp = await request(app)
       .put(`/scene/${u0DefScene._id}/viewport`)
       .send({
@@ -116,32 +135,20 @@ describe("scene", () => {
   });
 
   it("Should should have a playerContentRev of 2 on a second update", async () => {
-    const url = `/scene/${u0DefScene._id}/content`;
-    const resp = await request(app)
-      .put(url)
-      .field("layer", "player")
-      .attach("image", "test/assets/1x1.png");
+    const resp = await assignSceneLayer(u0DefScene._id, "player");
     expect(resp.statusCode).toBe(200);
     expect(resp.body.playerContentRev).toBe(2);
     expect(resp.body.playerId).toMatch(/[a-f0-9]{24}/);
   });
 
   it("Should should have a overlayContentRev of 1 on a first update", async () => {
-    const url = `/scene/${u0DefScene._id}/content`;
-    const resp = await request(app)
-      .put(url)
-      .field("layer", "overlay")
-      .attach("image", "test/assets/1x1.png");
+    const resp = await assignSceneLayer(u0DefScene._id, "overlay");
     expect(resp.statusCode).toBe(200);
     expect(resp.body.overlayContentRev).toBe(1);
   });
 
   it("Should should have a overlayContentRev of 2 on a second update", async () => {
-    const url = `/scene/${u0DefScene._id}/content`;
-    const resp = await request(app)
-      .put(url)
-      .field("layer", "overlay")
-      .attach("image", "test/assets/1x1.png");
+    const resp = await assignSceneLayer(u0DefScene._id, "overlay");
     expect(resp.statusCode).toBe(200);
     expect(resp.body.overlayContentRev).toBe(2);
   });

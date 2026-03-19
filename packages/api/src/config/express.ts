@@ -48,6 +48,7 @@ import { validationResult } from "express-validator";
 import {
   deleteSceneValidator,
   getSceneValidator,
+  sceneLayerAssetValidator,
   sceneViewportValidator,
 } from "../utils/scene";
 import { stateValidator } from "../utils/state";
@@ -256,12 +257,6 @@ export function create(): Express {
   );
   app.get(ALL_SCENES_PATH, jwtCheck, getScenes);
   app.put(ALL_SCENES_PATH, jwtCheck, createScene);
-  app.put(
-    SCENE_CONTENT_PATH,
-    jwtCheck,
-    upload.single("image"),
-    updateSceneContent,
-  );
   // fetched by user (jwt) -- no input validation
   app.get(ALL_ASSETS_PATH, jwtCheck, listAssets);
   app.get(
@@ -321,6 +316,13 @@ export function create(): Express {
     sceneTokenInstanceValidator(),
     schemaErrorCheck,
     getSceneTokenInstance,
+  );
+  app.put(
+    SCENE_CONTENT_PATH,
+    jwtCheck,
+    sceneLayerAssetValidator(),
+    schemaErrorCheck,
+    updateSceneContent,
   );
   app.delete(
     TOKEN_INSTANCE_PATH,
