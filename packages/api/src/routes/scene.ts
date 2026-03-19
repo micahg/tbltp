@@ -5,21 +5,16 @@ import {
   createUserScene,
   getOrCreateScenes,
   getSceneById,
-  setSceneOverlayContent,
-  setScenePlayerContent,
-  setSceneDetailContent,
+  SceneLayer,
+  setSceneLayerAsset,
   setSceneViewport,
 } from "../utils/scene";
-import { OBJECT_ID_LEN, VALID_LAYERS } from "../utils/constants";
+import { OBJECT_ID_LEN } from "../utils/constants";
 import { IScene } from "../models/scene";
-import {
-  LayerUpdate,
-  updateAssetFromLink,
-  updateAssetFromUpload,
-} from "../utils/localstore";
 import { validateAngle, validateViewPort } from "../utils/viewport";
 import { Rect } from "@micahg/tbltp-common";
 import { deleteUserSceneTokenInstances } from "../utils/tokeninstance";
+import { deleteUserSceneAssetInstances, getUserAsset } from "../utils/asset";
 
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
 
@@ -69,6 +64,7 @@ export async function deleteScene(
     const scene = await getUserScene(user, req.params.id);
     await Promise.all([
       deleteUserSceneTokenInstances(user, scene),
+      deleteUserSceneAssetInstances(user, scene),
       scene.deleteOne(),
     ]);
     res.sendStatus(204);
@@ -88,52 +84,38 @@ export function createScene(req: Request, res: Response, next: NextFunction) {
     .catch((err) => next(err));
 }
 
-export function updateSceneContent(
+export async function updateSceneContent(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
   if (req.params.id.length != OBJECT_ID_LEN) return res.sendStatus(400);
 
-  return getUser(req.auth)
-    .then((user) => userExistsOr401(user)) // valid token but no user => 401
-    .then((user) => getSceneById(req.params.id, user._id.toString()))
-    .then((scene) => sceneExistsOr404(scene)) // valid  user but no scene => 404
-    .then((scene) => {
-      // ensure valid layer
-      if (!("layer" in req.body))
-        throw new Error("Unspecified layer in asset update request!", {
-          cause: 400,
-        });
+  try {
+    const user = await getUser(req.auth);
+    userExistsOr401(user); // valid token but no user => 401
 
-      const layer: string = req.body.layer.toLowerCase();
-      if (!VALID_LAYERS.includes(layer))
-        throw new Error(
-          `Invalid layer name in asset update request: ${layer}`,
-          { cause: 400 },
-        );
+    const scene = sceneExistsOr404(
+      await getSceneById(req.params.id, user._id.toString()),
+    ); // valid user but no scene => 404
 
-      // if there is an image upload, handle it
-      if (req.file) return updateAssetFromUpload(scene, layer, req);
+    const layer = req.params.layer as SceneLayer;
+    const asset = await getUserAsset(user, req.body.assetId);
+    if (!asset) {
+      throw new Error("No asset", { cause: 404 });
+    }
 
-      // if there is an image, but its not in file format, assume its a link
-      if ("image" in req.body) return updateAssetFromLink(scene, layer, req);
-
-      throw new Error("No file or link in layer update request.", {
-        cause: 406,
-      });
-    })
-    .then((update: LayerUpdate) => {
-      if (update.layer === "player")
-        return setScenePlayerContent(update.id, update.path);
-      else if (update.layer === "overlay")
-        return setSceneOverlayContent(update.id, update.path);
-      else if (update.layer === "detail")
-        return setSceneDetailContent(update.id, update.path);
-      throw new Error(`Invalid layer ${update.layer}`, { cause: 404 });
-    })
-    .then((scene) => res.json(scene))
-    .catch((err) => next(err));
+    return res.json(
+      await setSceneLayerAsset(
+        scene._id.toString(),
+        layer,
+        asset._id.toString(),
+        asset.location,
+      ),
+    );
+  } catch (err) {
+    return next(err);
+  }
 }
 
 export function updateSceneViewport(

@@ -6,17 +6,20 @@ import { Rect } from "./geometry";
 import { TokenInstance } from "./tokeninstance";
 
 export interface Scene {
-    _id?: string;
-    user: string;
-    description: string;
-    overlayContent?: string;
-    overlayContentRev?: number;
-    detailContent?: string;
-    detailContentRev?: number;
-    playerContent?: string;
-    playerContentRev?: number;
-    viewport?: Rect;
-    backgroundSize?: Rect;
-    angle?: number;
-    tokens?: TokenInstance[];
-  }
+  _id?: string;
+  user: string;
+  description: string;
+  overlayId?: string;
+  detailId?: string;
+  playerId?: string;
+  overlayContent?: string;
+  overlayContentRev?: number;
+  detailContent?: string;
+  detailContentRev?: number;
+  playerContent?: string;
+  playerContentRev?: number;
+  viewport?: Rect;
+  backgroundSize?: Rect;
+  angle?: number;
+  tokens?: TokenInstance[];
+}

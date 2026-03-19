@@ -6,6 +6,7 @@ export interface Asset {
     _id?: string;
     user?: string;
     name: string;
+    tags?: string[];
     location?: string;
     revision?: number;
 }

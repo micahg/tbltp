@@ -14,21 +14,46 @@ import { Server } from "node:http";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
 
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Collection } from "mongodb";
+import { MongoClient, Collection, ObjectId } from "mongodb";
 import { userZero, userOne } from "./assets/auth";
 import { fail } from "node:assert";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common";
+import { migrateLegacySceneContentToAssets } from "../src/utils/scene";
 
 let server: Server;
 let mongodb: MongoMemoryServer;
 let mongocl: MongoClient;
 let scenesCollection: Collection;
 let usersCollection: Collection;
+let assetsCollection: Collection;
 let tokensCollection: Collection;
 let tokenInstancesCollection: Collection;
 
 let u0DefScene;
 let u1DefScene;
+
+async function assignSceneLayer(
+  sceneId: string,
+  layer: "player" | "detail" | "overlay",
+) {
+  const scene = await request(app).get(`/scene/${sceneId}`);
+  let assetId = scene.body[`${layer}Id`] as string | undefined;
+
+  if (!assetId) {
+    const created = await request(app)
+      .put("/asset")
+      .send({ name: `scene ${sceneId} ${layer}`, tags: ["scene"] });
+    assetId = created.body._id;
+  }
+
+  await request(app)
+    .put(`/asset/${assetId}/data`)
+    .attach("asset", "test/assets/1x1.png");
+
+  return request(app)
+    .put(`/scene/${sceneId}/${layer}`)
+    .send({ assetId });
+}
 
 jest.mock("../src/utils/auth");
 
@@ -42,6 +67,7 @@ beforeAll((done) => {
       const db = mongocl.db("ntt");
       usersCollection = db.collection("users");
       scenesCollection = db.collection("scenes");
+      assetsCollection = db.collection("assets");
       tokensCollection = db.collection("tokens");
       tokenInstancesCollection = db.collection("tokeninstances");
 
@@ -125,45 +151,42 @@ describe("scene", () => {
     });
 
     it("Should accept a background", async () => {
-      const url = `/scene/${u0DefScene._id}/content`;
       let resp;
       try {
-        resp = await request(app)
-          .put(url)
-          .field("layer", "player")
-          .attach("image", "test/assets/1x1.png");
+        resp = await assignSceneLayer(u0DefScene._id, "player");
       } catch (err) {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(200);
+      expect(resp.body.playerId).toMatch(/[a-f0-9]{24}/);
+      const asset = await assetsCollection.findOne({
+        name: `scene ${u0DefScene._id} player`,
+      });
+      expect(asset).toBeTruthy();
+      expect(asset.name).toBe(`scene ${u0DefScene._id} player`);
+      expect(asset.tags).toEqual(["scene"]);
     });
 
     it("Should accept a overlay", async () => {
-      const url = `/scene/${u0DefScene._id}/content`;
       let resp;
       try {
-        resp = await request(app)
-          .put(url)
-          .field("layer", "overlay")
-          .attach("image", "test/assets/1x1.png");
+        resp = await assignSceneLayer(u0DefScene._id, "overlay");
       } catch (err) {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(200);
+      expect(resp.body.overlayId).toMatch(/[a-f0-9]{24}/);
     });
 
     it("Should accept a gamemaster", async () => {
-      const url = `/scene/${u0DefScene._id}/content`;
       let resp;
       try {
-        resp = await request(app)
-          .put(url)
-          .field("layer", "detail")
-          .attach("image", "test/assets/1x1.png");
+        resp = await assignSceneLayer(u0DefScene._id, "detail");
       } catch (err) {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(200);
+      expect(resp.body.detailId).toMatch(/[a-f0-9]{24}/);
     });
 
     it("Should update the viewport", async () => {
@@ -244,12 +267,14 @@ describe("scene", () => {
       (getFakeUser as jest.Mock).mockReturnValue(userZero);
       await tokensCollection.deleteMany({}); // Clean up the database
       await usersCollection.deleteMany({}); // Clean up the database
+      await assetsCollection.deleteMany({}); // Clean up the database
       await tokenInstancesCollection.deleteMany({}); // Clean up the database
       await scenesCollection.deleteMany({}); // Clean up the database
     });
     afterEach(async () => {
       await tokensCollection.deleteMany({}); // Clean up the database
       await usersCollection.deleteMany({}); // Clean up the database
+      await assetsCollection.deleteMany({}); // Clean up the database
       await tokenInstancesCollection.deleteMany({}); // Clean up the database
       await scenesCollection.deleteMany({}); // Clean up the database
     });
@@ -330,11 +355,86 @@ describe("scene", () => {
       scenes = await scenesCollection.find({}).toArray();
       expect(scenes.length).toBe(1);
 
+      const assets = await assetsCollection.find({}).toArray();
+      expect(assets.length).toBe(0);
+
       tokens = await tokensCollection.find({}).toArray();
       expect(tokens.length).toBe(2);
 
       instances = await tokenInstancesCollection.find({}).toArray();
       expect(instances.length).toBe(2);
+    });
+  });
+
+  describe("migration", () => {
+    beforeEach(async () => {
+      await tokensCollection.deleteMany({});
+      await usersCollection.deleteMany({});
+      await assetsCollection.deleteMany({});
+      await tokenInstancesCollection.deleteMany({});
+      await scenesCollection.deleteMany({});
+    });
+
+    afterEach(async () => {
+      await tokensCollection.deleteMany({});
+      await usersCollection.deleteMany({});
+      await assetsCollection.deleteMany({});
+      await tokenInstancesCollection.deleteMany({});
+      await scenesCollection.deleteMany({});
+    });
+
+    it("Should ignore legacy layer revision when migrating scene content", async () => {
+      const sceneId = new ObjectId();
+      const userId = new ObjectId();
+      const playerRev = 7;
+
+      await scenesCollection.insertOne({
+        _id: sceneId,
+        user: userId,
+        description: "legacy",
+        playerContent: "path/to/player.png",
+        playerContentRev: playerRev,
+      });
+
+      const migratedCount = await migrateLegacySceneContentToAssets();
+      expect(migratedCount).toBe(1);
+
+      const migratedAsset = await assetsCollection.findOne({
+        user: userId,
+        name: `scene-${sceneId.toString()}-player`,
+      });
+      expect(migratedAsset).toBeTruthy();
+      if (!migratedAsset) {
+        fail("Expected migrated player asset to exist");
+      }
+      expect(migratedAsset.revision).toBe(0);
+      expect(migratedAsset.tags).toEqual(["scene"]);
+    });
+
+    it("Should default to revision 0 when legacy layer revision is missing", async () => {
+      const sceneId = new ObjectId();
+      const userId = new ObjectId();
+
+      await scenesCollection.insertOne({
+        _id: sceneId,
+        user: userId,
+        description: "legacy",
+        detailContent: "path/to/detail.png",
+      });
+
+      const migratedCount = await migrateLegacySceneContentToAssets();
+      expect(migratedCount).toBe(1);
+
+      const migratedAsset = await assetsCollection.findOne({
+        user: userId,
+        name: `scene-${sceneId.toString()}-detail`,
+      });
+      expect(migratedAsset).toBeTruthy();
+      if (!migratedAsset) {
+        fail("Expected migrated detail asset to exist");
+      }
+      expect(migratedAsset.revision).toBe(0);
+      expect(migratedAsset.tags).toEqual(["scene"]);
     });
   });
 });

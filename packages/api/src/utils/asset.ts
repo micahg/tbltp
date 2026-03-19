@@ -1,4 +1,5 @@
 import { Asset, AssetModel, IAsset } from "../models/asset";
+import { IScene } from "../models/scene";
 import { IUser } from "../models/user";
 import { NAME_REGEX } from "../routes/scene";
 import { checkSchema } from "express-validator";
@@ -78,4 +79,21 @@ export async function setAssetLocation(asset: IAsset, location: string) {
     { _id: { $eq: asset._id } },
     { location: location },
   );
+}
+
+export function deleteUserSceneAssetInstances(user: IUser, scene: IScene) {
+  const sceneAssetIds = [
+    scene.playerId,
+    scene.detailId,
+    scene.overlayId,
+  ].filter((assetId) => !!assetId);
+
+  if (sceneAssetIds.length === 0) {
+    return Promise.resolve({ acknowledged: true, deletedCount: 0 });
+  }
+
+  return AssetModel.deleteMany({
+    user: { $eq: user._id },
+    _id: { $in: sceneAssetIds },
+  });
 }

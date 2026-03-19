@@ -5,25 +5,20 @@ import type {
   FetchArgs,
   FetchBaseQueryError,
 } from "@reduxjs/toolkit/query";
+import { assetApi } from "./asset";
 import { environmentApi } from "./environment";
 import { getAuthHeaders } from "../utils/authBridge";
-import { AppReducerState } from "../reducers/AppReducer";
-import { LoadProgress } from "../utils/content";
-import { UploadResponse, uploadFormData, type UploadError } from "./upload";
 import { ratelimit } from "../slices/rateLimitSlice";
 
 type SceneTag = { type: "Scene"; id: string };
 
 export type SceneLayer = "overlay" | "detail" | "player";
 
-export interface SendSceneFileArgs {
-  scene: Scene;
-  blob: File | URL;
+export interface AssignSceneLayerAssetArgs {
+  sceneId: string;
   layer: SceneLayer;
-  progress?: (evt: LoadProgress) => void;
+  assetId: string;
 }
-
-export type SceneUploadResponse<TData = unknown> = UploadResponse<TData>;
 
 export interface SceneViewportUpdate {
   sceneId: string;
@@ -34,51 +29,16 @@ export interface SceneViewportUpdate {
   };
 }
 
-function isBlob(payload: URL | Blob): payload is File {
-  return (payload as Blob).type !== undefined;
-}
+function assetTagsForDeletedScene(scene: Scene | undefined) {
+  const ids = [scene?.overlayId, scene?.detailId, scene?.playerId].filter(
+    (id): id is string => !!id,
+  );
+  const uniqueIds = [...new Set(ids)];
 
-export function sendFile(
-  state: AppReducerState,
-  scene: Scene,
-  blob: File | URL,
-  layer: SceneLayer,
-  progress?: (evt: LoadProgress) => void,
-): Promise<SceneUploadResponse> {
-  const api =
-    environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api;
-  if (!api || !scene._id) {
-    return Promise.reject(new Error("Unable to resolve scene upload endpoint"));
-  }
-
-  const url = `${api}/scene/${scene._id}/content`;
-  const formData = new FormData();
-  const content: Blob | string = isBlob(blob)
-    ? (blob as Blob)
-    : blob.toString();
-  formData.append("layer", layer);
-  formData.append("image", content);
-
-  return getAuthHeaders()
-    .then((headers) =>
-      uploadFormData({
-        url,
-        formData,
-        headers,
-        onProgress: (event) => {
-          if (!event.lengthComputable) {
-            return;
-          }
-          progress?.({ progress: event.loaded / event.total, img: layer });
-        },
-      }),
-    )
-    .catch((err: unknown) => {
-      if (typeof err === "object" && err !== null) {
-        (err as UploadError & { scene?: Scene }).scene = scene;
-      }
-      throw err;
-    });
+  return [
+    { type: "Asset" as const, id: "LIST" },
+    ...uniqueIds.map((id) => ({ type: "Asset" as const, id })),
+  ];
 }
 
 function sceneTagsForList(scenes: Scene[] | undefined): SceneTag[] {
@@ -204,37 +164,52 @@ export const sceneApi = createApi({
         { type: "Scene", id: "LIST" },
         { type: "Scene", id: sceneId },
       ],
-    }),
-    sendSceneFile: build.mutation<Scene, SendSceneFileArgs>({
-      async queryFn(args, api) {
+      async onQueryStarted(sceneId, { dispatch, getState, queryFulfilled }) {
+        // get the scene we just deleted
+        const cachedScene = sceneApi.endpoints.getScene.select(sceneId)(
+          getState() as Parameters<
+            ReturnType<typeof sceneApi.endpoints.getScene.select>
+          >[0],
+        ).data;
+
+        const scenePromise = async () => {
+          if (cachedScene) {
+            return cachedScene;
+          }
+
+          const sceneRequest = dispatch(
+            sceneApi.endpoints.getScene.initiate(sceneId, {
+              forceRefetch: true,
+            }),
+          );
+          try {
+            return await sceneRequest.unwrap();
+          } catch {
+            return undefined;
+          } finally {
+            sceneRequest.unsubscribe();
+          }
+        };
+
         try {
-          const state = api.getState() as AppReducerState;
-          const response = await sendFile(
-            state,
-            args.scene,
-            args.blob,
-            args.layer,
-            args.progress,
+          const scene = await scenePromise();
+          await queryFulfilled;
+          dispatch(
+            assetApi.util.invalidateTags(assetTagsForDeletedScene(scene)),
           );
-
-          dispatchRateLimitFromHeaders(
-            api.dispatch,
-            response.headers["ratelimit-limit"] ?? null,
-            response.headers["ratelimit-remaining"] ?? null,
-          );
-
-          return { data: response.data as Scene };
-        } catch (error) {
-          return {
-            error: {
-              status: "CUSTOM_ERROR",
-              error: String(error),
-            },
-          };
+        } catch {
+          // Keep asset cache unchanged when scene deletion fails.
         }
       },
+    }),
+    assignSceneLayerAsset: build.mutation<Scene, AssignSceneLayerAssetArgs>({
+      query: ({ sceneId, layer, assetId }) => ({
+        url: `/scene/${sceneId}/${layer}`,
+        method: "PUT",
+        body: { assetId },
+      }),
       invalidatesTags: (_result, _error, args) => [
-        { type: "Scene", id: args.scene._id ?? "LIST" },
+        { type: "Scene", id: args.sceneId },
         { type: "Scene", id: "LIST" },
       ],
     }),
@@ -257,6 +232,6 @@ export const {
   useGetSceneQuery,
   useCreateSceneMutation,
   useDeleteSceneMutation,
-  useSendSceneFileMutation,
+  useAssignSceneLayerAssetMutation,
   useUpdateSceneViewportMutation,
 } = sceneApi;
