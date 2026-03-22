@@ -333,29 +333,31 @@ const ContentEditor = ({
    * @param scene The scene to update
    * @param file The file to use for the overlay
    */
-  const updateOverlay = async (scene: Scene, file: File) => {
+  const updateOverlay = useCallback(
+    async (scene: Scene, file: File) => {
+      let id = scene.overlayId;
+      if (!id) {
+        const asset = await updateAsset({
+          name: `scene ${scene._id} overlay`,
+          tags: ["scene"],
+        }).unwrap();
+        id = asset._id;
 
-    let id = scene.overlayId;
-    if (!id) {
-      const asset = await updateAsset({
-        name: `scene ${scene._id} overlay`,
-        tags: ["scene"],
-      }).unwrap();
-      id = asset._id;
+        await assignSceneLayerAsset({
+          sceneId: scene._id!,
+          layer: "overlay",
+          assetId: asset._id!,
+        });
+      }
 
-      await assignSceneLayerAsset({
-        sceneId: scene._id!,
-        layer: "overlay",
-        assetId: asset._id!,
-      });
-    }
+      if (!id) {
+        throw new Error("Unable to get or create asset id for overlay");
+      }
 
-    if (!id) {
-      throw new Error("Unable to get or create asset id for overlay");
-    }
-
-    updateAssetData({ id,file });
-  };
+      updateAssetData({ id, file });
+    },
+    [updateAsset, assignSceneLayerAsset, updateAssetData],
+  );
 
   /**
    * This method doesn't have access to the updated component state *BECAUSE*
@@ -372,8 +374,9 @@ const ContentEditor = ({
       } else if (evt.data.cmd === "overlay") {
         if ("blob" in evt.data) {
           setOvRev((value) => value + 1);
-          updateOverlay(scene, evt.data.blob as File).catch((err) => 
-            console.error(`Unable to update overlay: ${JSON.stringify(err)}`));
+          updateOverlay(scene, evt.data.blob as File).catch((err) =>
+            console.error(`Unable to update overlay: ${JSON.stringify(err)}`),
+          );
         } else console.error("Error: no blob in worker message");
       } else if (evt.data.cmd === "viewport") {
         if ("viewport" in evt.data) {
@@ -451,12 +454,10 @@ const ContentEditor = ({
       }
     },
     [
-      assignSceneLayerAsset,
       deleteSceneTokenInstance,
       downloads,
       scene,
-      updateAsset,
-      updateAssetData,
+      updateOverlay,
       updateViewport,
       upsertSceneTokenInstance,
     ],
@@ -950,7 +951,8 @@ const ContentEditor = ({
 
     if (drawBG) {
       const overlay = drawOV && oContent ? `${apiUrl}/${oContent}` : undefined;
-      const background = drawBG && bContent ? `${apiUrl}/${bContent}` : undefined;
+      const background =
+        drawBG && bContent ? `${apiUrl}/${bContent}` : undefined;
 
       const angle = scene.angle || 0;
 
