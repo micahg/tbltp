@@ -1,15 +1,25 @@
 import { Schema, model } from "mongoose";
 import { Scene } from "@micahg/tbltp-common";
 
-interface IScene extends Omit<Scene, "_id" | "user" | "tokens"> {
+interface IScene
+  extends Omit<
+    Scene,
+    "_id" | "user" | "tokens" | "playerId" | "detailId" | "overlayId"
+  > {
   _id?: Schema.Types.ObjectId;
   user: Schema.Types.ObjectId;
+  playerId?: Schema.Types.ObjectId;
+  detailId?: Schema.Types.ObjectId;
+  overlayId?: Schema.Types.ObjectId;
 }
 
 const SceneSchema = new Schema<IScene>(
   {
     user: { type: Schema.Types.ObjectId, required: true, index: true },
     description: { type: String, required: true },
+    overlayId: { type: Schema.Types.ObjectId, required: false, ref: "Asset" },
+    detailId: { type: Schema.Types.ObjectId, required: false, ref: "Asset" },
+    playerId: { type: Schema.Types.ObjectId, required: false, ref: "Asset" },
     overlayContent: { type: String, required: false },
     overlayContentRev: { type: Number, required: false },
     detailContent: { type: String, required: false },

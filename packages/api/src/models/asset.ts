@@ -14,12 +14,14 @@ const AssetSchema = new Schema<IAsset>(
   {
     user: { type: Schema.Types.ObjectId, required: true },
     name: { type: String, required: true },
+    tags: [{ type: String }],
     location: { type: String },
     revision: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
 AssetSchema.index({ user: 1, name: 1 }, { unique: true });
+AssetSchema.index({ user: 1, tags: 1 });
 
 const AssetModel = model<IAsset>("Asset", AssetSchema);
 

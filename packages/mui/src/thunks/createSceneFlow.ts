@@ -1,5 +1,10 @@
-import { Scene } from "@micahg/tbltp-common";
-import { SceneViewportUpdate, SendSceneFileArgs } from "../api/scene";
+import { Asset, Scene } from "@micahg/tbltp-common";
+import {
+  AssignSceneLayerAssetArgs,
+  SceneLayer,
+  SceneViewportUpdate,
+} from "../api/scene";
+import { UpdateAssetDataRequest } from "../api/asset";
 import { LoadProgress } from "../utils/content";
 
 export interface SaveSceneFlowArgs {
@@ -14,9 +19,12 @@ export interface SaveSceneFlowArgs {
 
 export interface SaveSceneFlowOps {
   createScene?: (payload: { description: string }) => Promise<Scene>;
-  sendSceneFile: (payload: SendSceneFileArgs) => Promise<Scene>;
+  updateAsset: (payload: Asset) => Promise<Asset>;
+  updateAssetData: (payload: UpdateAssetDataRequest) => Promise<Asset>;
+  assignSceneLayerAsset: (payload: AssignSceneLayerAssetArgs) => Promise<Scene>;
   updateSceneViewport: (payload: SceneViewportUpdate) => Promise<Scene>;
   deleteScene?: (sceneId: string) => Promise<void>;
+  deleteAsset?: (asset: Asset) => Promise<unknown>;
   onScene: (scene: Scene) => void;
   onSuccess: () => void;
   onFailure: (message: string) => void;
@@ -46,12 +54,63 @@ function errorMessage(err: unknown): string {
   return "Unkown error happened";
 }
 
+function layerAssetName(sceneId: string, layer: SceneLayer): string {
+  return `scene ${sceneId} ${layer}`;
+}
+
+async function saveLayerAsset(
+  scene: Scene,
+  layer: SceneLayer,
+  file: File,
+  progress: ((evt: LoadProgress) => void) | undefined,
+  ops: SaveSceneFlowOps,
+): Promise<{ scene: Scene; createdAsset?: Asset }> {
+  const existingAssetId =
+    layer === "player"
+      ? scene.playerId
+      : layer === "detail"
+        ? scene.detailId
+        : scene.overlayId;
+
+  let createdAsset: Asset | undefined;
+  let assetId = existingAssetId;
+
+  if (!assetId) {
+    const created = await ops.updateAsset({
+      name: layerAssetName(scene._id!, layer),
+      tags: ["scene"],
+    });
+    if (!created?._id) {
+      throw new Error("Created asset missing id");
+    }
+    createdAsset = created;
+    assetId = created._id;
+  }
+
+  await ops.updateAssetData({
+    id: assetId,
+    file,
+    progress,
+  });
+
+  const updatedScene = createdAsset
+    ? await ops.assignSceneLayerAsset({
+        sceneId: scene._id!,
+        layer,
+        assetId,
+      })
+    : scene;
+
+  return { scene: updatedScene, createdAsset };
+}
+
 export async function saveSceneFlow(
   args: SaveSceneFlowArgs,
   ops: SaveSceneFlowOps,
 ): Promise<Scene> {
   const isCreate = !args.scene;
   let scene: Scene | undefined = args.scene;
+  const createdAssets: Asset[] = [];
 
   if (isCreate && (!args.description || !args.player)) {
     const err = new Error("Create flow requires description and player file");
@@ -80,22 +139,28 @@ export async function saveSceneFlow(
     }
 
     if (args.player && scene) {
-      scene = await ops.sendSceneFile({
-        scene: scene,
-        blob: args.player,
-        layer: "player",
-        progress: args.playerProgress,
-      });
+      const result = await saveLayerAsset(
+        scene,
+        "player",
+        args.player,
+        args.playerProgress,
+        ops,
+      );
+      scene = result.scene;
+      if (result.createdAsset) createdAssets.push(result.createdAsset);
       ops.onScene(scene);
     }
 
     if (args.detail && scene) {
-      scene = await ops.sendSceneFile({
-        scene: scene,
-        blob: args.detail,
-        layer: "detail",
-        progress: args.detailProgress,
-      });
+      const result = await saveLayerAsset(
+        scene,
+        "detail",
+        args.detail,
+        args.detailProgress,
+        ops,
+      );
+      scene = result.scene;
+      if (result.createdAsset) createdAssets.push(result.createdAsset);
       ops.onScene(scene);
     }
 
@@ -115,6 +180,18 @@ export async function saveSceneFlow(
     return scene;
   } catch (err) {
     ops.onFailure(errorMessage(err));
+
+    if (ops.deleteAsset && createdAssets.length > 0) {
+      await Promise.all(
+        createdAssets
+          .filter((asset) => !!asset._id)
+          .map((asset) =>
+            ops.deleteAsset!(asset).catch(() => {
+              // ignore cleanup errors so we still surface the original failure
+            }),
+          ),
+      );
+    }
 
     if (isCreate && scene?._id && ops.deleteScene) {
       try {

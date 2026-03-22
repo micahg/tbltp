@@ -44,14 +44,15 @@ import {
   Rect,
   TokenInstance,
   HydratedTokenInstance,
+  Scene,
 } from "@micahg/tbltp-common";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
 import EditorIntroductionComponent from "../EditorIntroductionComponent/EditorIntroductionComponent.lazy";
 import {
+  useAssignSceneLayerAssetMutation,
   useGetScenesQuery,
-  useSendSceneFileMutation,
   useUpdateSceneViewportMutation,
 } from "../../api/scene";
 import { useUpdateTableStateMutation } from "../../api/tableState";
@@ -60,7 +61,12 @@ import {
   useGetSceneTokenInstancesQuery,
   useUpsertSceneTokenInstanceMutation,
 } from "../../api/scenetoken";
-import { useGetAssetsQuery } from "../../api/asset";
+import {
+  useGetAssetByIdQuery,
+  useGetAssetsQuery,
+  useUpdateAssetDataMutation,
+  useUpdateAssetMutation,
+} from "../../api/asset";
 import { useGetTokensQuery } from "../../api/token";
 import {
   selectEditorUiPushTime,
@@ -124,7 +130,7 @@ const ContentEditor = ({
   const [ovRev, setOvRev] = useState<number>(0);
   const [sceneId, setSceneId] = useState<string>(); // used to track flipping between scenes
   const [worker, setWorker] = useState<Worker>();
-  const [sceneUpdated, setSceneUpdated] = useState<boolean>(false);
+  const [sceneUpdated, setSceneUpdated] = useState<boolean>(false); // I'm not convinced we need this anymore
   const [downloads] = useState<Record<string, number>>({});
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   // selection is sized relative to the visible canvas size -- not the full background size
@@ -149,6 +155,15 @@ const ContentEditor = ({
   const { data: assets = [] } = useGetAssetsQuery();
   const editingSceneId = useSelector(selectEditingSceneId);
   const scene = scenes.find((s) => s._id === editingSceneId);
+  const { currentData: playerAsset } = useGetAssetByIdQuery(
+    scene?.playerId ?? skipToken,
+  );
+  const { currentData: detailAsset } = useGetAssetByIdQuery(
+    scene?.detailId ?? skipToken,
+  );
+  const { currentData: overlayAsset } = useGetAssetByIdQuery(
+    scene?.overlayId ?? skipToken,
+  );
   const { data: sceneTokenInstances = [] } = useGetSceneTokenInstancesQuery(
     scene?._id ?? skipToken,
   );
@@ -158,7 +173,9 @@ const ContentEditor = ({
   );
   const pushTime = useSelector(selectEditorUiPushTime);
   const { getAccessTokenSilently } = useAuth0();
-  const [sendSceneFile] = useSendSceneFileMutation();
+  const [updateAsset] = useUpdateAssetMutation();
+  const [updateAssetData] = useUpdateAssetDataMutation();
+  const [assignSceneLayerAsset] = useAssignSceneLayerAssetMutation();
   const [updateSceneViewport] = useUpdateSceneViewportMutation();
   const [updateTableState] = useUpdateTableStateMutation();
   const [upsertSceneTokenInstance] = useUpsertSceneTokenInstanceMutation();
@@ -312,6 +329,37 @@ const ContentEditor = ({
   );
 
   /**
+   * Update the scene overlay - assume error handling is done upstream.
+   * @param scene The scene to update
+   * @param file The file to use for the overlay
+   */
+  const updateOverlay = useCallback(
+    async (scene: Scene, file: File) => {
+      let id = scene.overlayId;
+      if (!id) {
+        const asset = await updateAsset({
+          name: `scene ${scene._id} overlay`,
+          tags: ["scene"],
+        }).unwrap();
+        id = asset._id;
+
+        await assignSceneLayerAsset({
+          sceneId: scene._id!,
+          layer: "overlay",
+          assetId: asset._id!,
+        });
+      }
+
+      if (!id) {
+        throw new Error("Unable to get or create asset id for overlay");
+      }
+
+      updateAssetData({ id, file });
+    },
+    [updateAsset, assignSceneLayerAsset, updateAssetData],
+  );
+
+  /**
    * This method doesn't have access to the updated component state *BECAUSE*
    * its
    */
@@ -325,12 +373,10 @@ const ContentEditor = ({
         setSceneUpdated(true);
       } else if (evt.data.cmd === "overlay") {
         if ("blob" in evt.data) {
-          setOvRev(ovRev + 1);
-          void sendSceneFile({
-            scene,
-            blob: evt.data.blob as File,
-            layer: "overlay",
-          });
+          setOvRev((value) => value + 1);
+          updateOverlay(scene, evt.data.blob as File).catch((err) =>
+            console.error(`Unable to update overlay: ${JSON.stringify(err)}`),
+          );
         } else console.error("Error: no blob in worker message");
       } else if (evt.data.cmd === "viewport") {
         if ("viewport" in evt.data) {
@@ -410,9 +456,8 @@ const ContentEditor = ({
     [
       deleteSceneTokenInstance,
       downloads,
-      ovRev,
       scene,
-      sendSceneFile,
+      updateOverlay,
       updateViewport,
       upsertSceneTokenInstance,
     ],
@@ -852,15 +897,37 @@ const ContentEditor = ({
   useEffect(() => {
     if (!apiUrl || !scene || !bearer || !worker) return;
 
-    // get the detailed or player content
-    const [bRev, bContent] = [
-      scene.detailContentRev || scene.playerContentRev || 0,
-      scene.detailContent || scene.playerContent,
-    ];
-    const [oRev, oContent] = [
-      scene.overlayContentRev || 0,
-      scene.overlayContent,
-    ];
+    if (scene.overlayId && !overlayAsset?.location) {
+      return;
+    }
+
+    if (scene.playerId && !playerAsset?.location) {
+      return;
+    }
+
+    if (scene.detailId && !detailAsset?.location) {
+      return;
+    }
+
+    const playerLayer = {
+      rev: playerAsset?.revision ?? 0,
+      content: playerAsset?.location,
+    };
+    const detailLayer = {
+      rev: detailAsset?.revision ?? 0,
+      content: detailAsset?.location,
+    };
+    const overlayLayer = {
+      rev: overlayAsset?.revision ?? 0,
+      content: overlayAsset?.location,
+    };
+
+    // Prefer detail layer when present; otherwise use player layer.
+    const baseLayer = detailLayer.content ? detailLayer : playerLayer;
+    const bRev = baseLayer.rev;
+    const bContent = baseLayer.content;
+    const oRev = overlayLayer.rev;
+    const oContent = overlayLayer.content;
 
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
@@ -876,15 +943,16 @@ const ContentEditor = ({
       setBgRev(bRev);
       setOvRev(oRev);
       drawBG = true;
-      drawOV = scene.overlayContent !== undefined;
+      drawOV = oContent !== undefined;
     }
 
     // if we have nothing new to draw then cheese it
     if (!drawBG && !drawOV) return;
 
     if (drawBG) {
-      const overlay = drawOV ? `${apiUrl}/${oContent}` : undefined;
-      const background = drawBG ? `${apiUrl}/${bContent}` : undefined;
+      const overlay = drawOV && oContent ? `${apiUrl}/${oContent}` : undefined;
+      const background =
+        drawBG && bContent ? `${apiUrl}/${bContent}` : undefined;
 
       const angle = scene.angle || 0;
 
@@ -898,7 +966,18 @@ const ContentEditor = ({
         },
       });
     }
-  }, [apiUrl, bearer, bgRev, ovRev, scene, sceneId, worker]);
+  }, [
+    apiUrl,
+    bearer,
+    bgRev,
+    ovRev,
+    scene,
+    sceneId,
+    worker,
+    playerAsset,
+    detailAsset,
+    overlayAsset,
+  ]);
 
   /**
    * We don't want to render the viewport until it changes in current scene server-side
@@ -1033,7 +1112,7 @@ const ContentEditor = ({
         </div>
       )}
       {!sceneUpdated && <EditorIntroductionComponent />}
-      {scene?.playerContent && (
+      {scene && (
         <Box>
           <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>
             Sorry, your browser does not support canvas.

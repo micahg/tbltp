@@ -120,6 +120,10 @@ export const assetApi = createApi({
       query: () => ({ url: "/asset" }),
       providesTags: (result) => assetTagsForList(result),
     }),
+    getAssetById: build.query<Asset, string>({
+      query: (id) => ({ url: `/asset/${id}` }),
+      providesTags: (_result, _error, id) => [{ type: "Asset", id }],
+    }),
     updateAsset: build.mutation<Asset, Asset>({
       query: (asset) => ({
         url: "/asset",
@@ -207,10 +211,28 @@ export const assetApi = createApi({
           };
         }
       },
-      invalidatesTags: (_result, _error, args) => [
-        { type: "Asset", id: "LIST" },
-        { type: "Asset", id: args.id },
-      ],
+      async onQueryStarted(args, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+
+          dispatch(
+            assetApi.util.updateQueryData("getAssetById", args.id, (draft) => {
+              Object.assign(draft, data);
+            }),
+          );
+
+          dispatch(
+            assetApi.util.updateQueryData("getAssets", undefined, (draft) => {
+              const index = draft.findIndex((asset) => asset._id === args.id);
+              if (index !== -1) {
+                Object.assign(draft[index], data);
+              }
+            }),
+          );
+        } catch {
+          // no-op; error is already surfaced through queryFn
+        }
+      },
     }),
     deleteAsset: build.mutation<Asset, Asset>({
       async queryFn(asset, _api, _extraOptions, baseQuery) {
@@ -254,6 +276,7 @@ export const assetApi = createApi({
 
 export const {
   useGetAssetsQuery,
+  useGetAssetByIdQuery,
   useUpdateAssetMutation,
   useUpdateAssetDataMutation,
   useDeleteAssetMutation,

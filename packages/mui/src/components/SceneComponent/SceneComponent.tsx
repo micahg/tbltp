@@ -18,17 +18,24 @@ import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
 import { saveSceneFlow } from "../../thunks/createSceneFlow";
 import {
+  useAssignSceneLayerAssetMutation,
   useCreateSceneMutation,
   useDeleteSceneMutation,
-  useSendSceneFileMutation,
   useUpdateSceneViewportMutation,
 } from "../../api/scene";
+import {
+  useDeleteAssetMutation,
+  useGetAssetByIdQuery,
+  useUpdateAssetDataMutation,
+  useUpdateAssetMutation,
+} from "../../api/asset";
 import {
   clearEditingSceneId,
   selectEditorUiError,
   setError,
   setEditingSceneId,
 } from "../../slices/editorUiSlice";
+import { skipToken } from "@reduxjs/toolkit/query";
 
 // TODO move to a shared file
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
@@ -75,9 +82,18 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   const error = useSelector(selectEditorUiError);
   const { getAccessTokenSilently } = useAuth0();
   const [createScene] = useCreateSceneMutation();
-  const [sendSceneFile] = useSendSceneFileMutation();
+  const [updateAsset] = useUpdateAssetMutation();
+  const [updateAssetData] = useUpdateAssetDataMutation();
+  const [assignSceneLayerAsset] = useAssignSceneLayerAssetMutation();
   const [updateSceneViewport] = useUpdateSceneViewportMutation();
   const [deleteScene] = useDeleteSceneMutation();
+  const [deleteAsset] = useDeleteAssetMutation();
+  const { data: playerAsset } = useGetAssetByIdQuery(
+    scene?.playerId ?? skipToken,
+  );
+  const { data: detailAsset } = useGetAssetByIdQuery(
+    scene?.detailId ?? skipToken,
+  );
   const [bearer, setBearer] = useState<string | null>(null);
   const hasUpdates = playerUpdated || detailUpdated;
 
@@ -175,9 +191,13 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
       },
       {
         createScene: (payload) => createScene(payload).unwrap(),
-        sendSceneFile: (payload) => sendSceneFile(payload).unwrap(),
+        updateAsset: (payload) => updateAsset(payload).unwrap(),
+        updateAssetData: (payload) => updateAssetData(payload).unwrap(),
+        assignSceneLayerAsset: (payload) =>
+          assignSceneLayerAsset(payload).unwrap(),
         updateSceneViewport: (payload) => updateSceneViewport(payload).unwrap(),
         deleteScene: (sceneId) => deleteScene(sceneId).unwrap(),
+        deleteAsset: (asset) => deleteAsset(asset).unwrap(),
         onScene: (nextScene) => dispatch(setEditingSceneId(nextScene._id)),
         onSuccess: () =>
           dispatch(setError({ msg: "Update successful", success: true })),
@@ -240,24 +260,36 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     const canvas = playerCanvasRef?.current;
     if (!bearer || !apiUrl || !canvas || loadingPlayer) return;
     setLoadingPlayer(true);
-    if (scene?.playerContent) {
-      const url = `${apiUrl}/${scene.playerContent}`;
+    if (!scene?.playerId && scene?.playerContent) {
+      console.error("SCENE MISSING PLAYER ID"); // this should never happen, but just in case
+    }
+    const playerContent = scene?.playerId
+      ? playerAsset?.location || scene.playerContent
+      : scene?.playerContent;
+    if (playerContent) {
+      const url = `${apiUrl}/${playerContent}`;
       loadImage(url, bearer, playerProgressHandler).then((img) => {
         renderImage(img, canvas);
       });
     }
-  }, [apiUrl, bearer, loadingPlayer, playerCanvasRef, scene]);
+  }, [apiUrl, bearer, loadingPlayer, playerCanvasRef, scene, playerAsset]);
   useEffect(() => {
     const canvas = detailCanvasRef?.current;
     if (!bearer || !apiUrl || !canvas || loadingDetail) return;
     setLoadingDetail(true);
-    if (scene?.detailContent) {
-      const url = `${apiUrl}/${scene.detailContent}`;
+    if (!scene?.detailId && scene?.detailContent) {
+      console.error("SCENE MISSING DETAIL ID"); // this should never happen, but just in case
+    }
+    const detailContent = scene?.detailId
+      ? detailAsset?.location || scene.detailContent
+      : scene?.detailContent;
+    if (detailContent) {
+      const url = `${apiUrl}/${detailContent}`;
       loadImage(url, bearer, detailProgressHandler).then((img) => {
         renderImage(img, canvas);
       });
     }
-  }, [apiUrl, bearer, detailCanvasRef, scene, loadingDetail]);
+  }, [apiUrl, bearer, detailCanvasRef, scene, loadingDetail, detailAsset]);
 
   return (
     <Box

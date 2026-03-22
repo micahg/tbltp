@@ -25,6 +25,25 @@ export async function listAssets(
     return next({ status: err.cause || 500 });
   }
 }
+
+export async function getAssetById(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getOrCreateUser(req.auth);
+    const asset = await getUserAsset(user, req.params.id);
+    if (!asset) {
+      return res.sendStatus(404);
+    }
+    return res.json(asset);
+  } catch (err) {
+    log.error("Unable to fetch user asset", err);
+    return next({ status: err.cause || 500 });
+  }
+}
+
 export async function createOrUpdateAsset(
   req: Request,
   res: Response,
