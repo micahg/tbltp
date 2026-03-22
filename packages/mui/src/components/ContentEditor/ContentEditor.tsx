@@ -44,6 +44,7 @@ import {
   Rect,
   TokenInstance,
   HydratedTokenInstance,
+  Scene,
 } from "@micahg/tbltp-common";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 import { environmentApi } from "../../api/environment";
@@ -129,7 +130,7 @@ const ContentEditor = ({
   const [ovRev, setOvRev] = useState<number>(0);
   const [sceneId, setSceneId] = useState<string>(); // used to track flipping between scenes
   const [worker, setWorker] = useState<Worker>();
-  const [sceneUpdated, setSceneUpdated] = useState<boolean>(false);
+  const [sceneUpdated, setSceneUpdated] = useState<boolean>(false); // I'm not convinced we need this anymore
   const [downloads] = useState<Record<string, number>>({});
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   // selection is sized relative to the visible canvas size -- not the full background size
@@ -154,13 +155,13 @@ const ContentEditor = ({
   const { data: assets = [] } = useGetAssetsQuery();
   const editingSceneId = useSelector(selectEditingSceneId);
   const scene = scenes.find((s) => s._id === editingSceneId);
-  const { data: playerAsset } = useGetAssetByIdQuery(
+  const { currentData: playerAsset } = useGetAssetByIdQuery(
     scene?.playerId ?? skipToken,
   );
-  const { data: detailAsset } = useGetAssetByIdQuery(
+  const { currentData: detailAsset } = useGetAssetByIdQuery(
     scene?.detailId ?? skipToken,
   );
-  const { data: overlayAsset } = useGetAssetByIdQuery(
+  const { currentData: overlayAsset } = useGetAssetByIdQuery(
     scene?.overlayId ?? skipToken,
   );
   const { data: sceneTokenInstances = [] } = useGetSceneTokenInstancesQuery(
@@ -328,6 +329,35 @@ const ContentEditor = ({
   );
 
   /**
+   * Update the scene overlay - assume error handling is done upstream.
+   * @param scene The scene to update
+   * @param file The file to use for the overlay
+   */
+  const updateOverlay = async (scene: Scene, file: File) => {
+
+    let id = scene.overlayId;
+    if (!id) {
+      const asset = await updateAsset({
+        name: `scene ${scene._id} overlay`,
+        tags: ["scene"],
+      }).unwrap();
+      id = asset._id;
+
+      await assignSceneLayerAsset({
+        sceneId: scene._id!,
+        layer: "overlay",
+        assetId: asset._id!,
+      });
+    }
+
+    if (!id) {
+      throw new Error("Unable to get or create asset id for overlay");
+    }
+
+    updateAssetData({ id,file });
+  };
+
+  /**
    * This method doesn't have access to the updated component state *BECAUSE*
    * its
    */
@@ -342,54 +372,8 @@ const ContentEditor = ({
       } else if (evt.data.cmd === "overlay") {
         if ("blob" in evt.data) {
           setOvRev((value) => value + 1);
-          if (!scene.overlayId) {
-            void updateAsset({
-              name: `scene ${scene._id} overlay`,
-              tags: ["scene"],
-            })
-              .unwrap()
-              .then((asset) => {
-                if (!asset._id) {
-                  throw new Error("Created asset missing id");
-                }
-
-                return updateAssetData({
-                  id: asset._id,
-                  file: evt.data.blob as File,
-                })
-                  .unwrap()
-                  .then(() =>
-                    assignSceneLayerAsset({
-                      sceneId: scene._id!,
-                      layer: "overlay",
-                      assetId: asset._id!,
-                    }).unwrap(),
-                  );
-              })
-              .catch((err) =>
-                console.error(
-                  `Unable to update overlay asset: ${JSON.stringify(err)}`,
-                ),
-              );
-          } else {
-            void updateAssetData({
-              id: scene.overlayId,
-              file: evt.data.blob as File,
-            })
-              .unwrap()
-              .then(() =>
-                assignSceneLayerAsset({
-                  sceneId: scene._id!,
-                  layer: "overlay",
-                  assetId: scene.overlayId!,
-                }).unwrap(),
-              )
-              .catch((err) =>
-                console.error(
-                  `Unable to update overlay asset: ${JSON.stringify(err)}`,
-                ),
-              );
-          }
+          updateOverlay(scene, evt.data.blob as File).catch((err) => 
+            console.error(`Unable to update overlay: ${JSON.stringify(err)}`));
         } else console.error("Error: no blob in worker message");
       } else if (evt.data.cmd === "viewport") {
         if ("viewport" in evt.data) {
@@ -912,41 +896,29 @@ const ContentEditor = ({
   useEffect(() => {
     if (!apiUrl || !scene || !bearer || !worker) return;
 
-    if (!scene.overlayId && scene.overlayContent) {
-      console.error("SCENE MISSING OVERLAY ID"); // this should never happen, but just in case
+    if (scene.overlayId && !overlayAsset?.location) {
+      return;
     }
 
-    if (!scene.playerId && scene.playerContent) {
-      console.error("SCENE MISSING PLAYER ID"); // this should never happen, but just in case
+    if (scene.playerId && !playerAsset?.location) {
+      return;
     }
 
-    if (!scene.detailId && scene.detailContent) {
-      console.error("SCENE MISSING DETAIL ID"); // this should never happen, but just in case
+    if (scene.detailId && !detailAsset?.location) {
+      return;
     }
 
     const playerLayer = {
-      rev: scene.playerId
-        ? (playerAsset?.revision ?? scene.playerContentRev ?? 0)
-        : scene.playerContentRev || 0,
-      content: scene.playerId
-        ? playerAsset?.location || scene.playerContent
-        : scene.playerContent,
+      rev: playerAsset?.revision ?? 0,
+      content: playerAsset?.location,
     };
     const detailLayer = {
-      rev: scene.detailId
-        ? (detailAsset?.revision ?? scene.detailContentRev ?? 0)
-        : scene.detailContentRev || 0,
-      content: scene.detailId
-        ? detailAsset?.location || scene.detailContent
-        : scene.detailContent,
+      rev: detailAsset?.revision ?? 0,
+      content: detailAsset?.location,
     };
     const overlayLayer = {
-      rev: scene.overlayId
-        ? (overlayAsset?.revision ?? scene.overlayContentRev ?? 0)
-        : scene.overlayContentRev || 0,
-      content: scene.overlayId
-        ? overlayAsset?.location || scene.overlayContent
-        : scene.overlayContent,
+      rev: overlayAsset?.revision ?? 0,
+      content: overlayAsset?.location,
     };
 
     // Prefer detail layer when present; otherwise use player layer.
@@ -977,8 +949,8 @@ const ContentEditor = ({
     if (!drawBG && !drawOV) return;
 
     if (drawBG) {
-      const overlay = drawOV ? `${apiUrl}/${oContent}` : undefined;
-      const background = drawBG ? `${apiUrl}/${bContent}` : undefined;
+      const overlay = drawOV && oContent ? `${apiUrl}/${oContent}` : undefined;
+      const background = drawBG && bContent ? `${apiUrl}/${bContent}` : undefined;
 
       const angle = scene.angle || 0;
 
@@ -1138,7 +1110,7 @@ const ContentEditor = ({
         </div>
       )}
       {!sceneUpdated && <EditorIntroductionComponent />}
-      {scene?.playerContent && (
+      {scene && (
         <Box>
           <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>
             Sorry, your browser does not support canvas.

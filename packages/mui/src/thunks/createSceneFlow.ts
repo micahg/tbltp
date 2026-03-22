@@ -93,11 +93,13 @@ async function saveLayerAsset(
     progress,
   });
 
-  const updatedScene = await ops.assignSceneLayerAsset({
-    sceneId: scene._id!,
-    layer,
-    assetId,
-  });
+  const updatedScene = createdAsset
+    ? await ops.assignSceneLayerAsset({
+        sceneId: scene._id!,
+        layer,
+        assetId,
+      })
+    : scene;
 
   return { scene: updatedScene, createdAsset };
 }
