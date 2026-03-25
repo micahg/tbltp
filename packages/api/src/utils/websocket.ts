@@ -35,14 +35,10 @@ function getSceneLayerFields(layer: SceneLayer) {
   if (layer === "overlay") {
     return {
       idField: "overlayId" as const,
-      contentField: "overlayContent" as const,
-      revField: "overlayContentRev" as const,
     };
   }
   return {
     idField: "playerId" as const,
-    contentField: "playerContent" as const,
-    revField: "playerContentRev" as const,
   };
 }
 
@@ -51,22 +47,15 @@ async function resolveSceneLayerState(
   scene: IScene,
   layer: SceneLayer,
 ) {
-  const { idField, contentField, revField } = getSceneLayerFields(layer);
+  const { idField } = getSceneLayerFields(layer);
   const assetId = scene[idField]?.toString();
 
-  if (assetId) {
-    const asset = await getUserAsset(user, assetId);
-    if (asset?.location) {
-      return {
-        content: asset.location,
-        revision: asset.revision,
-      };
-    }
-  }
+  if (!assetId) return { content: undefined, revision: undefined };
+  const asset = await getUserAsset(user, assetId);
 
   return {
-    content: scene[contentField],
-    revision: scene[revField],
+    content: asset?.location,
+    revision: asset?.revision,
   };
 }
 

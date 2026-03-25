@@ -137,37 +137,18 @@ function getScenesByUser(user: IUser): Promise<IScene[]> {
 function sceneLayerFields(layer: SceneLayer) {
   return {
     idField: `${layer}Id`,
-    contentField: `${layer}Content`,
-    revField: `${layer}ContentRev`,
   };
-}
-
-export function setSceneLayerContent(
-  id: string,
-  layer: SceneLayer,
-  path: string,
-) {
-  const { contentField, revField } = sceneLayerFields(layer);
-  return Scene.findOneAndUpdate(
-    { _id: { $eq: id } },
-    { $set: { [contentField]: path }, $inc: { [revField]: 1 } },
-    { new: true },
-  );
 }
 
 export function setSceneLayerAsset(
   id: string,
   layer: SceneLayer,
   assetId: string,
-  path: string,
 ) {
-  const { idField, contentField, revField } = sceneLayerFields(layer);
+  const { idField } = sceneLayerFields(layer);
   return Scene.findOneAndUpdate(
     { _id: { $eq: id } },
-    {
-      $set: { [idField]: assetId, [contentField]: path },
-      $inc: { [revField]: 1 },
-    },
+    { $set: { [idField]: assetId } },
     { new: true },
   );
 }
@@ -255,73 +236,4 @@ export async function upsertSceneLayerAsset(
   }
 
   return asset.save();
-}
-
-export async function migrateLegacySceneContentToAssets() {
-  const scenes = await Scene.find({
-    $or: [
-      {
-        $and: [
-          { playerContent: { $exists: true, $ne: null } },
-          { playerId: { $exists: false } },
-        ],
-      },
-      {
-        $and: [
-          { detailContent: { $exists: true, $ne: null } },
-          { detailId: { $exists: false } },
-        ],
-      },
-      {
-        $and: [
-          { overlayContent: { $exists: true, $ne: null } },
-          { overlayId: { $exists: false } },
-        ],
-      },
-    ],
-  });
-
-  for (const scene of scenes) {
-    const user = { _id: scene.user } as IUser;
-    const setOps: Record<string, unknown> = {};
-
-    if (scene.playerContent && !scene.playerId) {
-      const asset = await upsertSceneLayerAsset(
-        user,
-        scene,
-        "player",
-        scene.playerContent,
-        false,
-      );
-      setOps.playerId = asset._id;
-    }
-
-    if (scene.detailContent && !scene.detailId) {
-      const asset = await upsertSceneLayerAsset(
-        user,
-        scene,
-        "detail",
-        scene.detailContent,
-        false,
-      );
-      setOps.detailId = asset._id;
-    }
-
-    if (scene.overlayContent && !scene.overlayId) {
-      const asset = await upsertSceneLayerAsset(
-        user,
-        scene,
-        "overlay",
-        scene.overlayContent,
-        false,
-      );
-      setOps.overlayId = asset._id;
-    }
-
-    if (Object.keys(setOps).length > 0) {
-      await Scene.updateOne({ _id: { $eq: scene._id } }, { $set: setOps });
-    }
-  }
-
-  return scenes.length;
 }

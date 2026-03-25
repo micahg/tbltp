@@ -20,12 +20,6 @@ const SceneSchema = new Schema<IScene>(
     overlayId: { type: Schema.Types.ObjectId, required: false, ref: "Asset" },
     detailId: { type: Schema.Types.ObjectId, required: false, ref: "Asset" },
     playerId: { type: Schema.Types.ObjectId, required: false, ref: "Asset" },
-    overlayContent: { type: String, required: false },
-    overlayContentRev: { type: Number, required: false },
-    detailContent: { type: String, required: false },
-    detailContentRev: { type: Number, required: false },
-    playerContent: { type: String, required: false },
-    playerContentRev: { type: Number, required: false },
     angle: { type: Number, required: false },
     viewport: {
       type: {

@@ -14,11 +14,10 @@ import { Server } from "node:http";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
 
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Collection, ObjectId } from "mongodb";
+import { MongoClient, Collection } from "mongodb";
 import { userZero, userOne } from "./assets/auth";
 import { fail } from "node:assert";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common";
-import { migrateLegacySceneContentToAssets } from "../src/utils/scene";
 
 let server: Server;
 let mongodb: MongoMemoryServer;
@@ -363,78 +362,6 @@ describe("scene", () => {
 
       instances = await tokenInstancesCollection.find({}).toArray();
       expect(instances.length).toBe(2);
-    });
-  });
-
-  describe("migration", () => {
-    beforeEach(async () => {
-      await tokensCollection.deleteMany({});
-      await usersCollection.deleteMany({});
-      await assetsCollection.deleteMany({});
-      await tokenInstancesCollection.deleteMany({});
-      await scenesCollection.deleteMany({});
-    });
-
-    afterEach(async () => {
-      await tokensCollection.deleteMany({});
-      await usersCollection.deleteMany({});
-      await assetsCollection.deleteMany({});
-      await tokenInstancesCollection.deleteMany({});
-      await scenesCollection.deleteMany({});
-    });
-
-    it("Should ignore legacy layer revision when migrating scene content", async () => {
-      const sceneId = new ObjectId();
-      const userId = new ObjectId();
-      const playerRev = 7;
-
-      await scenesCollection.insertOne({
-        _id: sceneId,
-        user: userId,
-        description: "legacy",
-        playerContent: "path/to/player.png",
-        playerContentRev: playerRev,
-      });
-
-      const migratedCount = await migrateLegacySceneContentToAssets();
-      expect(migratedCount).toBe(1);
-
-      const migratedAsset = await assetsCollection.findOne({
-        user: userId,
-        name: `scene-${sceneId.toString()}-player`,
-      });
-      expect(migratedAsset).toBeTruthy();
-      if (!migratedAsset) {
-        fail("Expected migrated player asset to exist");
-      }
-      expect(migratedAsset.revision).toBe(0);
-      expect(migratedAsset.tags).toEqual(["scene"]);
-    });
-
-    it("Should default to revision 0 when legacy layer revision is missing", async () => {
-      const sceneId = new ObjectId();
-      const userId = new ObjectId();
-
-      await scenesCollection.insertOne({
-        _id: sceneId,
-        user: userId,
-        description: "legacy",
-        detailContent: "path/to/detail.png",
-      });
-
-      const migratedCount = await migrateLegacySceneContentToAssets();
-      expect(migratedCount).toBe(1);
-
-      const migratedAsset = await assetsCollection.findOne({
-        user: userId,
-        name: `scene-${sceneId.toString()}-detail`,
-      });
-      expect(migratedAsset).toBeTruthy();
-      if (!migratedAsset) {
-        fail("Expected migrated detail asset to exist");
-      }
-      expect(migratedAsset.revision).toBe(0);
-      expect(migratedAsset.tags).toEqual(["scene"]);
     });
   });
 });

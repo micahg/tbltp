@@ -18,7 +18,6 @@ import { connect } from "./config/mongoose";
 import mongoose from "mongoose";
 import { WebSocketServer } from "ws";
 import { ValueType, metrics } from "@opentelemetry/api";
-import { migrateLegacySceneContentToAssets } from "./utils/scene";
 
 // mongoose.set('debug', true);
 
@@ -152,15 +151,6 @@ export async function startUp() {
     log.info("Mongoose reconnected");
   });
   log.info(`Mongo connected to ${conn.name} on ${conn.host}`);
-
-  try {
-    const migrated = await migrateLegacySceneContentToAssets();
-    if (migrated > 0) {
-      log.info(`Migrated ${migrated} legacy scenes to asset references`);
-    }
-  } catch (err) {
-    log.error(`Unable to migrate legacy scene assets: ${err}`);
-  }
 
   app.emit(STARTUP_CHECK_SIG);
 }

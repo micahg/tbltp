@@ -110,7 +110,6 @@ export async function updateSceneContent(
         scene._id.toString(),
         layer,
         asset._id.toString(),
-        asset.location,
       ),
     );
   } catch (err) {
