@@ -4,12 +4,12 @@ releaseVersion: 0.0.1
 deployEnv: local
 uiAppName: ntt-ui
 uiAppReplicas: 1
-uiImageVers: 0.25.0
+uiImageVers: 0.26.0
 uiImagePath: ghcr.io/micahg/tbltp-mui
 uiDomain: "tbltp.dev"
 apiAppName: ntt-api
 apiAppReplicas: 1
-apiImageVers: "0.29.0"
+apiImageVers: "0.30.0"
 apiImagePath: ghcr.io/micahg/tbltp-api
 apiDomain: "api.tbltp.dev"
 apiStorageClass: do-block-storage
