@@ -12,12 +12,6 @@ export interface Scene {
   overlayId?: string;
   detailId?: string;
   playerId?: string;
-  overlayContent?: string;
-  overlayContentRev?: number;
-  detailContent?: string;
-  detailContentRev?: number;
-  playerContent?: string;
-  playerContentRev?: number;
   viewport?: Rect;
   backgroundSize?: Rect;
   angle?: number;

@@ -105,7 +105,6 @@ describe("scene", () => {
       });
     expect(resp.statusCode).toBe(200);
     expect(resp.body.viewport.width).toBe(1);
-    expect(resp.body.playerContentRev).toBe(1);
     expect(resp.body.playerId).toMatch(/[a-f0-9]{24}/);
     expect(resp.body.backgroundSize.width).toBe(1);
   });
@@ -134,23 +133,22 @@ describe("scene", () => {
     expect(resp.statusCode).toBe(200);
   });
 
-  it("Should should have a playerContentRev of 2 on a second update", async () => {
+  it("Should keep playerId set on a second update", async () => {
     const resp = await assignSceneLayer(u0DefScene._id, "player");
     expect(resp.statusCode).toBe(200);
-    expect(resp.body.playerContentRev).toBe(2);
     expect(resp.body.playerId).toMatch(/[a-f0-9]{24}/);
   });
 
-  it("Should should have a overlayContentRev of 1 on a first update", async () => {
+  it("Should set overlayId on a first update", async () => {
     const resp = await assignSceneLayer(u0DefScene._id, "overlay");
     expect(resp.statusCode).toBe(200);
-    expect(resp.body.overlayContentRev).toBe(1);
+    expect(resp.body.overlayId).toMatch(/[a-f0-9]{24}/);
   });
 
-  it("Should should have a overlayContentRev of 2 on a second update", async () => {
+  it("Should keep overlayId set on a second update", async () => {
     const resp = await assignSceneLayer(u0DefScene._id, "overlay");
     expect(resp.statusCode).toBe(200);
-    expect(resp.body.overlayContentRev).toBe(2);
+    expect(resp.body.overlayId).toMatch(/[a-f0-9]{24}/);
   });
 
   it("should fail if the viewport is missing data", async () => {
