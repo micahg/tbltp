@@ -7,7 +7,7 @@ import LandingComponent from "./components/LandingComponent/LandingComponent.laz
 import RemoteDisplayComponent from "./components/RemoteDisplayComponent/RemoteDisplayComponent.lazy";
 import DeviceCodeComponent from "./components/DeviceCodeComponent/DeviceCodeComponent.lazy";
 import EnvConfigGuardComponent from "./components/EnvConfigGuardComponent/EnvConfigGuardComponent.lazy";
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import { RouterProvider, createBrowserRouter } from "react-router";
 import UnavailableComponent from "./components/UnavailableComponent/UnavailableComponent";
 import { store } from "./store";
 
