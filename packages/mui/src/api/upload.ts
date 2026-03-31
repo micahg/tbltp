@@ -1,3 +1,5 @@
+import { xhrRequest } from "../utils/xhr";
+
 export interface UploadResponse<TData = unknown> {
   data: TData;
   status: number;
@@ -45,45 +47,32 @@ function parseResponseBody(xhr: XMLHttpRequest): unknown {
 export function uploadFormData<TData = unknown>(
   args: UploadFormDataArgs,
 ): Promise<UploadResponse<TData>> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open(args.method ?? "PUT", args.url);
+  return xhrRequest({
+    method: args.method ?? "PUT",
+    url: args.url,
+    headers: args.headers,
+    body: args.formData,
+    onProgress: args.onProgress,
+    progressTarget: "upload",
+    networkErrorMessage: "Upload request failed",
+  }).then((xhr) => {
+    const headers = parseHeaders(xhr);
+    const data = parseResponseBody(xhr);
 
-    Object.entries(args.headers || {}).forEach(([key, value]) => {
-      xhr.setRequestHeader(key, value);
-    });
+    if (xhr.status >= 200 && xhr.status < 300) {
+      return {
+        data: data as TData,
+        status: xhr.status,
+        headers,
+      };
+    }
 
-    xhr.upload.onprogress = (event: ProgressEvent<EventTarget>) => {
-      args.onProgress?.(event);
-    };
-
-    xhr.onload = () => {
-      const headers = parseHeaders(xhr);
-      const data = parseResponseBody(xhr);
-
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve({
-          data: data as TData,
-          status: xhr.status,
-          headers,
-        });
-        return;
-      }
-
-      const err = new Error(
-        `Upload failed with status ${xhr.status}`,
-      ) as UploadError;
-      err.status = xhr.status;
-      err.data = data;
-      err.headers = headers;
-      reject(err);
-    };
-
-    xhr.onerror = () => {
-      const err = new Error("Upload request failed") as UploadError;
-      reject(err);
-    };
-
-    xhr.send(args.formData);
+    const err = new Error(
+      `Upload failed with status ${xhr.status}`,
+    ) as UploadError;
+    err.status = xhr.status;
+    err.data = data;
+    err.headers = headers;
+    throw err;
   });
 }
