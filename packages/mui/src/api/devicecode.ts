@@ -1,5 +1,4 @@
 import { createApi, fakeBaseQuery } from "@reduxjs/toolkit/query/react";
-import axios from "axios";
 import { AuthConfig } from "./environment";
 
 // https://auth0.com/docs/get-started/authentication-and-authorization-flow/call-your-api-using-the-device-authorization-flow#device-code-response
@@ -37,6 +36,48 @@ type PollDeviceCodeArgs = {
   deviceCode?: DeviceCodeResult;
 };
 
+const toCustomError = (error: unknown): DeviceCodeApiError => ({
+  status: "CUSTOM_ERROR",
+  data: error instanceof Error ? error.message : String(error),
+});
+
+const readResponseData = async (response: Response): Promise<unknown> => {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+  return response.text();
+};
+
+const postForm = async (
+  url: string,
+  params: URLSearchParams,
+): Promise<{ data?: unknown; error?: DeviceCodeApiError }> => {
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params,
+    });
+
+    const data = await readResponseData(response);
+    if (!response.ok) {
+      return {
+        error: {
+          status: response.status,
+          data,
+        },
+      };
+    }
+
+    return { data };
+  } catch (error) {
+    return { error: toCustomError(error) };
+  }
+};
+
 export const deviceCodeApi = createApi({
   reducerPath: "deviceCodeApi",
   baseQuery: fakeBaseQuery<DeviceCodeApiError>(),
@@ -53,26 +94,16 @@ export const deviceCodeApi = createApi({
         });
         const url = `https://${authConfig.domain}/oauth/device/code`;
 
-        try {
-          const response = await axios.post(url, params);
-          return {
-            data: {
-              ...response.data,
-              domain: authConfig.domain,
-              client_id: authConfig.clientId,
-            },
-          };
-        } catch (error) {
-          if (axios.isAxiosError(error)) {
-            return {
-              error: {
-                status: error.response?.status ?? "CUSTOM_ERROR",
-                data: error.response?.data ?? error.message,
-              },
-            };
-          }
-          return { error: { status: "CUSTOM_ERROR", data: String(error) } };
-        }
+        const result = await postForm(url, params);
+        if (result.error) return { error: result.error };
+
+        return {
+          data: {
+            ...(result.data as DeviceCode),
+            domain: authConfig.domain,
+            client_id: authConfig.clientId,
+          },
+        };
       },
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {
@@ -108,25 +139,15 @@ export const deviceCodeApi = createApi({
         });
         const url = `https://${deviceCode.domain}/oauth/token`;
 
-        try {
-          const response = await axios.post(url, params);
-          return { data: response.data };
-        } catch (error) {
-          if (axios.isAxiosError(error) && error.response?.status === 403) {
-            return { data: {} };
-          }
-
-          if (axios.isAxiosError(error)) {
-            return {
-              error: {
-                status: error.response?.status ?? "CUSTOM_ERROR",
-                data: error.response?.data ?? error.message,
-              },
-            };
-          }
-
-          return { error: { status: "CUSTOM_ERROR", data: String(error) } };
+        const result = await postForm(url, params);
+        if (result.error?.status === 403) {
+          return { data: {} };
         }
+        if (result.error) {
+          return { error: result.error };
+        }
+
+        return { data: result.data as { access_token?: string } };
       },
       async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
         try {

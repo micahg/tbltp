@@ -1,5 +1,5 @@
 import { createRef, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Box, Paper, Typography } from "@mui/material";
 import * as QRCode from "qrcode";
 import { useGetAuthConfigQuery } from "../../api/environment";

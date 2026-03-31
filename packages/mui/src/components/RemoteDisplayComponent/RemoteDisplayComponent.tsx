@@ -3,7 +3,7 @@ import Alert from "@mui/material/Alert";
 import Stack from "@mui/material/Stack";
 
 import styles from "./RemoteDisplayComponent.module.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Box } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
 import { debounce } from "lodash";
