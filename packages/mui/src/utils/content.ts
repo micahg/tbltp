@@ -1,3 +1,5 @@
+import { xhrRequest } from "./xhr";
+
 export type LoadProgress = {
   img: string;
   progress: number;
@@ -10,13 +12,14 @@ export function loadImage(
   bearer: string,
   progress?: progressFunction,
 ): Promise<ImageBitmap> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", url);
-    xhr.responseType = "blob";
-    xhr.setRequestHeader("Authorization", `Bearer ${bearer}`);
-
-    xhr.onprogress = (event: ProgressEvent<EventTarget>) => {
+  return xhrRequest({
+    method: "GET",
+    url,
+    responseType: "blob",
+    headers: { Authorization: `Bearer ${bearer}` },
+    progressTarget: "download",
+    networkErrorMessage: "Image request failed",
+    onProgress: (event: ProgressEvent<EventTarget>) => {
       if (!progress) return;
 
       if (event.lengthComputable && event.total > 0) {
@@ -26,25 +29,16 @@ export function loadImage(
 
       // Length may be unknown depending on transfer mode/headers.
       progress({ progress: 0, img: url });
-    };
+    },
+  }).then((xhr) => {
+    if (xhr.status < 200 || xhr.status >= 300) {
+      throw new Error(`Image load failed (${xhr.status})`);
+    }
 
-    xhr.onload = () => {
-      if (xhr.status < 200 || xhr.status >= 300) {
-        reject(new Error(`Image load failed (${xhr.status})`));
-        return;
-      }
+    if (progress) {
+      progress({ progress: 1, img: url });
+    }
 
-      if (progress) {
-        progress({ progress: 1, img: url });
-      }
-
-      createImageBitmap(xhr.response).then(resolve).catch(reject);
-    };
-
-    xhr.onerror = () => {
-      reject(new Error("Image request failed"));
-    };
-
-    xhr.send();
+    return createImageBitmap(xhr.response);
   });
 }
