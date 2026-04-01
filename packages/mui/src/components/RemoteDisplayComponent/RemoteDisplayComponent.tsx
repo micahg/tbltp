@@ -220,7 +220,10 @@ const RemoteDisplayComponent = () => {
     if (authTimer) window.clearInterval(authTimer);
 
     // if authorization is ON and we are not authorized, redirect
-    if (!noauth && !token) return navigate(`/device`);
+    if (!noauth && !token) {
+      navigate(`/device`);
+      return;
+    }
 
     // if auth is off this should (in the middleware/auth code) force the token to NOAUTH
     if (noauth && token !== "NOAUTH") {
