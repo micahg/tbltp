@@ -1,5 +1,4 @@
 // trigger rebuild.
-import { mkdir } from "node:fs";
 import { Server } from "http";
 
 import { log } from "./utils/logger";
@@ -18,6 +17,7 @@ import { connect } from "./config/mongoose";
 import mongoose from "mongoose";
 import { WebSocketServer } from "ws";
 import { ValueType, metrics } from "@opentelemetry/api";
+import { initializeStorage } from "./utils/storage";
 
 // mongoose.set('debug', true);
 
@@ -116,17 +116,14 @@ export async function startUp() {
   // TODO IS THIS NECESSARY!?!?!?
   mongoUpDown.add(0);
 
-  // TODO move this to the storage driver
-  log.info(`Create public resources folder...`);
-  mkdir("public", { recursive: true }, (err, path) => {
-    if (err) {
-      log.error(`Unable to create public folder: ${JSON.stringify(err)}`);
-      process.exit(1);
-    }
-    log.info(`Created public asset path: ${path}`);
+  try {
+    await initializeStorage();
     storageConnectedFlag = true;
     app.emit(STARTUP_CHECK_SIG);
-  });
+  } catch (err) {
+    log.error(`Unable to initialize storage: ${JSON.stringify(err)}`);
+    process.exit(1);
+  }
 
   let goose;
   while (!goose) {

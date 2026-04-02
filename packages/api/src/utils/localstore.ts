@@ -1,12 +1,9 @@
 import { Request } from "express";
-import { cp, rm } from "node:fs/promises";
-
-import { log } from "./logger";
 import {
   CONTENT_TYPE_EXTS,
-  DEST_FOLDER,
   VALID_CONTENT_TYPES,
 } from "./constants";
+import { deletePublicAsset, putPublicAssetFromUpload } from "./storage";
 import { IScene } from "../models/scene";
 
 import { IUser } from "../models/user";
@@ -48,29 +45,8 @@ export async function updateAssetFromFile(
   name: string,
   ext: string,
 ) {
-  const dest = `${DEST_FOLDER}/${user._id}/assets/${name}.${ext}`;
-
-  // do not catch (let exception through)
-  await copyAndDelete(file.path, dest);
-  return dest;
-}
-
-async function copyAndDelete(src: string, dest: string) {
-  // log.info(`Copying ${src} to ${dest}`);
-  try {
-    await cp(src, dest, { force: true, preserveTimestamps: true });
-  } catch (err) {
-    const msg = `Error copying ${src} to ${dest}`;
-    log.error(msg, err);
-    throw new Error(msg, { cause: 500 });
-  }
-
-  try {
-    // log.info(`Deleting ${src}`);
-    await rm(src, { force: true });
-  } catch (err) {
-    log.error(`Unable to delete ${src}`, err);
-  }
+  const key = `${user._id}/assets/${name}.${ext}`;
+  return putPublicAssetFromUpload(file.path, key, file.mimetype);
 }
 
 export async function updateAssetFromUpload(
@@ -81,12 +57,9 @@ export async function updateAssetFromUpload(
   const ext = getContentTypeExtension(req.file.mimetype);
   if (!ext)
     throw new Error(`Invalid mime type: ${req.file.mimetype}`, { cause: 406 });
-  const src = req.file.path;
   const fileName = `${layer}.${ext}`;
-  const dest = `${DEST_FOLDER}/${scene.user}/scene/${scene._id}/${fileName}`;
-
-  // do not catch (let exception through)
-  await copyAndDelete(src, dest);
+  const key = `${scene.user}/scene/${scene._id}/${fileName}`;
+  const dest = await putPublicAssetFromUpload(req.file.path, key, req.file.mimetype);
 
   return {
     id: scene._id.toString(),
@@ -96,5 +69,5 @@ export async function updateAssetFromUpload(
 }
 
 export async function deleteAssetFile(path: string) {
-  return rm(path, { force: true });
+  return deletePublicAsset(path);
 }

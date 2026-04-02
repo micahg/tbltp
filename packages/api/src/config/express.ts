@@ -64,6 +64,7 @@ import {
   sceneTokenInstanceValidator,
   tokenInstanceValidator,
 } from "../utils/tokeninstance";
+import { publicAssetHandler } from "../utils/storage";
 
 /**
  * Since we can't authorize img HTML tags, allow the token to be passed as a
@@ -212,7 +213,7 @@ export function create(): Express {
     },
     copyAuthParam,
     jwtCheck,
-    express.static("public"),
+    publicAssetHandler,
   );
 
   const destdir: string = os.tmpdir();
