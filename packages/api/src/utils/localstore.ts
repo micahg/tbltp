@@ -1,8 +1,5 @@
 import { Request } from "express";
-import {
-  CONTENT_TYPE_EXTS,
-  VALID_CONTENT_TYPES,
-} from "./constants";
+import { CONTENT_TYPE_EXTS, VALID_CONTENT_TYPES } from "./constants";
 import { deletePublicAsset, putPublicAssetFromUpload } from "./storage";
 import { IScene } from "../models/scene";
 
@@ -59,7 +56,11 @@ export async function updateAssetFromUpload(
     throw new Error(`Invalid mime type: ${req.file.mimetype}`, { cause: 406 });
   const fileName = `${layer}.${ext}`;
   const key = `${scene.user}/scene/${scene._id}/${fileName}`;
-  const dest = await putPublicAssetFromUpload(req.file.path, key, req.file.mimetype);
+  const dest = await putPublicAssetFromUpload(
+    req.file.path,
+    key,
+    req.file.mimetype,
+  );
 
   return {
     id: scene._id.toString(),

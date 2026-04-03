@@ -27,13 +27,16 @@ interface StorageDriver {
     contentType?: string,
   ): Promise<string>;
   deleteByLocation(location: string): Promise<void>;
-  sendPublicObject(req: Request, res: Response, next: NextFunction): Promise<void>;
+  sendPublicObject(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void>;
 }
 
 function getStorageProvider() {
   return (
-    process.env.STORAGE_PROVIDER?.trim().toLowerCase() ||
-    STORAGE_PROVIDER_LOCAL
+    process.env.STORAGE_PROVIDER?.trim().toLowerCase() || STORAGE_PROVIDER_LOCAL
   );
 }
 
@@ -214,7 +217,9 @@ class S3StorageDriver implements StorageDriver {
 
       res.setHeader(
         "Content-Type",
-        result.ContentType || inferContentTypeFromKey(key) || "application/octet-stream",
+        result.ContentType ||
+          inferContentTypeFromKey(key) ||
+          "application/octet-stream",
       );
 
       const body = result.Body as Readable | undefined;
@@ -230,7 +235,8 @@ class S3StorageDriver implements StorageDriver {
     } catch (err) {
       if (
         err instanceof NoSuchKey ||
-        (err instanceof S3ServiceException && err.$metadata.httpStatusCode === 404)
+        (err instanceof S3ServiceException &&
+          err.$metadata.httpStatusCode === 404)
       ) {
         res.sendStatus(404);
         return;
