@@ -1,5 +1,6 @@
 // trigger rebuild.
 import { Server } from "http";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { log } from "./utils/logger";
 
@@ -116,13 +117,15 @@ export async function startUp() {
   // TODO IS THIS NECESSARY!?!?!?
   mongoUpDown.add(0);
 
-  try {
-    await initializeStorage();
-    storageConnectedFlag = true;
-    app.emit(STARTUP_CHECK_SIG);
-  } catch (err) {
-    log.error(`Unable to initialize storage: ${JSON.stringify(err)}`);
-    process.exit(1);
+  while (!storageConnectedFlag) {
+    try {
+      await initializeStorage();
+      storageConnectedFlag = true;
+      app.emit(STARTUP_CHECK_SIG);
+    } catch (err) {
+      log.error(`Unable to initialize storage: ${JSON.stringify(err)}`);
+      await delay(5000);
+    }
   }
 
   let goose;

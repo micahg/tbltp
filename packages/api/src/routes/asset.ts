@@ -6,7 +6,7 @@ import {
   deleteAssetFile,
   getValidExtension,
   updateAssetFromFile,
-} from "../utils/localstore";
+} from "../utils/assetstore";
 import { knownMongoError } from "../utils/errors";
 import { listUserTokensByAsset } from "../utils/token";
 import { deleteUserTokenInstances } from "../utils/tokeninstance";

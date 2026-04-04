@@ -1,74 +1,61 @@
-import { Request } from "express";
-import { CONTENT_TYPE_EXTS, VALID_CONTENT_TYPES } from "./constants";
-import { deletePublicAsset, putPublicAssetFromUpload } from "./storage";
-import { IScene } from "../models/scene";
+import { NextFunction, Request, Response } from "express";
+import { cp, mkdir, rm } from "node:fs/promises";
 
-import { IUser } from "../models/user";
+import { DEST_FOLDER } from "./constants";
+import { log } from "./logger";
+import {
+  ensurePublicLocation,
+  locationToKey,
+  reqPathToKey,
+  StorageDriver,
+} from "./storage";
 
-export interface LayerUpdate {
-  id: string;
-  layer: string;
-  path: string;
+async function copyAndDelete(src: string, dest: string) {
+  try {
+    await cp(src, dest, { force: true, preserveTimestamps: true });
+  } catch (err) {
+    const msg = `Error copying ${src} to ${dest}`;
+    log.error(msg, err);
+    throw new Error(msg, { cause: 500 });
+  }
+
+  try {
+    await rm(src, { force: true });
+  } catch (err) {
+    log.error(`Unable to delete temp file ${src}`, err);
+  }
 }
 
-/**
- * Figure out the destination exension based on mime type
- * @param contentType the content/mime type
- * @returns null if the mime is invalid, otherwise, the extension to use for the mime
- */
-function getContentTypeExtension(contentType: string): string | null {
-  if (!VALID_CONTENT_TYPES.includes(contentType)) return null;
-  return CONTENT_TYPE_EXTS[VALID_CONTENT_TYPES.indexOf(contentType)];
-}
+export class LocalStorageDriver implements StorageDriver {
+  async init() {
+    await mkdir(DEST_FOLDER, { recursive: true });
+  }
 
-export function getValidExtension(file: Express.Multer.File) {
-  const idx = VALID_CONTENT_TYPES.indexOf(file.mimetype);
-  if (idx === -1)
-    throw new Error(`Invalid mime type: ${file.mimetype}`, { cause: 406 });
-  return CONTENT_TYPE_EXTS[idx];
-}
+  async putFromTemp(tempPath: string, key: string) {
+    const cleanKey = locationToKey(key);
+    const dest = `${DEST_FOLDER}/${cleanKey}`;
+    await copyAndDelete(tempPath, dest);
+    return ensurePublicLocation(cleanKey);
+  }
 
-/**
- * Create or update an asset from an uploaded file
- * @param user the user with a db id
- * @param file the uploaded file
- * @param name the name of the file (should be unique for this user)
- * @param ext the file extension (should be validated first)
- * @returns the destination path of the file
- */
-export async function updateAssetFromFile(
-  user: IUser,
-  file: Express.Multer.File,
-  name: string,
-  ext: string,
-) {
-  const key = `${user._id}/assets/${name}.${ext}`;
-  return putPublicAssetFromUpload(file.path, key, file.mimetype);
-}
+  async deleteByLocation(location: string) {
+    const cleanKey = locationToKey(location);
+    await rm(`${DEST_FOLDER}/${cleanKey}`, { force: true });
+  }
 
-export async function updateAssetFromUpload(
-  scene: IScene,
-  layer: string,
-  req: Request,
-): Promise<LayerUpdate> {
-  const ext = getContentTypeExtension(req.file.mimetype);
-  if (!ext)
-    throw new Error(`Invalid mime type: ${req.file.mimetype}`, { cause: 406 });
-  const fileName = `${layer}.${ext}`;
-  const key = `${scene.user}/scene/${scene._id}/${fileName}`;
-  const dest = await putPublicAssetFromUpload(
-    req.file.path,
-    key,
-    req.file.mimetype,
-  );
-
-  return {
-    id: scene._id.toString(),
-    layer: layer,
-    path: dest,
-  };
-}
-
-export async function deleteAssetFile(path: string) {
-  return deletePublicAsset(path);
+  async sendPublicObject(req: Request, res: Response, next: NextFunction) {
+    try {
+      const key = reqPathToKey(req);
+      res.sendFile(key, { root: DEST_FOLDER }, (err) => {
+        if (!err) return;
+        if (err.message.includes("ENOENT")) {
+          res.sendStatus(404);
+          return;
+        }
+        next(err);
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

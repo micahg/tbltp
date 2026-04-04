@@ -19,6 +19,43 @@ This will:
 1. Signal to the client through the `/noauth` endpoint that authentication is
 not required.
 
+# Storage Provider
+
+The API now supports a pluggable storage backend behind the existing asset
+upload endpoints.
+
+## Local (default)
+
+No extra environment is required.
+
+```
+STORAGE_PROVIDER=local
+```
+
+Uploaded assets continue to be stored under `public/...` on local disk.
+
+## S3 / S3-Compatible (R2, MinIO, etc.)
+
+Set `STORAGE_PROVIDER=s3` and configure:
+
+```
+STORAGE_PROVIDER=s3
+STORAGE_S3_BUCKET=<bucket>
+STORAGE_S3_REGION=<region>
+STORAGE_S3_ACCESS_KEY_ID=<access-key>
+STORAGE_S3_SECRET_ACCESS_KEY=<secret-key>
+```
+
+Optional:
+
+```
+STORAGE_S3_ENDPOINT=<https://custom-endpoint>
+STORAGE_S3_FORCE_PATH_STYLE=true
+```
+
+The API contract is unchanged in this phase: clients still upload to API
+endpoints, and persisted asset locations remain under `public/...`.
+
 # Future Work
 
 * S3/R2 storage (get rid of persistant volume)
