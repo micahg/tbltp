@@ -77,6 +77,11 @@ function newStorageDriver(): StorageDriver {
 
 const driver: StorageDriver = newStorageDriver();
 
+export function getS3MigrationContext() {
+  if (!(driver instanceof S3StorageDriver)) return null;
+  return driver.getMigrationContext();
+}
+
 export async function initializeStorage() {
   await driver.init();
   log.info(`Storage provider initialized: ${getStorageProvider()}`);

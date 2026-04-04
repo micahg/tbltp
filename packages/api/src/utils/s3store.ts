@@ -26,6 +26,13 @@ export class S3StorageDriver implements StorageDriver {
   private readonly bucket: string;
   private readonly client: S3Client;
 
+  getMigrationContext() {
+    return {
+      bucket: this.bucket,
+      client: this.client,
+    };
+  }
+
   constructor() {
     const bucket = process.env.STORAGE_S3_BUCKET?.trim();
     const region = process.env.STORAGE_S3_REGION?.trim() || "us-east-1";

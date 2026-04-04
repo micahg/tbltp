@@ -19,6 +19,7 @@ import mongoose from "mongoose";
 import { WebSocketServer } from "ws";
 import { ValueType, metrics } from "@opentelemetry/api";
 import { initializeStorage } from "./utils/storage";
+import { startAssetMigrationThread } from "./utils/assetMigration";
 
 // mongoose.set('debug', true);
 
@@ -153,6 +154,7 @@ export async function startUp() {
   log.info(`Mongo connected to ${conn.name} on ${conn.host}`);
 
   app.emit(STARTUP_CHECK_SIG);
+  startAssetMigrationThread();
 }
 
 // if we're not main module then we're running in jest and it needs to call
