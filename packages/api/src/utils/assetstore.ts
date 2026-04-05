@@ -11,12 +11,12 @@ export function getValidExtension(file: Express.Multer.File) {
 
 export async function updateAssetFromFile(
   user: IUser,
-  file: Express.Multer.File,
+  filePath: string,
   name: string,
   ext: string,
 ) {
   const key = `${user._id}/assets/${name}.${ext}`;
-  return putPublicAssetFromUpload(file.path, key, file.mimetype);
+  return putPublicAssetFromUpload(filePath, key, ext);
 }
 
 export async function deleteAssetFile(path: string) {

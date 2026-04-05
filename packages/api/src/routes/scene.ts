@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { getUser, getOrCreateUser, userExistsOr401 } from "../utils/user";
+import { log } from "../utils/logger";
 import {
   getUserScene,
   createUserScene,
@@ -45,12 +46,20 @@ export function getScene(req: Request, res: Response, next: NextFunction) {
   );
 }
 
-export function getScenes(req: Request, res: Response, next: NextFunction) {
-  // don't 401 on a non-existant user -- create them (their token has validated)
-  return getOrCreateUser(req.auth)
-    .then((user) => getOrCreateScenes(user))
-    .then((scenes) => res.status(200).json(scenes))
-    .catch(() => next({ status: 500 }));
+export async function getScenes(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    // don't 401 on a non-existant user -- create them (their token has validated)
+    const user = await getOrCreateUser(req.auth);
+    const scenes = await getOrCreateScenes(user);
+    return res.status(200).json(scenes);
+  } catch (err) {
+    log.error("Unable to list user scenes", err);
+    return next({ status: err.cause || 500 });
+  }
 }
 
 export async function deleteScene(

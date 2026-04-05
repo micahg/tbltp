@@ -38,9 +38,22 @@ async function createUser(auth: AuthResult) {
   // }
 }
 
-export function getOrCreateUser(auth: AuthResult): Promise<IUser> {
-  return getUser(auth).then((user) => {
+export async function getOrCreateUser(
+  auth: AuthResult | undefined,
+): Promise<IUser> {
+  if (!auth) {
+    throw new Error("No auth", { cause: 401 });
+  }
+
+  try {
+    const user = await getUser(auth);
     if (user) return user;
-    return createUser(auth);
-  });
+
+    return await createUser(auth);
+  } catch (err) {
+    if (err instanceof Error && err.cause) {
+      throw err;
+    }
+    throw new Error("Unable to get or create user", { cause: 500 });
+  }
 }
