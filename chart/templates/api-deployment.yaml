@@ -68,6 +68,30 @@ spec:
             configMapKeyRef:
               name: env-config
               key: deploy.environment
+        - name: STORAGE_PROVIDER
+          value: s3
+        - name: STORAGE_S3_REGION
+          value: auto
+        - name: STORAGE_S3_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.apiAppName }}-s3-storage
+              key: storage.s3.endpoint
+        - name: STORAGE_S3_BUCKET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.apiAppName }}-s3-storage
+              key: storage.s3.bucket
+        - name: STORAGE_S3_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.apiAppName }}-s3-storage
+              key: storage.s3.accessKeyId
+        - name: STORAGE_S3_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.apiAppName }}-s3-storage
+              key: storage.s3.secretAccessKey
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           valueFrom:
             configMapKeyRef:

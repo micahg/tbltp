@@ -19,6 +19,14 @@ on:
         required: false
       OTEL_CONFIG_STRING:
         required: true
+      STORAGE_S3_ENDPOINT:
+        required: true
+      STORAGE_S3_BUCKET:
+        required: true
+      STORAGE_S3_ACCESS_KEY_ID:
+        required: true
+      STORAGE_S3_SECRET_ACCESS_KEY:
+        required: true
 jobs:
   helm:
     runs-on: ubuntu-latest
@@ -62,9 +70,17 @@ jobs:
           EXTRA_ARGS: ${{ inputs.extra-helm-args }}
           MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
           OTEL_CONFIG_STRING: ${{ secrets.OTEL_CONFIG_STRING }}
+          STORAGE_S3_ENDPOINT: ${{ secrets.STORAGE_S3_ENDPOINT }}
+          STORAGE_S3_BUCKET: ${{ secrets.STORAGE_S3_BUCKET }}
+          STORAGE_S3_ACCESS_KEY_ID: ${{ secrets.STORAGE_S3_ACCESS_KEY_ID }}
+          STORAGE_S3_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_S3_SECRET_ACCESS_KEY }}
           RELEASE_VERSION: ${{ steps.get-release.outputs.release_version }}
         run: |
           [[ ! -z "$MONGODB_CONNECTION_STRING" ]] && VALUE=`echo "$MONGODB_CONNECTION_STRING" | base64 -d` yq e -i ".mongoConnectionString=env(VALUE)" chart/values.yaml
           [[ ! -z "$OTEL_CONFIG_STRING" ]] && VALUE=`echo "$OTEL_CONFIG_STRING"` yq e -i ".otelConfig=env(VALUE)" chart/values.yaml
+          [[ ! -z "$STORAGE_S3_ENDPOINT" ]] && VALUE=`echo "$STORAGE_S3_ENDPOINT"` yq e -i ".storageS3Endpoint=env(VALUE)" chart/values.yaml
+          [[ ! -z "$STORAGE_S3_BUCKET" ]] && VALUE=`echo "$STORAGE_S3_BUCKET"` yq e -i ".storageS3Bucket=env(VALUE)" chart/values.yaml
+          [[ ! -z "$STORAGE_S3_ACCESS_KEY_ID" ]] && VALUE=`echo "$STORAGE_S3_ACCESS_KEY_ID"` yq e -i ".storageS3AccessKeyId=env(VALUE)" chart/values.yaml
+          [[ ! -z "$STORAGE_S3_SECRET_ACCESS_KEY" ]] && VALUE=`echo "$STORAGE_S3_SECRET_ACCESS_KEY"` yq e -i ".storageS3SecretAccessKey=env(VALUE)" chart/values.yaml
           grep mongoConnectionString < chart/values.yaml | wc -c
           helm upgrade --install -f chart/values.yaml $EXTRA_ARGS --set releaseVersion="$RELEASE_VERSION" --set deployEnv="$DEPLOY_ENV" ntt-infra chart

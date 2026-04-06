@@ -33,3 +33,9 @@ otelImagePath: otel/opentelemetry-collector-contrib
 otelImageVers: 0.98.0
 otelAppReplicas: 1
 otelDomains: "*.grafana.net"
+
+# S3 storage configuration (set via CI/CD values)
+storageS3Endpoint: ""
+storageS3Bucket: ""
+storageS3AccessKeyId: ""
+storageS3SecretAccessKey: ""
