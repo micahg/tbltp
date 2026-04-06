@@ -6,10 +6,13 @@ import {
   deleteAssetFile,
   getValidExtension,
   updateAssetFromFile,
-} from "../utils/localstore";
+} from "../utils/assetstore";
 import { knownMongoError } from "../utils/errors";
 import { listUserTokensByAsset } from "../utils/token";
 import { deleteUserTokenInstances } from "../utils/tokeninstance";
+import { tmpdir } from "os";
+import { realpathSync } from "fs";
+import { isAbsolute, relative, resolve } from "path";
 
 export async function listAssets(
   req: Request,
@@ -118,7 +121,20 @@ export async function setAssetData(
 ) {
   try {
     // validator doesn't handle multer bits
-    if (!("file" in req)) {
+    if (!req.file) {
+      return res.sendStatus(400);
+    }
+
+    let tmpPath: string;
+    try {
+      const tmpRoot = realpathSync(tmpdir());
+      const resolvedUploadPath = resolve(tmpRoot, req.file.path);
+      tmpPath = realpathSync(resolvedUploadPath);
+      const rel = relative(tmpRoot, tmpPath);
+      if (rel.startsWith("..") || isAbsolute(rel)) {
+        return res.sendStatus(400);
+      }
+    } catch {
       return res.sendStatus(400);
     }
 
@@ -136,7 +152,7 @@ export async function setAssetData(
     // if there is an image upload, handle it
     const dest = await updateAssetFromFile(
       user,
-      req.file,
+      tmpPath,
       asset._id.toString(),
       ext,
     );

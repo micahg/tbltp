@@ -54,9 +54,7 @@
       ],
       "outputCapture": "std",
       "cwd": "${workspaceFolder}/packages/api",
-      "env": {
-        "DISABLE_AUTH": "false",
-      }
+      "envFile": "${workspaceFolder}/packages/api/.env"
     },
   ],
   "compounds": [

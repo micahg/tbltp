@@ -1,4 +1,5 @@
 const fs = require("fs");
+const webpack = require("webpack");
 
 // forces all node modules to be treated as externals
 // borrowed from http://jlongster.com/Backend-Apps-with-Webpack--Part-I
@@ -22,6 +23,11 @@ module.exports = {
     filename: "[name].js",
     chunkFilename: "[id].chunk.js",
   },
+  optimization: {
+    splitChunks: false,
+    runtimeChunk: false,
+  },
+  plugins: [new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 })],
   resolve: {
     extensions: [".webpack.js", ".web.js", ".ts", ".js"],
   },

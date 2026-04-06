@@ -52,6 +52,7 @@
     "websocket": "^1.0.34"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1021.0",
     "@micahg/tbltp-common": "file:../common",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.55.0",
