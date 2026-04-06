@@ -9,7 +9,7 @@ uiImagePath: ghcr.io/micahg/tbltp-mui
 uiDomain: "tbltp.dev"
 apiAppName: ntt-api
 apiAppReplicas: 1
-apiImageVers: "0.30.0"
+apiImageVers: "0.31.0"
 apiImagePath: ghcr.io/micahg/tbltp-api
 apiDomain: "api.tbltp.dev"
 apiStorageClass: do-block-storage
@@ -33,7 +33,6 @@ otelImagePath: otel/opentelemetry-collector-contrib
 otelImageVers: 0.98.0
 otelAppReplicas: 1
 otelDomains: "*.grafana.net"
-
 # S3 storage configuration (set via CI/CD values)
 storageS3Endpoint: ""
 storageS3Bucket: ""
