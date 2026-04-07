@@ -125,7 +125,7 @@ export async function startUp() {
       app.emit(STARTUP_CHECK_SIG);
     } catch (err) {
       log.error(`Unable to initialize storage: ${JSON.stringify(err)}`);
-      await delay(5000);
+      await delay(5001);
     }
   }
 
