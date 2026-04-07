@@ -124,6 +124,7 @@ spec:
       port: 80
       targetPort: 3000
 ---
+{{- $s3EndpointHost := (index (splitList "/" (trimPrefix "https://" (trimPrefix "http://" .Values.storageS3Endpoint))) 0) -}}
 apiVersion: "cilium.io/v2"
 kind: CiliumNetworkPolicy
 metadata:
@@ -140,6 +141,14 @@ spec:
     - ports:
       - port: "443"
         protocol: TCP
+{{- if $s3EndpointHost }}
+  - toFQDNs:
+    - matchName: {{ $s3EndpointHost | quote }}
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+{{- end }}
   - toEndpoints:
     - matchLabels:
         "k8s:io.kubernetes.pod.namespace": kube-system
