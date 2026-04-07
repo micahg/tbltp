@@ -124,7 +124,6 @@ spec:
       port: 80
       targetPort: 3000
 ---
-{{- $s3EndpointHost := (index (splitList "/" (trimPrefix "https://" (trimPrefix "http://" .Values.storageS3Endpoint))) 0) -}}
 apiVersion: "cilium.io/v2"
 kind: CiliumNetworkPolicy
 metadata:
@@ -141,9 +140,9 @@ spec:
     - ports:
       - port: "443"
         protocol: TCP
-{{- if $s3EndpointHost }}
+{{- if .Values.storageS3Endpoint }}
   - toFQDNs:
-    - matchName: {{ $s3EndpointHost | quote }}
+    - matchName: {{ .Values.storageS3Endpoint | quote }}
     toPorts:
     - ports:
       - port: "443"

@@ -49,9 +49,11 @@ STORAGE_S3_SECRET_ACCESS_KEY=<secret-key>
 Optional:
 
 ```
-STORAGE_S3_ENDPOINT=<https://custom-endpoint>
+STORAGE_S3_ENDPOINT=<custom-endpoint>
 STORAGE_S3_FORCE_PATH_STYLE=true
 ```
+
+Note that `STORAGE_S3_ENDPOINT` does not include a protocol (`https://` is assumed).
 
 The API contract is unchanged in this phase: clients still upload to API
 endpoints, and persisted asset locations remain under `public/...`.
