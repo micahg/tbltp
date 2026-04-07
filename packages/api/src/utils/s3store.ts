@@ -26,6 +26,15 @@ export class S3StorageDriver implements StorageDriver {
   private readonly bucket: string;
   private readonly client: S3Client;
 
+  private static normalizeEndpoint(rawEndpoint?: string) {
+    const endpoint = rawEndpoint?.trim();
+    if (!endpoint) return undefined;
+    if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
+      return endpoint;
+    }
+    return `https://${endpoint}`;
+  }
+
   getMigrationContext() {
     return {
       bucket: this.bucket,
@@ -36,7 +45,9 @@ export class S3StorageDriver implements StorageDriver {
   constructor() {
     const bucket = process.env.STORAGE_S3_BUCKET?.trim();
     const region = process.env.STORAGE_S3_REGION?.trim() || "us-east-1";
-    const endpoint = process.env.STORAGE_S3_ENDPOINT?.trim();
+    const endpoint = S3StorageDriver.normalizeEndpoint(
+      process.env.STORAGE_S3_ENDPOINT,
+    );
     const accessKeyId = process.env.STORAGE_S3_ACCESS_KEY_ID?.trim();
     const secretAccessKey = process.env.STORAGE_S3_SECRET_ACCESS_KEY?.trim();
     const forcePathStyle =

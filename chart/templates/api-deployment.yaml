@@ -140,6 +140,14 @@ spec:
     - ports:
       - port: "443"
         protocol: TCP
+{{- if .Values.storageS3Endpoint }}
+  - toFQDNs:
+    - matchName: {{ .Values.storageS3Endpoint | quote }}
+    toPorts:
+    - ports:
+      - port: "443"
+        protocol: TCP
+{{- end }}
   - toEndpoints:
     - matchLabels:
         "k8s:io.kubernetes.pod.namespace": kube-system
