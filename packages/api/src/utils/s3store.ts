@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { createReadStream } from "node:fs";
-import { rm } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { Readable } from "node:stream";
 
 import {
@@ -12,6 +12,7 @@ import {
   S3Client,
   S3ServiceException,
 } from "@aws-sdk/client-s3";
+import { FetchHttpHandler } from "@smithy/fetch-http-handler";
 
 import { log } from "./logger";
 import {
@@ -25,6 +26,37 @@ import {
 export class S3StorageDriver implements StorageDriver {
   private readonly bucket: string;
   private readonly client: S3Client;
+
+  private static shouldUseFetchHandler() {
+    return (
+      process.env.STORAGE_S3_REQUEST_HANDLER?.trim().toLowerCase() === "fetch"
+    );
+  }
+
+  private static toNodeReadable(body: unknown): Readable | null {
+    if (!body) return null;
+    if (body instanceof Readable) return body;
+
+    if (
+      typeof body === "object" &&
+      body !== null &&
+      "getReader" in body &&
+      typeof body.getReader === "function"
+    ) {
+      return Readable.fromWeb(body as never);
+    }
+
+    if (
+      typeof body === "object" &&
+      body !== null &&
+      "stream" in body &&
+      typeof body.stream === "function"
+    ) {
+      return Readable.fromWeb(body.stream() as never);
+    }
+
+    return null;
+  }
 
   private static normalizeEndpoint(rawEndpoint?: string) {
     const endpoint = rawEndpoint?.trim();
@@ -67,6 +99,9 @@ export class S3StorageDriver implements StorageDriver {
       region,
       endpoint,
       forcePathStyle,
+      requestHandler: S3StorageDriver.shouldUseFetchHandler()
+        ? new FetchHttpHandler()
+        : undefined,
       credentials: {
         accessKeyId,
         secretAccessKey,
@@ -92,11 +127,15 @@ export class S3StorageDriver implements StorageDriver {
   async putFromTemp(tempPath: string, key: string, contentType?: string) {
     const cleanKey = locationToKey(key);
     try {
+      const body = S3StorageDriver.shouldUseFetchHandler()
+        ? await readFile(tempPath)
+        : createReadStream(tempPath);
+
       await this.client.send(
         new PutObjectCommand({
           Bucket: this.bucket,
           Key: cleanKey,
-          Body: createReadStream(tempPath),
+          Body: body,
           ContentType: contentType,
         }),
       );
@@ -148,7 +187,7 @@ export class S3StorageDriver implements StorageDriver {
           "application/octet-stream",
       );
 
-      const body = result.Body as Readable | undefined;
+      const body = S3StorageDriver.toNodeReadable(result.Body);
       if (!body) {
         res.sendStatus(404);
         return;

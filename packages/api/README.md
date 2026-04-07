@@ -88,6 +88,54 @@ npm -w packages/api run test:debug -- scene.test.ts
 
 Then, use the VS Code Launch Configuration: `Attach to test:debug (tbltp)`. Attach to your node process when prompted.
 
+## Integration Tests
+
+The API Jest suite now boots S3-backed storage by default for integration-style
+tests. Before running the asset suite, start localstack and make sure the S3
+test bucket is available.
+
+With compose:
+
+```sh
+docker compose up -d localstack
+```
+
+Or start localstack directly:
+
+```sh
+docker run \
+  -d --rm -it --name localstack \
+  -p 127.0.0.1:4566:4566 \
+  -e SERVICES=s3 \
+  -e AWS_DEFAULT_REGION=us-east-1 \
+  -e AWS_ACCESS_KEY_ID=test \
+  -e AWS_SECRET_ACCESS_KEY=test \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  localstack/localstack:latest
+```
+
+Jest uses these defaults unless you override them in the environment:
+
+```sh
+STORAGE_PROVIDER=s3
+STORAGE_S3_BUCKET=tbltp-test-bucket
+STORAGE_S3_REGION=us-east-1
+STORAGE_S3_ACCESS_KEY_ID=test
+STORAGE_S3_SECRET_ACCESS_KEY=test
+STORAGE_S3_ENDPOINT=http://127.0.0.1:4566
+STORAGE_S3_FORCE_PATH_STYLE=true
+STORAGE_S3_REQUEST_HANDLER=fetch
+```
+
+The test bootstrap creates the bucket if localstack is reachable. To run the
+asset suite only:
+
+```sh
+npm -w packages/api test -- asset.test.ts --runInBand
+```
+
+The response contract is unchanged: assets still persist relative locations
+under `public/...`, even when the backing store is S3.
 
 # Data Model
 
