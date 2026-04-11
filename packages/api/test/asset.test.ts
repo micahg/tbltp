@@ -9,7 +9,6 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
 
 import * as request from "supertest";
-import { stat } from "node:fs/promises";
 import { userZero } from "./assets/auth";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common/src/tokeninstance";
 
@@ -200,10 +199,8 @@ describe("asset", () => {
     it("Should 400 when id is invalid", async () => {
       let resp;
       try {
-        const { size } = await stat("test/assets/1x1.png");
         resp = await request(app)
           .put("/asset/zzzzzzzzzzzzzzzzzzzzzzzz/data")
-          .set("Content-Length", String(size))
           .attach("asset", "test/assets/1x1.png");
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
@@ -213,10 +210,8 @@ describe("asset", () => {
     it("Should 404 when id is valid but does not exist", async () => {
       let resp;
       try {
-        const { size } = await stat("test/assets/1x1.png");
         resp = await request(app)
           .put("/asset/aaaaaaaaaaaaaaaaaaaaaaaa/data")
-          .set("Content-Length", String(size))
           .attach("asset", "test/assets/1x1.png");
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
@@ -234,10 +229,8 @@ describe("asset", () => {
       expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
       expect(resp.body.name).toBe("test");
       try {
-        const { size } = await stat("test/assets/1x1.png");
         resp = await request(app)
           .put(`/asset/${resp.body._id}/data`)
-          .set("Content-Length", String(size))
           .attach("asset", "test/assets/1x1.png");
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
@@ -270,10 +263,8 @@ describe("asset", () => {
       }
       expect(resp.statusCode).toBe(201);
       try {
-        const { size } = await stat("test/assets/1x1.png");
         resp = await request(app)
           .put(`/asset/${resp.body._id}/data`)
-          .set("Content-Length", String(size))
           .attach("asset", "test/assets/1x1.png");
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
@@ -402,10 +393,8 @@ describe("asset", () => {
       expect(assets).toHaveLength(1);
 
       try {
-        const { size } = await stat("test/assets/1x1.png");
         resp = await request(app)
           .put(`/asset/${resp.body._id}/data`)
-          .set("Content-Length", String(size))
           .attach("asset", "test/assets/1x1.png");
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
@@ -444,13 +433,10 @@ describe("asset", () => {
           .send({ name: "SECOND_ASSET" });
         expect(assetTwo.statusCode).toBe(201);
 
-        const { size } = await stat("test/assets/1x1.png");
-
         expect(
           (
             await request(app)
               .put(`/asset/${assetOne.body._id}/data`)
-              .set("Content-Length", String(size))
               .attach("asset", "test/assets/1x1.png")
           ).statusCode,
         ).toBe(200);
@@ -459,7 +445,6 @@ describe("asset", () => {
           (
             await request(app)
               .put(`/asset/${assetTwo.body._id}/data`)
-              .set("Content-Length", String(size))
               .attach("asset", "test/assets/1x1.png")
           ).statusCode,
         ).toBe(200);
