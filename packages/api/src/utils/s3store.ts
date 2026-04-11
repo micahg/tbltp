@@ -25,31 +25,6 @@ export class S3StorageDriver implements StorageDriver {
   private readonly bucket: string;
   private readonly client: S3Client;
 
-  private static toNodeReadable(body: unknown): Readable | null {
-    if (!body) return null;
-    if (body instanceof Readable) return body;
-
-    if (
-      typeof body === "object" &&
-      body !== null &&
-      "getReader" in body &&
-      typeof body.getReader === "function"
-    ) {
-      return Readable.fromWeb(body as never);
-    }
-
-    if (
-      typeof body === "object" &&
-      body !== null &&
-      "stream" in body &&
-      typeof body.stream === "function"
-    ) {
-      return Readable.fromWeb(body.stream() as never);
-    }
-
-    return null;
-  }
-
   private static normalizeEndpoint(rawEndpoint?: string) {
     const endpoint = rawEndpoint?.trim();
     if (!endpoint) return undefined;
@@ -178,7 +153,12 @@ export class S3StorageDriver implements StorageDriver {
           "application/octet-stream",
       );
 
-      const body = S3StorageDriver.toNodeReadable(result.Body);
+      const { Body } = result;
+      const body = !Body
+        ? null
+        : Body instanceof Readable
+          ? Body
+          : Readable.fromWeb(Body as unknown as ReadableStream);
       if (!body) {
         res.sendStatus(404);
         return;
