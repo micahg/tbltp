@@ -1,5 +1,5 @@
 process.env["DISABLE_AUTH"] = "true";
-import { CreateBucketCommand, S3Client } from "@aws-sdk/client-s3";
+import { CreateBucketCommand, DeleteBucketCommand, DeleteObjectsCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import * as request from "supertest";
 import {
   afterAll,
@@ -24,6 +24,8 @@ let shutDown: (signal: string) => void;
 let mongodb: MongoMemoryServer;
 let mongocl: MongoClient;
 let server: Server;
+let s3: S3Client;
+let bucket: string;
 
 async function assignSceneLayer(
   sceneId: string,
@@ -60,7 +62,7 @@ jest.mock("../src/utils/auth");
 jest.setTimeout(30000);
 
 beforeAll(async () => {
-  const bucket = `tbltp-test-${Date.now()}`;
+  bucket = `tbltp-test-${Date.now()}`;
 
   process.env["STORAGE_PROVIDER"] = "s3";
   process.env["STORAGE_S3_BUCKET"] = bucket;
@@ -70,7 +72,7 @@ beforeAll(async () => {
   process.env["STORAGE_S3_ENDPOINT"] = "http://127.0.0.1:4566";
   process.env["STORAGE_S3_FORCE_PATH_STYLE"] = "true";
 
-  const s3 = new S3Client({
+  s3 = new S3Client({
     region: "us-east-1",
     endpoint: "http://127.0.0.1:4566",
     forcePathStyle: true,
@@ -100,6 +102,16 @@ afterAll(async () => {
   shutDown("SIGJEST");
   await mongocl.close();
   await mongodb.stop();
+  const listed = await s3.send(new ListObjectsV2Command({ Bucket: bucket }));
+  if (listed.Contents?.length) {
+    await s3.send(
+      new DeleteObjectsCommand({
+        Bucket: bucket,
+        Delete: { Objects: listed.Contents.map(({ Key }) => ({ Key })) },
+      }),
+    );
+  }
+  await s3.send(new DeleteBucketCommand({ Bucket: bucket }));
 });
 
 describe("scene", () => {
