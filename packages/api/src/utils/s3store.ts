@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { createReadStream } from "node:fs";
-import { readFile, rm } from "node:fs/promises";
+import { rm, stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 
 import {
@@ -12,8 +12,6 @@ import {
   S3Client,
   S3ServiceException,
 } from "@aws-sdk/client-s3";
-import { FetchHttpHandler } from "@smithy/fetch-http-handler";
-
 import { log } from "./logger";
 import {
   ensurePublicLocation,
@@ -26,12 +24,6 @@ import {
 export class S3StorageDriver implements StorageDriver {
   private readonly bucket: string;
   private readonly client: S3Client;
-
-  private static shouldUseFetchHandler() {
-    return (
-      process.env.STORAGE_S3_REQUEST_HANDLER?.trim().toLowerCase() === "fetch"
-    );
-  }
 
   private static toNodeReadable(body: unknown): Readable | null {
     if (!body) return null;
@@ -99,9 +91,10 @@ export class S3StorageDriver implements StorageDriver {
       region,
       endpoint,
       forcePathStyle,
-      requestHandler: S3StorageDriver.shouldUseFetchHandler()
-        ? new FetchHttpHandler()
-        : undefined,
+      // Disable automatic checksum computation for streaming uploads — the
+      // SDK reads the stream to compute CRC32 by default, consuming it before
+      // the body is sent.
+      requestChecksumCalculation: "WHEN_REQUIRED",
       credentials: {
         accessKeyId,
         secretAccessKey,
@@ -127,15 +120,13 @@ export class S3StorageDriver implements StorageDriver {
   async putFromTemp(tempPath: string, key: string, contentType?: string) {
     const cleanKey = locationToKey(key);
     try {
-      const body = S3StorageDriver.shouldUseFetchHandler()
-        ? await readFile(tempPath)
-        : createReadStream(tempPath);
-
+      const { size } = await stat(tempPath);
       await this.client.send(
         new PutObjectCommand({
           Bucket: this.bucket,
           Key: cleanKey,
-          Body: body,
+          Body: createReadStream(tempPath),
+          ContentLength: size,
           ContentType: contentType,
         }),
       );

@@ -70,13 +70,6 @@ async function ensureBucket() {
 }
 
 module.exports = async function globalSetup() {
-  process.env.STORAGE_PROVIDER = process.env.STORAGE_PROVIDER || "s3";
-  process.env.STORAGE_S3_BUCKET = bucket;
-  process.env.STORAGE_S3_REGION = region;
-  process.env.STORAGE_S3_ACCESS_KEY_ID = accessKeyId;
-  process.env.STORAGE_S3_SECRET_ACCESS_KEY = secretAccessKey;
-  process.env.STORAGE_S3_ENDPOINT = endpoint;
-  process.env.STORAGE_S3_FORCE_PATH_STYLE = forcePathStyle ? "true" : "false";
-
+  if ((process.env.STORAGE_PROVIDER || "").toLowerCase() !== "s3") return;
   await ensureBucket();
 };

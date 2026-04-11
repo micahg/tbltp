@@ -1,12 +1,15 @@
 process.env["DISABLE_AUTH"] = "true";
 
+import {
+  CreateBucketCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { Collection, MongoClient } from "mongodb";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
-import { app, serverPromise, shutDown, startUp } from "../src/server";
-import { deletePublicAsset } from "../src/utils/storage";
 
 import * as request from "supertest";
+import { stat } from "node:fs/promises";
 import { userZero } from "./assets/auth";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common/src/tokeninstance";
 
@@ -14,6 +17,12 @@ let mongodb: MongoMemoryServer;
 let mongocl: MongoClient;
 let assetsCollection: Collection;
 let usersCollection: Collection;
+
+// Assigned during beforeAll after dynamic import
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let app: any;
+let shutDown: (signal: string) => void;
+let deletePublicAsset: (location: string) => Promise<void>;
 
 async function cleanupStoredAssets() {
   const assets = await assetsCollection
@@ -36,39 +45,54 @@ async function cleanupTestData() {
 
 jest.mock("../src/utils/auth");
 
-beforeAll((done) => {
+jest.setTimeout(30000);
+
+beforeAll(async () => {
+  const bucket = `tbltp-test-${Date.now()}`;
+
+  process.env["STORAGE_PROVIDER"] = "s3";
+  process.env["STORAGE_S3_BUCKET"] = bucket;
+  process.env["STORAGE_S3_REGION"] = "us-east-1";
+  process.env["STORAGE_S3_ACCESS_KEY_ID"] = "test";
+  process.env["STORAGE_S3_SECRET_ACCESS_KEY"] = "test";
+  process.env["STORAGE_S3_ENDPOINT"] = "http://127.0.0.1:4566";
+  process.env["STORAGE_S3_FORCE_PATH_STYLE"] = "true";
+
+  const s3 = new S3Client({
+    region: "us-east-1",
+    endpoint: "http://127.0.0.1:4566",
+    forcePathStyle: true,
+    credentials: { accessKeyId: "test", secretAccessKey: "test" },
+  });
+  await s3.send(new CreateBucketCommand({ Bucket: bucket }));
+
   // mongo 7 needs wild tiger
-  MongoMemoryServer.create({ instance: { storageEngine: "wiredTiger" } }).then(
-    (mongo) => {
-      mongodb = mongo;
-      process.env["MONGO_URL"] = `${mongo.getUri()}ntt`;
-      mongocl = new MongoClient(process.env["MONGO_URL"]);
-      const db = mongocl.db("ntt");
-      usersCollection = db.collection("users");
-      assetsCollection = db.collection("assets");
+  mongodb = await MongoMemoryServer.create({
+    instance: { storageEngine: "wiredTiger" },
+  });
+  process.env["MONGO_URL"] = `${mongodb.getUri()}ntt`;
+  mongocl = new MongoClient(process.env["MONGO_URL"]);
+  const db = mongocl.db("ntt");
+  usersCollection = db.collection("users");
+  assetsCollection = db.collection("assets");
 
-      (getOAuthPublicKey as jest.Mock).mockReturnValue(
-        Promise.resolve("pubkey"),
-      );
+  (getOAuthPublicKey as jest.Mock).mockReturnValue(Promise.resolve("pubkey"));
 
-      startUp();
-      serverPromise
-        .then(() => {
-          //(srvr) => {
-          // server = srvr;
-          done();
-        })
-        .catch((err) => {
-          console.error(`Getting server failed: ${JSON.stringify(err)}`);
-          process.exit(1);
-        });
-    },
-  );
+  // Dynamic import AFTER env vars are set so S3StorageDriver reads the correct config
+  const serverModule = await import("../src/server");
+  const storageModule = await import("../src/utils/storage");
+  app = serverModule.app;
+  shutDown = serverModule.shutDown;
+  deletePublicAsset = storageModule.deletePublicAsset;
+
+  serverModule.startUp();
+  await serverModule.serverPromise;
 });
 
-afterAll(() => {
-  shutDown("SIGJEST"); // signal shutdown
-  mongocl.close().then(() => mongodb.stop()); // close client then db
+afterAll(async () => {
+  shutDown("SIGJEST");
+  await mongocl.close();
+  await mongodb.stop();
 });
 
 describe("asset", () => {
@@ -176,8 +200,10 @@ describe("asset", () => {
     it("Should 400 when id is invalid", async () => {
       let resp;
       try {
+        const { size } = await stat("test/assets/1x1.png");
         resp = await request(app)
           .put("/asset/zzzzzzzzzzzzzzzzzzzzzzzz/data")
+          .set("Content-Length", String(size))
           .attach("asset", "test/assets/1x1.png");
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
@@ -187,8 +213,10 @@ describe("asset", () => {
     it("Should 404 when id is valid but does not exist", async () => {
       let resp;
       try {
+        const { size } = await stat("test/assets/1x1.png");
         resp = await request(app)
           .put("/asset/aaaaaaaaaaaaaaaaaaaaaaaa/data")
+          .set("Content-Length", String(size))
           .attach("asset", "test/assets/1x1.png");
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
@@ -206,8 +234,10 @@ describe("asset", () => {
       expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
       expect(resp.body.name).toBe("test");
       try {
+        const { size } = await stat("test/assets/1x1.png");
         resp = await request(app)
           .put(`/asset/${resp.body._id}/data`)
+          .set("Content-Length", String(size))
           .attach("asset", "test/assets/1x1.png");
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
@@ -240,8 +270,10 @@ describe("asset", () => {
       }
       expect(resp.statusCode).toBe(201);
       try {
+        const { size } = await stat("test/assets/1x1.png");
         resp = await request(app)
           .put(`/asset/${resp.body._id}/data`)
+          .set("Content-Length", String(size))
           .attach("asset", "test/assets/1x1.png");
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
@@ -370,8 +402,10 @@ describe("asset", () => {
       expect(assets).toHaveLength(1);
 
       try {
+        const { size } = await stat("test/assets/1x1.png");
         resp = await request(app)
           .put(`/asset/${resp.body._id}/data`)
+          .set("Content-Length", String(size))
           .attach("asset", "test/assets/1x1.png");
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
@@ -410,10 +444,13 @@ describe("asset", () => {
           .send({ name: "SECOND_ASSET" });
         expect(assetTwo.statusCode).toBe(201);
 
+        const { size } = await stat("test/assets/1x1.png");
+
         expect(
           (
             await request(app)
               .put(`/asset/${assetOne.body._id}/data`)
+              .set("Content-Length", String(size))
               .attach("asset", "test/assets/1x1.png")
           ).statusCode,
         ).toBe(200);
@@ -422,6 +459,7 @@ describe("asset", () => {
           (
             await request(app)
               .put(`/asset/${assetTwo.body._id}/data`)
+              .set("Content-Length", String(size))
               .attach("asset", "test/assets/1x1.png")
           ).statusCode,
         ).toBe(200);

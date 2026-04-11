@@ -104,12 +104,9 @@ Or start localstack directly:
 
 ```sh
 docker run \
-  -d --rm -it --name localstack \
+  -d --name localstack \
   -p 127.0.0.1:4566:4566 \
-  -e SERVICES=s3 \
-  -e AWS_DEFAULT_REGION=us-east-1 \
-  -e AWS_ACCESS_KEY_ID=test \
-  -e AWS_SECRET_ACCESS_KEY=test \
+  -e LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN:?} \
   -v /var/run/docker.sock:/var/run/docker.sock \
   localstack/localstack:latest
 ```
@@ -124,7 +121,6 @@ STORAGE_S3_ACCESS_KEY_ID=test
 STORAGE_S3_SECRET_ACCESS_KEY=test
 STORAGE_S3_ENDPOINT=http://127.0.0.1:4566
 STORAGE_S3_FORCE_PATH_STYLE=true
-STORAGE_S3_REQUEST_HANDLER=fetch
 ```
 
 The test bootstrap creates the bucket if localstack is reachable. To run the
