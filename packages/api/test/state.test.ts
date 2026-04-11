@@ -1,11 +1,4 @@
 process.env["DISABLE_AUTH"] = "true";
-import {
-  CreateBucketCommand,
-  DeleteBucketCommand,
-  DeleteObjectsCommand,
-  ListObjectsV2Command,
-  S3Client,
-} from "@aws-sdk/client-s3";
 import * as request from "supertest";
 import {
   afterAll,
@@ -17,18 +10,13 @@ import {
   jest,
 } from "@jest/globals";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
-
-import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Collection } from "mongodb";
+import { Collection } from "mongodb";
 import { userZero } from "./assets/auth";
+import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let app: any;
-let shutDown: (signal: string) => void;
-let mongodb: MongoMemoryServer;
-let mongocl: MongoClient;
-let s3: S3Client;
-let bucket: string;
+let env: TestEnv;
 let scenesCollection: Collection;
 let usersCollection: Collection;
 
@@ -62,60 +50,15 @@ jest.mock("../src/utils/auth");
 jest.setTimeout(30000);
 
 beforeAll(async () => {
-  bucket = `tbltp-test-${Date.now()}`;
-
-  process.env["STORAGE_PROVIDER"] = "s3";
-  process.env["STORAGE_S3_BUCKET"] = bucket;
-  process.env["STORAGE_S3_REGION"] = "us-east-1";
-  process.env["STORAGE_S3_ACCESS_KEY_ID"] = "test";
-  process.env["STORAGE_S3_SECRET_ACCESS_KEY"] = "test";
-  process.env["STORAGE_S3_ENDPOINT"] = "http://127.0.0.1:4566";
-  process.env["STORAGE_S3_FORCE_PATH_STYLE"] = "true";
-
-  s3 = new S3Client({
-    region: "us-east-1",
-    endpoint: "http://127.0.0.1:4566",
-    forcePathStyle: true,
-    credentials: { accessKeyId: "test", secretAccessKey: "test" },
-  });
-  await s3.send(new CreateBucketCommand({ Bucket: bucket }));
-
-  // mongo 7 needs wild tiger
-  mongodb = await MongoMemoryServer.create({
-    instance: { storageEngine: "wiredTiger" },
-  });
-  process.env["MONGO_URL"] = `${mongodb.getUri()}ntt`;
-  mongocl = new MongoClient(process.env["MONGO_URL"]);
-  const db = mongocl.db("ntt");
-  usersCollection = db.collection("users");
-  scenesCollection = db.collection("scenes");
-
   (getOAuthPublicKey as jest.Mock).mockReturnValue(Promise.resolve("pubkey"));
 
-  // Dynamic import AFTER env vars are set so S3StorageDriver reads the correct config
-  const serverModule = await import("../src/server");
-  app = serverModule.app;
-  shutDown = serverModule.shutDown;
-
-  serverModule.startUp();
-  await serverModule.serverPromise;
+  env = await setupTestEnv();
+  app = env.app;
+  usersCollection = env.db.collection("users");
+  scenesCollection = env.db.collection("scenes");
 });
 
-afterAll(async () => {
-  shutDown("SIGJEST");
-  await mongocl.close();
-  await mongodb.stop();
-  const listed = await s3.send(new ListObjectsV2Command({ Bucket: bucket }));
-  if (listed.Contents?.length) {
-    await s3.send(
-      new DeleteObjectsCommand({
-        Bucket: bucket,
-        Delete: { Objects: listed.Contents.map(({ Key }) => ({ Key })) },
-      }),
-    );
-  }
-  await s3.send(new DeleteBucketCommand({ Bucket: bucket }));
-});
+afterAll(() => teardownTestEnv(env));
 
 describe("scene", () => {
   // start each test with the zero user as the calling user
