@@ -158,7 +158,9 @@ export class S3StorageDriver implements StorageDriver {
         ? null
         : Body instanceof Readable
           ? Body
-          : Readable.fromWeb(Body as unknown as ReadableStream);
+          : Readable.fromWeb(
+              Body as unknown as import("stream/web").ReadableStream,
+            );
       if (!body) {
         res.sendStatus(404);
         return;
