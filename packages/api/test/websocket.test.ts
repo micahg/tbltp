@@ -1,6 +1,4 @@
-// asdf
 process.env["DISABLE_AUTH"] = "true";
-import { app, serverPromise, shutDown, startUp } from "../src/server";
 import * as request from "supertest";
 import {
   afterAll,
@@ -14,14 +12,14 @@ import {
 import { Server } from "node:http";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
 
-import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient } from "mongodb";
 import { userZero, userOne } from "./assets/auth";
+import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
 const WebSocketClient = require("websocket").client;
 
-let mongodb: MongoMemoryServer;
-let mongocl: MongoClient;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let app: any;
 let server: Server;
+let env: TestEnv;
 
 async function assignSceneLayer(
   sceneId: string,
@@ -41,9 +39,7 @@ async function assignSceneLayer(
     .put(`/asset/${assetId}/data`)
     .attach("asset", "test/assets/1x1.png");
 
-  return request(app)
-    .put(`/scene/${sceneId}/${layer}`)
-    .send({ assetId });
+  return request(app).put(`/scene/${sceneId}/${layer}`).send({ assetId });
 }
 
 function wsUrl(bearer: string) {
@@ -57,36 +53,17 @@ function wsUrl(bearer: string) {
 
 jest.mock("../src/utils/auth");
 
-beforeAll((done) => {
-  // mongo 7 needs wild tiger
-  MongoMemoryServer.create({ instance: { storageEngine: "wiredTiger" } }).then(
-    (mongo) => {
-      mongodb = mongo;
-      process.env["MONGO_URL"] = `${mongo.getUri()}ntt`;
-      mongocl = new MongoClient(process.env["MONGO_URL"]);
+jest.setTimeout(30000);
 
-      (getOAuthPublicKey as jest.Mock).mockReturnValue(
-        Promise.resolve("pubkey"),
-      );
+beforeAll(async () => {
+  (getOAuthPublicKey as jest.Mock).mockReturnValue(Promise.resolve("pubkey"));
 
-      startUp();
-      serverPromise
-        .then((srvr) => {
-          server = srvr;
-          done();
-        })
-        .catch((err) => {
-          console.error(`Getting server failed: ${JSON.stringify(err)}`);
-          process.exit(1);
-        });
-    },
-  );
+  env = await setupTestEnv({ returnServer: true });
+  app = env.app;
+  server = env.server!;
 });
 
-afterAll(() => {
-  shutDown("SIGJEST"); // signal shutdown
-  mongocl.close().then(() => mongodb.stop()); // close client then db
-});
+afterAll(() => teardownTestEnv(env));
 
 describe("scene", () => {
   // start each test with the zero user as the calling user
@@ -174,9 +151,7 @@ describe("scene", () => {
           expect(msg).toHaveProperty("utf8Data");
           const data = JSON.parse(msg.utf8Data);
           expect(data.method).toBe("connection");
-          expect(data.state.background).toMatch(
-            /public.*\/assets\/.*\.png/,
-          );
+          expect(data.state.background).toMatch(/public.*\/assets\/.*\.png/);
         } finally {
           conn.close();
         }

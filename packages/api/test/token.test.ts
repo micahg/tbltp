@@ -1,57 +1,35 @@
 process.env["DISABLE_AUTH"] = "true";
 
-import { BSON, Collection, MongoClient, ObjectId } from "mongodb";
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { BSON, Collection, ObjectId } from "mongodb";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
-import { app, serverPromise, shutDown, startUp } from "../src/server";
+import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
 
 import * as request from "supertest";
 import { userOne, userZero } from "./assets/auth";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common";
 
-let mongodb: MongoMemoryServer;
-let mongocl: MongoClient;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let app: any;
+let env: TestEnv;
 let tokensCollection: Collection;
 let usersCollection: Collection;
 let assetsCollection: Collection;
 
 jest.mock("../src/utils/auth");
 
-beforeAll((done) => {
-  // mongo 7 needs wild tiger
-  MongoMemoryServer.create({ instance: { storageEngine: "wiredTiger" } }).then(
-    (mongo) => {
-      mongodb = mongo;
-      process.env["MONGO_URL"] = `${mongo.getUri()}ntt`;
-      mongocl = new MongoClient(process.env["MONGO_URL"]);
-      const db = mongocl.db("ntt");
-      usersCollection = db.collection("users");
-      tokensCollection = db.collection("tokens");
-      assetsCollection = db.collection("assets");
+jest.setTimeout(30000);
 
-      (getOAuthPublicKey as jest.Mock).mockReturnValue(
-        Promise.resolve("pubkey"),
-      );
+beforeAll(async () => {
+  (getOAuthPublicKey as jest.Mock).mockReturnValue(Promise.resolve("pubkey"));
 
-      startUp();
-      serverPromise
-        .then(() => {
-          //(srvr) => {
-          // server = srvr;
-          done();
-        })
-        .catch((err) => {
-          console.error(`Getting server failed: ${JSON.stringify(err)}`);
-          process.exit(1);
-        });
-    },
-  );
+  env = await setupTestEnv();
+  app = env.app;
+  usersCollection = env.db.collection("users");
+  tokensCollection = env.db.collection("tokens");
+  assetsCollection = env.db.collection("assets");
 });
 
-afterAll(() => {
-  shutDown("SIGJEST"); // signal shutdown
-  mongocl.close().then(() => mongodb.stop()); // close client then db
-});
+afterAll(() => teardownTestEnv(env));
 
 describe("token", () => {
   // start each test with the zero user as the calling user

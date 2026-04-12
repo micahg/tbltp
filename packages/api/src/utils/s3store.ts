@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { createReadStream } from "node:fs";
-import { rm } from "node:fs/promises";
+import { rm, stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 
 import {
@@ -12,7 +12,6 @@ import {
   S3Client,
   S3ServiceException,
 } from "@aws-sdk/client-s3";
-
 import { log } from "./logger";
 import {
   ensurePublicLocation,
@@ -67,6 +66,10 @@ export class S3StorageDriver implements StorageDriver {
       region,
       endpoint,
       forcePathStyle,
+      // Disable automatic checksum computation for streaming uploads — the
+      // SDK reads the stream to compute CRC32 by default, consuming it before
+      // the body is sent.
+      requestChecksumCalculation: "WHEN_REQUIRED",
       credentials: {
         accessKeyId,
         secretAccessKey,
@@ -92,11 +95,13 @@ export class S3StorageDriver implements StorageDriver {
   async putFromTemp(tempPath: string, key: string, contentType?: string) {
     const cleanKey = locationToKey(key);
     try {
+      const { size } = await stat(tempPath);
       await this.client.send(
         new PutObjectCommand({
           Bucket: this.bucket,
           Key: cleanKey,
           Body: createReadStream(tempPath),
+          ContentLength: size,
           ContentType: contentType,
         }),
       );
@@ -148,7 +153,14 @@ export class S3StorageDriver implements StorageDriver {
           "application/octet-stream",
       );
 
-      const body = result.Body as Readable | undefined;
+      const { Body } = result;
+      const body = !Body
+        ? null
+        : Body instanceof Readable
+          ? Body
+          : Readable.fromWeb(
+              Body as unknown as import("stream/web").ReadableStream,
+            );
       if (!body) {
         res.sendStatus(404);
         return;

@@ -1,5 +1,4 @@
 process.env["DISABLE_AUTH"] = "true";
-import { app, serverPromise, shutDown, startUp } from "../src/server";
 import * as request from "supertest";
 import {
   afterAll,
@@ -10,18 +9,17 @@ import {
   expect,
   jest,
 } from "@jest/globals";
-import { Server } from "node:http";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
-
-import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Collection } from "mongodb";
+import { Collection } from "mongodb";
 import { userZero, userOne } from "./assets/auth";
 import { fail } from "node:assert";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common";
+import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
 
-let server: Server;
-let mongodb: MongoMemoryServer;
-let mongocl: MongoClient;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let app: any;
+let shutDown: (signal: string) => void;
+let env: TestEnv;
 let scenesCollection: Collection;
 let usersCollection: Collection;
 let assetsCollection: Collection;
@@ -56,42 +54,22 @@ async function assignSceneLayer(
 
 jest.mock("../src/utils/auth");
 
-beforeAll((done) => {
-  // mongo 7 needs wild tiger
-  MongoMemoryServer.create({ instance: { storageEngine: "wiredTiger" } }).then(
-    (mongo) => {
-      mongodb = mongo;
-      process.env["MONGO_URL"] = `${mongo.getUri()}ntt`;
-      mongocl = new MongoClient(process.env["MONGO_URL"]);
-      const db = mongocl.db("ntt");
-      usersCollection = db.collection("users");
-      scenesCollection = db.collection("scenes");
-      assetsCollection = db.collection("assets");
-      tokensCollection = db.collection("tokens");
-      tokenInstancesCollection = db.collection("tokeninstances");
+jest.setTimeout(30000);
 
-      (getOAuthPublicKey as jest.Mock).mockReturnValue(
-        Promise.resolve("pubkey"),
-      );
+beforeAll(async () => {
+  (getOAuthPublicKey as jest.Mock).mockReturnValue(Promise.resolve("pubkey"));
 
-      startUp();
-      serverPromise
-        .then((srvr) => {
-          server = srvr;
-          done();
-        })
-        .catch((err) => {
-          console.error(`Getting server failed: ${JSON.stringify(err)}`);
-          process.exit(1);
-        });
-    },
-  );
+  env = await setupTestEnv();
+  app = env.app;
+  shutDown = env.shutDown;
+  usersCollection = env.db.collection("users");
+  scenesCollection = env.db.collection("scenes");
+  assetsCollection = env.db.collection("assets");
+  tokensCollection = env.db.collection("tokens");
+  tokenInstancesCollection = env.db.collection("tokeninstances");
 });
 
-afterAll(() => {
-  shutDown("SIGJEST"); // signal shutdown
-  mongocl.close().then(() => mongodb.stop()); // close client then db
-});
+afterAll(() => teardownTestEnv(env));
 
 describe("scene", () => {
   // start each test with the zero user as the calling user

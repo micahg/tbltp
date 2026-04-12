@@ -1,56 +1,59 @@
 process.env["DISABLE_AUTH"] = "true";
 
-import { Collection, MongoClient } from "mongodb";
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { Collection } from "mongodb";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
-import { app, serverPromise, shutDown, startUp } from "../src/server";
+import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
 
 import * as request from "supertest";
 import { userZero } from "./assets/auth";
-import { stat } from "node:fs/promises";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common/src/tokeninstance";
 
-let mongodb: MongoMemoryServer;
-let mongocl: MongoClient;
+let env: TestEnv;
 let assetsCollection: Collection;
 let usersCollection: Collection;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let app: any;
+let shutDown: (signal: string) => void;
+let deletePublicAsset: (location: string) => Promise<void>;
+
+async function cleanupStoredAssets() {
+  const assets = await assetsCollection
+    .find({}, { projection: { location: 1 } })
+    .toArray();
+
+  await Promise.all(
+    assets.map(async (asset) => {
+      if (!asset.location) return;
+      await deletePublicAsset(asset.location);
+    }),
+  );
+}
+
+async function cleanupTestData() {
+  await cleanupStoredAssets();
+  await assetsCollection.deleteMany({});
+  await usersCollection.deleteMany({});
+}
+
 jest.mock("../src/utils/auth");
 
-beforeAll((done) => {
-  // mongo 7 needs wild tiger
-  MongoMemoryServer.create({ instance: { storageEngine: "wiredTiger" } }).then(
-    (mongo) => {
-      mongodb = mongo;
-      process.env["MONGO_URL"] = `${mongo.getUri()}ntt`;
-      mongocl = new MongoClient(process.env["MONGO_URL"]);
-      const db = mongocl.db("ntt");
-      usersCollection = db.collection("users");
-      assetsCollection = db.collection("assets");
+jest.setTimeout(30000);
 
-      (getOAuthPublicKey as jest.Mock).mockReturnValue(
-        Promise.resolve("pubkey"),
-      );
+beforeAll(async () => {
+  (getOAuthPublicKey as jest.Mock).mockReturnValue(Promise.resolve("pubkey"));
 
-      startUp();
-      serverPromise
-        .then(() => {
-          //(srvr) => {
-          // server = srvr;
-          done();
-        })
-        .catch((err) => {
-          console.error(`Getting server failed: ${JSON.stringify(err)}`);
-          process.exit(1);
-        });
-    },
-  );
+  env = await setupTestEnv();
+  app = env.app;
+  shutDown = env.shutDown;
+  usersCollection = env.db.collection("users");
+  assetsCollection = env.db.collection("assets");
+
+  const storageModule = await import("../src/utils/storage");
+  deletePublicAsset = storageModule.deletePublicAsset;
 });
 
-afterAll(() => {
-  shutDown("SIGJEST"); // signal shutdown
-  mongocl.close().then(() => mongodb.stop()); // close client then db
-});
+afterAll(() => teardownTestEnv(env));
 
 describe("asset", () => {
   // start each test with the zero user as the calling user
@@ -58,10 +61,7 @@ describe("asset", () => {
     beforeEach(() => {
       (getFakeUser as jest.Mock).mockReturnValue(userZero);
     });
-    afterEach(async () => {
-      await assetsCollection.deleteMany({}); // Clean up the database
-      await usersCollection.deleteMany({}); // Clean up the database
-    });
+    afterEach(cleanupTestData);
     it("Should get an empty list of assets when there are none", async () => {
       const url = `/asset`;
       let resp;
@@ -138,10 +138,7 @@ describe("asset", () => {
     beforeEach(() => {
       (getFakeUser as jest.Mock).mockReturnValue(userZero);
     });
-    afterEach(async () => {
-      await assetsCollection.deleteMany({}); // Clean up the database
-      await usersCollection.deleteMany({}); // Clean up the database
-    });
+    afterEach(cleanupTestData);
     it("Should 400 when file is not provided", async () => {
       let resp;
       try {
@@ -216,10 +213,7 @@ describe("asset", () => {
     beforeEach(async () => {
       (getFakeUser as jest.Mock).mockReturnValue(userZero);
     });
-    afterEach(async () => {
-      await assetsCollection.deleteMany({}); // Clean up the database
-      await usersCollection.deleteMany({}); // Clean up the database
-    });
+    afterEach(cleanupTestData);
     it("Should get the list of assets", async () => {
       const url = `/asset`;
       let resp;
@@ -295,19 +289,13 @@ describe("asset", () => {
       expect(assets2).toHaveLength(1);
       expect(assets2[0].name).toBe("test2");
     });
-    afterEach(async () => {
-      await assetsCollection.deleteMany({}); // Clean up the database
-      await usersCollection.deleteMany({}); // Clean up the database
-    });
+    afterEach(cleanupTestData);
   });
   describe("delete", () => {
     beforeEach(async () => {
       (getFakeUser as jest.Mock).mockReturnValue(userZero);
     });
-    afterEach(async () => {
-      await assetsCollection.deleteMany({}); // Clean up the database
-      await usersCollection.deleteMany({}); // Clean up the database
-    });
+    afterEach(cleanupTestData);
     it("Should 404 when asset does not exist", async () => {
       let resp;
       try {
@@ -377,8 +365,9 @@ describe("asset", () => {
         /public\/[a-f0-9]{24}\/assets\/[a-f0-9]{24}\.png/,
       );
 
-      const filename = resp.body.location;
-      expect((await stat(filename)).isFile()).toBe(true);
+      const location = resp.body.location;
+      const uploadedObject = await request(app).get(`/${location}`);
+      expect(uploadedObject.statusCode).toBe(200);
 
       try {
         resp = await request(app).delete(`/asset/${resp.body._id}`);
@@ -386,13 +375,9 @@ describe("asset", () => {
         fail(`Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(204);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      try {
-        await stat(filename);
-        fail(`File should not exist: ${filename}`);
-      } catch {
-        // expected
-      }
+
+      const deletedObject = await request(app).get(`/${location}`);
+      expect(deletedObject.statusCode).toBe(404);
     });
     describe("linked tokens", () => {
       it("Should delete associated tokens and token instances", async () => {

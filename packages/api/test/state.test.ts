@@ -1,5 +1,4 @@
 process.env["DISABLE_AUTH"] = "true";
-import { app, serverPromise, shutDown, startUp } from "../src/server";
 import * as request from "supertest";
 import {
   afterAll,
@@ -11,13 +10,13 @@ import {
   jest,
 } from "@jest/globals";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
-
-import { MongoMemoryServer } from "mongodb-memory-server";
-import { MongoClient, Collection } from "mongodb";
+import { Collection } from "mongodb";
 import { userZero } from "./assets/auth";
+import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
 
-let mongodb: MongoMemoryServer;
-let mongocl: MongoClient;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let app: any;
+let env: TestEnv;
 let scenesCollection: Collection;
 let usersCollection: Collection;
 
@@ -48,36 +47,18 @@ async function assignSceneLayer(
 
 jest.mock("../src/utils/auth");
 
-beforeAll((done) => {
-  // mongo 7 needs wild tiger
-  MongoMemoryServer.create({ instance: { storageEngine: "wiredTiger" } }).then(
-    (mongo) => {
-      mongodb = mongo;
-      process.env["MONGO_URL"] = `${mongo.getUri()}ntt`;
-      mongocl = new MongoClient(process.env["MONGO_URL"]);
-      const db = mongocl.db("ntt");
-      usersCollection = db.collection("users");
-      scenesCollection = db.collection("scenes");
+jest.setTimeout(30000);
 
-      (getOAuthPublicKey as jest.Mock).mockReturnValue(
-        Promise.resolve("pubkey"),
-      );
+beforeAll(async () => {
+  (getOAuthPublicKey as jest.Mock).mockReturnValue(Promise.resolve("pubkey"));
 
-      startUp();
-      serverPromise
-        .then(() => done())
-        .catch((err) => {
-          console.error(`Getting server failed: ${JSON.stringify(err)}`);
-          process.exit(1);
-        });
-    },
-  );
+  env = await setupTestEnv();
+  app = env.app;
+  usersCollection = env.db.collection("users");
+  scenesCollection = env.db.collection("scenes");
 });
 
-afterAll(() => {
-  shutDown("SIGJEST"); // signal shutdown
-  mongocl.close().then(() => mongodb.stop()); // close client then db
-});
+afterAll(() => teardownTestEnv(env));
 
 describe("scene", () => {
   // start each test with the zero user as the calling user

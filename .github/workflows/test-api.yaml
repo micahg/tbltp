@@ -20,6 +20,18 @@ jobs:
       package_version: ${{ steps.get_version.outputs.package_version }}
     permissions:
       contents: read
+    services:
+      localstack:
+        image: localstack/localstack:latest
+        env:
+          LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
+        ports:
+          - 4566:4566
+        options: >-
+          --health-cmd "curl -sf http://localhost:4566/_localstack/health | grep -E '\"s3\": \"(running|available)\"' || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
     # cache download ./node_modules/.cache
       - uses: actions/checkout@v4 
