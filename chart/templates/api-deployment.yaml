@@ -140,9 +140,14 @@ spec:
     - ports:
       - port: "443"
         protocol: TCP
-{{- if .Values.storageS3Endpoint }}
+{{- $storageS3EndpointHost := .Values.storageS3Endpoint | trim | trimPrefix "https://" | trimPrefix "http://" | trimSuffix "/" }}
+{{- $storageS3Bucket := .Values.storageS3Bucket | trim }}
+{{- if $storageS3EndpointHost }}
   - toFQDNs:
-    - matchName: {{ .Values.storageS3Endpoint | quote }}
+    - matchName: {{ $storageS3EndpointHost | quote }}
+{{- if $storageS3Bucket }}
+    - matchName: {{ printf "%s.%s" $storageS3Bucket $storageS3EndpointHost | quote }}
+{{- end }}
     toPorts:
     - ports:
       - port: "443"
