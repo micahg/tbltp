@@ -16,7 +16,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./packages/api/test/localstack:/etc/localstack/init/ready.d
   api:
-    image: "ghcr.io/micahg/tbltp-api:0.33.0"
+    image: "ghcr.io/micahg/tbltp-api:0.34.0"
     ports:
       - 3000:3000
     depends_on:
