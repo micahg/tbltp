@@ -115,7 +115,7 @@ export async function startUp() {
     valueType: ValueType.INT,
   });
 
-  // TODO IS THIS NECESSARY!?!?!?
+  // TODO IS THIS NECESSARY!?!?!
   mongoUpDown.add(0);
 
   while (!storageConnectedFlag) {
