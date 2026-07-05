@@ -76,7 +76,7 @@ jobs:
           STORAGE_S3_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_S3_SECRET_ACCESS_KEY }}
           RELEASE_VERSION: ${{ steps.get-release.outputs.release_version }}
         run: |
-          [[ ! -z "$MONGODB_CONNECTION_STRING" ]] && VALUE=`echo "$MONGODB_CONNECTION_STRING" | base64 -d` yq e -i ".mongoConnectionString=env(VALUE)" chart/values.yaml
+          [[ ! -z "$MONGODB_CONNECTION_STRING" ]] && VALUE=`echo "$MONGODB_CONNECTION_STRING"` yq e -i ".mongoConnectionString=env(VALUE)" chart/values.yaml
           [[ ! -z "$OTEL_CONFIG_STRING" ]] && VALUE=`echo "$OTEL_CONFIG_STRING"` yq e -i ".otelConfig=env(VALUE)" chart/values.yaml
           [[ ! -z "$STORAGE_S3_ENDPOINT" ]] && VALUE=`echo "$STORAGE_S3_ENDPOINT"` yq e -i ".storageS3Endpoint=env(VALUE)" chart/values.yaml
           [[ ! -z "$STORAGE_S3_BUCKET" ]] && VALUE=`echo "$STORAGE_S3_BUCKET"` yq e -i ".storageS3Bucket=env(VALUE)" chart/values.yaml
