@@ -40,6 +40,8 @@ const EnvConfigGuardComponent = () => {
       domain={authConfig.domain}
       clientId={authConfig.clientId}
       authorizationParams={authConfig.authorizationParams}
+      useRefreshTokens
+      cacheLocation="localstorage"
     >
       <AuthenticationGuardComponent>
         <GameMasterComponent />
