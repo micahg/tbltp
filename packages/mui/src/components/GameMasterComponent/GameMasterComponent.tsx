@@ -163,6 +163,11 @@ const GameMasterComponent = () => {
 
   const handleEditScene = (scene?: Scene) => {
     dispatch(setEditingSceneId(scene?._id));
+    // if the scene has no conent, load the manager instead
+    if (!scene?.detailId && !scene?.overlayId && !scene?.playerId) {
+      handleManageScene();
+      return;
+    }
     setFocusedComponent(FocusedComponent.ContentEditor);
   };
 
