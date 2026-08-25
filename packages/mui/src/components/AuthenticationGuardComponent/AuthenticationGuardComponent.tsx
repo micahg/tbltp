@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import {
   clearAccessTokenGetter,
@@ -25,6 +25,13 @@ const AuthenticationGuardComponent = ({
   // we'd need to skip this query until we have the environmentConfig
   const { data: noAuthConfig } = useGetNoAuthConfigQuery();
 
+  // keep a ref to avoid double-authenticating
+  const isRedirectingRef = useRef(false);
+
+  // gate children rendering until the token getter is registered,
+  // so child effects (RTK Query) can't fire before the getter exists
+  const [getterReady, setGetterReady] = useState(false);
+
   useEffect(() => {
     let getter: (() => Promise<string | null>) | null;
     if (noAuthConfig?.noauth === true) {
@@ -32,18 +39,41 @@ const AuthenticationGuardComponent = ({
     } else if (isAuthenticated) {
       getter = () => getAccessTokenSilently();
     } else {
+      setGetterReady(false);
       return;
     }
     registerAccessTokenGetter(getter);
+    setGetterReady(true);
     return () => clearAccessTokenGetter(getter);
   }, [getAccessTokenSilently, isAuthenticated, noAuthConfig]);
+
+  useEffect(() => {
+    if (
+      noAuthConfig?.noauth === true ||
+      isLoading ||
+      isAuthenticated ||
+      isRedirectingRef.current
+    ) {
+      return;
+    }
+    isRedirectingRef.current = true;
+    loginWithRedirect();
+  }, [isAuthenticated, isLoading, loginWithRedirect, noAuthConfig?.noauth]);
+
+  // if configured to operate without auth, just render the children
+  if (noAuthConfig?.noauth === true) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return <AuthLoadingComponent />;
   }
 
   if (!isAuthenticated) {
-    loginWithRedirect();
+    return <AuthLoadingComponent />;
+  }
+
+  if (!getterReady) {
     return <AuthLoadingComponent />;
   }
 
