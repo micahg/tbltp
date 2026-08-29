@@ -6,6 +6,7 @@ import {
 } from "../api/scene";
 import { UpdateAssetDataRequest } from "../api/asset";
 import { LoadProgress } from "../utils/content";
+import { errorMessageForCreateError } from "../utils/errors";
 
 export interface SaveSceneFlowArgs {
   scene?: Scene;
@@ -35,24 +36,6 @@ export type SaveSceneFlowLifecycleOps = Pick<
   SaveSceneFlowOps,
   "onScene" | "onSuccess" | "onFailure" | "onClearCurrentScene"
 >;
-
-function inferStatus(err: unknown): number | undefined {
-  if (!err || typeof err !== "object") return;
-  const status = (err as { status?: unknown }).status;
-  if (typeof status === "number") return status;
-
-  const error = (err as { error?: unknown }).error;
-  const message = typeof error === "string" ? error : String(err);
-  const code = message.match(/status\s+(\d{3})/i)?.[1];
-  return code ? Number(code) : undefined;
-}
-
-function errorMessage(err: unknown): string {
-  const status = inferStatus(err);
-  if (status === 413) return "Asset too big";
-  if (status === 406) return "Invalid asset format";
-  return "Unkown error happened";
-}
 
 function layerAssetName(sceneId: string, layer: SceneLayer): string {
   return `scene ${sceneId} ${layer}`;
@@ -114,13 +97,13 @@ export async function saveSceneFlow(
 
   if (isCreate && (!args.description || !args.player)) {
     const err = new Error("Create flow requires description and player file");
-    ops.onFailure(errorMessage(err));
+    ops.onFailure(errorMessageForCreateError(err));
     throw err;
   }
 
   if (!isCreate && !scene?._id) {
     const err = new Error("Scene missing id");
-    ops.onFailure(errorMessage(err));
+    ops.onFailure(errorMessageForCreateError(err));
     throw err;
   }
 
@@ -179,7 +162,7 @@ export async function saveSceneFlow(
     ops.onSuccess();
     return scene;
   } catch (err) {
-    ops.onFailure(errorMessage(err));
+    ops.onFailure(errorMessageForCreateError(err));
 
     if (ops.deleteAsset && createdAssets.length > 0) {
       await Promise.all(
