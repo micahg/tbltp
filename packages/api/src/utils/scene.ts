@@ -1,4 +1,5 @@
 import { checkSchema } from "express-validator";
+import { Schema } from "mongoose";
 import { IScene, Scene } from "../models/scene";
 import { IUser } from "../models/user";
 import { Rect } from "@micahg/tbltp-common";
@@ -128,6 +129,28 @@ export function getUserScene(user: IUser, id: string) {
     _id: { $eq: id },
     user: { $eq: user._id },
   });
+}
+
+/**
+ * Check whether any of the user's scenes use the given asset as a layer.
+ *
+ * @param user The user whose scenes are checked.
+ * @param assetId The asset reference to look for.
+ * @returns A promise resolving to true if at least one scene uses the asset.
+ */
+export async function sceneUsesAsset(
+  user: IUser,
+  assetId: Schema.Types.ObjectId,
+): Promise<boolean> {
+  const scene = await Scene.exists({
+    user: { $eq: user._id },
+    $or: [
+      { overlayId: { $eq: assetId } },
+      { detailId: { $eq: assetId } },
+      { playerId: { $eq: assetId } },
+    ],
+  });
+  return !!scene;
 }
 
 function getScenesByUser(user: IUser): Promise<IScene[]> {

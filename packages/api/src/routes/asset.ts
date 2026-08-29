@@ -1,15 +1,18 @@
 import { log } from "../utils/logger";
 import { NextFunction, Request, Response } from "express";
 import { getOrCreateUser } from "../utils/user";
-import { createUserAsset, getUserAsset, listUserAssets } from "../utils/asset";
+import {
+  assetInUse,
+  createUserAsset,
+  getUserAsset,
+  listUserAssets,
+} from "../utils/asset";
 import {
   deleteAssetFile,
   getValidExtension,
   updateAssetFromFile,
 } from "../utils/assetstore";
 import { knownMongoError } from "../utils/errors";
-import { listUserTokensByAsset } from "../utils/token";
-import { deleteUserTokenInstances } from "../utils/tokeninstance";
 import { tmpdir } from "os";
 import { realpathSync } from "fs";
 import { isAbsolute, relative, resolve } from "path";
@@ -85,21 +88,10 @@ export async function deleteAsset(
     if (!asset) {
       return res.status(404).send();
     }
-    const promises: Promise<unknown>[] = [];
-
-    // get all the token susing this asset
-    const tokens = await listUserTokensByAsset(user, asset);
-    for (const token of tokens) {
-      // delete all instances of every token
-      promises.push(deleteUserTokenInstances(user, token));
-
-      // delete the token itself
-      promises.push(token.deleteOne());
+    if (await assetInUse(user, asset)) {
+      throw new Error("Asset in use", { cause: 409 });
     }
-
-    // finally delete the asset
-    promises.push(asset.deleteOne());
-    await Promise.all(promises);
+    await asset.deleteOne();
     path = asset.location;
     // don't return yet, we will delete after sending the response
     res.status(204).send();
