@@ -3,6 +3,7 @@ import { NextFunction, Request, Response } from "express";
 import { getOrCreateUser } from "../utils/user";
 import {
   assetInUse,
+  assetUsage,
   createUserAsset,
   getUserAsset,
   listUserAssets,
@@ -76,6 +77,24 @@ export async function createOrUpdateAsset(
     return next({ status: err.cause || 500 });
   }
 }
+export async function getAssetUsage(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getOrCreateUser(req.auth);
+    const asset = await getUserAsset(user, req.params.id);
+    if (!asset) {
+      return res.sendStatus(404);
+    }
+    return res.json(await assetUsage(user, asset));
+  } catch (err) {
+    log.error("Unable to get asset usage", err);
+    return next({ status: err.cause || 500 });
+  }
+}
+
 export async function deleteAsset(
   req: Request,
   res: Response,

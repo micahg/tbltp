@@ -9,9 +9,9 @@ import {
 } from "@mui/material";
 import { Asset, Token, Scene } from "@micahg/tbltp-common";
 import { useCallback, useEffect, useState } from "react";
-import { useGetTokensQuery } from "../../api/token";
 import { useGetScenesQuery } from "../../api/scene";
 import { useLazyGetSceneTokenInstancesQuery } from "../../api/scenetoken";
+import { useLazyGetAssetUsageQuery } from "../../api/asset";
 // import styles from "./DeleteWarningComponent.module.css";
 
 type EntityType = Asset | Token;
@@ -30,9 +30,9 @@ const DeleteWarningComponent = ({
   handleClose,
   handleDelete,
 }: DeleteWarningComponentProps) => {
-  const { data: tokens = [] } = useGetTokensQuery();
   const { data: scenes = [] } = useGetScenesQuery();
   const [getSceneTokenInstances] = useLazyGetSceneTokenInstancesQuery();
+  const [getAssetUsage] = useLazyGetAssetUsageQuery();
   const [affectedTokens, setAffectedTokens] = useState<Token[] | undefined>(
     undefined,
   );
@@ -43,36 +43,25 @@ const DeleteWarningComponent = ({
 
   const checkAsset = useCallback(
     async (asset: Asset) => {
-      // map the tokens
-      const tokenMap = new Map();
-      for (const token of tokens) {
-        if (token.asset === asset._id && !tokenMap.has(token._id)) {
-          tokenMap.set(token._id, token);
-        }
+      setAnalysisComplete(false);
+      if (!asset._id) {
+        setAffectedTokens(undefined);
+        setAffectedScenes(undefined);
+        setAnalysisComplete(true);
+        return;
       }
-      setAffectedTokens(
-        tokenMap.size ? Array.from(tokenMap.values()) : undefined,
-      );
-
-      // map the scenes by checking token instances for each scene
-      const sceneMap = new Map();
-      for (const scene of scenes) {
-        if (!scene._id) continue;
-        try {
-          const instances = await getSceneTokenInstances(scene._id).unwrap();
-          if (instances.some((instance) => tokenMap.has(instance.token))) {
-            sceneMap.set(scene._id, scene);
-          }
-        } catch (err) {
-          console.error(`Unable to fetch scene tokens for ${scene._id}`, err);
-        }
+      try {
+        const usage = await getAssetUsage(asset._id).unwrap();
+        setAffectedTokens(usage.tokens.length > 0 ? usage.tokens : undefined);
+        setAffectedScenes(usage.scenes.length > 0 ? usage.scenes : undefined);
+      } catch (err) {
+        console.error(`Unable to fetch asset usage for ${asset.name}`, err);
+        setAffectedTokens(undefined);
+        setAffectedScenes(undefined);
       }
-      setAffectedScenes(
-        sceneMap.size ? Array.from(sceneMap.values()) : undefined,
-      );
       setAnalysisComplete(true);
     },
-    [getSceneTokenInstances, scenes, tokens],
+    [getAssetUsage],
   );
   const checkToken = useCallback(
     async (token: Token) => {
@@ -116,7 +105,7 @@ const DeleteWarningComponent = ({
     }
   }, [checkAsset, checkToken, entity, open]);
   return (
-    <Box>
+    <Box data-testid="DeleteWarningComponent">
       <Dialog open={open}>
         <DialogTitle>Delete {deletionType}</DialogTitle>
         <DialogContent>

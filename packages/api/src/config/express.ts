@@ -17,6 +17,7 @@ import {
   ALL_ASSETS_PATH,
   ASSET_DATA_PATH,
   ASSET_PATH,
+  ASSET_USAGE_PATH,
   ALL_TOKEN_PATH,
   TOKEN_PATH,
   SCENE_TOKEN_PATH,
@@ -40,6 +41,7 @@ import {
   setAssetData,
   listAssets,
   getAssetById,
+  getAssetUsage,
   createOrUpdateAsset,
   deleteAsset,
 } from "../routes/asset";
@@ -266,6 +268,13 @@ export function create(): Express {
     assetDataValidator(),
     schemaErrorCheck,
     getAssetById,
+  );
+  app.get(
+    ASSET_USAGE_PATH,
+    jwtCheck,
+    assetDataValidator(),
+    schemaErrorCheck,
+    getAssetUsage,
   );
   app.put(
     ALL_ASSETS_PATH,

@@ -489,4 +489,106 @@ describe("asset", () => {
       });
     });
   });
+  describe("usage", () => {
+    beforeEach(() => {
+      (getFakeUser as jest.Mock).mockReturnValue(userZero);
+    });
+    afterEach(cleanupTestData);
+    it("Should 404 when getting the usage of a missing asset", async () => {
+      const url = `/asset/${"a".repeat(24)}/usage`;
+      let resp;
+      try {
+        resp = await request(app).get(url);
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(404);
+    });
+    it("Should report no usage for an unused asset", async () => {
+      const asset = await request(app)
+        .put("/asset")
+        .send({ name: "UNUSED_ASSET" });
+      expect(asset.statusCode).toBe(201);
+
+      let resp;
+      try {
+        resp = await request(app).get(`/asset/${asset.body._id}/usage`);
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body.tokens).toHaveLength(0);
+      expect(resp.body.scenes).toHaveLength(0);
+    });
+    it("Should list the tokens and scenes using the asset", async () => {
+      const sceneResponse = await request(app).get("/scene");
+      expect(sceneResponse.statusCode).toBe(200);
+
+      const asset = await request(app)
+        .put("/asset")
+        .send({ name: "USED_ASSET" });
+      expect(asset.statusCode).toBe(201);
+
+      const token = await request(app)
+        .put("/token")
+        .send({ name: "usage token", asset: asset.body._id });
+      expect(token.statusCode).toBe(201);
+
+      const instance: Omit<ScenelessTokenInstance, "angle"> = {
+        name: "usage instance",
+        token: token.body._id,
+        x: 0,
+        y: 0,
+        scale: 1,
+        visible: true,
+      };
+      const instanceResp = await request(app)
+        .put(`/scene/${sceneResponse.body[0]._id}/token`)
+        .send(instance);
+      expect(instanceResp.statusCode).toBe(201);
+
+      let resp;
+      try {
+        resp = await request(app).get(`/asset/${asset.body._id}/usage`);
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body.tokens).toHaveLength(1);
+      expect(resp.body.tokens[0]._id).toBe(token.body._id);
+      expect(resp.body.tokens[0].name).toBe("usage token");
+      expect(resp.body.scenes).toHaveLength(1);
+      expect(resp.body.scenes[0]._id).toBe(sceneResponse.body[0]._id);
+
+      // clean up the token (and its instances) so later tests start clean
+      expect(
+        (await request(app).delete(`/token/${token.body._id}`)).statusCode,
+      ).toBe(204);
+    });
+    it("Should list scenes using the asset as a layer", async () => {
+      const sceneResponse = await request(app).get("/scene");
+      expect(sceneResponse.statusCode).toBe(200);
+
+      const asset = await request(app)
+        .put("/asset")
+        .send({ name: "LAYER_ASSET" });
+      expect(asset.statusCode).toBe(201);
+
+      const layerResp = await request(app)
+        .put(`/scene/${sceneResponse.body[0]._id}/overlay`)
+        .send({ assetId: asset.body._id });
+      expect(layerResp.statusCode).toBe(200);
+
+      let resp;
+      try {
+        resp = await request(app).get(`/asset/${asset.body._id}/usage`);
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body.tokens).toHaveLength(0);
+      expect(resp.body.scenes).toHaveLength(1);
+      expect(resp.body.scenes[0]._id).toBe(sceneResponse.body[0]._id);
+    });
+  });
 });
