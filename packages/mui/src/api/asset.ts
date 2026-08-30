@@ -1,4 +1,4 @@
-import { Asset } from "@micahg/tbltp-common";
+import { Asset, AssetUsage } from "@micahg/tbltp-common";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type {
   BaseQueryFn,
@@ -122,6 +122,10 @@ export const assetApi = createApi({
     }),
     getAssetById: build.query<Asset, string>({
       query: (id) => ({ url: `/asset/${id}` }),
+      providesTags: (_result, _error, id) => [{ type: "Asset", id }],
+    }),
+    getAssetUsage: build.query<AssetUsage, string>({
+      query: (id) => ({ url: `/asset/${id}/usage` }),
       providesTags: (_result, _error, id) => [{ type: "Asset", id }],
     }),
     updateAsset: build.mutation<Asset, Asset>({
@@ -277,6 +281,8 @@ export const assetApi = createApi({
 export const {
   useGetAssetsQuery,
   useGetAssetByIdQuery,
+  useGetAssetUsageQuery,
+  useLazyGetAssetUsageQuery,
   useUpdateAssetMutation,
   useUpdateAssetDataMutation,
   useDeleteAssetMutation,

@@ -1,11 +1,12 @@
 import { Asset, AssetModel, IAsset } from "../models/asset";
 import { IScene } from "../models/scene";
+import { IToken } from "../models/token";
 import { IUser } from "../models/user";
 import { NAME_REGEX } from "../routes/scene";
 import { checkSchema } from "express-validator";
 import { knownMongoError } from "./errors";
-import { sceneUsesAsset } from "./scene";
-import { tokenUsesAsset } from "./token";
+import { sceneUsesAsset, scenesUsingAsset } from "./scene";
+import { tokenUsesAsset, tokensUsingAsset } from "./token";
 
 export function assetValidator() {
   return checkSchema({
@@ -86,6 +87,27 @@ export async function assetInUse(user: IUser, asset: IAsset): Promise<boolean> {
     tokenUsesAsset(user, asset._id),
   ]);
   return inScene || inToken;
+}
+
+/**
+ * Report where an asset is used: the tokens that reference it and the scenes
+ * that use it either directly as a layer or through placed token instances.
+ *
+ * @param user The user whose data is checked.
+ * @param asset The asset to look for.
+ * @returns A promise resolving to the tokens and scenes that use the asset.
+ */
+export async function assetUsage(
+  user: IUser,
+  asset: IAsset,
+): Promise<{ tokens: IToken[]; scenes: IScene[] }> {
+  if (!asset._id) {
+    throw new Error("Asset missing id");
+  }
+
+  const tokens = await tokensUsingAsset(user, asset._id);
+  const scenes = await scenesUsingAsset(user, asset._id, tokens);
+  return { tokens, scenes };
 }
 
 export async function setAssetLocation(asset: IAsset, location: string) {

@@ -2,6 +2,8 @@ import { checkSchema } from "express-validator";
 import { Schema } from "mongoose";
 import { IScene, Scene } from "../models/scene";
 import { IUser } from "../models/user";
+import { IToken } from "../models/token";
+import { TokenInstanceModel } from "../models/tokeninstance";
 import { Rect } from "@micahg/tbltp-common";
 import { createUserAsset, getUserAsset } from "./asset";
 
@@ -151,6 +153,60 @@ export async function sceneUsesAsset(
     ],
   });
   return !!scene;
+}
+
+/**
+ * List the user's scenes that use the given asset, either directly as a layer
+ * (overlay/detail/player) or through a placed token instance whose token
+ * references the asset.
+ *
+ * @param user The user whose scenes are checked.
+ * @param assetId The asset reference to look for.
+ * @param tokens The tokens that reference the asset, if already known -- used
+ * to find scenes with placed instances of those tokens.
+ * @returns A promise resolving to the scenes that use the asset.
+ */
+export async function scenesUsingAsset(
+  user: IUser,
+  assetId: Schema.Types.ObjectId,
+  tokens: IToken[] = [],
+): Promise<IScene[]> {
+  const sceneMap = new Map<string, IScene>();
+
+  const layerScenes = await Scene.find({
+    user: { $eq: user._id },
+    $or: [
+      { overlayId: { $eq: assetId } },
+      { detailId: { $eq: assetId } },
+      { playerId: { $eq: assetId } },
+    ],
+  });
+  for (const scene of layerScenes) {
+    sceneMap.set(scene._id.toString(), scene);
+  }
+
+  const tokenIds = tokens
+    .map((token) => token._id)
+    .filter((tokenId) => !!tokenId);
+  if (tokenIds.length > 0) {
+    const instanceScenes = await TokenInstanceModel.distinct("scene", {
+      user: { $eq: user._id },
+      token: { $in: tokenIds },
+    });
+    if (instanceScenes.length > 0) {
+      const tokenScenes = await Scene.find({
+        user: { $eq: user._id },
+        _id: { $in: instanceScenes },
+      });
+      for (const scene of tokenScenes) {
+        if (!sceneMap.has(scene._id.toString())) {
+          sceneMap.set(scene._id.toString(), scene);
+        }
+      }
+    }
+  }
+
+  return Array.from(sceneMap.values());
 }
 
 function getScenesByUser(user: IUser): Promise<IScene[]> {

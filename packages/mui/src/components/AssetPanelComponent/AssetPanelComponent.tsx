@@ -1,9 +1,11 @@
 import {
   Box,
+  CircularProgress,
   IconButton,
   LinearProgress,
   TextField,
   Tooltip,
+  Typography,
 } from "@mui/material";
 import { ChangeEvent, memo, useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -13,12 +15,14 @@ import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import InfoIcon from "@mui/icons-material/Info";
 import { Asset } from "@micahg/tbltp-common";
 import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
 import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
 import {
   useDeleteAssetMutation,
+  useLazyGetAssetUsageQuery,
   useUpdateAssetDataMutation,
   useUpdateAssetMutation,
 } from "../../api/asset";
@@ -42,6 +46,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const [updateAssetMutation] = useUpdateAssetMutation();
   const [updateAssetDataMutation] = useUpdateAssetDataMutation();
   const [deleteAssetMutation] = useDeleteAssetMutation();
+  const [getAssetUsage, usageResult] = useLazyGetAssetUsageQuery();
   const dispatch = useDispatch();
 
   const [bearer, setBearer] = useState<string | null>(null);
@@ -50,6 +55,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [expand, setExpand] = useState(false);
   const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
+  const [showUsage, setShowUsage] = useState(false);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const saveDisabled = name === asset.name && !file;
 
@@ -91,6 +97,13 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const toggleExpand = useCallback(() => {
     setExpand(!expand);
   }, [expand]);
+
+  const toggleUsage = useCallback(() => {
+    if (!showUsage && asset._id) {
+      getAssetUsage(asset._id);
+    }
+    setShowUsage(!showUsage);
+  }, [asset._id, getAssetUsage, showUsage]);
 
   const updateAsset = async () => {
     // even though this component is memoized, after updating we need to clear name and file
@@ -139,6 +152,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
 
   return (
     <Box
+      data-testid="AssetPanelComponent"
       sx={{
         display: "flex",
         flexDirection: "column",
@@ -209,6 +223,18 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
                 </IconButton>
               </span>
             </Tooltip>
+            <Tooltip title="Show where this asset is used">
+              <span>
+                <IconButton
+                  aria-label="info"
+                  color="primary"
+                  disabled={!asset._id}
+                  onClick={toggleUsage}
+                >
+                  <InfoIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
             <Tooltip title="Save your changes to the asset">
               <span>
                 <IconButton
@@ -233,6 +259,54 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
               </span>
             </Tooltip>
           </Box>
+          {showUsage && (
+            <Box
+              data-testid="AssetUsageSection"
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.5em",
+              }}
+            >
+              {usageResult.isFetching ? (
+                <CircularProgress size={24} />
+              ) : usageResult.isError ? (
+                <Typography color="error">
+                  Unable to load asset usage
+                </Typography>
+              ) : (
+                <>
+                  <Typography variant="subtitle2">Tokens</Typography>
+                  {usageResult.data && usageResult.data.tokens.length > 0 ? (
+                    usageResult.data.tokens.map((token) => (
+                      <Typography key={token._id ?? token.name} variant="body2">
+                        {token.name} ({token._id})
+                      </Typography>
+                    ))
+                  ) : (
+                    <Typography variant="body2">
+                      Not used by any tokens
+                    </Typography>
+                  )}
+                  <Typography variant="subtitle2">Scenes</Typography>
+                  {usageResult.data && usageResult.data.scenes.length > 0 ? (
+                    usageResult.data.scenes.map((scene) => (
+                      <Typography
+                        key={scene._id ?? scene.description}
+                        variant="body2"
+                      >
+                        {scene.description} ({scene._id})
+                      </Typography>
+                    ))
+                  ) : (
+                    <Typography variant="body2">
+                      Not used in any scenes
+                    </Typography>
+                  )}
+                </>
+              )}
+            </Box>
+          )}
         </Box>
       )}
     </Box>

@@ -5,7 +5,6 @@ import { MAX_HP, MIN_HP } from "@micahg/tbltp-common";
 import { IUser } from "../models/user";
 import { IToken, TokenModel } from "../models/token";
 import { knownMongoError } from "./errors";
-import { IAsset } from "../models/asset";
 
 const TOKEN_MASK = "name visible asset hitPoints";
 
@@ -83,11 +82,18 @@ export function listUserTokens(user: IUser) {
   return TokenModel.find({ user: { $eq: user._id } }).select(TOKEN_MASK);
 }
 
-export function listUserTokensByAsset(user: IUser, asset: IAsset) {
+/**
+ * List the user's tokens that reference the given asset.
+ *
+ * @param user The user whose tokens are checked.
+ * @param assetId The asset reference to look for.
+ * @returns A promise resolving to the tokens that reference the asset.
+ */
+export function tokensUsingAsset(user: IUser, assetId: Schema.Types.ObjectId) {
   return TokenModel.find({
-    user: { $eq: user },
-    asset: { $eq: asset._id },
-  });
+    user: { $eq: user._id },
+    asset: { $eq: assetId },
+  }).select(TOKEN_MASK);
 }
 
 /**
