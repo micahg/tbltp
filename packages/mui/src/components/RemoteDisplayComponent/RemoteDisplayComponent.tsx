@@ -31,8 +31,7 @@ interface InternalState {
 
 const RemoteDisplayComponent = () => {
   const navigate = useNavigate();
-  const contentCanvasRef = createRef<HTMLCanvasElement>();
-  const overlayCanvasRef = createRef<HTMLCanvasElement>();
+  const canvasRef = createRef<HTMLCanvasElement>();
   const [internalState] = useState<InternalState>({
     transferred: false,
   });
@@ -279,10 +278,9 @@ const RemoteDisplayComponent = () => {
   }, [connected, noauth, token, wsUrl, wsTimer]);
 
   useEffect(() => {
-    const bg = contentCanvasRef.current;
-    const ov = overlayCanvasRef.current;
-    if (!ov || !bg || internalState.transferred) return;
-    const wrkr = setupOffscreenCanvas(bg, ov);
+    const canvas = canvasRef.current;
+    if (!canvas || internalState.transferred) return;
+    const wrkr = setupOffscreenCanvas(canvas);
     setWorker(wrkr);
     internalState.transferred = true;
     const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
@@ -292,8 +290,8 @@ const RemoteDisplayComponent = () => {
       else console.warn(`Resize event before web worker created`);
     }, 250);
     const observer = new ResizeObserver((e) => handleResizeEvent(e));
-    observer.observe(ov);
-  }, [overlayCanvasRef, contentCanvasRef, internalState]);
+    observer.observe(canvas);
+  }, [canvasRef, internalState]);
 
   /**
    * With all necessary components and some table data, trigger drawing
@@ -325,10 +323,9 @@ const RemoteDisplayComponent = () => {
           )}
         </Box>
       </Stack>
-      <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>
+      <canvas className={styles.ContentCanvas} ref={canvasRef}>
         Sorry, your browser does not support canvas.
       </canvas>
-      <canvas className={styles.OverlayCanvas} ref={overlayCanvasRef} />
     </div>
   );
 };

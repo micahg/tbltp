@@ -2,9 +2,9 @@ let worker: Worker;
 // import contentworkerurl from "src/utils/contentworker?worker&url";
 
 export function setupOffscreenCanvas(
-  backgroundCanvas: HTMLCanvasElement,
-  overlayCanvas: HTMLCanvasElement,
+  canvas: HTMLCanvasElement,
   thingsOnTop = false,
+  displayOpacity = 1,
 ): Worker {
   // only create a web worker if we don't have one already
   if (!worker) {
@@ -15,16 +15,15 @@ export function setupOffscreenCanvas(
   }
   // if we try to transfer something twice, its an error so the caller must keep track of it
   try {
-    const background = backgroundCanvas.transferControlToOffscreen();
-    const overlay = overlayCanvas.transferControlToOffscreen();
+    const offscreen = canvas.transferControlToOffscreen();
     worker.postMessage(
       {
         cmd: "init",
         thingsOnTop: thingsOnTop,
-        background: background,
-        overlay: overlay,
+        displayOpacity: displayOpacity,
+        canvas: offscreen,
       },
-      [background, overlay],
+      [offscreen],
     );
   } catch (err) {
     /**

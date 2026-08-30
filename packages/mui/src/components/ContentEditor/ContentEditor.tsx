@@ -108,8 +108,7 @@ const ContentEditor = ({
   infoDrawer,
 }: ContentEditorProps) => {
   const dispatch = useDispatch();
-  const contentCanvasRef = createRef<HTMLCanvasElement>();
-  const overlayCanvasRef = createRef<HTMLCanvasElement>();
+  const canvasRef = createRef<HTMLCanvasElement>();
   const colorInputRef = createRef<HTMLInputElement>();
 
   const [internalState] = useState<InternalState>({
@@ -124,6 +123,9 @@ const ContentEditor = ({
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
   const [showOpacitySlider, setShowOpacitySlider] = useState<boolean>(false);
   const [opacitySliderVal, setOpacitySliderVal] = useState<number>(1);
+  // display opacity of the overlay/things layers - now applied by the worker
+  // when compositing down to the single visible canvas
+  const [displayOpacity, setDisplayOpacity] = useState<number>(0.8);
   const [imageSize, setImageSize] = useState<number[] | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [bgRev, setBgRev] = useState<number>(0);
@@ -693,7 +695,7 @@ const ContentEditor = ({
      * For now, we do want to run this every render, because we need
      * updated state for some of the callbacks (eg: rotation).
      */
-    if (!overlayCanvasRef.current) return;
+    if (!canvasRef.current) return;
     if (!imageSize || !imageSize.length) return;
     if (!scene || !worker) return;
 
@@ -778,10 +780,7 @@ const ContentEditor = ({
     });
     setCallback(sm, "opacity_display", () => {
       setShowOpacityMenu(false);
-      if (overlayCanvasRef.current) {
-        const style = getComputedStyle(overlayCanvasRef.current);
-        setOpacitySliderVal(Number(style.opacity) || 1);
-      }
+      setOpacitySliderVal(displayOpacity);
       setShowOpacitySlider(true);
     });
     setCallback(sm, "opacity_render", () => {
@@ -792,10 +791,8 @@ const ContentEditor = ({
     });
     setCallback(sm, "update_display_opacity", (args) => {
       if (typeof args[0] !== "number") return;
-      const opacity = String(args[0]);
-      if (overlayCanvasRef.current) {
-        overlayCanvasRef.current.style.opacity = opacity;
-      }
+      setDisplayOpacity(args[0]);
+      worker.postMessage({ cmd: "display_opacity", opacity: args[0] });
     });
     setCallback(sm, "update_render_opacity", (args) =>
       worker.postMessage({ cmd: "opacity", opacity: args[0] }),
@@ -882,7 +879,8 @@ const ContentEditor = ({
     updateSelected,
     updateTableState,
     scene,
-    overlayCanvasRef,
+    canvasRef,
+    displayOpacity,
     worker,
     internalState,
     selection,
@@ -1044,24 +1042,23 @@ const ContentEditor = ({
      * event listeners and handlers, we're using the internal state to exit if
      * the canvas has already been transferred.
      */
-    const bg = contentCanvasRef.current;
-    const ov = overlayCanvasRef.current;
-    if (!bg || !ov || internalState.transferred) {
+    const canvas = canvasRef.current;
+    if (!canvas || internalState.transferred) {
       return;
     }
 
-    const wrkr = setupOffscreenCanvas(bg, ov, true);
+    const wrkr = setupOffscreenCanvas(canvas, true, displayOpacity);
     setWorker(wrkr);
     internalState.transferred = true;
-    ov.oncontextmenu = (e) => {
+    canvas.oncontextmenu = (e) => {
       e.preventDefault();
       e.stopPropagation();
     };
 
-    ov.addEventListener("mousedown", (e) => sm.transition("down", e));
-    ov.addEventListener("mouseup", (e) => sm.transition("up", e));
-    ov.addEventListener("mousemove", (e) => sm.transition("move", e));
-    ov.addEventListener("wheel", (e) => sm.transition("wheel", e));
+    canvas.addEventListener("mousedown", (e) => sm.transition("down", e));
+    canvas.addEventListener("mouseup", (e) => sm.transition("up", e));
+    canvas.addEventListener("mousemove", (e) => sm.transition("move", e));
+    canvas.addEventListener("wheel", (e) => sm.transition("wheel", e));
 
     // watch for canvas size changes and report to worker
     const handleResizeEvent = debounce(async (e: ResizeObserverEntry[]) => {
@@ -1070,7 +1067,7 @@ const ContentEditor = ({
       wrkr.postMessage({ cmd: "resize", width: w, height: h });
     }, 250);
     const observer = new ResizeObserver((e) => handleResizeEvent(e));
-    observer.observe(ov);
+    observer.observe(canvas);
 
     /**
      * Good form would have us cleanup our worker and event listeners -- but here is the
@@ -1080,7 +1077,7 @@ const ContentEditor = ({
      * pass these canvasses over once, and make sure we don't setup their event listeners
      * more than once.
      */
-  }, [contentCanvasRef, handleWorkerMessage, internalState, overlayCanvasRef]);
+  }, [canvasRef, handleWorkerMessage, internalState, displayOpacity]);
 
   // make sure we end the push state when we get a successful push time update
   useEffect(() => sm.transition("done"), [pushTime]);
@@ -1114,10 +1111,9 @@ const ContentEditor = ({
       {!sceneUpdated && <EditorIntroductionComponent />}
       {scene && (
         <Box>
-          <canvas className={styles.ContentCanvas} ref={contentCanvasRef}>
+          <canvas className={styles.ContentCanvas} ref={canvasRef}>
             Sorry, your browser does not support canvas.
           </canvas>
-          <canvas className={styles.OverlayCanvas} ref={overlayCanvasRef} />
           <input
             ref={colorInputRef}
             type="color"

@@ -33,8 +33,7 @@ import { Rect, TableState } from "@micahg/tbltp-common";
 let backgroundImage: ImageBitmap;
 let backgroundImageRev: number;
 let backgroundImageSrc: string;
-let backgroundCtx: OffscreenCanvasRenderingContext2D;
-let overlayCtx: OffscreenCanvasRenderingContext2D;
+let visibleCtx: OffscreenCanvasRenderingContext2D;
 let fullCtx: OffscreenCanvasRenderingContext2D;
 let thingCtx: OffscreenCanvasRenderingContext2D;
 let imageCanvasses: CanvasImageSource[] = [];
@@ -72,6 +71,9 @@ let lastAnimY = -1;
 const MIN_BRUSH = 10;
 const GUIDE_FILL = "rgba(255, 255, 255, 0.25)";
 let opacity = "1";
+// display opacity of the overlay/things layers - replaces the CSS opacity on
+// the old stacked overlay canvas
+let displayOpacity = 1;
 let red = "255";
 let green = "0";
 let blue = "0";
@@ -96,30 +98,21 @@ function trimPanning() {
     _img.y = backgroundImage.height - _img.height;
 }
 
-function renderImage(
-  ctx: OffscreenCanvasRenderingContext2D,
-  img: CanvasImageSource[],
-  angle: number,
-) {
-  // if (debug) {
-  // console.log(`*****`);
-  // console.log(`translate ${ctx.canvas.width / 2}, ${ctx.canvas.height / 2}`);
-  // console.log(
-  //   `draw ${_img.x}, ${_img.y}, ${_img.width}, ${_img.height}, ${-_vp.width / 2}, ${
-  //     -_vp.height / 2
-  //   }, ${_vp.width}, ${_vp.height}`,
-  // );
-  // console.log(`*****`);
-  // }
-
+/**
+ * Composite the background image and all offscreen layers down to the single
+ * visible canvas, cropped to the viewport and rotated to the display angle.
+ */
+function renderDisplay() {
+  const ctx = visibleCtx;
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  if (!backgroundImage && imageCanvasses.length === 0) return;
   ctx.save();
   ctx.translate(ctx.canvas.width / 2, ctx.canvas.height / 2);
-  ctx.rotate((angle * Math.PI) / 180);
-  img.forEach((src) => {
+  ctx.rotate((_angle * Math.PI) / 180);
+  // we ctx.rotate above, so REMEMBER: the actual source images SHOULD NOT BE ROTATED
+  const draw = (src: CanvasImageSource) =>
     ctx.drawImage(
       src,
-      // we ctx.rotate above, so REMEMBER: the actual source image SHOULD NOT BE ROTATED
       _img.x,
       _img.y,
       _img.width,
@@ -131,7 +124,9 @@ function renderImage(
       _vp.width,
       _vp.height,
     );
-  });
+  if (backgroundImage) draw(backgroundImage);
+  ctx.globalAlpha = displayOpacity;
+  imageCanvasses.forEach(draw);
   ctx.restore();
 }
 
@@ -170,18 +165,15 @@ function adjustZoomFromViewport() {
 }
 
 /**
- * Resize all visible canvasses.
+ * Resize the visible canvas.
  *
- * @param angle
  * @param width
  * @param height
  * @returns
  */
-function sizeVisibleCanvasses(width: number, height: number) {
-  backgroundCtx.canvas.width = width;
-  backgroundCtx.canvas.height = height;
-  overlayCtx.canvas.width = width;
-  overlayCtx.canvas.height = height;
+function sizeVisibleCanvas(width: number, height: number) {
+  visibleCtx.canvas.width = width;
+  visibleCtx.canvas.height = height;
 }
 
 function loadAllImages(update: TableUpdate) {
@@ -218,18 +210,11 @@ function loadAllImages(update: TableUpdate) {
   });
 }
 
-function renderVisibleCanvasses() {
-  renderImage(backgroundCtx, [backgroundImage], _angle);
-  renderImage(overlayCtx, imageCanvasses, _angle);
-}
-
-function renderAllCanvasses(background: ImageBitmap | null) {
-  if (background) {
-    sizeVisibleCanvasses(_canvas.width, _canvas.height);
-    renderImage(backgroundCtx, [background], _angle);
-    renderThings(thingCtx);
-    renderImage(overlayCtx, imageCanvasses, _angle);
-  }
+function renderAllCanvasses() {
+  if (!backgroundImage) return;
+  sizeVisibleCanvas(_canvas.width, _canvas.height);
+  renderThings(thingCtx);
+  renderDisplay();
 }
 
 /**
@@ -303,7 +288,7 @@ function eraseBrush(x: number, y: number, radius: number) {
   fullCtx.drawImage(img, 0, 0);
   fullCtx.restore();
   img.close();
-  renderImage(overlayCtx, imageCanvasses, _angle);
+  renderDisplay();
 }
 
 function renderToken(ctx: DrawContext, place = false) {
@@ -316,11 +301,11 @@ function renderToken(ctx: DrawContext, place = false) {
 
 function renderBrush(x: number, y: number, radius: number, full = true) {
   if (!full) {
-    overlayCtx.save();
-    overlayCtx.beginPath();
-    overlayCtx.arc(x, y, radius, 0, 2 * Math.PI);
-    overlayCtx.fill();
-    overlayCtx.restore();
+    visibleCtx.save();
+    visibleCtx.beginPath();
+    visibleCtx.arc(x, y, radius, 0, 2 * Math.PI);
+    visibleCtx.fill();
+    visibleCtx.restore();
     return;
   }
   // un-rotate, scale and translate
@@ -331,7 +316,7 @@ function renderBrush(x: number, y: number, radius: number, full = true) {
   fullCtx.fill();
   fullCtx.restore();
   // dump to visible canvas
-  renderImage(overlayCtx, imageCanvasses, _angle);
+  renderDisplay();
 }
 
 function renderBox(
@@ -343,10 +328,10 @@ function renderBox(
   full = true,
 ) {
   if (!full) {
-    overlayCtx.save();
-    overlayCtx.fillStyle = style;
-    overlayCtx.fillRect(x1, y1, x2 - x1, y2 - y1);
-    overlayCtx.restore();
+    visibleCtx.save();
+    visibleCtx.fillStyle = style;
+    visibleCtx.fillRect(x1, y1, x2 - x1, y2 - y1);
+    visibleCtx.restore();
     return;
   }
 
@@ -355,7 +340,7 @@ function renderBox(
   fullCtx.fillStyle = style;
   fullCtx.fillRect(x, y, w, h);
   fullCtx.restore();
-  renderImage(overlayCtx, imageCanvasses, _angle);
+  renderDisplay();
 }
 
 function renderThings(ctx: OffscreenCanvasRenderingContext2D) {
@@ -398,14 +383,14 @@ function thingAt<T = Drawables>(
 }
 
 function clearBox(x1: number, y1: number, x2: number, y2: number) {
-  overlayCtx.clearRect(x1, y1, x2 - x1, y2 - y1);
   const [x, y, w, h] = unrotateBox(x1, y1, x2, y2);
   fullCtx.clearRect(x, y, w, h);
+  renderDisplay();
 }
 
 function clearCanvas() {
-  overlayCtx.clearRect(0, 0, overlayCtx.canvas.width, overlayCtx.canvas.height);
   fullCtx.clearRect(0, 0, fullCtx.canvas.width, fullCtx.canvas.height);
+  renderDisplay();
 }
 
 function fullRerender(zoomOut = false) {
@@ -423,7 +408,7 @@ function fullRerender(zoomOut = false) {
   }
   adjustZoomFromViewport();
   calculateViewport();
-  renderAllCanvasses(backgroundImage);
+  renderAllCanvasses();
 }
 
 /**
@@ -443,7 +428,7 @@ const storeOverlay = () =>
 
 function animateBrush() {
   if (!recording) return;
-  renderImage(overlayCtx, imageCanvasses, _angle);
+  renderDisplay();
   renderBrush(startX, startY, brush, false);
   requestAnimationFrame(() => animateBrush());
 }
@@ -451,8 +436,8 @@ function animateBrush() {
 function animateToken() {
   if (!recording) return;
   if (!_token) return;
-  renderImage(overlayCtx, imageCanvasses, _angle);
-  renderToken(overlayCtx, true);
+  renderDisplay();
+  renderToken(visibleCtx, true);
   requestAnimationFrame(() => animateToken());
 }
 
@@ -462,14 +447,14 @@ function animateAllTokens() {
   renderThings(thingCtx);
 
   // rerender to the overlay (remember image canvasses includes the things canvas)
-  renderImage(overlayCtx, imageCanvasses, _angle);
+  renderDisplay();
   requestAnimationFrame(() => animateAllTokens());
 }
 
 function animateSelection() {
   if (!recording) return;
   if (selecting) {
-    renderImage(overlayCtx, imageCanvasses, _angle);
+    renderDisplay();
     renderBox(startX, startY, endX, endY, GUIDE_FILL, false);
   } else if (panning) {
     // calculate the (rotated) movement since the last frame and update for the next
@@ -483,7 +468,7 @@ function animateSelection() {
     // ensure panning offsets are within image boundaries
     trimPanning();
 
-    renderVisibleCanvasses();
+    renderDisplay();
   }
   requestAnimationFrame(animateSelection);
 }
@@ -506,7 +491,7 @@ function adjustZoom(zoom: number, x: number, y: number) {
   _img.x = q.x - _zoom * newX;
   _img.y = q.y - _zoom * newY;
   trimPanning();
-  renderAllCanvasses(backgroundImage);
+  renderAllCanvasses();
 }
 
 async function updateThings(
@@ -540,7 +525,7 @@ async function updateThings(
   // render if we're asked (avoided in cases of subsequent full renders)
   if (!render) return;
   renderThings(thingCtx);
-  renderImage(overlayCtx, imageCanvasses, _angle);
+  renderDisplay();
 }
 
 async function update(values: TableUpdate) {
@@ -592,36 +577,27 @@ self.onmessage = async (evt) => {
   console.log(evt.data.cmd);
   switch (evt.data.cmd) {
     case "init": {
-      // ensure the background canvas is valid
-      const bgCanvas = evt.data.background;
-      if (!bgCanvas) {
+      // ensure the visible canvas is valid
+      const offCanvas = evt.data.canvas;
+      if (!offCanvas) {
         console.error(
-          `ERROR: PORK CHOP SANDWHICHES - no background canvas in contentworker init`,
+          `ERROR: PORK CHOP SANDWICHES - no canvas in contentworker init`,
         );
         return;
       }
 
-      const ovCanvas = evt.data.overlay;
-      if (!ovCanvas) {
-        console.error(
-          `ERROR: PORK CHOP SANDWICHES - no overlay canvas in contentworker init`,
-        );
-        return;
-      }
+      _canvas.width = offCanvas.width;
+      _canvas.height = offCanvas.height;
 
-      _canvas.width = bgCanvas.width;
-      _canvas.height = bgCanvas.height;
-
-      backgroundCtx = bgCanvas.getContext("2d", {
+      visibleCtx = offCanvas.getContext("2d", {
         alpha: false,
-      }) as OffscreenCanvasRenderingContext2D;
-
-      overlayCtx = evt.data.overlay.getContext("2d", {
-        alpha: true,
       }) as OffscreenCanvasRenderingContext2D;
 
       // indicate if things should be rendered on top of the overlay
       _things_on_top_of_overlay = !!evt.data.thingsOnTop;
+
+      // set the initial display opacity of the overlay/things layers
+      displayOpacity = evt.data.displayOpacity ?? displayOpacity;
       break;
     }
     case "update": {
@@ -685,7 +661,7 @@ self.onmessage = async (evt) => {
         // here we don't draw BUT if you look at animateBrush, you'll see that we'll just repaint the
         // overlay and then render the translucent brush
         if (!recording) {
-          overlayCtx.fillStyle = GUIDE_FILL;
+          visibleCtx.fillStyle = GUIDE_FILL;
           recording = true;
           requestAnimationFrame(animateBrush);
         }
@@ -706,7 +682,7 @@ self.onmessage = async (evt) => {
         // here we don't draw BUT if you look at animateBrush, you'll see that we'll just repaint the
         // overlay and then render the translucent brush
         if (!recording) {
-          overlayCtx.fillStyle = GUIDE_FILL;
+          visibleCtx.fillStyle = GUIDE_FILL;
           recording = true;
           requestAnimationFrame(animateBrush);
         }
@@ -716,7 +692,7 @@ self.onmessage = async (evt) => {
         // frames
         if (recording) {
           recording = false;
-          overlayCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+          visibleCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
           fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
         }
         renderBrush(evt.data.x, evt.data.y, brush);
@@ -827,13 +803,13 @@ self.onmessage = async (evt) => {
       endX = -1;
       endY = -1;
       // restore the clean (no opaque brush indicator/token indicator where the mouse was) overlay
-      renderImage(overlayCtx, imageCanvasses, _angle);
+      renderDisplay();
       break;
     }
     case "end_erase": {
       recording = false;
       panning = false;
-      renderImage(overlayCtx, imageCanvasses, _angle);
+      renderDisplay();
       storeOverlay();
       break;
     }
@@ -842,7 +818,7 @@ self.onmessage = async (evt) => {
       panning = false;
       brush = MIN_BRUSH;
       storeOverlay();
-      renderImage(overlayCtx, imageCanvasses, _angle);
+      renderDisplay();
       break;
     }
     case "end_select": {
@@ -929,6 +905,11 @@ self.onmessage = async (evt) => {
     }
     case "opacity": {
       opacity = evt.data.opacity;
+      break;
+    }
+    case "display_opacity": {
+      displayOpacity = evt.data.opacity;
+      renderDisplay();
       break;
     }
     case "colour": {
