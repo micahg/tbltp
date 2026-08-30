@@ -6,7 +6,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { ChangeEvent, memo, useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { AppReducerState } from "../../reducers/AppReducer";
 import styles from "./AssetPanelComponent.module.css";
 import ImageSearchIcon from "@mui/icons-material/ImageSearch";
@@ -22,6 +22,11 @@ import {
   useUpdateAssetDataMutation,
   useUpdateAssetMutation,
 } from "../../api/asset";
+import { setError } from "../../slices/editorUiSlice";
+import {
+  errorMessageForDeleteError,
+  errorMessageForUpdateError,
+} from "../../utils/errors";
 
 interface AssetPanelComponentProps {
   asset: Asset;
@@ -37,6 +42,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const [updateAssetMutation] = useUpdateAssetMutation();
   const [updateAssetDataMutation] = useUpdateAssetDataMutation();
   const [deleteAssetMutation] = useDeleteAssetMutation();
+  const dispatch = useDispatch();
 
   const [bearer, setBearer] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -103,14 +109,32 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
         }).unwrap();
         setFile(null);
       }
+      dispatch(setError(undefined));
+    } catch (err) {
+      console.log(`Unable to update asset: ${JSON.stringify(err)}`);
+      dispatch(
+        setError({ msg: errorMessageForUpdateError(err), success: false }),
+      );
     } finally {
       setProgress(0);
     }
   };
 
-  const deleteAsset = () => {
+  const deleteAsset = async () => {
     setDeleteWarning(false);
-    deleteAssetMutation(asset);
+    if (!asset._id) return;
+    try {
+      await deleteAssetMutation(asset).unwrap();
+      dispatch(setError(undefined));
+    } catch (err) {
+      console.log(`Unable to delete asset: ${JSON.stringify(err)}`);
+      dispatch(
+        setError({
+          msg: errorMessageForDeleteError(err),
+          success: false,
+        }),
+      );
+    }
   };
 
   return (

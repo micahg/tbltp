@@ -4,6 +4,8 @@ import { IUser } from "../models/user";
 import { NAME_REGEX } from "../routes/scene";
 import { checkSchema } from "express-validator";
 import { knownMongoError } from "./errors";
+import { sceneUsesAsset } from "./scene";
+import { tokenUsesAsset } from "./token";
 
 export function assetValidator() {
   return checkSchema({
@@ -72,6 +74,18 @@ export async function createUserAsset(user: IUser, asset: Asset) {
 
 export function getUserAsset(user: IUser, id: string) {
   return AssetModel.findOne({ _id: { $eq: id }, user: { $eq: user._id } });
+}
+
+export async function assetInUse(user: IUser, asset: IAsset): Promise<boolean> {
+  if (!asset._id) {
+    throw new Error("Asset missing id");
+  }
+
+  const [inScene, inToken] = await Promise.all([
+    sceneUsesAsset(user, asset._id),
+    tokenUsesAsset(user, asset._id),
+  ]);
+  return inScene || inToken;
 }
 
 export async function setAssetLocation(asset: IAsset, location: string) {

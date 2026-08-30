@@ -1,4 +1,5 @@
 import { checkSchema } from "express-validator";
+import { Schema } from "mongoose";
 import { NAME_REGEX } from "../routes/scene";
 import { MAX_HP, MIN_HP } from "@micahg/tbltp-common";
 import { IUser } from "../models/user";
@@ -87,6 +88,24 @@ export function listUserTokensByAsset(user: IUser, asset: IAsset) {
     user: { $eq: user },
     asset: { $eq: asset._id },
   });
+}
+
+/**
+ * Check whether any of the user's tokens reference the given asset.
+ *
+ * @param user The user whose tokens are checked.
+ * @param assetId The asset reference to look for.
+ * @returns A promise resolving to true if at least one token uses the asset.
+ */
+export async function tokenUsesAsset(
+  user: IUser,
+  assetId: Schema.Types.ObjectId,
+): Promise<boolean> {
+  const token = await TokenModel.exists({
+    user: { $eq: user._id },
+    asset: { $eq: assetId },
+  });
+  return !!token;
 }
 
 export async function createUserToken(user: IUser, token: IToken) {

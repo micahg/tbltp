@@ -380,7 +380,7 @@ describe("asset", () => {
       expect(deletedObject.statusCode).toBe(404);
     });
     describe("linked tokens", () => {
-      it("Should delete associated tokens and token instances", async () => {
+      it("Should refuse to delete an asset used by a token", async () => {
         const sceneResponse = await request(app).get("/scene");
         expect(sceneResponse.statusCode).toBe(200);
 
@@ -389,36 +389,17 @@ describe("asset", () => {
           .send({ name: "FIRST_ASSET" });
         expect(assetOne.statusCode).toBe(201);
 
-        const assetTwo = await request(app)
-          .put("/asset")
-          .send({ name: "SECOND_ASSET" });
-        expect(assetTwo.statusCode).toBe(201);
+        const upload = await request(app)
+          .put(`/asset/${assetOne.body._id}/data`)
+          .attach("asset", "test/assets/1x1.png");
+        expect(upload.statusCode).toBe(200);
+        const location = upload.body.location;
 
-        expect(
-          (
-            await request(app)
-              .put(`/asset/${assetOne.body._id}/data`)
-              .attach("asset", "test/assets/1x1.png")
-          ).statusCode,
-        ).toBe(200);
-
-        expect(
-          (
-            await request(app)
-              .put(`/asset/${assetTwo.body._id}/data`)
-              .attach("asset", "test/assets/1x1.png")
-          ).statusCode,
-        ).toBe(200);
-
-        // create tokens
+        // create token linked to the asset
         const first = await request(app)
           .put("/token")
           .send({ name: "first", asset: assetOne.body._id });
-        const second = await request(app)
-          .put("/token")
-          .send({ name: "second" });
         expect(first.statusCode).toBe(201);
-        expect(second.statusCode).toBe(201);
 
         const firstInstance: Omit<ScenelessTokenInstance, "angle"> = {
           name: "first instance",
@@ -429,49 +410,82 @@ describe("asset", () => {
           visible: true,
         };
 
-        const secondInstance: Omit<ScenelessTokenInstance, "angle"> = {
-          name: "second instance",
-          token: second.body._id,
-          x: 0,
-          y: 0,
-          scale: 1,
-          visible: true,
-        };
-
-        // create scene tokens
+        // create scene token instance
         const firstResp = await request(app)
           .put(`/scene/${sceneResponse.body[0]._id}/token`)
           .send(firstInstance);
         expect(firstResp.statusCode).toBe(201);
-        const secondResp = await request(app)
-          .put(`/scene/${sceneResponse.body[0]._id}/token`)
-          .send(secondInstance);
-        expect(secondResp.statusCode).toBe(201);
 
-        let tokens = await request(app).get(`/token`);
+        // delete the linked asset -- should be refused
+        expect(
+          (await request(app).delete(`/asset/${assetOne.body._id}`)).statusCode,
+        ).toBe(409);
+
+        // the token should still exist
+        const tokens = await request(app).get(`/token`);
         expect(tokens.statusCode).toBe(200);
-        expect(tokens.body.length).toBe(2);
+        expect(tokens.body.length).toBe(1);
 
+        // the token instance should still exist
         const url = `/scene/${sceneResponse.body[0]._id}/token`;
-        let resp = await request(app).get(url);
+        const resp = await request(app).get(url);
         expect(resp.statusCode).toBe(200);
-        expect(resp.body.length).toBe(2);
+        expect(resp.body.length).toBe(1);
         expect(resp.body[0].token).toBe(first.body._id);
-        expect(resp.body[1].token).toBe(second.body._id);
-        // delete the first asset
+
+        // the asset document should still exist
+        const asset = await request(app).get(`/asset/${assetOne.body._id}`);
+        expect(asset.statusCode).toBe(200);
+
+        // the asset file should still exist
+        const storedObject = await request(app).get(`/${location}`);
+        expect(storedObject.statusCode).toBe(200);
+
+        // removing the reference allows deletion
+        expect(
+          (await request(app).delete(`/token/${first.body._id}`)).statusCode,
+        ).toBe(204);
         expect(
           (await request(app).delete(`/asset/${assetOne.body._id}`)).statusCode,
         ).toBe(204);
 
-        tokens = await request(app).get(`/token`);
-        expect(tokens.statusCode).toBe(200);
-        expect(tokens.body.length).toBe(1);
+        const deletedObject = await request(app).get(`/${location}`);
+        expect(deletedObject.statusCode).toBe(404);
+      });
+    });
+    describe("scene layers", () => {
+      it("Should refuse to delete an asset used in a scene layer", async () => {
+        const sceneResponse = await request(app).get("/scene");
+        expect(sceneResponse.statusCode).toBe(200);
 
-        // there should only be one token instance based on the second token
-        resp = await request(app).get(url);
-        expect(resp.statusCode).toBe(200);
-        expect(resp.body.length).toBe(1);
-        expect(resp.body[0].token).toBe(second.body._id);
+        const asset = await request(app)
+          .put("/asset")
+          .send({ name: "SCENE_ASSET" });
+        expect(asset.statusCode).toBe(201);
+
+        const upload = await request(app)
+          .put(`/asset/${asset.body._id}/data`)
+          .attach("asset", "test/assets/1x1.png");
+        expect(upload.statusCode).toBe(200);
+        const location = upload.body.location;
+
+        const layerResp = await request(app)
+          .put(`/scene/${sceneResponse.body[0]._id}/player`)
+          .send({ assetId: asset.body._id });
+        expect(layerResp.statusCode).toBe(200);
+
+        // delete the referenced asset -- should be refused
+        expect(
+          (await request(app).delete(`/asset/${asset.body._id}`)).statusCode,
+        ).toBe(409);
+
+        // the asset document should still exist
+        const fetched = await request(app).get(`/asset/${asset.body._id}`);
+        expect(fetched.statusCode).toBe(200);
+
+        // the asset file should still exist
+        const storedObject = await request(app).get(`/${location}`);
+        expect(storedObject.statusCode).toBe(200);
       });
     });
   });

@@ -1,6 +1,7 @@
 import { Asset, Token } from "@micahg/tbltp-common";
 import { UpdateAssetDataRequest } from "../api/asset";
 import { LoadProgress } from "../utils/content";
+import { errorMessageForCreateError } from "../utils/errors";
 
 export interface CreateAssetAndTokenFlowArgs {
   asset: Asset;
@@ -18,25 +19,6 @@ export interface CreateAssetAndTokenFlowOps {
   onFailure: (message: string) => void;
 }
 
-function inferStatus(err: unknown): number | undefined {
-  if (!err || typeof err !== "object") return;
-  const status = (err as { status?: unknown }).status;
-  if (typeof status === "number") return status;
-
-  const error = (err as { error?: unknown }).error;
-  const message = typeof error === "string" ? error : String(err);
-  const code = message.match(/status\s+(\d{3})/i)?.[1];
-  return code ? Number(code) : undefined;
-}
-
-function errorMessage(err: unknown): string {
-  const status = inferStatus(err);
-  if (status === 413) return "Asset too big";
-  if (status === 406) return "Invalid asset format";
-  if (status === 409) return "token name already exists";
-  return "Unkown error happened";
-}
-
 export async function createAssetAndTokenFlow(
   args: CreateAssetAndTokenFlowArgs,
   ops: CreateAssetAndTokenFlowOps,
@@ -45,7 +27,7 @@ export async function createAssetAndTokenFlow(
 
   if (!args.file) {
     const err = new Error("Create token flow requires an asset file");
-    ops.onFailure(errorMessage(err));
+    ops.onFailure(errorMessageForCreateError(err));
     throw err;
   }
 
@@ -73,7 +55,7 @@ export async function createAssetAndTokenFlow(
       }
     }
 
-    ops.onFailure(errorMessage(err));
+    ops.onFailure(errorMessageForCreateError(err));
     throw err;
   }
 }
