@@ -72,6 +72,8 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   const [creating, setCreating] = useState<boolean>(false);
   const [loadingPlayer, setLoadingPlayer] = useState<boolean>(false);
   const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
+  const [playerImageSettled, setPlayerImageSettled] = useState<boolean>(false);
+  const [detailImageSettled, setDetailImageSettled] = useState<boolean>(false);
   const [nameError, setNameError] = useState<string>();
   const [playerProgress, setPlayerProgress] = useState<number>(0);
   const [detailProgress, setDetailProgress] = useState<number>(0);
@@ -88,14 +90,19 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   const [updateSceneViewport] = useUpdateSceneViewportMutation();
   const [deleteScene] = useDeleteSceneMutation();
   const [deleteAsset] = useDeleteAssetMutation();
-  const { data: playerAsset } = useGetAssetByIdQuery(
+  const { data: playerAsset, isError: playerAssetError } = useGetAssetByIdQuery(
     scene?.playerId ?? skipToken,
   );
-  const { data: detailAsset } = useGetAssetByIdQuery(
+  const { data: detailAsset, isError: detailAssetError } = useGetAssetByIdQuery(
     scene?.detailId ?? skipToken,
   );
   const [bearer, setBearer] = useState<string | null>(null);
   const hasUpdates = playerUpdated || detailUpdated;
+  // image selection stays locked until every stored image the scene has has
+  // been downloaded, so picks are always compared against known dimensions
+  const imagesPending =
+    (!!scene?.playerId && !playerImageSettled) ||
+    (!!scene?.detailId && !detailImageSettled);
 
   const disabledCreate =
     creating || // currently already creating or updating
@@ -126,6 +133,7 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     setDetailProgress(event.progress ? event.progress * 100 : 0);
 
   const selectFile = (layer: string) => {
+    if (imagesPending) return; // locked while stored images are downloading
     const dCanvas = detailCanvasRef?.current;
     const pCanvas = playerCanvasRef?.current;
     if (!dCanvas) return;
@@ -138,29 +146,15 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
       const file = input.files[0];
       if (layer === "detail") {
         createImageBitmap(file).then((i) => {
-          const a = [i.width, i.height];
-          const b = playerWH;
-          const detailRatio = Math.round((100 * i.width) / i.height);
-          const playerRatio = Math.round((100 * b[0]) / b[1]);
           renderImage(i, dCanvas);
-          setDetailWH(a);
-          setResolutionMismatch(
-            !Number.isNaN(playerRatio) && detailRatio !== playerRatio,
-          );
+          setDetailWH([i.width, i.height]);
         });
         setDetailFile(file);
         setDetailUpdated(true);
       } else if (layer === "player") {
         createImageBitmap(file).then((i) => {
-          const a = [i.width, i.height];
-          const b = detailWH;
-          const playerRatio = Math.round((100 * i.width) / i.height);
-          const detailRatio = Math.round((100 * b[0]) / b[1]);
-          setPlayerWH(a);
+          setPlayerWH([i.width, i.height]);
           renderImage(i, pCanvas);
-          setResolutionMismatch(
-            !Number.isNaN(detailRatio) && detailRatio !== playerRatio,
-          );
         });
         setPlayerFile(file);
         setPlayerUpdated(true);
@@ -171,7 +165,6 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
 
   const updateScene = async () => {
     setCreating(true);
-    // Only set viewport on create; existing scenes already have one.
     const rect = { x: 0, y: 0, width: playerWH[0], height: playerWH[1] };
     const vpData = { backgroundSize: rect, viewport: rect };
     if (!scene && (!name || !playerFile)) {
@@ -185,7 +178,9 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
         description: name,
         player: scene ? (playerUpdated ? playerFile : undefined) : playerFile,
         detail: scene ? (detailUpdated ? detailFile : undefined) : detailFile,
-        viewport: scene ? undefined : vpData,
+        // set on create and whenever the player image changes, since the
+        // viewport is derived from the player image dimensions
+        viewport: scene ? (playerUpdated ? vpData : undefined) : vpData,
         playerProgress: playerProgressHandler,
         detailProgress: detailProgressHandler,
       },
@@ -258,28 +253,98 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
    */
   useEffect(() => {
     const canvas = playerCanvasRef?.current;
-    if (!bearer || !apiUrl || !canvas || loadingPlayer) return;
+    if (!scene?.playerId || !bearer || !apiUrl || !canvas) return;
+    // a locally picked image supersedes the stored one
+    if (playerFile) {
+      setPlayerImageSettled(true);
+      return;
+    }
+    if (loadingPlayer) return;
+    // don't latch until the asset query resolves, else a slow query would
+    // leave the image permanently unloaded
+    if (!playerAsset && !playerAssetError) return;
     setLoadingPlayer(true);
     const playerLocation = playerAsset?.location;
-    if (playerLocation) {
-      const url = `${apiUrl}/${playerLocation}`;
-      loadImage(url, bearer, playerProgressHandler).then((img) => {
-        renderImage(img, canvas);
-      });
+    if (!playerLocation) {
+      setPlayerImageSettled(true);
+      return;
     }
-  }, [apiUrl, bearer, loadingPlayer, playerCanvasRef, scene, playerAsset]);
+    const url = `${apiUrl}/${playerLocation}`;
+    loadImage(url, bearer, playerProgressHandler)
+      .then((img) => {
+        renderImage(img, canvas);
+        // seed dimensions for the aspect ratio check
+        setPlayerWH([img.width, img.height]);
+      })
+      .catch((err) => console.error(`Unable to load player image: ${err}`))
+      .finally(() => setPlayerImageSettled(true));
+  }, [
+    apiUrl,
+    bearer,
+    loadingPlayer,
+    playerCanvasRef,
+    scene,
+    playerAsset,
+    playerAssetError,
+    playerFile,
+  ]);
   useEffect(() => {
     const canvas = detailCanvasRef?.current;
-    if (!bearer || !apiUrl || !canvas || loadingDetail) return;
+    if (!scene?.detailId || !bearer || !apiUrl || !canvas) return;
+    // a locally picked image supersedes the stored one
+    if (detailFile) {
+      setDetailImageSettled(true);
+      return;
+    }
+    if (loadingDetail) return;
+    // don't latch until the asset query resolves, else a slow query would
+    // leave the image permanently unloaded
+    if (!detailAsset && !detailAssetError) return;
     setLoadingDetail(true);
     const detailLocation = detailAsset?.location;
-    if (detailLocation) {
-      const url = `${apiUrl}/${detailLocation}`;
-      loadImage(url, bearer, detailProgressHandler).then((img) => {
-        renderImage(img, canvas);
-      });
+    if (!detailLocation) {
+      setDetailImageSettled(true);
+      return;
     }
-  }, [apiUrl, bearer, detailCanvasRef, scene, loadingDetail, detailAsset]);
+    const url = `${apiUrl}/${detailLocation}`;
+    loadImage(url, bearer, detailProgressHandler)
+      .then((img) => {
+        renderImage(img, canvas);
+        // seed dimensions for the aspect ratio check
+        setDetailWH([img.width, img.height]);
+      })
+      .catch((err) => console.error(`Unable to load detail image: ${err}`))
+      .finally(() => setDetailImageSettled(true));
+  }, [
+    apiUrl,
+    bearer,
+    detailCanvasRef,
+    scene,
+    loadingDetail,
+    detailAsset,
+    detailAssetError,
+    detailFile,
+  ]);
+
+  /**
+   * The player and detail images must share an aspect ratio. Recompute the
+   * mismatch whenever either set of dimensions changes (newly selected file
+   * or loaded scene image), but only flag it when the user has picked an
+   * image this session - never block edits on pre-existing stored images.
+   */
+  useEffect(() => {
+    if (!playerUpdated && !detailUpdated) {
+      setResolutionMismatch(false);
+      return;
+    }
+    const playerRatio = Math.round((100 * playerWH[0]) / playerWH[1]);
+    const detailRatio = Math.round((100 * detailWH[0]) / detailWH[1]);
+    setResolutionMismatch(
+      !Number.isNaN(playerRatio) &&
+        !Number.isNaN(detailRatio) &&
+        playerRatio !== detailRatio,
+    );
+  }, [playerWH, detailWH, playerUpdated, detailUpdated]);
 
   return (
     <Box
@@ -333,6 +398,7 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
             onClick={() => selectFile("player")}
             ref={playerCanvasRef}
             className={styles.canvas}
+            style={{ opacity: imagesPending ? 0.5 : 1 }}
           />
           {playerProgress > 0 && playerProgress < 100 && (
             <LinearProgress variant="determinate" value={playerProgress} />
@@ -354,6 +420,7 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
             onClick={() => selectFile("detail")}
             ref={detailCanvasRef}
             className={styles.canvas}
+            style={{ opacity: imagesPending ? 0.5 : 1 }}
           />
           {detailProgress > 0 && detailProgress < 100 && (
             <LinearProgress variant="determinate" value={detailProgress} />
@@ -370,14 +437,22 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
       >
         <Tooltip title="The background players see">
           <span>
-            <Button variant="outlined" onClick={() => selectFile("player")}>
+            <Button
+              variant="outlined"
+              disabled={imagesPending}
+              onClick={() => selectFile("player")}
+            >
               Player Background
             </Button>
           </span>
         </Tooltip>
         <Tooltip title="A background only you, the use, sees (should be the same size as the table background)">
           <span>
-            <Button variant="outlined" onClick={() => selectFile("detail")}>
+            <Button
+              variant="outlined"
+              disabled={imagesPending}
+              onClick={() => selectFile("detail")}
+            >
               Detailed Background
             </Button>
           </span>
