@@ -70,9 +70,11 @@ let lastAnimY = -1;
 
 const MIN_BRUSH = 10;
 const GUIDE_FILL = "rgba(255, 255, 255, 0.25)";
-let opacity = "1";
-// display opacity of the overlay/things layers - replaces the CSS opacity on
-// the old stacked overlay canvas
+// opacity of the brush/selection/token indicator
+// affects the overlay/things offscreen canvases
+let renderOpacity = "1";
+// display opacity of the overlay/things layers
+// only affects GM view of overlay/things
 let displayOpacity = 1;
 let red = "255";
 let green = "0";
@@ -692,8 +694,8 @@ self.onmessage = async (evt) => {
         // frames
         if (recording) {
           recording = false;
-          visibleCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
-          fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+          visibleCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${renderOpacity})`;
+          fullCtx.fillStyle = `rgba(${red}, ${green}, ${blue}, ${renderOpacity})`;
         }
         renderBrush(evt.data.x, evt.data.y, brush);
       }
@@ -886,7 +888,7 @@ self.onmessage = async (evt) => {
       break;
     }
     case "obscure": {
-      const fill = `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+      const fill = `rgba(${red}, ${green}, ${blue}, ${renderOpacity})`;
       const r = evt.data.rect as unknown as Rect;
       renderBox(r.x, r.y, r.x + r.width, r.y + r.height, fill);
       storeOverlay();
@@ -904,7 +906,7 @@ self.onmessage = async (evt) => {
       break;
     }
     case "opacity": {
-      opacity = evt.data.opacity;
+      renderOpacity = evt.data.opacity;
       break;
     }
     case "display_opacity": {
