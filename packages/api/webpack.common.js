@@ -18,6 +18,10 @@ module.exports = {
     server: "./src/server.ts",
   },
   target: "node",
+  externals: {
+    // optional (native) dep of winston-loki, only loaded in protobuf mode
+    snappy: "commonjs snappy",
+  },
   output: {
     path: __dirname + "/.",
     filename: "[name].js",
