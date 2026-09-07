@@ -16,4 +16,5 @@ data:
   ws.sendTimeout: "{{ .Values.wsSendTimeout }}"
   issuer.url: https://{{ .Values.issuerDomain }}
   auth.redirect: https://{{ .Values.uiDomain }}/edit
-  otel.url: http://{{ .Values.otelDomain }}:{{ .Values.otelPort }}
+  otel.url: https://{{ .Values.otelDomain }}:{{ .Values.otelPort }}/otlp
+  loki.url: https://{{ .Values.lokiHost }}

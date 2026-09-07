@@ -21,6 +21,15 @@ S3 values can be injected from CI with `--set-string` flags:
 --set-string storageS3SecretAccessKey="$STORAGE_S3_SECRET_ACCESS_KEY"
 ```
 
+## Telemetry
+
+Metrics export directly to Grafana Cloud's OTLP gateway and logs to its Loki
+push API (no collector). Credentials are injected per environment from GitHub
+environment secrets: `OTEL_INSTANCE_ID`, `OTEL_TOKEN`, `LOKI_USER_ID`,
+`LOKI_TOKEN`. The deploy workflow combines the OTLP instance ID and token into
+the `otelHeaders` value. An environment without these secrets deploys with
+telemetry disabled (the chart guards everything on their presence).
+
 Rollback:
 
 ```helm list```
