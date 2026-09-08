@@ -1,5 +1,9 @@
 /*instrumentation.ts*/
-import opentelemetry from "@opentelemetry/api";
+import opentelemetry, {
+  DiagConsoleLogger,
+  DiagLogLevel,
+  diag,
+} from "@opentelemetry/api";
 // import { NodeSDK } from "@opentelemetry/sdk-node";
 // import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import {
@@ -16,6 +20,8 @@ import {
 } from "@opentelemetry/semantic-conventions";
 import { Resource } from "@opentelemetry/resources";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-proto";
+
+diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
 
 const resource = new Resource({
   [SEMRESATTRS_SERVICE_NAME]: "ntt-api",
