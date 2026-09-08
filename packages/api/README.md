@@ -58,6 +58,59 @@ Note that `STORAGE_S3_ENDPOINT` does not include a protocol (`https://` is assum
 The API contract is unchanged in this phase: clients still upload to API
 endpoints, and persisted asset locations remain under `public/...`.
 
+# Telemetry
+
+The API exports OTLP metrics directly to Grafana Cloud's OTLP gateway and
+winston logs to its Loki push API. There is no collector in between.
+
+Retrieve the values from the Grafana Cloud Portal by following the
+[manual OpenTelemetry setup guide](https://grafana.com/docs/grafana-cloud/observe-and-act/send-data/otlp/send-data-otlp/?pg=blog&plcmt=body-txt#manual-opentelemetry-setup-for-advanced-users):
+the OTLP endpoint URL and instance ID, the Loki URL and user ID (Loki data
+source settings), and a Cloud Access Policy token with `metrics:write` and
+`logs:write` scopes (a single token works for both signals).
+
+## Local setup
+
+Local configuration lives in `packages/api/.env` (gitignored; loaded by the VS
+Code launch configuration). Logs are driven directly by:
+
+```
+LOKI_URL=https://logs-prod-018.grafana.net
+LOKI_USER_ID=<loki-user-id>
+LOKI_TOKEN=<access-policy-token>
+```
+
+The Loki transport is only added when all three are set; otherwise logging
+stays console-only.
+
+Metrics are driven by the standard exporter variables:
+
+```
+OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-prod-ca-east-0.grafana.net/otlp
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic <base64-of-instance-id-and-token>
+```
+
+Keep the raw values around so the header can be regenerated after rotating the
+token:
+
+```
+OTEL_ENDPOINT=https://otlp-gateway-prod-ca-east-0.grafana.net/otlp
+OTEL_INSTANCE_ID=<otlp-instance-id>
+OTEL_TOKEN=<access-policy-token>
+```
+
+```
+printf 'Authorization=Basic %s' "$(printf '%s:%s' "$OTEL_INSTANCE_ID" "$OTEL_TOKEN" | base64 -w0)"
+```
+
+`DEPLOYMENT_ENVIRONMENT` (defaults to `local`) and `RELEASE_VERSION` are used
+as resource attributes — they show up as the `deployment_environment` and
+`service_version` labels in Grafana Cloud.
+
+In the cluster these values are injected through the chart and CI (GitHub
+environment secrets); see `chart/README.md`.
+
 # Future Work
 
 * S3/R2 storage (get rid of persistant volume)
@@ -97,7 +150,7 @@ test bucket is available.
 With compose:
 
 ```sh
-docker compose up -d localstack
+docker compose --env-file .env up -d localstack
 ```
 
 Or start localstack directly:
