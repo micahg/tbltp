@@ -1,14 +1,14 @@
-import { Schema, model } from "mongoose";
+import { Schema, model, Types } from "mongoose";
 import { Token as BasicToken, MAX_HP, MIN_HP } from "@micahg/tbltp-common";
 
 export type Token = Omit<BasicToken, "_id" | "asset"> & {
-  asset?: Schema.Types.ObjectId;
+  asset?: Types.ObjectId;
 };
 
 interface IToken extends Token {
-  _id?: Schema.Types.ObjectId;
-  user: Schema.Types.ObjectId;
-  asset?: Schema.Types.ObjectId;
+  _id?: Types.ObjectId;
+  user: Types.ObjectId;
+  asset?: Types.ObjectId;
   hitPoints?: number;
 }
 

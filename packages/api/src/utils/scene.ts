@@ -1,5 +1,5 @@
 import { checkSchema } from "express-validator";
-import { Schema } from "mongoose";
+import { Types } from "mongoose";
 import { IScene, Scene } from "../models/scene";
 import { IUser } from "../models/user";
 import { IToken } from "../models/token";
@@ -142,7 +142,7 @@ export function getUserScene(user: IUser, id: string) {
  */
 export async function sceneUsesAsset(
   user: IUser,
-  assetId: Schema.Types.ObjectId,
+  assetId: Types.ObjectId,
 ): Promise<boolean> {
   const scene = await Scene.exists({
     user: { $eq: user._id },
@@ -168,7 +168,7 @@ export async function sceneUsesAsset(
  */
 export async function scenesUsingAsset(
   user: IUser,
-  assetId: Schema.Types.ObjectId,
+  assetId: Types.ObjectId,
   tokens: IToken[] = [],
 ): Promise<IScene[]> {
   const sceneMap = new Map<string, IScene>();

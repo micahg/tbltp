@@ -1,13 +1,13 @@
-import { Schema, model } from "mongoose";
+import { Schema, model, Types } from "mongoose";
 import { Asset as BasicAsset } from "@micahg/tbltp-common";
 
 export type Asset = Omit<BasicAsset, "_id" | "user"> & {
-  asset?: Schema.Types.ObjectId;
+  asset?: Types.ObjectId;
 };
 
 interface IAsset extends Asset {
-  _id?: Schema.Types.ObjectId;
-  user: Schema.Types.ObjectId;
+  _id?: Types.ObjectId;
+  user: Types.ObjectId;
 }
 
 const AssetSchema = new Schema<IAsset>(

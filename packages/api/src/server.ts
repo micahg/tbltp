@@ -1,5 +1,6 @@
 // trigger rebuild.
 import { Server } from "http";
+import { EventEmitter } from "events";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { log } from "./utils/logger";
@@ -75,7 +76,7 @@ export const shutDown = async (reason: string) => {
 // events are emitted when a precondition is satisfied (eg: connection to the db)
 // ts-prune-ignore-next used in unit test
 export const serverPromise = new Promise<Server>((resolve) => {
-  app.on(STARTUP_CHECK_SIG, () => {
+  (app as EventEmitter).on(STARTUP_CHECK_SIG, () => {
     if (!mongoConnectedFlag) return;
     if (!storageConnectedFlag) return;
 
