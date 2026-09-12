@@ -3,6 +3,9 @@ on:
   push:
     paths:
       - 'packages/mui/**'
+      - 'packages/common/**'
+      - 'package.json'
+      - 'package-lock.json'
     branches-ignore:
       - main
 jobs:
