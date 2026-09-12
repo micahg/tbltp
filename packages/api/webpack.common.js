@@ -1,11 +1,12 @@
 const fs = require("fs");
+const path = require("path");
 const webpack = require("webpack");
 
 // forces all node modules to be treated as externals
 // borrowed from http://jlongster.com/Backend-Apps-with-Webpack--Part-I
 var nodeModules = {};
 
-fs.readdirSync("node_modules")
+fs.readdirSync(path.resolve(__dirname, "..", "..", "node_modules"))
   .filter(function (x) {
     return [".bin"].indexOf(x) === -1;
   })
