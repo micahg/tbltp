@@ -4,15 +4,10 @@ import opentelemetry, {
   DiagLogLevel,
   diag,
 } from "@opentelemetry/api";
-// import { NodeSDK } from "@opentelemetry/sdk-node";
-// import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import {
-  // ConsoleMetricExporter,
   MeterProvider,
   PeriodicExportingMetricReader,
 } from "@opentelemetry/sdk-metrics";
-// import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-// import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-proto";
 import {
   SEMRESATTRS_SERVICE_NAME,
   SEMRESATTRS_SERVICE_VERSION,
@@ -32,28 +27,14 @@ const resource = new Resource({
 
 const reader = new PeriodicExportingMetricReader({
   exporter: new OTLPMetricExporter(),
-  // exporter: new ConsoleMetricExporter(),
-  // exportIntervalMillis: 1000,
 });
-
-// https://opentelemetry.io/docs/languages/js/instrumentation/#initialize-the-sdk
-// const sdk = new NodeSDK({
-//   resource: resource,
-//   // traceExporter: new ConsoleSpanExporter(),
-//   traceExporter: new OTLPTraceExporter(),
-//   metricReader: reader,
-//   instrumentations: [getNodeAutoInstrumentations()],
-// });
 
 const myServiceMeterProvider = new MeterProvider({
   resource: resource,
   readers: [reader],
 });
 opentelemetry.metrics.setGlobalMeterProvider(myServiceMeterProvider);
-export function startInstrumentation() {
-  // sdk.start();
-}
 
 export function stopInstrumentation() {
-  // return sdk.shutdown();
+  return myServiceMeterProvider.shutdown();
 }

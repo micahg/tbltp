@@ -5,10 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { log } from "./utils/logger";
 
 import * as expressConfig from "./config/express";
-import {
-  startInstrumentation,
-  stopInstrumentation,
-} from "./config/instrumentation";
+import { stopInstrumentation } from "./config/instrumentation";
 
 import { startWSServer, stopWSConnections } from "./utils/websocket";
 import { STARTUP_CHECK_SIG, STARTUP_DONE_SIG } from "./utils/constants";
@@ -31,9 +28,6 @@ let wss: WebSocketServer;
 let mongo: typeof mongoose;
 let mongoConnectedFlag = false;
 let storageConnectedFlag = false;
-
-startInstrumentation();
-log.info("Instrumnentation started");
 
 // ts-prune-ignore-next used in unit tests
 export const app = expressConfig.create();
