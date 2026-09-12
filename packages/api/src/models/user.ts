@@ -1,4 +1,4 @@
-import { Schema, model } from "mongoose";
+import { Schema, model, Types } from "mongoose";
 
 /**
  * User Interface.
@@ -6,7 +6,7 @@ import { Schema, model } from "mongoose";
  * Each user has a sub (subject) from their JWT.
  */
 interface IUser {
-  _id?: Schema.Types.ObjectId;
+  _id?: Types.ObjectId;
   sub: string;
 }
 

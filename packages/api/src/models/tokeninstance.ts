@@ -1,4 +1,4 @@
-import { Schema, model } from "mongoose";
+import { Schema, model, Types } from "mongoose";
 import {
   TokenInstance as BasicTokenInstance,
   MAX_HP,
@@ -9,17 +9,17 @@ export type TokenInstance = Omit<
   BasicTokenInstance,
   "_id" | "token" | "scene"
 > & {
-  _id?: Schema.Types.ObjectId;
-  token: Schema.Types.ObjectId;
-  scene: Schema.Types.ObjectId;
+  _id?: Types.ObjectId;
+  token: Types.ObjectId;
+  scene: Types.ObjectId;
 };
 
 // TODO IS THIS REDUNDANT?
 interface ITokenInstance extends TokenInstance {
-  _id?: Schema.Types.ObjectId;
-  user: Schema.Types.ObjectId;
-  scene: Schema.Types.ObjectId;
-  token: Schema.Types.ObjectId;
+  _id?: Types.ObjectId;
+  user: Types.ObjectId;
+  scene: Types.ObjectId;
+  token: Types.ObjectId;
   name: string;
   visible: boolean;
   hitPoints?: number;

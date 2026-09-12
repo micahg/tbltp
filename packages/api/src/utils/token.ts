@@ -1,5 +1,5 @@
 import { checkSchema } from "express-validator";
-import { Schema } from "mongoose";
+import { Types } from "mongoose";
 import { NAME_REGEX } from "../routes/scene";
 import { MAX_HP, MIN_HP } from "@micahg/tbltp-common";
 import { IUser } from "../models/user";
@@ -89,7 +89,7 @@ export function listUserTokens(user: IUser) {
  * @param assetId The asset reference to look for.
  * @returns A promise resolving to the tokens that reference the asset.
  */
-export function tokensUsingAsset(user: IUser, assetId: Schema.Types.ObjectId) {
+export function tokensUsingAsset(user: IUser, assetId: Types.ObjectId) {
   return TokenModel.find({
     user: { $eq: user._id },
     asset: { $eq: assetId },
@@ -105,7 +105,7 @@ export function tokensUsingAsset(user: IUser, assetId: Schema.Types.ObjectId) {
  */
 export async function tokenUsesAsset(
   user: IUser,
-  assetId: Schema.Types.ObjectId,
+  assetId: Types.ObjectId,
 ): Promise<boolean> {
   const token = await TokenModel.exists({
     user: { $eq: user._id },

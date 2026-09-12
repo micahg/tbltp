@@ -13,12 +13,12 @@ import {
   SEMRESATTRS_SERVICE_VERSION,
   SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
 } from "@opentelemetry/semantic-conventions";
-import { Resource } from "@opentelemetry/resources";
+import { resourceFromAttributes } from "@opentelemetry/resources";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-proto";
 
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
 
-const resource = new Resource({
+const resource = resourceFromAttributes({
   [SEMRESATTRS_SERVICE_NAME]: "ntt-api",
   [SEMRESATTRS_SERVICE_VERSION]: process.env.RELEASE_VERSION || "0.0.1",
   [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]:

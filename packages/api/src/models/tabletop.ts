@@ -1,4 +1,4 @@
-import { Schema, model } from "mongoose";
+import { Schema, model, Types } from "mongoose";
 
 /**
  * TableTop Interface.
@@ -6,9 +6,9 @@ import { Schema, model } from "mongoose";
  * Each TableTop has a sub (subject) from their JWT.
  */
 interface ITableTop {
-  _id?: Schema.Types.ObjectId;
-  user: Schema.Types.ObjectId;
-  scene?: Schema.Types.ObjectId;
+  _id?: Types.ObjectId;
+  user: Types.ObjectId;
+  scene?: Types.ObjectId;
 }
 
 const TableTopSchema = new Schema<ITableTop>(

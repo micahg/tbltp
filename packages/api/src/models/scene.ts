@@ -1,16 +1,15 @@
-import { Schema, model } from "mongoose";
+import { Schema, model, Types } from "mongoose";
 import { Scene } from "@micahg/tbltp-common";
 
-interface IScene
-  extends Omit<
-    Scene,
-    "_id" | "user" | "tokens" | "playerId" | "detailId" | "overlayId"
-  > {
-  _id?: Schema.Types.ObjectId;
-  user: Schema.Types.ObjectId;
-  playerId?: Schema.Types.ObjectId;
-  detailId?: Schema.Types.ObjectId;
-  overlayId?: Schema.Types.ObjectId;
+interface IScene extends Omit<
+  Scene,
+  "_id" | "user" | "tokens" | "playerId" | "detailId" | "overlayId"
+> {
+  _id?: Types.ObjectId;
+  user: Types.ObjectId;
+  playerId?: Types.ObjectId;
+  detailId?: Types.ObjectId;
+  overlayId?: Types.ObjectId;
 }
 
 const SceneSchema = new Schema<IScene>(
