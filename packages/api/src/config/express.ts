@@ -1,10 +1,7 @@
-import * as os from "os";
-
 import { log } from "../utils/logger";
 import * as express from "express";
 import { Express, NextFunction } from "express";
 import * as bodyParser from "body-parser";
-import * as multer from "multer";
 import { rateLimit } from "express-rate-limit";
 import { Server } from "http";
 import {
@@ -39,13 +36,18 @@ import { metrics } from "@opentelemetry/api";
 import { hrtime } from "process";
 import {
   setAssetData,
+  createAssetUploadUrl,
   listAssets,
   getAssetById,
   getAssetUsage,
   createOrUpdateAsset,
   deleteAsset,
 } from "../routes/asset";
-import { assetDataValidator, assetValidator } from "../utils/asset";
+import {
+  assetDataValidator,
+  assetDataUploadValidator,
+  assetValidator,
+} from "../utils/asset";
 import { validationResult } from "express-validator";
 import {
   deleteSceneValidator,
@@ -66,7 +68,7 @@ import {
   sceneTokenInstanceValidator,
   tokenInstanceValidator,
 } from "../utils/tokeninstance";
-import { publicAssetHandler } from "../utils/storage";
+import { publicAssetHandler } from "../utils/s3store";
 
 /**
  * Since we can't authorize img HTML tags, allow the token to be passed as a
@@ -218,14 +220,6 @@ export function create(): Express {
     publicAssetHandler,
   );
 
-  const destdir: string = os.tmpdir();
-  const upload: multer.Multer = multer({ dest: destdir });
-  // this is just for local testing -- ingress-nginx should handle IRL
-  // const upload: multer.Multer = multer({
-  //   dest: destdir,
-  //   limits: { fileSize: 8388608 },
-  // });
-
   app.get(NO_AUTH_ASSET, (_req, res) =>
     res.status(200).send({ noauth: noauth }),
   );
@@ -290,11 +284,19 @@ export function create(): Express {
     schemaErrorCheck,
     deleteAsset,
   );
+  // request a presigned URL to upload asset data directly to object storage
+  app.post(
+    ASSET_DATA_PATH,
+    jwtCheck,
+    assetDataUploadValidator(),
+    schemaErrorCheck,
+    createAssetUploadUrl,
+  );
+  // commit an uploaded asset (the object must already exist in storage)
   app.put(
     ASSET_DATA_PATH,
     jwtCheck,
-    upload.single("asset"),
-    assetDataValidator(),
+    assetDataUploadValidator(),
     schemaErrorCheck,
     setAssetData,
   );
@@ -346,11 +348,6 @@ export function create(): Express {
   app.use((err, req, res, next) => {
     if (!err) next();
     if (err.status) return res.sendStatus(err.status);
-    if (err instanceof multer.MulterError) {
-      if (err.code === "LIMIT_FILE_SIZE") {
-        return res.sendStatus(413);
-      }
-    }
 
     // generic in-app exception handling
     if (err.cause) {

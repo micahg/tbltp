@@ -15,16 +15,9 @@ spec:
       labels:
         app: {{ .Values.apiAppName }}
     spec:
-      volumes:
-        - name: api-volume
-          persistentVolumeClaim:
-            claimName: api-pvc
       containers:
       - name: {{ .Values.apiAppName }}
         image: {{ .Values.apiImagePath }}:{{ .Values.apiImageVers }}
-        volumeMounts:
-          - mountPath: /usr/src/app/public
-            name: api-volume
         ports:
         - containerPort: 3000
         env:
@@ -68,8 +61,6 @@ spec:
             configMapKeyRef:
               name: env-config
               key: deploy.environment
-        - name: STORAGE_PROVIDER
-          value: s3
         - name: STORAGE_S3_REGION
           value: auto
         - name: STORAGE_S3_ENDPOINT
@@ -123,19 +114,6 @@ spec:
               name: {{ .Values.apiAppName }}-loki
               key: loki.token
         {{- end }}
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: api-pvc
-  namespace: ntt
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-  storageClassName: {{ .Values.apiStorageClass }}
 ---
 apiVersion: v1
 kind: Service

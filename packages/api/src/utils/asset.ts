@@ -2,6 +2,7 @@ import { Asset, AssetModel, IAsset } from "../models/asset";
 import { IScene } from "../models/scene";
 import { IToken } from "../models/token";
 import { IUser } from "../models/user";
+import { VALID_CONTENT_TYPES } from "./constants";
 import { NAME_REGEX } from "../routes/scene";
 import { checkSchema } from "express-validator";
 import { knownMongoError } from "./errors";
@@ -40,6 +41,35 @@ export function assetDataValidator() {
       optional: false,
       isMongoId: {
         errorMessage: "Invalid asset ID",
+      },
+    },
+  });
+}
+
+/**
+ * Validates the presign (POST) and commit (PUT) requests for asset data:
+ * the asset id and the content type of the file being uploaded.
+ */
+export function assetDataUploadValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      optional: false,
+      isMongoId: {
+        errorMessage: "Invalid asset ID",
+      },
+    },
+    contentType: {
+      in: ["body"],
+      exists: {
+        errorMessage: "Content type is required",
+      },
+      isString: {
+        errorMessage: "Content type must be a string",
+      },
+      isIn: {
+        options: [VALID_CONTENT_TYPES],
+        errorMessage: "Invalid content type",
       },
     },
   });

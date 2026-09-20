@@ -1,11 +1,13 @@
 process.env["DISABLE_AUTH"] = "true";
 
+import { readFile } from "node:fs/promises";
 import { Collection } from "mongodb";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
 import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
 
 import * as request from "supertest";
 import { userZero } from "./assets/auth";
+import { uploadAssetData } from "./uploads";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common/src/tokeninstance";
 
 let env: TestEnv;
@@ -49,7 +51,7 @@ beforeAll(async () => {
   usersCollection = env.db.collection("users");
   assetsCollection = env.db.collection("assets");
 
-  const storageModule = await import("../src/utils/storage");
+  const storageModule = await import("../src/utils/s3store");
   deletePublicAsset = storageModule.deletePublicAsset;
 });
 
@@ -139,19 +141,23 @@ describe("asset", () => {
       (getFakeUser as jest.Mock).mockReturnValue(userZero);
     });
     afterEach(cleanupTestData);
-    it("Should 400 when file is not provided", async () => {
+    it("Should 400 when the content type is missing", async () => {
       let resp;
       try {
-        resp = await request(app).put("/asset").send({ name: "test" });
+        resp = await request(app)
+          .put("/asset/aaaaaaaaaaaaaaaaaaaaaaaa/data")
+          .send({});
       } catch (err) {
-        fail(`Asset Creation Exception: ${JSON.stringify(err)}`);
+        fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
       }
-      expect(resp.statusCode).toBe(201);
-      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
-      expect(resp.body.name).toBe("test");
-      const url = `/asset/${resp.body._id}/data`;
+      expect(resp.statusCode).toBe(400);
+    });
+    it("Should 400 when the content type is invalid", async () => {
+      let resp;
       try {
-        resp = await request(app).put(url).send();
+        resp = await request(app)
+          .put("/asset/aaaaaaaaaaaaaaaaaaaaaaaa/data")
+          .send({ contentType: "image/gif" });
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
       }
@@ -161,8 +167,8 @@ describe("asset", () => {
       let resp;
       try {
         resp = await request(app)
-          .put("/asset/zzzzzzzzzzzzzzzzzzzzzzzz/data")
-          .attach("asset", "test/assets/1x1.png");
+          .post("/asset/zzzzzzzzzzzzzzzzzzzzzzzz/data")
+          .send({ contentType: "image/png" });
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
       }
@@ -172,14 +178,40 @@ describe("asset", () => {
       let resp;
       try {
         resp = await request(app)
-          .put("/asset/aaaaaaaaaaaaaaaaaaaaaaaa/data")
-          .attach("asset", "test/assets/1x1.png");
+          .post("/asset/aaaaaaaaaaaaaaaaaaaaaaaa/data")
+          .send({ contentType: "image/png" });
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
       }
       expect(resp.statusCode).toBe(404);
     });
-    it("Should succeed when a file is provided", async () => {
+    it("Should 400 when committing before the upload happened", async () => {
+      let resp;
+      try {
+        resp = await request(app).put("/asset").send({ name: "test" });
+      } catch (err) {
+        fail(`Asset Creation Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(201);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      const url = `/asset/${resp.body._id}/data`;
+      try {
+        // presign but never upload the object
+        resp = await request(app).post(url).send({ contentType: "image/png" });
+      } catch (err) {
+        fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      try {
+        resp = await request(app)
+          .put(url)
+          .send({ contentType: "image/png" });
+      } catch (err) {
+        fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(400);
+    });
+    it("Should succeed with the presigned upload flow", async () => {
       let resp;
       try {
         resp = await request(app).put("/asset").send({ name: "test" });
@@ -189,10 +221,40 @@ describe("asset", () => {
       expect(resp.statusCode).toBe(201);
       expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
       expect(resp.body.name).toBe("test");
+
+      // step 1: request the presigned upload url
+      const assetId = resp.body._id;
       try {
         resp = await request(app)
-          .put(`/asset/${resp.body._id}/data`)
-          .attach("asset", "test/assets/1x1.png");
+          .post(`/asset/${assetId}/data`)
+          .send({ contentType: "image/png" });
+      } catch (err) {
+        fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body.url).toBeDefined();
+      expect(resp.body.location).toMatch(
+        /public\/[a-f0-9]{24}\/assets\/[a-f0-9]{24}\.png/,
+      );
+
+      // step 2: upload directly to object storage
+      let uploaded;
+      try {
+        uploaded = await fetch(resp.body.url, {
+          method: "PUT",
+          headers: { "Content-Type": "image/png" },
+          body: new Uint8Array(await readFile("test/assets/1x1.png")),
+        });
+      } catch (err) {
+        fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
+      }
+      expect(uploaded.status).toBe(200);
+
+      // step 3: commit the upload
+      try {
+        resp = await request(app)
+          .put(`/asset/${assetId}/data`)
+          .send({ contentType: "image/png" });
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
       }
@@ -200,6 +262,7 @@ describe("asset", () => {
       expect(resp.body.location).toMatch(
         /public\/[a-f0-9]{24}\/assets\/[a-f0-9]{24}\.png/,
       );
+      expect(resp.body.revision).toBe(1);
       const user = await usersCollection.findOne({ sub: userZero });
       expect(user).toBeDefined();
       expect(user).not.toBeNull();
@@ -224,9 +287,7 @@ describe("asset", () => {
       }
       expect(resp.statusCode).toBe(201);
       try {
-        resp = await request(app)
-          .put(`/asset/${resp.body._id}/data`)
-          .attach("asset", "test/assets/1x1.png");
+        resp = await uploadAssetData(app, resp.body._id);
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
       }
@@ -354,9 +415,7 @@ describe("asset", () => {
       expect(assets).toHaveLength(1);
 
       try {
-        resp = await request(app)
-          .put(`/asset/${resp.body._id}/data`)
-          .attach("asset", "test/assets/1x1.png");
+        resp = await uploadAssetData(app, resp.body._id);
       } catch (err) {
         fail(`Asset Upload Exception: ${JSON.stringify(err)}`);
       }
@@ -389,9 +448,7 @@ describe("asset", () => {
           .send({ name: "FIRST_ASSET" });
         expect(assetOne.statusCode).toBe(201);
 
-        const upload = await request(app)
-          .put(`/asset/${assetOne.body._id}/data`)
-          .attach("asset", "test/assets/1x1.png");
+        const upload = await uploadAssetData(app, assetOne.body._id);
         expect(upload.statusCode).toBe(200);
         const location = upload.body.location;
 
@@ -463,9 +520,7 @@ describe("asset", () => {
           .send({ name: "SCENE_ASSET" });
         expect(asset.statusCode).toBe(201);
 
-        const upload = await request(app)
-          .put(`/asset/${asset.body._id}/data`)
-          .attach("asset", "test/assets/1x1.png");
+        const upload = await uploadAssetData(app, asset.body._id);
         expect(upload.statusCode).toBe(200);
         const location = upload.body.location;
 

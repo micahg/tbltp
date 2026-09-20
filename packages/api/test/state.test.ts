@@ -13,6 +13,7 @@ import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
 import { Collection } from "mongodb";
 import { userZero } from "./assets/auth";
 import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
+import { uploadAssetData } from "./uploads";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let app: any;
@@ -36,9 +37,7 @@ async function assignSceneLayer(
     assetId = created.body._id;
   }
 
-  await request(app)
-    .put(`/asset/${assetId}/data`)
-    .attach("asset", "test/assets/1x1.png");
+  await uploadAssetData(app, assetId);
 
   return request(app)
     .put(`/scene/${sceneId}/${layer}`)

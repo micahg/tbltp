@@ -10,13 +10,11 @@ import {
 } from "../utils/asset";
 import {
   deleteAssetFile,
+  buildAssetLocation,
   getValidExtension,
-  updateAssetFromFile,
 } from "../utils/assetstore";
+import { createUploadUrl, locationToKey, objectExists } from "../utils/s3store";
 import { knownMongoError } from "../utils/errors";
-import { tmpdir } from "os";
-import { realpathSync } from "fs";
-import { isAbsolute, relative, resolve } from "path";
 
 export async function listAssets(
   req: Request,
@@ -125,51 +123,67 @@ export async function deleteAsset(
   }
 }
 
+/**
+ * Issue a presigned URL the client can use to upload the asset data directly
+ * to object storage.
+ */
+export async function createAssetUploadUrl(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getOrCreateUser(req.auth);
+    const asset = await getUserAsset(user, req.params.id);
+    if (!asset) {
+      throw new Error("No asset", { cause: 404 });
+    }
+
+    // this throws an exception with a cause if the extension is not supported... just let it through
+    const ext = getValidExtension(req.body.contentType);
+
+    const location = buildAssetLocation(user, asset._id.toString(), ext);
+
+    const url = await createUploadUrl(
+      locationToKey(location),
+      req.body.contentType,
+    );
+    return res.json({ url, location });
+  } catch (err) {
+    log.error("Unable to create asset upload url", err);
+    return next({ status: err.cause || 500 });
+  }
+}
+
+/**
+ * Commit an upload: verify the object landed in storage, then update the
+ * asset with its location and bump the revision.
+ */
 export async function setAssetData(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
   try {
-    // validator doesn't handle multer bits
-    if (!req.file) {
-      return res.sendStatus(400);
-    }
-
-    let tmpPath: string;
-    try {
-      const tmpRoot = realpathSync(tmpdir());
-      const resolvedUploadPath = resolve(tmpRoot, req.file.path);
-      tmpPath = realpathSync(resolvedUploadPath);
-      const rel = relative(tmpRoot, tmpPath);
-      if (rel.startsWith("..") || isAbsolute(rel)) {
-        return res.sendStatus(400);
-      }
-    } catch {
-      return res.sendStatus(400);
-    }
-
     const user = await getOrCreateUser(req.auth);
 
     // this throws an exception with a cause if the extension is not supported... just let it through
-    const ext = getValidExtension(req.file);
+    const ext = getValidExtension(req.body.contentType);
 
-    // create or retrieve the asset
+    // retrieve the asset
     const asset = await getUserAsset(user, req.params.id);
     if (!asset) {
       throw new Error("No asset", { cause: 404 });
     }
 
-    // if there is an image upload, handle it
-    const dest = await updateAssetFromFile(
-      user,
-      tmpPath,
-      asset._id.toString(),
-      ext,
-    );
+    const location = buildAssetLocation(user, asset._id.toString(), ext);
+
+    if (!(await objectExists(locationToKey(location)))) {
+      throw new Error("Upload not completed", { cause: 400 });
+    }
 
     // update the asset with the location
-    asset.location = dest;
+    asset.location = location;
     asset.revision = asset.revision + 1;
     const result = await asset.save();
 

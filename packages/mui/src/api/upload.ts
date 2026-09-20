@@ -1,38 +1,17 @@
 import { xhrRequest } from "../utils/xhr";
 
-export interface UploadResponse<TData = unknown> {
-  data: TData;
-  status: number;
-  headers: Record<string, string>;
-}
-
 export interface UploadError extends Error {
   status?: number;
   data?: unknown;
-  headers?: Record<string, string>;
 }
 
-export interface UploadFormDataArgs {
+export interface UploadFileArgs {
+  /** Presigned object storage URL. */
   url: string;
-  formData: FormData;
-  headers?: Record<string, string>;
-  method?: "PUT" | "POST" | "PATCH";
+  file: Blob;
+  /** Must match the content type the URL was signed with. */
+  contentType: string;
   onProgress?: (event: ProgressEvent<EventTarget>) => void;
-}
-
-function parseHeaders(xhr: XMLHttpRequest): Record<string, string> {
-  return xhr
-    .getAllResponseHeaders()
-    .trim()
-    .split("\r\n")
-    .filter((line) => line.includes(":"))
-    .reduce<Record<string, string>>((acc, line) => {
-      const idx = line.indexOf(":");
-      const key = line.slice(0, idx).trim().toLowerCase();
-      const value = line.slice(idx + 1).trim();
-      acc[key] = value;
-      return acc;
-    }, {});
 }
 
 function parseResponseBody(xhr: XMLHttpRequest): unknown {
@@ -44,35 +23,27 @@ function parseResponseBody(xhr: XMLHttpRequest): unknown {
   }
 }
 
-export function uploadFormData<TData = unknown>(
-  args: UploadFormDataArgs,
-): Promise<UploadResponse<TData>> {
-  return xhrRequest({
-    method: args.method ?? "PUT",
+/**
+ * Upload a file directly to object storage via a presigned URL. The content
+ * type is part of the URL signature, so it must be sent unchanged.
+ */
+export async function uploadFile(args: UploadFileArgs): Promise<void> {
+  const xhr = await xhrRequest({
+    method: "PUT",
     url: args.url,
-    headers: args.headers,
-    body: args.formData,
+    headers: { "Content-Type": args.contentType },
+    body: args.file,
     onProgress: args.onProgress,
     progressTarget: "upload",
     networkErrorMessage: "Upload request failed",
-  }).then((xhr) => {
-    const headers = parseHeaders(xhr);
-    const data = parseResponseBody(xhr);
+  });
 
-    if (xhr.status >= 200 && xhr.status < 300) {
-      return {
-        data: data as TData,
-        status: xhr.status,
-        headers,
-      };
-    }
-
+  if (xhr.status < 200 || xhr.status >= 300) {
     const err = new Error(
       `Upload failed with status ${xhr.status}`,
     ) as UploadError;
     err.status = xhr.status;
-    err.data = data;
-    err.headers = headers;
+    err.data = parseResponseBody(xhr);
     throw err;
-  });
+  }
 }

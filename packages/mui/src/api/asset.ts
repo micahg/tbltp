@@ -9,7 +9,7 @@ import { environmentApi } from "./environment";
 import { getAuthHeaders } from "../utils/authBridge";
 import { LoadProgress } from "../utils/content";
 import { ratelimit } from "../slices/rateLimitSlice";
-import { uploadFormData, type UploadError } from "./upload";
+import { uploadFile, type UploadError } from "./upload";
 
 type AssetTag = { type: "Asset"; id: string };
 
@@ -140,33 +140,36 @@ export const assetApi = createApi({
       ],
     }),
     updateAssetData: build.mutation<Asset, UpdateAssetDataRequest>({
-      async queryFn(args, api) {
-        const selectEnvironmentConfig =
-          environmentApi.endpoints.getEnvironmentConfig.select();
-        const env = selectEnvironmentConfig(
-          api.getState() as Parameters<typeof selectEnvironmentConfig>[0],
-        ).data;
-
-        if (!env?.api) {
+      async queryFn(args, api, _extraOptions, baseQuery) {
+        if (!args.file.type) {
           return {
             error: {
               status: "CUSTOM_ERROR",
-              error: "Environment API config is not loaded",
+              error: "Unable to determine the asset file type",
             },
           };
         }
 
+        const contentType = args.file.type;
+
+        // 1. request a presigned upload URL from the API
+        const presigned = await baseQuery({
+          url: `/asset/${args.id}/data`,
+          method: "POST",
+          body: { contentType },
+        });
+        if (presigned.error) {
+          return { error: presigned.error };
+        }
+
+        const { url } = presigned.data as { url: string; location: string };
+
+        // 2. upload the file directly to object storage
         try {
-          const formData = new FormData();
-          formData.append("asset", args.file as Blob);
-
-          // Let the browser set multipart/form-data with boundary.
-          const headers = await getAuthHeaders();
-
-          const response = await uploadFormData<Asset>({
-            url: `${env.api}/asset/${args.id}/data`,
-            formData,
-            headers,
+          await uploadFile({
+            url,
+            file: args.file,
+            contentType,
             onProgress: (evt) => {
               if (!evt.lengthComputable) {
                 return;
@@ -174,14 +177,6 @@ export const assetApi = createApi({
               args.progress?.({ progress: evt.loaded / evt.total, img: "" });
             },
           });
-
-          dispatchRateLimitFromHeaders(
-            api.dispatch,
-            response.headers["ratelimit-limit"] ?? null,
-            response.headers["ratelimit-remaining"] ?? null,
-          );
-
-          return { data: response.data };
         } catch (error) {
           if (
             typeof error === "object" &&
@@ -214,6 +209,18 @@ export const assetApi = createApi({
             },
           };
         }
+
+        // 3. commit the upload (the API verifies the object landed in storage)
+        const commit = await baseQuery({
+          url: `/asset/${args.id}/data`,
+          method: "PUT",
+          body: { contentType },
+        });
+        if (commit.error) {
+          return { error: commit.error };
+        }
+
+        return { data: commit.data as Asset };
       },
       async onQueryStarted(args, { dispatch, queryFulfilled }) {
         try {

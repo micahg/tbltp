@@ -26,7 +26,6 @@
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@types/express": "^4.17.17",
-    "@types/multer": "^1.4.7",
     "@types/node": "^18.13.0",
     "@types/supertest": "^2.0.14",
     "@types/ws": "^8.5.4",
@@ -53,6 +52,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1021.0",
+    "@aws-sdk/s3-request-presigner": "^3.1021.0",
     "@micahg/tbltp-common": "file:../common",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-metrics-otlp-proto": "^0.222.0",
@@ -66,7 +66,6 @@
     "express-validator": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
-    "multer": "^1.4.5-lts.1",
     "winston": "^3.11.0",
     "winston-loki": "^6.1.7",
     "ws": "^8.17.1"
