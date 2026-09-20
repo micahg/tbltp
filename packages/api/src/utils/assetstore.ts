@@ -1,22 +1,20 @@
 import { IUser } from "../models/user";
 import { CONTENT_TYPE_EXTS, VALID_CONTENT_TYPES } from "./constants";
-import { deletePublicAsset, putPublicAssetFromUpload } from "./storage";
+import { deletePublicAsset, ensurePublicLocation } from "./s3store";
 
-export function getValidExtension(file: Express.Multer.File) {
-  const idx = VALID_CONTENT_TYPES.indexOf(file.mimetype);
+export function getValidExtension(contentType: string) {
+  const idx = VALID_CONTENT_TYPES.indexOf(contentType);
   if (idx === -1)
-    throw new Error(`Invalid mime type: ${file.mimetype}`, { cause: 406 });
+    throw new Error(`Invalid mime type: ${contentType}`, { cause: 406 });
   return CONTENT_TYPE_EXTS[idx];
 }
 
-export async function updateAssetFromFile(
+export function buildAssetLocation(
   user: IUser,
-  filePath: string,
-  name: string,
+  assetId: string,
   ext: string,
-) {
-  const key = `${user._id}/assets/${name}.${ext}`;
-  return putPublicAssetFromUpload(filePath, key, ext);
+): string {
+  return ensurePublicLocation(`${user._id}/assets/${assetId}.${ext}`);
 }
 
 export async function deleteAssetFile(path: string) {

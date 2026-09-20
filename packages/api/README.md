@@ -7,7 +7,7 @@ Node.js implementation of network table top server.
 
 * Node.js for the base server
 * Express for request handling
-* Multer for image upload
+* Presigned S3 URLs for image upload (uploads go directly to object storage)
 * ws for websocket communication (status updates to the tabletop client)
 
 # Disabling Authentication
@@ -19,27 +19,12 @@ This will:
 1. Signal to the client through the `/noauth` endpoint that authentication is
 not required.
 
-# Storage Provider
+# Storage
 
-The API now supports a pluggable storage backend behind the existing asset
-upload endpoints.
-
-## Local (default)
-
-No extra environment is required.
+Assets are stored in S3 (or an S3-compatible service such as R2 or MinIO).
+Configure:
 
 ```
-STORAGE_PROVIDER=local
-```
-
-Uploaded assets continue to be stored under `public/...` on local disk.
-
-## S3 / S3-Compatible (R2, MinIO, etc.)
-
-Set `STORAGE_PROVIDER=s3` and configure:
-
-```
-STORAGE_PROVIDER=s3
 STORAGE_S3_BUCKET=<bucket>
 STORAGE_S3_REGION=<region>
 STORAGE_S3_ACCESS_KEY_ID=<access-key>
@@ -55,8 +40,24 @@ STORAGE_S3_FORCE_PATH_STYLE=true
 
 Note that `STORAGE_S3_ENDPOINT` does not include a protocol (`https://` is assumed).
 
-The API contract is unchanged in this phase: clients still upload to API
-endpoints, and persisted asset locations remain under `public/...`.
+## Upload flow
+
+Image bytes never pass through the API:
+
+1. `POST /asset/:id/data` with `{"contentType": "image/png"}` returns a
+   short-lived presigned PUT URL and the target location.
+2. The client PUTs the file directly to object storage using that URL,
+   sending the same `Content-Type` header (it is part of the signature).
+3. `PUT /asset/:id/data` with the same content type commits the upload: the
+   API verifies the object exists, records the location, and bumps the asset
+   revision.
+
+Downloads are still proxied through the API at `/public/...` (with JWT auth),
+so no bucket policy changes are needed for reads. Because browsers upload
+directly to the bucket, it must allow CORS `PUT` requests (with the
+`Content-Type` header) from the UI origin.
+
+Asset locations remain relative paths under `public/...`.
 
 # Telemetry
 
@@ -113,7 +114,7 @@ environment secrets); see `chart/README.md`.
 
 # Future Work
 
-* S3/R2 storage (get rid of persistant volume)
+* Presigned download URLs (stop proxying asset reads through the API)
 * Stateful game (multiple maps and overlays saved)
 * DM content vs Table content (eg: DM versions of images with annotations)
 * Notes
@@ -123,13 +124,10 @@ environment secrets); see `chart/README.md`.
 # Testing
 
 ```
-curl -v -X PUT http://localhost:3000/asset -F "layer=background" -F "image=@image.png"
-curl -v -X PUT http://localhost:3000/asset -F "layer=background" -F "image=https://media.dndbeyond.com/compendium-images/lmop/M14LHJMMQhUuZ46S/map-1.1-Cragmaw-Hideout-player.jpg"
-curl -v -X PUT http://localhost:3000/state
-curl -v -X PUT http://localhost:3000/viewport -H 'Content-Type: application/json' -d '{"x":0,"y": 0, "width": 1, "height": 1}'
+curl -v -X PUT http://localhost:3000/asset -H 'Content-Type: application/json' -d '{"name": "test asset"}'
+curl -v -X PUT http://localhost:3000/state -H 'Content-Type: application/json' -d '{}'
+curl -v -X PUT http://localhost:3000/viewport -H 'Content-Type: application/json' -d '{"x":0, "y": 0, "width": 1, "height": 1}'
 ```
-
-Where image is actually located at ./image.png
 
 ## Debugging Unit Tests
 
@@ -167,7 +165,6 @@ docker run \
 Jest uses these defaults unless you override them in the environment:
 
 ```sh
-STORAGE_PROVIDER=s3
 STORAGE_S3_BUCKET=tbltp-test-bucket
 STORAGE_S3_REGION=us-east-1
 STORAGE_S3_ACCESS_KEY_ID=test
@@ -241,9 +238,7 @@ IMAGE_ASSET {
 
 ## File Layout
 
-Follow a pathing structure like `/ENVIRONMENT/USER/GAME/SCENE` then quota enforement should be easyier as we can just roll up. S3 offers free storage for a year so maybe see if we can work that out!
-
-Looks like presigned URLs might be what we need...
+Follow a pathing structure like `/ENVIRONMENT/USER/GAME/SCENE` then quota enforement should be easyier as we can just roll up.
 
 ## Dump DB
 

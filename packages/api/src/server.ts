@@ -16,8 +16,7 @@ import { connect } from "./config/mongoose";
 import mongoose from "mongoose";
 import { WebSocketServer } from "ws";
 import { ValueType, metrics } from "@opentelemetry/api";
-import { initializeStorage } from "./utils/storage";
-import { startAssetMigrationThread } from "./utils/assetMigration";
+import { initializeStorage } from "./utils/s3store";
 
 // mongoose.set('debug', true);
 
@@ -82,7 +81,6 @@ export const serverPromise = new Promise<Server>((resolve) => {
 
     log.info("All startup flags set");
 
-    // presumably the dir was created and we don't need to check for it.
     srvr = expressConfig.listen(app);
     getOAuthPublicKey()
       .then((pem) => {
@@ -149,7 +147,6 @@ export async function startUp() {
   log.info(`Mongo connected to ${conn.name} on ${conn.host}`);
 
   app.emit(STARTUP_CHECK_SIG);
-  startAssetMigrationThread();
 }
 
 // if we're not main module then we're running in jest and it needs to call

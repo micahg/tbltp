@@ -28,7 +28,6 @@ export async function setupTestEnv(opts?: {
 }): Promise<TestEnv> {
   const bucket = `tbltp-test-${Date.now()}`;
 
-  process.env["STORAGE_PROVIDER"] = "s3";
   process.env["STORAGE_S3_BUCKET"] = bucket;
   process.env["STORAGE_S3_REGION"] = S3_REGION;
   process.env["STORAGE_S3_ACCESS_KEY_ID"] = S3_CREDENTIALS.accessKeyId;
@@ -51,7 +50,8 @@ export async function setupTestEnv(opts?: {
   const mongocl = new MongoClient(process.env["MONGO_URL"]);
   const db = mongocl.db("ntt");
 
-  // Dynamic import AFTER env vars are set so S3StorageDriver reads the correct config
+  // Dynamic import AFTER env vars are set so the storage module reads the
+  // correct S3 configuration
   const serverModule = await import("../src/server");
   serverModule.startUp();
   const serverOrPromise = serverModule.serverPromise;

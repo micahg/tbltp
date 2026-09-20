@@ -15,6 +15,7 @@ import { userZero, userOne } from "./assets/auth";
 import { fail } from "node:assert";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common";
 import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
+import { uploadAssetData } from "./uploads";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let app: any;
@@ -43,9 +44,7 @@ async function assignSceneLayer(
     assetId = created.body._id;
   }
 
-  await request(app)
-    .put(`/asset/${assetId}/data`)
-    .attach("asset", "test/assets/1x1.png");
+  await uploadAssetData(app, assetId);
 
   return request(app)
     .put(`/scene/${sceneId}/${layer}`)

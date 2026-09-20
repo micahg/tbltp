@@ -1,6 +1,4 @@
 apiDomain: "nttapi.steakholdermeating.com"
-apiStorageClass: microk8s-hostpath
-apiStorageClassSize: 10Gi
 uiDomain: "ntt.steakholdermeating.com"
 issuerDomain: "nttdev.us.auth0.com"
 clientId: blFghGfwUHOlKwDZzOELBFmxOTkxCeQr

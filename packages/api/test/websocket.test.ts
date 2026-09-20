@@ -14,6 +14,7 @@ import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
 
 import { userZero, userOne } from "./assets/auth";
 import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
+import { uploadAssetData } from "./uploads";
 const WebSocketClient = require("websocket").client;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,9 +36,7 @@ async function assignSceneLayer(
     assetId = created.body._id;
   }
 
-  await request(app)
-    .put(`/asset/${assetId}/data`)
-    .attach("asset", "test/assets/1x1.png");
+  await uploadAssetData(app, assetId);
 
   return request(app).put(`/scene/${sceneId}/${layer}`).send({ assetId });
 }
