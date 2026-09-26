@@ -1,8 +1,70 @@
 name: Deploy
 on:
   workflow_dispatch:
+    inputs:
+      api-version:
+        description: API image version (defaults to newest api/v* tag)
+        required: false
+        type: string
+      mui-version:
+        description: UI image version (defaults to newest mui/v* tag)
+        required: false
+        type: string
+      ref:
+        description: Repo revision to deploy the chart from (defaults to newest v* tag)
+        required: false
+        type: string
 jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      api-version: ${{ steps.resolve.outputs.api-version }}
+      mui-version: ${{ steps.resolve.outputs.mui-version }}
+      ref: ${{ steps.resolve.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: resolve
+        name: Resolve Versions
+        env:
+          API_VERSION: ${{ inputs.api-version }}
+          MUI_VERSION: ${{ inputs.mui-version }}
+          REF: ${{ inputs.ref }}
+        run: |
+          if [ -z "$API_VERSION" ]; then
+            API_VERSION=$(git tag -l "api/v*" --sort=-v:refname | head -n 1)
+            API_VERSION=${API_VERSION##*/}
+            API_VERSION=${API_VERSION#v}
+          fi
+          if [ -z "$API_VERSION" ]; then
+            echo "::error::no api/v* tag found, pass api-version explicitly"
+            exit 1
+          fi
+          if [ -z "$MUI_VERSION" ]; then
+            MUI_VERSION=$(git tag -l "mui/v*" --sort=-v:refname | head -n 1)
+            MUI_VERSION=${MUI_VERSION##*/}
+            MUI_VERSION=${MUI_VERSION#v}
+          fi
+          if [ -z "$MUI_VERSION" ]; then
+            echo "::error::no mui/v* tag found, pass mui-version explicitly"
+            exit 1
+          fi
+          if [ -z "$REF" ]; then
+            REF=$(git tag -l "v*" --sort=-v:refname | head -n 1)
+          fi
+          if [ -z "$REF" ]; then
+            REF=main
+          fi
+          echo "api-version=$API_VERSION" >> "$GITHUB_OUTPUT"
+          echo "mui-version=$MUI_VERSION" >> "$GITHUB_OUTPUT"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
   deployment:
+    needs: [resolve]
+    permissions:
+      contents: read
     strategy:
       fail-fast: true
       matrix:
@@ -15,4 +77,6 @@ jobs:
     with:
       environment: ${{ matrix.environment }}
       extra-helm-args: ${{ matrix.helm-args }}
-      branch: main
+      ref: ${{ needs.resolve.outputs.ref }}
+      api-version: ${{ needs.resolve.outputs.api-version }}
+      mui-version: ${{ needs.resolve.outputs.mui-version }}
