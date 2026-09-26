@@ -63,6 +63,8 @@ jobs:
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
   deployment:
     needs: [resolve]
+    permissions:
+      contents: read
     strategy:
       fail-fast: true
       matrix:
