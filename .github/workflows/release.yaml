@@ -10,117 +10,41 @@ jobs:
     outputs:
       package_mui: ${{ steps.version-mono.outputs.package_mui }}
       package_api: ${{ steps.version-mono.outputs.package_api }}
-      new_version: ${{ steps.version-mono.outputs.new_version }}
       new_api_version: ${{ steps.version-mono.outputs.new_api_version }}
-      new_api_image: ${{ steps.version-mono.outputs.new_api_image }}
       new_mui_version: ${{ steps.version-mono.outputs.new_mui_version }}
-      new_mui_image: ${{ steps.version-mono.outputs.new_mui_image }}
-
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.release.tag_name }}
           fetch-depth: 0
       - id: version-mono
         name: Gather Version Information
         run: |
-          echo "TODO SOME DAY COME BACK AND FIGURE OUT HOW TO GET THE COMMIT AFTER THE VERSION BUMP"
-          git config --global user.name "$GITHUB_ACTOR"
-          git config --global user.email "$GITHUB_ACTOR@github.com"
-          git rev-list --tags --skip=1 --max-count=1
-          PREV_TAG_HASH=$(git rev-list --tags --skip=1 --max-count=1)
-          PREV_TAG=$(git describe --abbrev=0 --tags $PREV_TAG_HASH)
-          FIRST_COMMIT_PREV_TAG=$(git rev-list "$PREV_TAG...HEAD" | tail -n 2 | head -n 1)
-          for p in $(git diff --name-only "$GITHUB_REF_NAME" "$PREV_TAG" | grep "^packages\/*" | grep -v "package.json" | grep -v "package-lock.json" | cut -d / -f2 | sort | uniq); do
-            echo "package_$p=true"
-            echo "package_$p=true" >> "$GITHUB_OUTPUT"
+          for p in api mui; do
+            CHANGED=true
+            NEW=
+            LATEST=$(git tag -l "$p/v*" --sort=-v:refname | head -n 1)
+            if [ -n "$LATEST" ]; then
+              BASE=$(git rev-list -n 1 "$LATEST")
+              if [ "$BASE" = "$(git rev-parse HEAD)" ]; then
+                CHANGED=false
+              elif [ -z "$(git diff --name-only "$BASE" HEAD -- "packages/$p" packages/common)" ]; then
+                CHANGED=false
+              else
+                CURRENT=${LATEST##*/}
+                NEW=$(printf '%s' "${CURRENT#v}" | awk -F. '{printf "%d.%d.0", $1, $2+1}')
+              fi
+            else
+              # bootstrap: no per-package tag yet, take the staged package.json version as-is
+              NEW=$(node -p "require('./packages/$p/package.json').version")
+            fi
+            if [ "$CHANGED" = true ]; then
+              echo "package_$p=true" >> "$GITHUB_OUTPUT"
+              echo "new_${p}_version=$NEW" >> "$GITHUB_OUTPUT"
+            else
+              echo "package_$p=false" >> "$GITHUB_OUTPUT"
+            fi
           done
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          NEW_API_VERSION=$(node -p "require('./packages/api/package.json').version")
-          NEW_API_IMAGE="ghcr.io/micahg/tbltp-api:$NEW_API_VERSION"
-          NEW_MUI_VERSION=$(node -p "require('./packages/mui/package.json').version")
-          NEW_MUI_IMAGE="ghcr.io/micahg/tbltp-mui:$NEW_MUI_VERSION"
-          echo "new_version=$NEW_VERSION"
-          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-          echo "new_api_version=$NEW_API_VERSION"
-          echo "new_api_version=$NEW_API_VERSION" >> "$GITHUB_OUTPUT"
-          echo "new_api_image=$NEW_API_IMAGE"
-          echo "new_api_image=$NEW_API_IMAGE" >> "$GITHUB_OUTPUT"
-          echo "new_mui_version=$NEW_MUI_VERSION"
-          echo "new_mui_version=$NEW_MUI_VERSION" >> "$GITHUB_OUTPUT"
-          echo "new_mui_image=$NEW_MUI_IMAGE"
-          echo "new_mui_image=$NEW_MUI_IMAGE" >> "$GITHUB_OUTPUT"
-  version:
-    needs: [start-release]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-      - id: create-branch
-        name: Create Branch
-        run: |
-          git config --global user.name "$GITHUB_ACTOR"
-          git config --global user.email "$GITHUB_ACTOR@github.com"
-          VERSION=$(node -p "require('./package.json').version")
-          BRANCH="release/$VERSION"
-          git checkout -b "$BRANCH"
-
-          echo "release_branch=$BRANCH"
-          echo "release_branch=$BRANCH" >> "$GITHUB_OUTPUT"
-      - id: update-chart
-        name: Update Docker and Helm
-        run: |
-          echo yq e -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
-          yq e -i '.appVersion = "${{ needs.start-release.outputs.new_version }}"' chart/Chart.yaml
-
-          echo "${{ needs.start-release.outputs.package_api }}"
-          if [ "${{ needs.start-release.outputs.package_api }}" == "true" ]; then
-            echo yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_api_version }}"' chart/values.yaml
-            yq e -i '.apiImageVers = "${{ needs.start-release.outputs.new_api_version }}"' chart/values.yaml
-            echo yq e -i '.services.api.image = "${{ needs.start-release.outputs.new_api_image }}"' compose.yaml
-            yq e -i '.services.api.image = "${{ needs.start-release.outputs.new_api_image }}"' compose.yaml
-          fi
-
-          echo "${{ needs.start-release.outputs.package_mui }}"
-          if [ "${{ needs.start-release.outputs.package_mui }}" == "true" ]; then
-            echo yq e -i '.uiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
-            yq e -i '.uiImageVers = "${{ needs.start-release.outputs.new_mui_version }}"' chart/values.yaml
-            echo yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
-            yq e -i '.services.ui.image = "${{ needs.start-release.outputs.new_mui_image }}"' compose.yaml
-          fi
-      - id: update-versions
-        env:
-          SEGMENT: minor
-        run: |
-          echo npm version $SEGMENT --no-commit-hooks --no-git-tag-version
-          npm version $SEGMENT --no-commit-hooks --no-git-tag-version
-
-          echo "${{ needs.start-release.outputs.package_api }}"
-          if [ "${{ needs.start-release.outputs.package_api }}" == "true" ]; then
-            echo npm version $SEGMENT --no-commit-hooks --no-git-tag-version -w packages/api
-            npm version $SEGMENT --no-commit-hooks --no-git-tag-version -w packages/api
-          fi
-
-          echo "${{ needs.start-release.outputs.package_mui }}"
-          if [ "${{ needs.start-release.outputs.package_mui }}" == "true" ]; then
-            echo npm version $SEGMENT --no-commit-hooks --no-git-tag-version -w packages/mui
-            npm version $SEGMENT --no-commit-hooks --no-git-tag-version -w packages/mui
-          fi
-
-          git status
-          git commit -m "chore: increment version numbers" -a
-          git status
-          git push --set-upstream origin ${{ steps.create-branch.outputs.release_branch }}
-      - name: Create Pull Request
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD: ${{ steps.create-branch.outputs.release_branch }}
-          TITLE: "chore: update package versions"
-          BODY: "Automated version update PR"
-        run: |
-          gh pr create --base main --head "$HEAD" -b "$BODY" -t "$TITLE"
-          gh pr merge --squash
   package-mui:
     needs: [start-release]
     if: needs.start-release.outputs.package_mui == 'true'
@@ -131,6 +55,7 @@ jobs:
     with:
       package: mui
       registry: ghcr.io
+      version: ${{ needs.start-release.outputs.new_mui_version }}
   package-api:
     needs: [start-release]
     if: needs.start-release.outputs.package_api == 'true'
@@ -141,20 +66,40 @@ jobs:
     with:
       package: api
       registry: ghcr.io
-  trigger-deployment:
-    needs: [package-api, package-mui, version]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write
+      version: ${{ needs.start-release.outputs.new_api_version }}
+  tag-packages:
+    needs: [start-release, package-api, package-mui]
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-      - id: trigger-manual-deploy
-        name: Trigger Deployment
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - name: Tag Released Packages
+        env:
+          API_VERSION: ${{ needs.start-release.outputs.new_api_version }}
+          MUI_VERSION: ${{ needs.start-release.outputs.new_mui_version }}
+        run: |
+          if [ "${{ needs.start-release.outputs.package_api }}" = true ]; then
+            git tag "api/v$API_VERSION" && git push origin "api/v$API_VERSION"
+          fi
+          if [ "${{ needs.start-release.outputs.package_mui }}" = true ]; then
+            git tag "mui/v$MUI_VERSION" && git push origin "mui/v$MUI_VERSION"
+          fi
+  trigger-deployment:
+    needs: [tag-packages]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Trigger Deployment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: gh workflow run deploy.yaml
