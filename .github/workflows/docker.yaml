@@ -9,6 +9,9 @@ on:
       registry:
         required: true
         type: string
+      version:
+        required: true
+        type: string
 jobs:
   docker-image:
     runs-on: ubuntu-latest
@@ -17,11 +20,6 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-      - run: env
-      - run: |
-          echo ${{ inputs.registry }}
-          echo ${{ github.repository }}
-          echo ${{ inputs.package }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24.x'
@@ -30,12 +28,6 @@ jobs:
         env:
           DISABLE_ESLINT_PLUGIN: true
         run: npm run build -w packages/${{ inputs.package }}
-      - id: get-version
-        name: Get ${{ inputs.package }} Version
-        run: |
-          VERSION=$(node -p "require('./packages/${{ inputs.package }}/package.json').version")
-          echo "package_version=$VERSION"
-          echo "package_version=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Docker registry login
         uses: docker/login-action@v3
         with:
@@ -47,14 +39,12 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ inputs.registry }}/${{ github.repository }}-${{ inputs.package }}
+          flavor: latest=true
           labels: |
-            org.opencontainers.image.version=${{ steps.get-version.outputs.package_version }}
+            org.opencontainers.image.version=${{ inputs.version }}
             org.opencontainers.image.title=${{ github.repository }}-${{ inputs.package }}
           tags: |
-            type=semver,pattern={{version}},value=${{ steps.get-version.outputs.package_version }}
-      - name: DELETE ME LATER
-        run: |
-          ls -l ./packages/${{ inputs.package }}/
+            type=semver,pattern={{version}},value=${{ inputs.version }}
       - name: Docker Build and Push
         uses: docker/build-push-action@v5
         with:
