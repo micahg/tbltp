@@ -24,19 +24,18 @@ jobs:
             CHANGED=true
             NEW=
             LATEST=$(git tag -l "$p/v*" --sort=-v:refname | head -n 1)
-            if [ -n "$LATEST" ]; then
-              BASE=$(git rev-list -n 1 "$LATEST")
-              if [ "$BASE" = "$(git rev-parse HEAD)" ]; then
-                CHANGED=false
-              elif [ -z "$(git diff --name-only "$BASE" HEAD -- "packages/$p" packages/common)" ]; then
-                CHANGED=false
-              else
-                CURRENT=${LATEST##*/}
-                NEW=$(printf '%s' "${CURRENT#v}" | awk -F. '{printf "%d.%d.0", $1, $2+1}')
-              fi
+            if [ -z "$LATEST" ]; then
+              echo "::error::no $p/v* tag found, seed a baseline tag first"
+              exit 1
+            fi
+            BASE=$(git rev-list -n 1 "$LATEST")
+            if [ "$BASE" = "$(git rev-parse HEAD)" ]; then
+              CHANGED=false
+            elif [ -z "$(git diff --name-only "$BASE" HEAD -- "packages/$p" packages/common)" ]; then
+              CHANGED=false
             else
-              # bootstrap: no per-package tag yet, take the staged package.json version as-is
-              NEW=$(node -p "require('./packages/$p/package.json').version")
+              CURRENT=${LATEST##*/}
+              NEW=$(printf '%s' "${CURRENT#v}" | awk -F. '{printf "%d.%d.0", $1, $2+1}')
             fi
             if [ "$CHANGED" = true ]; then
               echo "package_$p=true" >> "$GITHUB_OUTPUT"
