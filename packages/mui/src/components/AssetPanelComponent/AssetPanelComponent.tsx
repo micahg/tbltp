@@ -35,9 +35,14 @@ import {
 interface AssetPanelComponentProps {
   asset: Asset;
   readonly: boolean;
+  used?: boolean;
 }
 
-const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
+const AssetPanelComponent = ({
+  asset,
+  readonly,
+  used,
+}: AssetPanelComponentProps) => {
   const api = useSelector(
     (state: AppReducerState) =>
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
@@ -58,6 +63,7 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
   const [showUsage, setShowUsage] = useState(false);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const saveDisabled = name === asset.name && !file;
+  const deleteDisabled = !asset._id || used === true;
 
   useEffect(() => {
     getAccessTokenSilently()
@@ -247,11 +253,18 @@ const AssetPanelComponent = ({ asset, readonly }: AssetPanelComponentProps) => {
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title="Delete this asset">
+            <Tooltip
+              title={
+                used
+                  ? "This asset is in use by tokens or scenes and cannot be deleted"
+                  : "Delete this asset"
+              }
+            >
               <span>
                 <IconButton
                   aria-label="delete"
                   color="primary"
+                  disabled={deleteDisabled}
                   onClick={() => setDeleteWarning(true)}
                 >
                   <DeleteIcon />
@@ -318,6 +331,7 @@ export default memo(AssetPanelComponent, (prev, next) => {
     prev.asset._id === next.asset._id &&
     prev.asset.name === next.asset.name &&
     prev.asset.location === next.asset.location &&
-    prev.asset.revision === next.asset.revision
+    prev.asset.revision === next.asset.revision &&
+    prev.used === next.used
   );
 });

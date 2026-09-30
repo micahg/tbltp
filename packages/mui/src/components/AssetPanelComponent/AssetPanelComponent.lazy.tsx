@@ -7,6 +7,7 @@ const AssetPanelComponent = (
   props: JSX.IntrinsicAttributes & {
     asset: Asset;
     readonly: boolean;
+    used?: boolean;
     children?: React.ReactNode;
   },
 ) => (

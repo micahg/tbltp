@@ -37,6 +37,8 @@ jest.mock("../DeleteWarningComponent/DeleteWarningComponent.lazy", () => {
   return MockDeleteWarningComponent;
 });
 
+jest.mock("./AssetPanelComponent.module.css", () => ({}));
+
 const mockedUseLazyGetAssetUsageQuery = useLazyGetAssetUsageQuery as jest.Mock;
 const mockedUseUpdateAssetMutation = useUpdateAssetMutation as jest.Mock;
 const mockedUseUpdateAssetDataMutation =
@@ -127,5 +129,31 @@ describe("<AssetPanelComponent />", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "info" }));
     expect(screen.queryByTestId("AssetUsageSection")).not.toBeInTheDocument();
+  });
+
+  test("it should disable the delete button when the asset is used", () => {
+    render(<AssetPanelComponent asset={asset} readonly={false} used={true} />);
+
+    expect(screen.getByRole("button", { name: "delete" })).toBeDisabled();
+  });
+
+  test("it should enable the delete button when the asset is unused", () => {
+    render(<AssetPanelComponent asset={asset} readonly={false} used={false} />);
+
+    expect(screen.getByRole("button", { name: "delete" })).toBeEnabled();
+  });
+
+  test("it should enable the delete button when usage is not provided", () => {
+    render(<AssetPanelComponent asset={asset} readonly={false} />);
+
+    expect(screen.getByRole("button", { name: "delete" })).toBeEnabled();
+  });
+
+  test("it should disable the delete button when the asset has no id", () => {
+    render(
+      <AssetPanelComponent asset={{ name: "unsaved" }} readonly={false} />,
+    );
+
+    expect(screen.getByRole("button", { name: "delete" })).toBeDisabled();
   });
 });
