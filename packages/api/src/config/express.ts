@@ -10,6 +10,7 @@ import {
   STATE_ASSET,
   SCENE_PATH,
   SCENE_CONTENT_PATH,
+  SCENE_OVERLAY_DATA_PATH,
   SCENE_VIEWPORT_PATH,
   ALL_ASSETS_PATH,
   ASSET_DATA_PATH,
@@ -24,7 +25,9 @@ import { getState, updateState } from "../routes/state";
 
 import { auth } from "express-oauth2-jwt-bearer";
 import {
+  commitSceneOverlayData,
   createScene,
+  createSceneOverlayUploadUrl,
   deleteScene,
   getScene,
   getScenes,
@@ -53,6 +56,7 @@ import {
   deleteSceneValidator,
   getSceneValidator,
   sceneLayerAssetValidator,
+  sceneOverlayDataValidator,
   sceneViewportValidator,
 } from "../utils/scene";
 import { stateValidator } from "../utils/state";
@@ -335,6 +339,23 @@ export function create(): Express {
     sceneLayerAssetValidator(),
     schemaErrorCheck,
     updateSceneContent,
+  );
+  // request a presigned url to upload scene overlay data directly to object
+  // storage -- the only sanctioned replacement path for uploaded asset data
+  app.post(
+    SCENE_OVERLAY_DATA_PATH,
+    jwtCheck,
+    sceneOverlayDataValidator(),
+    schemaErrorCheck,
+    createSceneOverlayUploadUrl,
+  );
+  // commit a scene overlay upload (the object must already exist in storage)
+  app.put(
+    SCENE_OVERLAY_DATA_PATH,
+    jwtCheck,
+    sceneOverlayDataValidator(),
+    schemaErrorCheck,
+    commitSceneOverlayData,
   );
   app.delete(
     TOKEN_INSTANCE_PATH,

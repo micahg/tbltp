@@ -12,10 +12,16 @@ import {
 } from "../utils/scene";
 import { OBJECT_ID_LEN } from "../utils/constants";
 import { IScene } from "../models/scene";
+import { IUser } from "../models/user";
 import { validateAngle, validateViewPort } from "../utils/viewport";
 import { Rect } from "@micahg/tbltp-common";
 import { deleteUserSceneTokenInstances } from "../utils/tokeninstance";
-import { deleteUserSceneAssetInstances, getUserAsset } from "../utils/asset";
+import {
+  createUserAsset,
+  deleteUserSceneAssetInstances,
+  getUserAsset,
+} from "../utils/asset";
+import { commitAssetData, presignAssetUpload } from "../utils/assetstore";
 
 export const NAME_REGEX = /^[\w\s]{1,64}$/;
 
@@ -157,4 +163,87 @@ export function updateSceneViewport(
     .then((scene) => setSceneViewport(scene._id.toString(), bg, vp, angle))
     .then((scene) => res.json(scene))
     .catch((err) => next(err));
+}
+
+/**
+ * Resolve the scene's overlay asset, creating and assigning it on the first
+ * update (absorbs the create + assign the editor used to do client-side).
+ */
+async function resolveSceneOverlayAsset(user: IUser, scene: IScene) {
+  const asset = scene.overlayId
+    ? await getUserAsset(user, scene.overlayId.toString())
+    : null;
+  if (asset) return asset;
+
+  const created = await createUserAsset(user, {
+    name: `scene ${scene._id} overlay`,
+    tags: ["scene"],
+  });
+  if (!created) {
+    throw new Error("Unable to create the overlay asset", { cause: 500 });
+  }
+  await setSceneLayerAsset(
+    scene._id.toString(),
+    "overlay",
+    created._id!.toString(),
+  );
+  return created;
+}
+
+/**
+ * Issue a presigned url for uploading the scene's overlay data. The overlay
+ * is regenerated as the game master annotates, so this (and its commit
+ * sibling) are the only sanctioned asset data replacement endpoints.
+ */
+export async function createSceneOverlayUploadUrl(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getUser(req.auth);
+    userExistsOr401(user);
+    const scene = sceneExistsOr404(
+      await getSceneById(req.params.id, user._id.toString()),
+    );
+
+    const asset = await resolveSceneOverlayAsset(user, scene);
+    return res.json(
+      await presignAssetUpload(user, asset, req.body.contentType),
+    );
+  } catch (err) {
+    log.error("Unable to create scene overlay upload url", err);
+    return next({ status: err.cause || 500 });
+  }
+}
+
+/**
+ * Commit a scene overlay upload: verify the object landed in storage, then
+ * record the location and bump the revision on the overlay asset.
+ */
+export async function commitSceneOverlayData(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getUser(req.auth);
+    userExistsOr401(user);
+    const scene = sceneExistsOr404(
+      await getSceneById(req.params.id, user._id.toString()),
+    );
+
+    if (!scene.overlayId) {
+      throw new Error("No overlay asset", { cause: 404 });
+    }
+    const asset = await getUserAsset(user, scene.overlayId.toString());
+    if (!asset) {
+      throw new Error("No overlay asset", { cause: 404 });
+    }
+
+    return res.json(await commitAssetData(user, asset, req.body.contentType));
+  } catch (err) {
+    log.error("Unable to commit scene overlay data", err);
+    return next({ status: err.cause || 500 });
+  }
 }

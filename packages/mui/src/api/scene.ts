@@ -1,4 +1,4 @@
-import { Rect, Scene } from "@micahg/tbltp-common";
+import { Asset, Rect, Scene } from "@micahg/tbltp-common";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type {
   BaseQueryFn,
@@ -8,7 +8,9 @@ import type {
 import { assetApi } from "./asset";
 import { environmentApi } from "./environment";
 import { getAuthHeaders } from "../utils/authBridge";
+import { LoadProgress } from "../utils/content";
 import { ratelimit } from "../slices/rateLimitSlice";
+import { presignedUpload } from "./upload";
 
 type SceneTag = { type: "Scene"; id: string };
 
@@ -27,6 +29,12 @@ export interface SceneViewportUpdate {
     viewport?: Rect;
     angle?: number;
   };
+}
+
+export interface UpdateSceneOverlayDataArgs {
+  sceneId: string;
+  file: File;
+  progress?: (evt: LoadProgress) => void;
 }
 
 function assetTagsForDeletedScene(scene: Scene | undefined) {
@@ -224,6 +232,74 @@ export const sceneApi = createApi({
         { type: "Scene", id: "LIST" },
       ],
     }),
+    updateSceneOverlayData: build.mutation<Asset, UpdateSceneOverlayDataArgs>({
+      async queryFn(args, _api, _extraOptions, baseQuery) {
+        const url = `/scene/${args.sceneId}/overlay/data`;
+        return presignedUpload<Asset>(
+          {
+            presign: { url, method: "POST" },
+            commit: { url, method: "PUT" },
+            file: args.file,
+            progress: args.progress,
+          },
+          baseQuery,
+        );
+      },
+      async onQueryStarted(args, { dispatch, getState, queryFulfilled }) {
+        // the scene only changes on the first update (the overlay asset
+        // gets created + assigned); later strokes just bump the revision
+        const cachedScenes = sceneApi.endpoints.getScenes.select()(
+          getState() as Parameters<
+            ReturnType<typeof sceneApi.endpoints.getScenes.select>
+          >[0],
+        )?.data;
+        const cachedScene = cachedScenes?.find(
+          (scene) => scene._id === args.sceneId,
+        );
+
+        try {
+          const { data } = await queryFulfilled;
+
+          if (data._id) {
+            // the overlay asset's revision bump drives the editor's
+            // overlay redraw, so patch the asset caches the same way
+            // updateAssetData does
+            dispatch(
+              assetApi.util.updateQueryData(
+                "getAssetById",
+                data._id,
+                (draft) => {
+                  Object.assign(draft, data);
+                },
+              ),
+            );
+            dispatch(
+              assetApi.util.updateQueryData("getAssets", undefined, (draft) => {
+                const index = draft.findIndex(
+                  (asset) => asset._id === data._id,
+                );
+                if (index === -1) {
+                  draft.push(data); // the first update created the asset
+                } else {
+                  Object.assign(draft[index], data);
+                }
+              }),
+            );
+          }
+
+          if (!cachedScene || cachedScene.overlayId !== data._id) {
+            dispatch(
+              sceneApi.util.invalidateTags([
+                { type: "Scene", id: args.sceneId },
+                { type: "Scene", id: "LIST" },
+              ]),
+            );
+          }
+        } catch {
+          // no-op; error is already surfaced through queryFn
+        }
+      },
+    }),
   }),
 });
 
@@ -234,4 +310,5 @@ export const {
   useDeleteSceneMutation,
   useAssignSceneLayerAssetMutation,
   useUpdateSceneViewportMutation,
+  useUpdateSceneOverlayDataMutation,
 } = sceneApi;

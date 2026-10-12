@@ -13,6 +13,7 @@ export const STATE_ASSET = "/state";
 export const ALL_SCENES_PATH = "/scene";
 export const SCENE_PATH = "/scene/:id";
 export const SCENE_CONTENT_PATH = "/scene/:id/:layer";
+export const SCENE_OVERLAY_DATA_PATH = "/scene/:id/overlay/data";
 export const SCENE_VIEWPORT_PATH = "/scene/:id/viewport";
 export const SCENE_TOKEN_PATH = "/scene/:id/token";
 export const TOKEN_INSTANCE_PATH = "/tokeninstance/:id";

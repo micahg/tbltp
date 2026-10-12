@@ -140,13 +140,6 @@ export async function assetUsage(
   return { tokens, scenes };
 }
 
-export async function setAssetLocation(asset: IAsset, location: string) {
-  return AssetModel.updateOne(
-    { _id: { $eq: asset._id } },
-    { location: location },
-  );
-}
-
 export function deleteUserSceneAssetInstances(user: IUser, scene: IScene) {
   const sceneAssetIds = [
     scene.playerId,

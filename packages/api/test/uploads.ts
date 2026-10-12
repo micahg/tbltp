@@ -13,15 +13,15 @@ import * as request from "supertest";
  * success) is returned so callers can assert on status codes.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function uploadAssetData(
+async function presignedUploadCommit(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app: any,
-  assetId: string,
+  presignUrl: string,
+  commitUrl: string,
   filePath = "test/assets/1x1.png",
   contentType = "image/png",
 ) {
-  const presigned = await request(app)
-    .post(`/asset/${assetId}/data`)
-    .send({ contentType });
+  const presigned = await request(app).post(presignUrl).send({ contentType });
   if (presigned.statusCode !== 200) {
     return presigned;
   }
@@ -36,5 +36,45 @@ export async function uploadAssetData(
     throw new Error(`Presigned upload failed (${uploaded.status})`);
   }
 
-  return request(app).put(`/asset/${assetId}/data`).send({ contentType });
+  return request(app).put(commitUrl).send({ contentType });
+}
+
+/**
+ * Run the full presigned upload flow for an asset against the app.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function uploadAssetData(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app: any,
+  assetId: string,
+  filePath?: string,
+  contentType?: string,
+) {
+  return presignedUploadCommit(
+    app,
+    `/asset/${assetId}/data`,
+    `/asset/${assetId}/data`,
+    filePath,
+    contentType,
+  );
+}
+
+/**
+ * Run the full presigned upload flow for a scene overlay against the app.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function uploadSceneOverlayData(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app: any,
+  sceneId: string,
+  filePath?: string,
+  contentType?: string,
+) {
+  return presignedUploadCommit(
+    app,
+    `/scene/${sceneId}/overlay/data`,
+    `/scene/${sceneId}/overlay/data`,
+    filePath,
+    contentType,
+  );
 }

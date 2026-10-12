@@ -9,7 +9,7 @@ import { environmentApi } from "./environment";
 import { getAuthHeaders } from "../utils/authBridge";
 import { LoadProgress } from "../utils/content";
 import { ratelimit } from "../slices/rateLimitSlice";
-import { uploadFile, type UploadError } from "./upload";
+import { presignedUpload } from "./upload";
 
 type AssetTag = { type: "Asset"; id: string };
 
@@ -140,87 +140,17 @@ export const assetApi = createApi({
       ],
     }),
     updateAssetData: build.mutation<Asset, UpdateAssetDataRequest>({
-      async queryFn(args, api, _extraOptions, baseQuery) {
-        if (!args.file.type) {
-          return {
-            error: {
-              status: "CUSTOM_ERROR",
-              error: "Unable to determine the asset file type",
-            },
-          };
-        }
-
-        const contentType = args.file.type;
-
-        // 1. request a presigned upload URL from the API
-        const presigned = await baseQuery({
-          url: `/asset/${args.id}/data`,
-          method: "POST",
-          body: { contentType },
-        });
-        if (presigned.error) {
-          return { error: presigned.error };
-        }
-
-        const { url } = presigned.data as { url: string; location: string };
-
-        // 2. upload the file directly to object storage
-        try {
-          await uploadFile({
-            url,
+      async queryFn(args, _api, _extraOptions, baseQuery) {
+        const url = `/asset/${args.id}/data`;
+        return presignedUpload<Asset>(
+          {
+            presign: { url, method: "POST" },
+            commit: { url, method: "PUT" },
             file: args.file,
-            contentType,
-            onProgress: (evt) => {
-              if (!evt.lengthComputable) {
-                return;
-              }
-              args.progress?.({ progress: evt.loaded / evt.total, img: "" });
-            },
-          });
-        } catch (error) {
-          if (
-            typeof error === "object" &&
-            error !== null &&
-            "status" in error
-          ) {
-            const uploadErr = error as UploadError;
-            if (typeof uploadErr.status === "number") {
-              return {
-                error: {
-                  status: uploadErr.status,
-                  data: uploadErr.data,
-                },
-              };
-            }
-
-            return {
-              error: {
-                status: "CUSTOM_ERROR",
-                data: uploadErr.data,
-                error: uploadErr.message,
-              },
-            };
-          }
-
-          return {
-            error: {
-              status: "CUSTOM_ERROR",
-              error: String(error),
-            },
-          };
-        }
-
-        // 3. commit the upload (the API verifies the object landed in storage)
-        const commit = await baseQuery({
-          url: `/asset/${args.id}/data`,
-          method: "PUT",
-          body: { contentType },
-        });
-        if (commit.error) {
-          return { error: commit.error };
-        }
-
-        return { data: commit.data as Asset };
+            progress: args.progress,
+          },
+          baseQuery,
+        );
       },
       async onQueryStarted(args, { dispatch, queryFulfilled }) {
         try {

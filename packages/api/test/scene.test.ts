@@ -15,7 +15,7 @@ import { userZero, userOne } from "./assets/auth";
 import { fail } from "node:assert";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common";
 import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
-import { uploadAssetData } from "./uploads";
+import { uploadAssetData, uploadSceneOverlayData } from "./uploads";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let app: any;
@@ -235,6 +235,159 @@ describe("scene", () => {
           angle: "noAngle",
         });
       expect(resp.statusCode).toBe(400);
+    });
+  });
+
+  describe("overlay data", () => {
+    beforeEach(async () => {
+      (getFakeUser as jest.Mock).mockReturnValue(userZero);
+      await tokensCollection.deleteMany({}); // Clean up the database
+      await usersCollection.deleteMany({}); // Clean up the database
+      await assetsCollection.deleteMany({}); // Clean up the database
+      await tokenInstancesCollection.deleteMany({}); // Clean up the database
+      await scenesCollection.deleteMany({}); // Clean up the database
+    });
+    afterEach(async () => {
+      await tokensCollection.deleteMany({}); // Clean up the database
+      await usersCollection.deleteMany({}); // Clean up the database
+      await assetsCollection.deleteMany({}); // Clean up the database
+      await tokenInstancesCollection.deleteMany({}); // Clean up the database
+      await scenesCollection.deleteMany({}); // Clean up the database
+    });
+
+    it("Should 404 the overlay endpoints for an unknown scene", async () => {
+      // ensure the calling user exists (the overlay routes 401 unknown users
+      // before they can 404 unknown scenes)
+      const scenes = await request(app).get("/scene");
+      expect(scenes.statusCode).toBe(200);
+
+      const presigned = await request(app)
+        .post("/scene/aaaaaaaaaaaaaaaaaaaaaaaa/overlay/data")
+        .send({ contentType: "image/png" });
+      expect(presigned.statusCode).toBe(404);
+
+      const commit = await request(app)
+        .put("/scene/aaaaaaaaaaaaaaaaaaaaaaaa/overlay/data")
+        .send({ contentType: "image/png" });
+      expect(commit.statusCode).toBe(404);
+    });
+
+    it("Should 400 an invalid scene id or content type", async () => {
+      const badId = await request(app)
+        .post("/scene/asdf/overlay/data")
+        .send({ contentType: "image/png" });
+      expect(badId.statusCode).toBe(400);
+
+      const badType = await request(app)
+        .post("/scene/aaaaaaaaaaaaaaaaaaaaaaaa/overlay/data")
+        .send({ contentType: "image/gif" });
+      expect(badType.statusCode).toBe(400);
+    });
+
+    it("Should 400 when committing before the upload happened", async () => {
+      const scenes = await request(app).get("/scene");
+      expect(scenes.statusCode).toBe(200);
+      const sceneId = scenes.body[0]._id;
+
+      // presign but never upload the object
+      const presigned = await request(app)
+        .post(`/scene/${sceneId}/overlay/data`)
+        .send({ contentType: "image/png" });
+      expect(presigned.statusCode).toBe(200);
+
+      const commit = await request(app)
+        .put(`/scene/${sceneId}/overlay/data`)
+        .send({ contentType: "image/png" });
+      expect(commit.statusCode).toBe(400);
+    });
+
+    it("Should create and assign the overlay asset on the first update", async () => {
+      const scenes = await request(app).get("/scene");
+      expect(scenes.statusCode).toBe(200);
+      const sceneId = scenes.body[0]._id;
+      expect(scenes.body[0].overlayId).toBeFalsy(); // fresh scene
+
+      const resp = await uploadSceneOverlayData(app, sceneId);
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body._id).toMatch(/[a-f0-9]{24}/);
+      expect(resp.body.revision).toBe(1);
+      expect(resp.body.location).toMatch(
+        /public\/[a-f0-9]{24}\/assets\/[a-f0-9]{24}\.png/,
+      );
+
+      // the scene-keyed endpoint created and assigned the overlay asset
+      const updated = await request(app).get("/scene");
+      expect(updated.statusCode).toBe(200);
+      expect(updated.body[0].overlayId).toBe(resp.body._id);
+
+      const asset = await assetsCollection.findOne({
+        name: `scene ${sceneId} overlay`,
+      });
+      expect(asset).toBeTruthy();
+      expect(asset.tags).toEqual(["scene"]);
+    });
+
+    it("Should allow repeated updates of the overlay asset", async () => {
+      const scenes = await request(app).get("/scene");
+      expect(scenes.statusCode).toBe(200);
+      const sceneId = scenes.body[0]._id;
+
+      const first = await uploadSceneOverlayData(app, sceneId);
+      expect(first.statusCode).toBe(200);
+      expect(first.body.revision).toBe(1);
+
+      // the overlay is regenerated as the game master annotates, so the
+      // same asset gets its data replaced on every stroke
+      const second = await uploadSceneOverlayData(app, sceneId);
+      expect(second.statusCode).toBe(200);
+      expect(second.body.revision).toBe(2);
+      expect(second.body._id).toBe(first.body._id);
+
+      const updated = await request(app).get("/scene");
+      expect(updated.body[0].overlayId).toBe(second.body._id);
+    });
+
+    it("Should update the overlay while the background stays immutable", async () => {
+      const scenes = await request(app).get("/scene");
+      expect(scenes.statusCode).toBe(200);
+      const sceneId = scenes.body[0]._id;
+
+      // give the scene a player background and a placed token -- the issue
+      // #519 setup: replacing the background would invalidate the token
+      // placement, but the annotation overlay keeps updating
+      const playerResp = await assignSceneLayer(sceneId, "player");
+      expect(playerResp.statusCode).toBe(200);
+
+      const token = await request(app)
+        .put("/token")
+        .send({ name: "bystander" });
+      expect(token.statusCode).toBe(201);
+      const instance: Omit<ScenelessTokenInstance, "angle"> = {
+        name: "bystander instance",
+        token: token.body._id,
+        x: 0,
+        y: 0,
+        scale: 1,
+        visible: true,
+      };
+      const placed = await request(app)
+        .put(`/scene/${sceneId}/token`)
+        .send(instance);
+      expect(placed.statusCode).toBe(201);
+
+      // the player background asset cannot be re-uploaded through the
+      // asset data endpoints
+      const updated = await request(app).get("/scene");
+      const playerAssetId = updated.body[0].playerId;
+      const refused = await request(app)
+        .post(`/asset/${playerAssetId}/data`)
+        .send({ contentType: "image/png" });
+      expect(refused.statusCode).toBe(409);
+
+      // the overlay keeps updating through the scene-keyed endpoint
+      const resp = await uploadSceneOverlayData(app, sceneId);
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body.revision).toBe(1);
     });
   });
 
