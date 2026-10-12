@@ -41,13 +41,22 @@ function layerAssetName(sceneId: string, layer: SceneLayer): string {
   return `scene ${sceneId} ${layer}`;
 }
 
+/**
+ * The unique (user, name) asset index forbids reusing the standard layer
+ * asset name while the previously assigned asset still exists, so
+ * replacement names get a timestamp suffix to stay unique.
+ */
+function replacementLayerAssetName(sceneId: string, layer: SceneLayer): string {
+  return `${layerAssetName(sceneId, layer)} ${Date.now()}`;
+}
+
 async function saveLayerAsset(
   scene: Scene,
   layer: SceneLayer,
   file: File,
   progress: ((evt: LoadProgress) => void) | undefined,
   ops: SaveSceneFlowOps,
-): Promise<{ scene: Scene; createdAsset?: Asset }> {
+): Promise<{ scene: Scene; createdAsset: Asset }> {
   const existingAssetId =
     layer === "player"
       ? scene.playerId
@@ -55,36 +64,46 @@ async function saveLayerAsset(
         ? scene.detailId
         : scene.overlayId;
 
-  let createdAsset: Asset | undefined;
-  let assetId = existingAssetId;
-
-  if (!assetId) {
-    const created = await ops.updateAsset({
-      name: layerAssetName(scene._id!, layer),
-      tags: ["scene"],
-    });
-    if (!created?._id) {
-      throw new Error("Created asset missing id");
-    }
-    createdAsset = created;
-    assetId = created._id;
+  // assets are immutable once their data is uploaded, so a changed layer
+  // image always gets a brand new asset and the layer is reassigned to it
+  const created = await ops.updateAsset({
+    name: existingAssetId
+      ? replacementLayerAssetName(scene._id!, layer)
+      : layerAssetName(scene._id!, layer),
+    tags: ["scene"],
+  });
+  if (!created?._id) {
+    throw new Error("Created asset missing id");
   }
 
   await ops.updateAssetData({
-    id: assetId,
+    id: created._id,
     file,
     progress,
   });
 
-  const updatedScene = createdAsset
-    ? await ops.assignSceneLayerAsset({
-        sceneId: scene._id!,
-        layer,
-        assetId,
-      })
-    : scene;
+  const updatedScene = await ops.assignSceneLayerAsset({
+    sceneId: scene._id!,
+    layer,
+    assetId: created._id,
+  });
 
-  return { scene: updatedScene, createdAsset };
+  // the replaced asset is orphaned by the reassignment -- best effort
+  // delete it so it does not linger. if it is still referenced elsewhere
+  // (another scene layer or a token image) the API refuses (409) and it
+  // is left behind for manual cleanup
+  if (existingAssetId && ops.deleteAsset) {
+    await ops
+      .deleteAsset({
+        _id: existingAssetId,
+        name: layerAssetName(scene._id!, layer),
+      })
+      .catch(() => {
+        // ignore cleanup errors -- the swap itself already succeeded
+      });
+  }
+
+  return { scene: updatedScene, createdAsset: created };
 }
 
 export async function saveSceneFlow(
@@ -130,7 +149,7 @@ export async function saveSceneFlow(
         ops,
       );
       scene = result.scene;
-      if (result.createdAsset) createdAssets.push(result.createdAsset);
+      createdAssets.push(result.createdAsset);
       ops.onScene(scene);
     }
 
@@ -143,7 +162,7 @@ export async function saveSceneFlow(
         ops,
       );
       scene = result.scene;
-      if (result.createdAsset) createdAssets.push(result.createdAsset);
+      createdAssets.push(result.createdAsset);
       ops.onScene(scene);
     }
 

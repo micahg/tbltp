@@ -5,22 +5,9 @@ import { IUser } from "../models/user";
 import { IToken } from "../models/token";
 import { TokenInstanceModel } from "../models/tokeninstance";
 import { Rect } from "@micahg/tbltp-common";
-import { createUserAsset, getUserAsset } from "./asset";
+import { VALID_CONTENT_TYPES } from "./constants";
 
 export type SceneLayer = "overlay" | "detail" | "player";
-
-function getSceneLayerAssetId(scene: IScene, layer: SceneLayer) {
-  if (layer === "overlay") return scene.overlayId?.toString();
-  if (layer === "detail") return scene.detailId?.toString();
-  return scene.playerId?.toString();
-}
-
-export function sceneLayerAssetName(
-  sceneId: string,
-  layer: SceneLayer,
-): string {
-  return `scene-${sceneId}-${layer}`;
-}
 
 function validateRect(value: Rect): boolean {
   if (!value) return false;
@@ -116,6 +103,35 @@ export function sceneLayerAssetValidator() {
       in: ["body"],
       isMongoId: {
         errorMessage: "Invalid asset ID",
+      },
+    },
+  });
+}
+
+/**
+ * Validates the presign (POST) and commit (PUT) requests for scene overlay
+ * data uploads: the scene id and the content type of the overlay image.
+ */
+export function sceneOverlayDataValidator() {
+  return checkSchema({
+    id: {
+      in: ["params"],
+      optional: false,
+      isMongoId: {
+        errorMessage: "Invalid scene ID",
+      },
+    },
+    contentType: {
+      in: ["body"],
+      exists: {
+        errorMessage: "Content type is required",
+      },
+      isString: {
+        errorMessage: "Content type must be a string",
+      },
+      isIn: {
+        options: [VALID_CONTENT_TYPES],
+        errorMessage: "Invalid content type",
       },
     },
   });
@@ -276,43 +292,4 @@ export function setSceneViewport(
     { backgroundSize: bg, viewport: vp, angle: angle },
     { new: true },
   );
-}
-
-export async function upsertSceneLayerAsset(
-  user: IUser,
-  scene: IScene,
-  layer: SceneLayer,
-  location: string,
-  incrementRevision = true,
-) {
-  const layerAssetId = getSceneLayerAssetId(scene, layer);
-  const name = sceneLayerAssetName(scene._id.toString(), layer);
-
-  const asset = layerAssetId ? await getUserAsset(user, layerAssetId) : null;
-
-  if (!asset) {
-    const created = await createUserAsset(user, {
-      name,
-      location,
-      tags: ["scene"],
-    });
-
-    if (!created) {
-      throw new Error("Unable to create scene asset", { cause: 500 });
-    }
-    return created;
-  }
-
-  const tags = asset.tags || [];
-  if (!tags.includes("scene")) {
-    tags.push("scene");
-    asset.tags = tags;
-  }
-
-  if (asset.location !== location) {
-    asset.location = location;
-    if (incrementRevision) asset.revision = (asset.revision || 0) + 1;
-  }
-
-  return asset.save();
 }

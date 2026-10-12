@@ -272,6 +272,66 @@ describe("asset", () => {
       expect(assets).toHaveLength(1);
     });
   });
+  describe("data immutability", () => {
+    beforeEach(() => {
+      (getFakeUser as jest.Mock).mockReturnValue(userZero);
+    });
+    afterEach(cleanupTestData);
+
+    async function createUploadedAsset(name: string) {
+      const created = await request(app).put("/asset").send({ name });
+      expect(created.statusCode).toBe(201);
+      const upload = await uploadAssetData(app, created.body._id);
+      expect(upload.statusCode).toBe(200);
+      expect(upload.body.revision).toBe(1);
+      return created.body._id as string;
+    }
+
+    async function expectReplacementRefused(assetId: string) {
+      const presigned = await request(app)
+        .post(`/asset/${assetId}/data`)
+        .send({ contentType: "image/png" });
+      expect(presigned.statusCode).toBe(409);
+
+      const commit = await request(app)
+        .put(`/asset/${assetId}/data`)
+        .send({ contentType: "image/png" });
+      expect(commit.statusCode).toBe(409);
+    }
+
+    it("Should 409 when re-uploading the data of an unused asset", async () => {
+      const assetId = await createUploadedAsset("IMMUTABLE_ASSET");
+      await expectReplacementRefused(assetId);
+    });
+
+    it.each(["player", "detail", "overlay"])(
+      "Should 409 when re-uploading the data of an asset used as a %s layer",
+      async (layer) => {
+        const sceneResponse = await request(app).get("/scene");
+        expect(sceneResponse.statusCode).toBe(200);
+
+        const assetId = await createUploadedAsset("LAYER_ASSET");
+
+        const layerResp = await request(app)
+          .put(`/scene/${sceneResponse.body[0]._id}/${layer}`)
+          .send({ assetId });
+        expect(layerResp.statusCode).toBe(200);
+
+        await expectReplacementRefused(assetId);
+      },
+    );
+
+    it("Should 409 when re-uploading the data of an asset used by a token", async () => {
+      const assetId = await createUploadedAsset("TOKEN_ASSET");
+
+      const token = await request(app)
+        .put("/token")
+        .send({ name: "immutable token", asset: assetId });
+      expect(token.statusCode).toBe(201);
+
+      await expectReplacementRefused(assetId);
+    });
+  });
   describe("list", () => {
     beforeEach(async () => {
       (getFakeUser as jest.Mock).mockReturnValue(userZero);

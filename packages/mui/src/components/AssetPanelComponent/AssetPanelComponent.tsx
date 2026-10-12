@@ -38,6 +38,8 @@ interface AssetPanelComponentProps {
   used?: boolean;
 }
 
+const IMMUTABLE_IMAGE_TITLE = "Images cannot be changed once uploaded";
+
 const AssetPanelComponent = ({
   asset,
   readonly,
@@ -181,7 +183,8 @@ const AssetPanelComponent = ({
           src={imgUrl}
           alt={name}
           className={expand ? styles.asset_wide : styles.asset}
-          onClick={selectFile}
+          title={asset.location ? IMMUTABLE_IMAGE_TITLE : undefined}
+          onClick={asset.location ? undefined : selectFile}
         />
       ) : (
         <ImageSearchIcon

@@ -9,11 +9,10 @@ import {
   listUserAssets,
 } from "../utils/asset";
 import {
+  commitAssetData,
   deleteAssetFile,
-  buildAssetLocation,
-  getValidExtension,
+  presignAssetUpload,
 } from "../utils/assetstore";
-import { createUploadUrl, locationToKey, objectExists } from "../utils/s3store";
 import { knownMongoError } from "../utils/errors";
 
 export async function listAssets(
@@ -139,22 +138,21 @@ export async function createAssetUploadUrl(
       throw new Error("No asset", { cause: 404 });
     }
 
-    // this throws an exception with a cause if the extension is not supported... just let it through
-    const ext = getValidExtension(req.body.contentType);
+    // assets are immutable once their data is uploaded -- replacing the
+    // image would silently invalidate token placement and scene viewports.
+    // the scene overlay endpoint is the only sanctioned replacement path
+    if (asset.location) {
+      throw new Error("Asset data cannot be replaced", { cause: 409 });
+    }
 
-    const location = buildAssetLocation(user, asset._id.toString(), ext);
-
-    const url = await createUploadUrl(
-      locationToKey(location),
-      req.body.contentType,
+    return res.json(
+      await presignAssetUpload(user, asset, req.body.contentType),
     );
-    return res.json({ url, location });
   } catch (err) {
     log.error("Unable to create asset upload url", err);
     return next({ status: err.cause || 500 });
   }
 }
-
 /**
  * Commit an upload: verify the object landed in storage, then update the
  * asset with its location and bump the revision.
@@ -167,27 +165,20 @@ export async function setAssetData(
   try {
     const user = await getOrCreateUser(req.auth);
 
-    // this throws an exception with a cause if the extension is not supported... just let it through
-    const ext = getValidExtension(req.body.contentType);
-
     // retrieve the asset
     const asset = await getUserAsset(user, req.params.id);
     if (!asset) {
       throw new Error("No asset", { cause: 404 });
     }
 
-    const location = buildAssetLocation(user, asset._id.toString(), ext);
-
-    if (!(await objectExists(locationToKey(location)))) {
-      throw new Error("Upload not completed", { cause: 400 });
+    // assets are immutable once their data is uploaded -- replacing the
+    // image would silently invalidate token placement and scene viewports.
+    // the scene overlay endpoint is the only sanctioned replacement path
+    if (asset.location) {
+      throw new Error("Asset data cannot be replaced", { cause: 409 });
     }
 
-    // update the asset with the location
-    asset.location = location;
-    asset.revision = asset.revision + 1;
-    const result = await asset.save();
-
-    res.json(result);
+    return res.json(await commitAssetData(user, asset, req.body.contentType));
   } catch (err) {
     log.error("Unable to create asset", err);
     return next({ status: err.cause || 500 });

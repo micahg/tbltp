@@ -51,8 +51,8 @@ import { environmentApi } from "../../api/environment";
 import { useAuth0 } from "@auth0/auth0-react";
 import EditorIntroductionComponent from "../EditorIntroductionComponent/EditorIntroductionComponent.lazy";
 import {
-  useAssignSceneLayerAssetMutation,
   useGetScenesQuery,
+  useUpdateSceneOverlayDataMutation,
   useUpdateSceneViewportMutation,
 } from "../../api/scene";
 import { useUpdateTableStateMutation } from "../../api/tableState";
@@ -61,12 +61,7 @@ import {
   useGetSceneTokenInstancesQuery,
   useUpsertSceneTokenInstanceMutation,
 } from "../../api/scenetoken";
-import {
-  useGetAssetByIdQuery,
-  useGetAssetsQuery,
-  useUpdateAssetDataMutation,
-  useUpdateAssetMutation,
-} from "../../api/asset";
+import { useGetAssetByIdQuery, useGetAssetsQuery } from "../../api/asset";
 import { useGetTokensQuery } from "../../api/token";
 import {
   selectEditorUiPushTime,
@@ -175,10 +170,8 @@ const ContentEditor = ({
   );
   const pushTime = useSelector(selectEditorUiPushTime);
   const { getAccessTokenSilently } = useAuth0();
-  const [updateAsset] = useUpdateAssetMutation();
-  const [updateAssetData] = useUpdateAssetDataMutation();
-  const [assignSceneLayerAsset] = useAssignSceneLayerAssetMutation();
   const [updateSceneViewport] = useUpdateSceneViewportMutation();
+  const [updateSceneOverlayData] = useUpdateSceneOverlayDataMutation();
   const [updateTableState] = useUpdateTableStateMutation();
   const [upsertSceneTokenInstance] = useUpsertSceneTokenInstanceMutation();
   const [deleteSceneTokenInstance] = useDeleteSceneTokenInstanceMutation();
@@ -332,33 +325,23 @@ const ContentEditor = ({
 
   /**
    * Update the scene overlay - assume error handling is done upstream.
+   *
+   * The scene-keyed overlay endpoint creates and assigns the overlay asset
+   * on the first update, then replaces its data on every stroke (the only
+   * sanctioned asset data replacement path).
+   *
    * @param scene The scene to update
    * @param file The file to use for the overlay
    */
   const updateOverlay = useCallback(
     async (scene: Scene, file: File) => {
-      let id = scene.overlayId;
-      if (!id) {
-        const asset = await updateAsset({
-          name: `scene ${scene._id} overlay`,
-          tags: ["scene"],
-        }).unwrap();
-        id = asset._id;
-
-        await assignSceneLayerAsset({
-          sceneId: scene._id!,
-          layer: "overlay",
-          assetId: asset._id!,
-        });
+      if (!scene._id) {
+        throw new Error("Unable to update overlay without a scene id");
       }
 
-      if (!id) {
-        throw new Error("Unable to get or create asset id for overlay");
-      }
-
-      updateAssetData({ id, file });
+      await updateSceneOverlayData({ sceneId: scene._id, file }).unwrap();
     },
-    [updateAsset, assignSceneLayerAsset, updateAssetData],
+    [updateSceneOverlayData],
   );
 
   /**

@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AssetPanelComponent from "./AssetPanelComponent";
 import { Asset, AssetUsage } from "@micahg/tbltp-common";
+import { useSelector } from "react-redux";
 import {
   useDeleteAssetMutation,
   useLazyGetAssetUsageQuery,
@@ -39,6 +40,7 @@ jest.mock("../DeleteWarningComponent/DeleteWarningComponent.lazy", () => {
 
 jest.mock("./AssetPanelComponent.module.css", () => ({}));
 
+const mockedUseSelector = useSelector as unknown as jest.Mock;
 const mockedUseLazyGetAssetUsageQuery = useLazyGetAssetUsageQuery as jest.Mock;
 const mockedUseUpdateAssetMutation = useUpdateAssetMutation as jest.Mock;
 const mockedUseUpdateAssetDataMutation =
@@ -60,6 +62,7 @@ describe("<AssetPanelComponent />", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedUseSelector.mockReturnValue(undefined);
     mockedUseUpdateAssetMutation.mockReturnValue([jest.fn()]);
     mockedUseUpdateAssetDataMutation.mockReturnValue([jest.fn()]);
     mockedUseDeleteAssetMutation.mockReturnValue([jest.fn()]);
@@ -155,5 +158,43 @@ describe("<AssetPanelComponent />", () => {
     );
 
     expect(screen.getByRole("button", { name: "delete" })).toBeDisabled();
+  });
+
+  test("it should open the image picker when the asset has no data", () => {
+    const inputClick = jest
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    render(<AssetPanelComponent asset={asset} readonly={false} />);
+
+    fireEvent.click(screen.getByTestId("ImageSearchIcon"));
+    expect(inputClick).toHaveBeenCalledTimes(1);
+
+    inputClick.mockRestore();
+  });
+
+  test("it should lock the image once the asset has data", async () => {
+    const inputClick = jest
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(() => {});
+    mockedUseSelector.mockReturnValue({ data: { api: "http://localhost" } });
+
+    render(
+      <AssetPanelComponent
+        asset={{ ...asset, location: "public/u1/assets/a1.png" }}
+        readonly={false}
+      />,
+    );
+
+    const img = await screen.findByAltText("test asset");
+    expect(img).toHaveAttribute(
+      "title",
+      "Images cannot be changed once uploaded",
+    );
+
+    fireEvent.click(img);
+    expect(inputClick).not.toHaveBeenCalled();
+
+    inputClick.mockRestore();
   });
 });
