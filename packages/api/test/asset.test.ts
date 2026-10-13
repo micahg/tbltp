@@ -1,7 +1,8 @@
 process.env["DISABLE_AUTH"] = "true";
 
 import { readFile } from "node:fs/promises";
-import { Collection } from "mongodb";
+import { Collection, ObjectId } from "mongodb";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
 import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
 
@@ -18,6 +19,7 @@ let usersCollection: Collection;
 let app: any;
 let shutDown: (signal: string) => void;
 let deletePublicAsset: (location: string) => Promise<void>;
+let objectExists: (key: string) => Promise<boolean>;
 
 async function cleanupStoredAssets() {
   const assets = await assetsCollection
@@ -30,6 +32,18 @@ async function cleanupStoredAssets() {
       await deletePublicAsset(asset.location);
     }),
   );
+}
+
+/**
+ * Fetch the raw bytes of a stored object straight from object storage.
+ */
+async function getObjectBytes(key: string): Promise<Buffer> {
+  const result = await env.s3.send(
+    new GetObjectCommand({ Bucket: env.bucket, Key: key }),
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bytes = await (result.Body as any).transformToByteArray();
+  return Buffer.from(bytes);
 }
 
 async function cleanupTestData() {
@@ -53,6 +67,7 @@ beforeAll(async () => {
 
   const storageModule = await import("../src/utils/s3store");
   deletePublicAsset = storageModule.deletePublicAsset;
+  objectExists = storageModule.objectExists;
 });
 
 afterAll(() => teardownTestEnv(env));
@@ -233,8 +248,10 @@ describe("asset", () => {
       }
       expect(resp.statusCode).toBe(200);
       expect(resp.body.url).toBeDefined();
+      // the presigned url targets a fresh single-use staging key -- never
+      // the asset's final key (the bytes are promoted server-side at commit)
       expect(resp.body.location).toMatch(
-        /public\/[a-f0-9]{24}\/assets\/[a-f0-9]{24}\.png/,
+        /^uploads\/[a-f0-9]{24}\/[a-f0-9-]{36}\.png$/,
       );
 
       // step 2: upload directly to object storage
@@ -332,6 +349,171 @@ describe("asset", () => {
       await expectReplacementRefused(assetId);
     });
   });
+  describe("staged uploads", () => {
+    beforeEach(() => {
+      (getFakeUser as jest.Mock).mockReturnValue(userZero);
+    });
+    afterEach(cleanupTestData);
+
+    async function createAsset(name: string) {
+      const created = await request(app).put("/asset").send({ name });
+      expect(created.statusCode).toBe(201);
+      return created.body._id as string;
+    }
+
+    async function presign(assetId: string, contentType = "image/png") {
+      const presigned = await request(app)
+        .post(`/asset/${assetId}/data`)
+        .send({ contentType });
+      expect(presigned.statusCode).toBe(200);
+      return presigned.body as { url: string; location: string };
+    }
+
+    async function putToUrl(
+      url: string,
+      bytes: Buffer,
+      contentType = "image/png",
+    ) {
+      const uploaded = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": contentType },
+        body: new Uint8Array(bytes),
+      });
+      expect(uploaded.status).toBe(200);
+    }
+
+    it("Should 400 when committing without a presign", async () => {
+      const assetId = await createAsset("UNPRESIGNED_ASSET");
+
+      const commit = await request(app)
+        .put(`/asset/${assetId}/data`)
+        .send({ contentType: "image/png" });
+      expect(commit.statusCode).toBe(400);
+    });
+
+    it("Should 400 when the committed content type does not match the presign", async () => {
+      const assetId = await createAsset("MISMATCHED_ASSET");
+
+      const presigned = await presign(assetId, "image/png");
+      await putToUrl(presigned.url, await readFile("test/assets/1x1.png"));
+
+      const commit = await request(app)
+        .put(`/asset/${assetId}/data`)
+        .send({ contentType: "image/webp" });
+      expect(commit.statusCode).toBe(400);
+    });
+
+    it("Should supersede the staging key on a new presign", async () => {
+      const assetId = await createAsset("SUPERSEDED_ASSET");
+
+      // first presign, with bytes uploaded to it
+      const first = await presign(assetId);
+      await putToUrl(first.url, await readFile("test/assets/1x1.png"));
+
+      // a second presign supersedes the first staging key
+      const second = await presign(assetId);
+      expect(second.location).not.toBe(first.location);
+
+      // the superseded staged object is eagerly deleted
+      expect(await objectExists(first.location)).toBe(false);
+
+      // committing only ever sees the latest staging key, so the bytes
+      // uploaded to the superseded key are unreachable
+      const commit = await request(app)
+        .put(`/asset/${assetId}/data`)
+        .send({ contentType: "image/png" });
+      expect(commit.statusCode).toBe(400);
+    });
+
+    it("Should not let a replayed upload url touch committed asset data", async () => {
+      const assetId = await createAsset("REPLAYED_ASSET");
+
+      const original = await readFile("test/assets/1x1.png");
+      const presigned = await presign(assetId);
+      await putToUrl(presigned.url, original);
+
+      const commit = await request(app)
+        .put(`/asset/${assetId}/data`)
+        .send({ contentType: "image/png" });
+      expect(commit.statusCode).toBe(200);
+      expect(commit.body.location).toMatch(
+        /public\/[a-f0-9]{24}\/assets\/[a-f0-9]{24}\.png/,
+      );
+
+      const location = commit.body.location as string;
+      const key = location.replace(/^public\//, "");
+
+      // a stale tab replays its url after the commit -- the write lands
+      // on the old (deleted) staging key, not the final key
+      await putToUrl(presigned.url, Buffer.from("tampered asset data"));
+
+      // the staged garbage is harmless: the committed asset data and the
+      // recorded revision are untouched
+      expect(await objectExists(presigned.location)).toBe(true);
+      expect(await getObjectBytes(key)).toEqual(original);
+
+      const fetched = await request(app).get(`/asset/${assetId}`);
+      expect(fetched.statusCode).toBe(200);
+      expect(fetched.body.location).toBe(location);
+      expect(fetched.body.revision).toBe(1);
+    });
+
+    it("Should remove the staged object when deleting an incomplete asset", async () => {
+      const assetId = await createAsset("INCOMPLETE_ASSET");
+
+      const presigned = await presign(assetId);
+      await putToUrl(presigned.url, await readFile("test/assets/1x1.png"));
+      expect(await objectExists(presigned.location)).toBe(true);
+
+      const deleted = await request(app).delete(`/asset/${assetId}`);
+      expect(deleted.statusCode).toBe(204);
+
+      expect(await objectExists(presigned.location)).toBe(false);
+    });
+
+    it("Should never expose staging fields on the wire", async () => {
+      const assetId = await createAsset("WIRE_ASSET");
+
+      // a pending presign puts the staging fields on the database document
+      const presigned = await presign(assetId);
+      const stored = await assetsCollection.findOne({
+        _id: new ObjectId(assetId),
+      });
+      expect(stored?.staging).toMatch(/^uploads\//);
+      expect(stored?.stagedAt).toBeDefined();
+
+      // the single asset fetch is wire projected
+      const fetched = await request(app).get(`/asset/${assetId}`);
+      expect(fetched.statusCode).toBe(200);
+      expect(fetched.body.staging).not.toBeDefined();
+      expect(fetched.body.stagedAt).not.toBeDefined();
+
+      // so is the rename response (while a presign is pending)
+      const renamed = await request(app)
+        .put("/asset")
+        .send({ _id: assetId, name: "WIRE_ASSET_RENAMED" });
+      expect(renamed.statusCode).toBe(200);
+      expect(renamed.body.name).toBe("WIRE_ASSET_RENAMED");
+      expect(renamed.body.staging).not.toBeDefined();
+      expect(renamed.body.stagedAt).not.toBeDefined();
+
+      // and the commit response
+      await putToUrl(presigned.url, await readFile("test/assets/1x1.png"));
+      const commit = await request(app)
+        .put(`/asset/${assetId}/data`)
+        .send({ contentType: "image/png" });
+      expect(commit.statusCode).toBe(200);
+      expect(commit.body.staging).not.toBeDefined();
+      expect(commit.body.stagedAt).not.toBeDefined();
+      expect(commit.body.location).toBeDefined();
+
+      // and the single asset fetch after the commit
+      const after = await request(app).get(`/asset/${assetId}`);
+      expect(after.statusCode).toBe(200);
+      expect(after.body.staging).not.toBeDefined();
+      expect(after.body.stagedAt).not.toBeDefined();
+    });
+  });
   describe("list", () => {
     beforeEach(async () => {
       (getFakeUser as jest.Mock).mockReturnValue(userZero);
@@ -409,6 +591,17 @@ describe("asset", () => {
       expect(assets2).not.toBeNull();
       expect(assets2).toHaveLength(1);
       expect(assets2[0].name).toBe("test2");
+    });
+    it("Should 404 when renaming an asset that does not exist", async () => {
+      let resp;
+      try {
+        resp = await request(app)
+          .put("/asset")
+          .send({ _id: "a".repeat(24), name: "missing" });
+      } catch (err) {
+        fail(`Exception: ${JSON.stringify(err)}`);
+      }
+      expect(resp.statusCode).toBe(404);
     });
     afterEach(cleanupTestData);
   });

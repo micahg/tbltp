@@ -18,3 +18,36 @@ export interface AssetUsage {
     tokens: Token[];
     scenes: Scene[];
 }
+
+/**
+ * The wire contract between the API and the frontend: the asset fields
+ * that may appear in API responses. Database-only fields (such as the
+ * upload staging bookkeeping on the mongoose model) must never be listed
+ * here. The `_id` field always rides along with database projections, so
+ * it is deliberately excluded (and rejected) from these lists.
+ */
+export const ASSET_FIELDS = [
+    "user",
+    "name",
+    "tags",
+    "location",
+    "revision",
+] as const satisfies readonly Exclude<keyof Asset, "_id">[];
+
+/** mongoose select string form of ASSET_FIELDS, built once at module load. */
+export const ASSET_SELECT = ASSET_FIELDS.join(" ");
+
+/**
+ * The subset of asset fields returned when listing many assets at once.
+ */
+export const ASSET_SUMMARY_FIELDS = [
+    "name",
+    "location",
+    "revision",
+] as const satisfies readonly Exclude<keyof Asset, "_id">[];
+
+/**
+ * mongoose select string form of ASSET_SUMMARY_FIELDS, built once at
+ * module load.
+ */
+export const ASSET_SUMMARY_SELECT = ASSET_SUMMARY_FIELDS.join(" ");

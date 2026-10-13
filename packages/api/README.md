@@ -45,12 +45,20 @@ Note that `STORAGE_S3_ENDPOINT` does not include a protocol (`https://` is assum
 Image bytes never pass through the API:
 
 1. `POST /asset/:id/data` with `{"contentType": "image/png"}` returns a
-   short-lived presigned PUT URL and the target location.
+   short-lived (60 second) presigned PUT URL targeting a fresh single-use
+   **staging key** under `uploads/{user}/{uuid}.{ext}`. The key is recorded
+   on the asset (the database-only `staging`/`stagedAt` fields), and each
+   presign supersedes -- and deletes -- the previous staging key.
 2. The client PUTs the file directly to object storage using that URL,
    sending the same `Content-Type` header (it is part of the signature).
 3. `PUT /asset/:id/data` with the same content type commits the upload: the
-   API verifies the object exists, records the location, and bumps the asset
-   revision.
+   API verifies the staged object exists, copies it server-side to the
+   asset's final key, deletes the staged object, records the location, and
+   bumps the asset revision.
+
+Because presigned URLs only ever target staging keys, a stale or replayed
+URL cannot touch published asset data -- it can only write garbage that
+nobody reads.
 
 Downloads are still proxied through the API at `/public/...` (with JWT auth),
 so no bucket policy changes are needed for reads. Because browsers upload
@@ -58,6 +66,34 @@ directly to the bucket, it must allow CORS `PUT` requests (with the
 `Content-Type` header) from the UI origin.
 
 Asset locations remain relative paths under `public/...`.
+
+## Staging lifecycle rule (bucket configuration)
+
+Abandoned staging objects (presigned but never uploaded, or superseded)
+are swept by a bucket lifecycle rule. Apply a 1-day expiration on the
+`uploads/` prefix to every bucket (local, dev and prod):
+
+```sh
+aws s3api put-bucket-lifecycle-configuration \
+  --bucket <bucket> \
+  --lifecycle-configuration '{
+    "Rules": [
+      {
+        "ID": "expire-staged-uploads",
+        "Filter": { "Prefix": "uploads/" },
+        "Status": "Enabled",
+        "Expiration": { "Days": 1 }
+      }
+    ]
+  }'
+```
+
+For the local localstack bucket, append
+`--endpoint-url http://127.0.0.1:4566 --region us-east-1`.
+
+S3 lifecycle rules cannot go below one day. The enforced short lifetime is
+the presigned URL expiry itself (60 seconds) -- after it lapses nothing can
+write to the staging key, so the rule is purely garbage collection.
 
 # Telemetry
 

@@ -1,3 +1,4 @@
+import { ASSET_SELECT, ASSET_SUMMARY_SELECT } from "@micahg/tbltp-common";
 import { Asset, AssetModel, IAsset } from "../models/asset";
 import { IScene } from "../models/scene";
 import { IToken } from "../models/token";
@@ -87,9 +88,13 @@ export function assetDeleteValiator() {
   });
 }
 
+/**
+ * List the user's assets with only the summary wire fields (see
+ * ASSET_SUMMARY_FIELDS in the common package).
+ */
 export function listUserAssets(user: IUser) {
   return AssetModel.find({ user: { $eq: user._id } }).select(
-    "name location revision",
+    ASSET_SUMMARY_SELECT,
   );
 }
 
@@ -105,6 +110,30 @@ export async function createUserAsset(user: IUser, asset: Asset) {
 
 export function getUserAsset(user: IUser, id: string) {
   return AssetModel.findOne({ _id: { $eq: id }, user: { $eq: user._id } });
+}
+
+/**
+ * Fetch a single asset with the full wire projection (see ASSET_FIELDS in
+ * the common package) -- database-only fields never reach the wire.
+ */
+export function getUserWireAsset(user: IUser, id: string) {
+  return AssetModel.findOne({
+    _id: { $eq: id },
+    user: { $eq: user._id },
+  }).select(ASSET_SELECT);
+}
+
+/**
+ * Rename an asset. The update is atomic and projected to the wire fields,
+ * so it can neither clobber concurrent updates nor leak database-only
+ * fields.
+ */
+export function renameUserAsset(user: IUser, id: string, name: string) {
+  return AssetModel.findOneAndUpdate(
+    { _id: { $eq: id }, user: { $eq: user._id } },
+    { $set: { name: name } },
+    { new: true },
+  ).select(ASSET_SELECT);
 }
 
 export async function assetInUse(user: IUser, asset: IAsset): Promise<boolean> {
