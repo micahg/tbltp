@@ -17,7 +17,7 @@ import {
   locationToKey,
   objectExists,
 } from "./s3store";
-import { ASSET_SELECT } from "@micahg/tbltp-common";
+import { ASSET_FIELDS } from "@micahg/tbltp-common";
 
 export function getValidExtension(contentType: string) {
   const idx = VALID_CONTENT_TYPES.indexOf(contentType);
@@ -148,7 +148,7 @@ export async function commitAssetData(
       $unset: { staging: "", stagedAt: "" },
     },
     { new: true },
-  ).select(ASSET_SELECT);
+  ).select(ASSET_FIELDS);
   if (!updated) {
     throw new Error("Unable to record the uploaded asset data", { cause: 500 });
   }

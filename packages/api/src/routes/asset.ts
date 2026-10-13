@@ -6,7 +6,7 @@ import {
   assetUsage,
   createUserAsset,
   getUserAsset,
-  getUserWireAsset,
+  getUserAssetWithStaging,
   listUserAssets,
   renameUserAsset,
 } from "../utils/asset";
@@ -40,8 +40,7 @@ export async function getAssetById(
 ) {
   try {
     const user = await getOrCreateUser(req.auth);
-    // wire projection -- database-only fields never reach the wire
-    const asset = await getUserWireAsset(user, req.params.id);
+    const asset = await getUserAsset(user, req.params.id);
     if (!asset) {
       return res.sendStatus(404);
     }
@@ -109,7 +108,7 @@ export async function deleteAsset(
   let staging;
   try {
     const user = await getOrCreateUser(req.auth);
-    const asset = await getUserAsset(user, req.params.id);
+    const asset = await getUserAssetWithStaging(user, req.params.id);
     if (!asset) {
       return res.status(404).send();
     }
@@ -149,7 +148,7 @@ export async function createAssetUploadUrl(
 ) {
   try {
     const user = await getOrCreateUser(req.auth);
-    const asset = await getUserAsset(user, req.params.id);
+    const asset = await getUserAssetWithStaging(user, req.params.id);
     if (!asset) {
       throw new Error("No asset", { cause: 404 });
     }
@@ -181,8 +180,8 @@ export async function setAssetData(
   try {
     const user = await getOrCreateUser(req.auth);
 
-    // retrieve the asset
-    const asset = await getUserAsset(user, req.params.id);
+    // retrieve the asset (with staging location)
+    const asset = await getUserAssetWithStaging(user, req.params.id);
     if (!asset) {
       throw new Error("No asset", { cause: 404 });
     }

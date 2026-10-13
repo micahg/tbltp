@@ -34,9 +34,6 @@ export const ASSET_FIELDS = [
     "revision",
 ] as const satisfies readonly Exclude<keyof Asset, "_id">[];
 
-/** mongoose select string form of ASSET_FIELDS, built once at module load. */
-export const ASSET_SELECT = ASSET_FIELDS.join(" ");
-
 /**
  * The subset of asset fields returned when listing many assets at once.
  */
@@ -45,9 +42,3 @@ export const ASSET_SUMMARY_FIELDS = [
     "location",
     "revision",
 ] as const satisfies readonly Exclude<keyof Asset, "_id">[];
-
-/**
- * mongoose select string form of ASSET_SUMMARY_FIELDS, built once at
- * module load.
- */
-export const ASSET_SUMMARY_SELECT = ASSET_SUMMARY_FIELDS.join(" ");

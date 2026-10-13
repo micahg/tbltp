@@ -1,4 +1,4 @@
-import { ASSET_SELECT, ASSET_SUMMARY_SELECT } from "@micahg/tbltp-common";
+import { ASSET_FIELDS, ASSET_SUMMARY_FIELDS } from "@micahg/tbltp-common";
 import { Asset, AssetModel, IAsset } from "../models/asset";
 import { IScene } from "../models/scene";
 import { IToken } from "../models/token";
@@ -94,7 +94,7 @@ export function assetDeleteValiator() {
  */
 export function listUserAssets(user: IUser) {
   return AssetModel.find({ user: { $eq: user._id } }).select(
-    ASSET_SUMMARY_SELECT,
+    ASSET_SUMMARY_FIELDS,
   );
 }
 
@@ -108,19 +108,29 @@ export async function createUserAsset(user: IUser, asset: Asset) {
   }
 }
 
-export function getUserAsset(user: IUser, id: string) {
-  return AssetModel.findOne({ _id: { $eq: id }, user: { $eq: user._id } });
-}
-
 /**
- * Fetch a single asset with the full wire projection (see ASSET_FIELDS in
- * the common package) -- database-only fields never reach the wire.
+ * Fetch one of the user's assets with the wire projection (see
+ * ASSET_FIELDS in the common package) -- database-only fields never
+ * reach the wire, so this is the safe default. Callers that need the
+ * upload staging bookkeeping must use getUserAssetWithStaging instead.
  */
-export function getUserWireAsset(user: IUser, id: string) {
+export function getUserAsset(user: IUser, id: string) {
   return AssetModel.findOne({
     _id: { $eq: id },
     user: { $eq: user._id },
-  }).select(ASSET_SELECT);
+  }).select(ASSET_FIELDS);
+}
+
+/**
+ * Fetch one of the user's assets including the database-only upload
+ * staging fields. The upload machinery (presign supersession, commit,
+ * staged-object cleanup) reads the staging bookkeeping.
+ */
+export function getUserAssetWithStaging(user: IUser, id: string) {
+  return AssetModel.findOne({
+    _id: { $eq: id },
+    user: { $eq: user._id },
+  });
 }
 
 /**
@@ -133,7 +143,7 @@ export function renameUserAsset(user: IUser, id: string, name: string) {
     { _id: { $eq: id }, user: { $eq: user._id } },
     { $set: { name: name } },
     { new: true },
-  ).select(ASSET_SELECT);
+  ).select(ASSET_FIELDS);
 }
 
 export async function assetInUse(user: IUser, asset: IAsset): Promise<boolean> {
