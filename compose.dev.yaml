@@ -15,6 +15,10 @@ services:
       - .env
     environment:
       - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
+      - SERVICES=s3
+      # Snapshot persistence is a paid LocalStack feature; state is in-memory
+      # and lost whenever this container is recreated.
+      # - PERSISTENCE=1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - localstack-data:/var/lib/localstack
