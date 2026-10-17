@@ -48,7 +48,6 @@ import {
 } from "@micahg/tbltp-common";
 import TokenInfoDrawerComponent from "../TokenInfoDrawerComponent/TokenInfoDrawerComponent.lazy";
 import { environmentApi } from "../../api/environment";
-import { useAuth0 } from "@auth0/auth0-react";
 import EditorIntroductionComponent from "../EditorIntroductionComponent/EditorIntroductionComponent.lazy";
 import {
   useGetScenesQuery,
@@ -132,7 +131,6 @@ const ContentEditor = ({
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   // selection is sized relative to the visible canvas size -- not the full background size
   const [selection, setSelection] = useState<Rect | null>(null);
-  const [bearer, setBearer] = useState<string | null>(null);
 
   // the viewport to draw so the dm knows what the players see
   const [displayViewport, setDisplayViewport] = useState<Rect | null>(null);
@@ -169,7 +167,6 @@ const ContentEditor = ({
       environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
   );
   const pushTime = useSelector(selectEditorUiPushTime);
-  const { getAccessTokenSilently } = useAuth0();
   const [updateSceneViewport] = useUpdateSceneViewportMutation();
   const [updateSceneOverlayData] = useUpdateSceneOverlayDataMutation();
   const [updateTableState] = useUpdateTableStateMutation();
@@ -177,17 +174,15 @@ const ContentEditor = ({
   const [deleteSceneTokenInstance] = useDeleteSceneTokenInstanceMutation();
 
   const hydratedSceneTokens = useMemo(() => {
-    if (!apiUrl) return [];
-
     const tokenAssetById = new Map(
       tokens
         .filter((token) => !!token._id)
         .map((token) => [token._id!, token.asset] as const),
     );
-    const assetLocationById = new Map(
+    const assetById = new Map(
       assets
         .filter((asset) => !!asset._id && !!asset.location)
-        .map((asset) => [asset._id!, asset.location!] as const),
+        .map((asset) => [asset._id!, asset] as const),
     );
 
     return sceneTokenInstances
@@ -196,18 +191,19 @@ const ContentEditor = ({
         if (!assetId) {
           return undefined;
         }
-        const assetLocation = assetLocationById.get(assetId);
-        if (!assetLocation) {
+        const asset = assetById.get(assetId);
+        if (!asset?.location) {
           return undefined;
         }
 
         return {
           ...instance,
-          asset: `${apiUrl}/${assetLocation}`,
+          asset: asset.location,
+          assetUrl: asset.url,
         } as HydratedTokenInstance;
       })
       .filter((instance): instance is HydratedTokenInstance => !!instance);
-  }, [apiUrl, assets, sceneTokenInstances, tokens]);
+  }, [assets, sceneTokenInstances, tokens]);
 
   const updateViewport = useCallback(
     (viewport: { backgroundSize?: Rect; viewport?: Rect; angle?: number }) => {
@@ -264,9 +260,9 @@ const ContentEditor = ({
   const setToken = useCallback(
     (token: HydratedTokenInstance) => {
       if (!worker) return;
-      worker.postMessage({ cmd: "set_token", token: token, bearer: bearer });
+      worker.postMessage({ cmd: "set_token", token: token });
     },
-    [worker, bearer],
+    [worker],
   );
 
   const gmSelectColor = useCallback(() => {
@@ -454,8 +450,6 @@ const ContentEditor = ({
   const handleDrawables = useCallback(() => {
     if (!scene) return;
     if (!worker) return;
-    if (!apiUrl) return;
-    if (!bearer) return;
 
     // we cannot pre-translate these into drawables because properties
     // that are methods do not survive the transfer to the worker
@@ -468,19 +462,14 @@ const ContentEditor = ({
       things.push(scene.viewport);
 
     // need to delay this until we know we're in a good state.
-    worker.postMessage({ cmd: "things", values: { apiUrl, bearer, things } });
-  }, [apiUrl, bearer, worker, scene, hydratedSceneTokens]);
+    // (token images are fetched through presigned urls carried by the tokens)
+    worker.postMessage({ cmd: "things", values: { things } });
+  }, [worker, scene, hydratedSceneTokens]);
 
   useEffect(() => {
     if (!internalState || !toolbarPopulated) return;
     internalState.color = colorInputRef;
   }, [internalState, colorInputRef, toolbarPopulated]);
-
-  useEffect(() => {
-    getAccessTokenSilently()
-      .then((token) => setBearer(token))
-      .catch(() => setBearer(null));
-  }, [getAccessTokenSilently]);
 
   /**
    * Populate the toolbar with our actions. Empty deps insures this only gets
@@ -488,8 +477,6 @@ const ContentEditor = ({
   useEffect(() => {
     if (!populateToolbar) return;
     if (!worker) return;
-    if (!bearer) return; // fetching token images requires a bearer token
-    if (!apiUrl) return; // fetching token images requires an API
 
     const actions: GameMasterAction[] = [
       {
@@ -640,8 +627,6 @@ const ContentEditor = ({
     populateToolbar(actions);
     setToolbarPopulated(true);
   }, [
-    apiUrl,
-    bearer,
     gmSelectColor,
     infoDrawer,
     internalState.act,
@@ -876,7 +861,7 @@ const ContentEditor = ({
    * when we don't have to. We should only repaint when a scene changes OR an asset version has changed
    */
   useEffect(() => {
-    if (!apiUrl || !scene || !bearer || !worker) return;
+    if (!scene || !worker) return;
 
     if (scene.overlayId && !overlayAsset?.location) {
       return;
@@ -893,22 +878,27 @@ const ContentEditor = ({
     const playerLayer = {
       rev: playerAsset?.revision ?? 0,
       content: playerAsset?.location,
+      url: playerAsset?.url,
     };
     const detailLayer = {
       rev: detailAsset?.revision ?? 0,
       content: detailAsset?.location,
+      url: detailAsset?.url,
     };
     const overlayLayer = {
       rev: overlayAsset?.revision ?? 0,
       content: overlayAsset?.location,
+      url: overlayAsset?.url,
     };
 
     // Prefer detail layer when present; otherwise use player layer.
     const baseLayer = detailLayer.content ? detailLayer : playerLayer;
     const bRev = baseLayer.rev;
     const bContent = baseLayer.content;
+    const bUrl = baseLayer.url;
     const oRev = overlayLayer.rev;
     const oContent = overlayLayer.content;
+    const oUrl = overlayLayer.url;
 
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
@@ -931,9 +921,8 @@ const ContentEditor = ({
     if (!drawBG && !drawOV) return;
 
     if (drawBG) {
-      const overlay = drawOV && oContent ? `${apiUrl}/${oContent}` : undefined;
-      const background =
-        drawBG && bContent ? `${apiUrl}/${bContent}` : undefined;
+      const overlay = drawOV && oContent ? oContent : undefined;
+      const background = drawBG && bContent ? bContent : undefined;
 
       const angle = scene.angle || 0;
 
@@ -941,15 +930,16 @@ const ContentEditor = ({
         cmd: "update",
         values: {
           background,
+          backgroundUrl: background ? bUrl : undefined,
+          backgroundRev: bRev,
           overlay,
-          bearer,
+          overlayUrl: overlay ? oUrl : undefined,
+          overlayRev: oRev,
           angle,
         },
       });
     }
   }, [
-    apiUrl,
-    bearer,
     bgRev,
     ovRev,
     scene,

@@ -11,16 +11,14 @@ import {
   Tooltip,
 } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
-import { useDispatch, useSelector } from "react-redux";
-import { AppReducerState } from "../../reducers/AppReducer";
+import { useDispatch } from "react-redux";
 import { Asset, Token } from "@micahg/tbltp-common";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { NAME_REGEX } from "../SceneComponent/SceneComponent";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent";
 import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
-import { useAuth0 } from "@auth0/auth0-react";
 import {
   useDeleteAssetMutation,
   useGetAssetsQuery,
@@ -32,7 +30,7 @@ import {
   useUpdateTokenMutation,
 } from "../../api/token";
 import { createAssetAndTokenFlow } from "../../thunks/createAssetAndTokenFlow";
-import { environmentApi } from "../../api/environment";
+import { usePresignedUrlRefresher } from "../../utils/presignedUrl";
 import { setError } from "../../slices/editorUiSlice";
 
 interface CreateTokenFormComponentProps {
@@ -77,17 +75,13 @@ const CreateTokenFormComponent = ({
   const [deleteAsset] = useDeleteAssetMutation();
   const [updateToken] = useUpdateTokenMutation();
   const [deleteTokenMutation] = useDeleteTokenMutation();
-
-  const api = useSelector(
-    (state: AppReducerState) =>
-      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
-  );
-  const { getAccessTokenSilently } = useAuth0();
-  const [bearer, setBearer] = useState<string | null>(null);
+  const refreshDownloadUrl = usePresignedUrlRefresher();
 
   const [file, setFile] = useState<File | undefined>(undefined);
   const [imgUrl, setImgUrl] = useState<string>(`/x.webp`);
   const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
+  // only one url refresh attempt per asset (see handleImageError)
+  const refreshedFor = useRef<string | null>(null);
 
   const deleteToken = async () => {
     setDeleteWarning(false);
@@ -192,12 +186,6 @@ const CreateTokenFormComponent = ({
     reset(stripToken(token));
   }, [reset, token]);
 
-  useEffect(() => {
-    getAccessTokenSilently()
-      .then((token) => setBearer(token))
-      .catch(() => setBearer(null));
-  }, [getAccessTokenSilently]);
-
   /**
    * Watch for asset upload -- this is separate from the none/existing asset
    * selection because we need to trigger the file dialog when the user
@@ -218,12 +206,6 @@ const CreateTokenFormComponent = ({
     if (!assetField) return;
     if (assetField === "new") return;
 
-    // ensure the rest of the stuff we need to show assets is available
-    if (!bearer) return;
-    const mediaUrlPrefix = api;
-    if (!mediaUrlPrefix) return;
-    if (!assetField) return;
-
     if (assetField === "none") {
       setImgUrl(`/x.webp`);
       return;
@@ -235,15 +217,33 @@ const CreateTokenFormComponent = ({
       setImgUrl(`/x.webp`);
       return;
     }
-    if (!asset.location) {
-      console.error(`Asset ${asset} has no location`);
+    if (!asset.url) {
+      console.error(`Asset ${assetField} has no download url`);
       setImgUrl(`/x.webp`);
       return;
     }
 
-    const url = `${mediaUrlPrefix}/${asset.location}?token=${bearer}`;
-    setImgUrl(url);
-  }, [api, assetField, assets, bearer]);
+    setImgUrl(asset.url);
+  }, [assetField, assets]);
+
+  /**
+   * Presigned download urls expire. When a server-issued preview url fails
+   * (403), ask for a fresh one and retry once.
+   */
+  const handleImageError = () => {
+    if (!assetField || assetField === "new" || assetField === "none") return;
+    const asset = assets.find((asset) => asset._id === assetField);
+    if (!asset?.location) return;
+    if (refreshedFor.current === asset.location) return;
+    refreshedFor.current = asset.location;
+    refreshDownloadUrl(asset.location)
+      .then((url) => setImgUrl(url))
+      .catch((err) =>
+        console.error(
+          `Unable to refresh token asset url: ${JSON.stringify(err)}`,
+        ),
+      );
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -291,6 +291,7 @@ const CreateTokenFormComponent = ({
           component="img"
           src={imgUrl}
           alt="Asset Preview"
+          onError={handleImageError}
           sx={{ maxHeight: "200px", maxWidth: "200px" }}
         />
         <FormControl fullWidth>

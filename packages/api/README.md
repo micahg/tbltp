@@ -7,7 +7,7 @@ Node.js implementation of network table top server.
 
 * Node.js for the base server
 * Express for request handling
-* Presigned S3 URLs for image upload (uploads go directly to object storage)
+* Presigned S3 URLs for image upload and download (bytes never pass through the API)
 * ws for websocket communication (status updates to the tabletop client)
 
 # Disabling Authentication
@@ -36,9 +36,11 @@ Optional:
 ```
 STORAGE_S3_ENDPOINT=<custom-endpoint>
 STORAGE_S3_FORCE_PATH_STYLE=true
+DOWNLOAD_URL_EXPIRY_SECONDS=21600
 ```
 
 Note that `STORAGE_S3_ENDPOINT` does not include a protocol (`https://` is assumed).
+`DOWNLOAD_URL_EXPIRY_SECONDS` defaults to 21600 (6 hours).
 
 ## Upload flow
 
@@ -60,12 +62,34 @@ Because presigned URLs only ever target staging keys, a stale or replayed
 URL cannot touch published asset data -- it can only write garbage that
 nobody reads.
 
-Downloads are still proxied through the API at `/public/...` (with JWT auth),
-so no bucket policy changes are needed for reads. Because browsers upload
-directly to the bucket, it must allow CORS `PUT` requests (with the
-`Content-Type` header) from the UI origin.
+## Download flow
 
-Asset locations remain relative paths under `public/...`.
+Reads follow the same pattern -- image bytes never pass through the API:
+
+1. Every response that references an asset carries a presigned GET URL
+   (`url` on assets, `assetUrl` on hydrated tokens, `overlayUrl` /
+   `backgroundUrl` on table state) alongside the relative location. A fresh
+   signature is minted on every serialization; the URL is never persisted.
+2. The default URL lifetime is 6 hours and is configurable with
+   `DOWNLOAD_URL_EXPIRY_SECONDS`. No expiry is returned to the client: when
+   a fetch is rejected (403 -- signature expired) the client calls
+   `POST /asset/urls` with `{"locations": [...]}` to mint fresh URLs and
+   retries once. Requested locations are validated and scoped to the
+   calling user.
+3. Committed objects carry `Cache-Control` metadata: asset data is
+   `private, max-age=2592000, immutable` (assets are immutable once
+   uploaded); the scene overlay is `private, no-store` because it is
+   rewritten at the same key on every annotation. Clients must key their
+   caches by `(location, revision)` -- never by URL, which changes with
+   every serialization.
+
+Because browsers fetch directly from the bucket, it must allow CORS `PUT`
+(uploads) and `GET` (downloads) requests from the UI origin. Presigned
+requests must not send an `Authorization` header, and unsigned query
+parameters must not be appended to the URL (either breaks the signature).
+
+Asset locations remain relative paths under `public/...`; presigned URLs
+are derived from them at serialization time.
 
 ## Staging lifecycle rule (bucket configuration)
 
@@ -162,7 +186,6 @@ environment secrets); see `chart/README.md`.
 
 # Future Work
 
-* Presigned download URLs (stop proxying asset reads through the API)
 * Stateful game (multiple maps and overlays saved)
 * DM content vs Table content (eg: DM versions of images with annotations)
 * Notes

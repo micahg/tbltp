@@ -12,6 +12,13 @@ export interface Asset {
     tags?: string[];
     location?: string;
     revision?: number;
+    /**
+     * Presigned download url for the stored asset data. Freshly signed for
+     * every serialization, so it expires (see DOWNLOAD_URL_EXPIRY_SECONDS on
+     * the API) and must never be persisted or shared. Clients that fail to
+     * fetch through it (403) should request a new one from /asset/urls.
+     */
+    url?: string;
 }
 
 export interface AssetUsage {

@@ -7,9 +7,15 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { ChangeEvent, memo, useCallback, useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { AppReducerState } from "../../reducers/AppReducer";
+import {
+  ChangeEvent,
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useDispatch } from "react-redux";
 import styles from "./AssetPanelComponent.module.css";
 import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 import SaveIcon from "@mui/icons-material/Save";
@@ -18,14 +24,13 @@ import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import InfoIcon from "@mui/icons-material/Info";
 import { Asset } from "@micahg/tbltp-common";
 import DeleteWarningComponent from "../DeleteWarningComponent/DeleteWarningComponent.lazy";
-import { environmentApi } from "../../api/environment";
-import { useAuth0 } from "@auth0/auth0-react";
 import {
   useDeleteAssetMutation,
   useLazyGetAssetUsageQuery,
   useUpdateAssetDataMutation,
   useUpdateAssetMutation,
 } from "../../api/asset";
+import { usePresignedUrlRefresher } from "../../utils/presignedUrl";
 import { setError } from "../../slices/editorUiSlice";
 import {
   errorMessageForDeleteError,
@@ -45,18 +50,13 @@ const AssetPanelComponent = ({
   readonly,
   used,
 }: AssetPanelComponentProps) => {
-  const api = useSelector(
-    (state: AppReducerState) =>
-      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
-  );
-  const { getAccessTokenSilently } = useAuth0();
   const [updateAssetMutation] = useUpdateAssetMutation();
   const [updateAssetDataMutation] = useUpdateAssetDataMutation();
   const [deleteAssetMutation] = useDeleteAssetMutation();
   const [getAssetUsage, usageResult] = useLazyGetAssetUsageQuery();
+  const refreshDownloadUrl = usePresignedUrlRefresher();
   const dispatch = useDispatch();
 
-  const [bearer, setBearer] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [name, setName] = useState(asset.name);
   const [file, setFile] = useState<File | null>(null);
@@ -64,22 +64,16 @@ const AssetPanelComponent = ({
   const [deleteWarning, setDeleteWarning] = useState<boolean>(false);
   const [showUsage, setShowUsage] = useState(false);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
+  // only one url refresh attempt per asset -- otherwise a permanently
+  // missing object would loop between error and refresh
+  const refreshedFor = useRef<string | null>(null);
   const saveDisabled = name === asset.name && !file;
   const deleteDisabled = !asset._id || used === true;
 
   useEffect(() => {
-    getAccessTokenSilently()
-      .then((token) => setBearer(token))
-      .catch(() => setBearer(null));
-  }, [getAccessTokenSilently]);
-
-  useEffect(() => {
-    if (!asset.location || !api || !bearer) {
-      setImgUrl(null);
-      return;
-    }
-    setImgUrl(`${api}/${asset.location}?token=${bearer}`);
-  }, [api, asset.location, bearer]);
+    // the server serializes a fresh presigned url with every fetch
+    setImgUrl(asset.url ?? null);
+  }, [asset.url]);
 
   const selectFile = () => {
     const input = document.createElement("input");
@@ -101,6 +95,23 @@ const AssetPanelComponent = ({
     };
     input.click();
   };
+
+  /**
+   * Presigned download urls expire. When a server-issued url fails (403),
+   * ask for a fresh one and retry once; a local preview (data url) has
+   * nothing to refresh.
+   */
+  const handleImageError = useCallback(() => {
+    if (!asset.location) return;
+    if (!imgUrl || imgUrl.startsWith("data:")) return;
+    if (refreshedFor.current === asset.location) return;
+    refreshedFor.current = asset.location;
+    refreshDownloadUrl(asset.location)
+      .then((url) => setImgUrl(url))
+      .catch((err) =>
+        console.error(`Unable to refresh asset url: ${JSON.stringify(err)}`),
+      );
+  }, [asset.location, imgUrl, refreshDownloadUrl]);
 
   const toggleExpand = useCallback(() => {
     setExpand(!expand);
@@ -185,6 +196,7 @@ const AssetPanelComponent = ({
           className={expand ? styles.asset_wide : styles.asset}
           title={asset.location ? IMMUTABLE_IMAGE_TITLE : undefined}
           onClick={asset.location ? undefined : selectFile}
+          onError={handleImageError}
         />
       ) : (
         <ImageSearchIcon
@@ -336,6 +348,7 @@ export default memo(AssetPanelComponent, (prev, next) => {
     prev.asset.name === next.asset.name &&
     prev.asset.location === next.asset.location &&
     prev.asset.revision === next.asset.revision &&
+    prev.asset.url === next.asset.url &&
     prev.used === next.used
   );
 });

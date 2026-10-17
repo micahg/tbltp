@@ -151,6 +151,8 @@ describe("scene", () => {
           const data = JSON.parse(msg.utf8Data);
           expect(data.method).toBe("connection");
           expect(data.state.background).toMatch(/public.*\/assets\/.*\.png/);
+          // every serialization carries a freshly presigned download url
+          expect(data.state.backgroundUrl).toMatch(/X-Amz-Signature/);
         } finally {
           conn.close();
         }

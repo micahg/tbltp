@@ -3,12 +3,13 @@ import { Asset, AssetModel, IAsset } from "../models/asset";
 import { IScene } from "../models/scene";
 import { IToken } from "../models/token";
 import { IUser } from "../models/user";
-import { VALID_CONTENT_TYPES } from "./constants";
+import { MAX_DOWNLOAD_URL_LOCATIONS, VALID_CONTENT_TYPES } from "./constants";
 import { NAME_REGEX } from "../routes/scene";
 import { checkSchema } from "express-validator";
 import { knownMongoError } from "./errors";
 import { sceneUsesAsset, scenesUsingAsset } from "./scene";
 import { tokenUsesAsset, tokensUsingAsset } from "./token";
+import { createDownloadUrl } from "./s3store";
 
 export function assetValidator() {
   return checkSchema({
@@ -86,6 +87,64 @@ export function assetDeleteValiator() {
       },
     },
   });
+}
+
+/**
+ * Validates a batch download-url request: a bounded, non-empty array of
+ * asset locations.
+ */
+export function assetUrlsValidator() {
+  return checkSchema({
+    locations: {
+      in: ["body"],
+      isArray: {
+        options: { min: 1, max: MAX_DOWNLOAD_URL_LOCATIONS },
+        errorMessage: "locations must be a non-empty array",
+      },
+    },
+    "locations.*": {
+      in: ["body"],
+      isString: {
+        errorMessage: "Each location must be a string",
+      },
+    },
+  });
+}
+
+/**
+ * Convert a fetched asset (mongoose document or plain object) to a plain
+ * object. Documents are converted through toObject so no internal mongoose
+ * state leaks into the response.
+ */
+function toPlainObject<T extends object>(asset: T): T {
+  const candidate = asset as unknown as { toObject?: (options?: object) => T };
+  if (typeof candidate.toObject === "function") {
+    return candidate.toObject({ flattenObjectIds: true });
+  }
+  return { ...asset };
+}
+
+/**
+ * Project an asset onto the wire, attaching a freshly signed download url
+ * for its stored data (assets without data have no url). A new signature is
+ * minted on every serialization -- the url is short-lived by design, so it
+ * must never be persisted, logged, or compared for equality.
+ */
+export async function serializeAsset<T extends { location?: string }>(
+  asset: T,
+): Promise<T & { url?: string }> {
+  const plain = toPlainObject(asset);
+  if (!plain.location) {
+    return { ...plain };
+  }
+  return { ...plain, url: await createDownloadUrl(plain.location) };
+}
+
+/**
+ * Serialize a list of assets, minting a download url for every stored one.
+ */
+export function serializeAssets<T extends { location?: string }>(assets: T[]) {
+  return Promise.all(assets.map((asset) => serializeAsset(asset)));
 }
 
 /**

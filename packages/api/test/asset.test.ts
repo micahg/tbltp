@@ -7,8 +7,8 @@ import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
 import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
 
 import * as request from "supertest";
-import { userZero } from "./assets/auth";
-import { uploadAssetData } from "./uploads";
+import { userOne, userZero } from "./assets/auth";
+import { createDownloadUrl, fetchDownload, uploadAssetData } from "./uploads";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common/src/tokeninstance";
 
 let env: TestEnv;
@@ -280,6 +280,8 @@ describe("asset", () => {
         /public\/[a-f0-9]{24}\/assets\/[a-f0-9]{24}\.png/,
       );
       expect(resp.body.revision).toBe(1);
+      // the commit response carries a fresh presigned download url
+      expect(resp.body.url).toMatch(/X-Amz-Signature/);
       const user = await usersCollection.findOne({ sub: userZero });
       expect(user).toBeDefined();
       expect(user).not.toBeNull();
@@ -514,6 +516,108 @@ describe("asset", () => {
       expect(after.body.stagedAt).not.toBeDefined();
     });
   });
+  describe("download urls", () => {
+    beforeEach(() => {
+      (getFakeUser as jest.Mock).mockReturnValue(userZero);
+    });
+    afterEach(cleanupTestData);
+
+    async function createUploadedAsset(name: string) {
+      const created = await request(app).put("/asset").send({ name });
+      expect(created.statusCode).toBe(201);
+      const upload = await uploadAssetData(app, created.body._id);
+      expect(upload.statusCode).toBe(200);
+      return upload.body;
+    }
+
+    it("Should return a presigned url for each requested location", async () => {
+      const uploaded = await createUploadedAsset("DOWNLOAD_URLS_ASSET");
+
+      const resp = await request(app)
+        .post("/asset/urls")
+        .send({ locations: [uploaded.location] });
+      expect(resp.statusCode).toBe(200);
+      expect(resp.body.urls[uploaded.location]).toMatch(/X-Amz-Signature/);
+    });
+
+    it("Should fetch stored bytes through a presigned url without an Authorization header", async () => {
+      const uploaded = await createUploadedAsset("BROWSER_DOWNLOAD_ASSET");
+      const url = await createDownloadUrl(app, uploaded.location);
+
+      // exactly how a browser loads an <img>: GET, no Authorization header
+      // and no extra query parameters (both would break the signature)
+      const fetched = await fetch(url);
+      expect(fetched.status).toBe(200);
+      expect(fetched.headers.get("content-type")).toBe("image/png");
+      const expected = await readFile("test/assets/1x1.png");
+      expect(Buffer.from(await fetched.arrayBuffer())).toEqual(expected);
+    });
+
+    it("Should serve the committed Cache-Control headers for immutable assets", async () => {
+      const uploaded = await createUploadedAsset("CACHE_CONTROL_ASSET");
+
+      const fetched = await fetchDownload(app, uploaded.location);
+      expect(fetched.status).toBe(200);
+      expect(fetched.headers.get("cache-control")).toBe(
+        "private, max-age=2592000, immutable",
+      );
+    });
+
+    it("Should attach urls to listed assets and single fetches", async () => {
+      const uploaded = await createUploadedAsset("LISTED_WITH_DATA");
+      const empty = await request(app)
+        .put("/asset")
+        .send({ name: "LISTED_WITHOUT_DATA" });
+      expect(empty.statusCode).toBe(201);
+
+      const list = await request(app).get("/asset");
+      expect(list.statusCode).toBe(200);
+      const withData = list.body.find(
+        (asset: { name: string }) => asset.name === "LISTED_WITH_DATA",
+      );
+      const withoutData = list.body.find(
+        (asset: { name: string }) => asset.name === "LISTED_WITHOUT_DATA",
+      );
+      expect(withData.url).toMatch(/X-Amz-Signature/);
+      expect(withoutData.url).not.toBeDefined();
+
+      const fetched = await request(app).get(`/asset/${uploaded._id}`);
+      expect(fetched.statusCode).toBe(200);
+      expect(fetched.body.url).toMatch(/X-Amz-Signature/);
+    });
+
+    it("Should 400 for an empty list of locations", async () => {
+      const resp = await request(app)
+        .post("/asset/urls")
+        .send({ locations: [] });
+      expect(resp.statusCode).toBe(400);
+    });
+
+    it("Should 400 for a non-string location", async () => {
+      const resp = await request(app)
+        .post("/asset/urls")
+        .send({ locations: [12] });
+      expect(resp.statusCode).toBe(400);
+    });
+
+    it("Should 400 for a malformed location", async () => {
+      const resp = await request(app)
+        .post("/asset/urls")
+        .send({ locations: ["public/../secrets.png"] });
+      expect(resp.statusCode).toBe(400);
+    });
+
+    it("Should 403 for another user's location", async () => {
+      const uploaded = await createUploadedAsset("PRIVATE_ASSET");
+
+      // the other user got their own account -- but not this location
+      (getFakeUser as jest.Mock).mockReturnValue(userOne);
+      const resp = await request(app)
+        .post("/asset/urls")
+        .send({ locations: [uploaded.location] });
+      expect(resp.statusCode).toBe(403);
+    });
+  });
   describe("list", () => {
     beforeEach(async () => {
       (getFakeUser as jest.Mock).mockReturnValue(userZero);
@@ -678,8 +782,8 @@ describe("asset", () => {
       );
 
       const location = resp.body.location;
-      const uploadedObject = await request(app).get(`/${location}`);
-      expect(uploadedObject.statusCode).toBe(200);
+      const uploadedObject = await fetchDownload(app, location);
+      expect(uploadedObject.status).toBe(200);
 
       try {
         resp = await request(app).delete(`/asset/${resp.body._id}`);
@@ -688,8 +792,8 @@ describe("asset", () => {
       }
       expect(resp.statusCode).toBe(204);
 
-      const deletedObject = await request(app).get(`/${location}`);
-      expect(deletedObject.statusCode).toBe(404);
+      const deletedObject = await fetchDownload(app, location);
+      expect(deletedObject.status).toBe(404);
     });
     describe("linked tokens", () => {
       it("Should refuse to delete an asset used by a token", async () => {
@@ -748,8 +852,8 @@ describe("asset", () => {
         expect(asset.statusCode).toBe(200);
 
         // the asset file should still exist
-        const storedObject = await request(app).get(`/${location}`);
-        expect(storedObject.statusCode).toBe(200);
+        const storedObject = await fetchDownload(app, location);
+        expect(storedObject.status).toBe(200);
 
         // removing the reference allows deletion
         expect(
@@ -759,8 +863,8 @@ describe("asset", () => {
           (await request(app).delete(`/asset/${assetOne.body._id}`)).statusCode,
         ).toBe(204);
 
-        const deletedObject = await request(app).get(`/${location}`);
-        expect(deletedObject.statusCode).toBe(404);
+        const deletedObject = await fetchDownload(app, location);
+        expect(deletedObject.status).toBe(404);
       });
     });
     describe("scene layers", () => {
@@ -792,8 +896,8 @@ describe("asset", () => {
         expect(fetched.statusCode).toBe(200);
 
         // the asset file should still exist
-        const storedObject = await request(app).get(`/${location}`);
-        expect(storedObject.statusCode).toBe(200);
+        const storedObject = await fetchDownload(app, location);
+        expect(storedObject.status).toBe(200);
       });
     });
   });

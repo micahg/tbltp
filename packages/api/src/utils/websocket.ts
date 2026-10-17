@@ -11,16 +11,16 @@ import {
 } from "./constants";
 
 import { log } from "./logger";
-import { TableState } from "../models/tablestate";
 import { getFakeUser } from "./auth";
 import { IScene } from "../models/scene";
 import { getUserByID } from "./user";
 import { getOrCreateTableTop } from "./tabletop";
 import { getUserScene } from "./scene";
 import { getSceneTokenInstances } from "./tokeninstance";
-import { HydratedTokenInstance } from "@micahg/tbltp-common";
+import { HydratedTokenInstance, TableState } from "@micahg/tbltp-common";
 import { hydrateStateToken } from "../routes/state";
 import { getUserAsset } from "./asset";
+import { createDownloadUrl } from "./s3store";
 import { IUser } from "../models/user";
 
 interface WSStateMessage {
@@ -50,12 +50,15 @@ async function resolveSceneLayerState(
   const { idField } = getSceneLayerFields(layer);
   const assetId = scene[idField]?.toString();
 
-  if (!assetId) return { content: undefined, revision: undefined };
+  if (!assetId)
+    return { content: undefined, revision: undefined, url: undefined };
   const asset = await getUserAsset(user, assetId);
+  const location = asset?.location;
 
   return {
-    content: asset?.location,
+    content: location,
     revision: asset?.revision,
+    url: location ? await createDownloadUrl(location) : undefined,
   };
 }
 
@@ -72,8 +75,10 @@ async function buildTableState(
   return {
     overlay: overlay.content,
     overlayRev: overlay.revision,
+    overlayUrl: overlay.url,
     background: player.content,
     backgroundRev: player.revision,
+    backgroundUrl: player.url,
     viewport: scene.viewport,
     backgroundSize: scene.backgroundSize,
     angle: scene.angle || 0,

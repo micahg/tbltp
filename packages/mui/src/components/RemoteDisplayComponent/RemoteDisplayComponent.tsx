@@ -37,7 +37,6 @@ const RemoteDisplayComponent = () => {
   });
   const { data: environmentConfig, refetch: refetchEnvironmentConfig } =
     useGetEnvironmentConfigQuery();
-  const apiUrl = environmentConfig?.api;
   const wsUrl: string | undefined = environmentConfig?.ws;
   const { data: noAuthConfig, refetch: refetchNoAuthConfig } =
     useGetNoAuthConfigQuery(undefined, {
@@ -96,10 +95,14 @@ const RemoteDisplayComponent = () => {
   /**
    * Render table data
    *
+   * The server signs download urls for every serialized asset; the worker
+   * keys its caches by (location, revision), so a re-signed url for an
+   * unchanged asset is ignored rather than refetched.
+   *
    * TODO decouple setup (canvases, etc) from table state updates!  worker shouldn't be a dep of the setup routine
    */
   const processTableData = useCallback(
-    (js: WSStateMessage, apiUrl: string, bearer: string) => {
+    (js: WSStateMessage) => {
       if (!worker) {
         console.error(`Received state before worker ready`);
         return;
@@ -111,53 +114,33 @@ const RemoteDisplayComponent = () => {
         console.error("Unable to render without viewport");
         return;
       }
-      const viewport: Rect = js.state.viewport;
 
       if (!js.state.backgroundSize) {
         console.error("Unable to render without background size");
         return;
       }
 
-      const angle = js.state.angle || 0;
-
-      let overlay: string | undefined;
-      if ("overlay" in js.state && js.state.overlay) {
-        overlay = `${apiUrl}/${js.state.overlay}`;
-      }
-
-      let background: string | null = null;
-      if ("background" in js.state && js.state.background) {
-        background = `${apiUrl}/${js.state.background}`;
-      }
-
-      if (!background) {
+      if (!js.state.background || !js.state.backgroundUrl) {
         console.error(`Unable to determine background URL`);
         return;
       }
+
+      const viewport: Rect = js.state.viewport;
+      const angle = js.state.angle || 0;
 
       let tokens: HydratedTokenInstance[] = [];
       if ("tokens" in js.state && js.state.tokens) {
         tokens = js.state.tokens;
       }
-      for (const token of tokens) {
-        token.asset = `${apiUrl}/${token.asset}`;
-      }
       const things: (HydratedTokenInstance | Rect)[] =
         tokens.length > 0 ? [...tokens] : [];
-
-      const backgroundRev = js.state.backgroundRev;
-      const overlayRev = js.state.overlayRev;
 
       // update the images/viewport
       worker.postMessage({
         cmd: "update",
         values: {
-          background,
-          backgroundRev,
-          overlay,
-          overlayRev,
+          ...js.state,
           viewport,
-          bearer,
           angle,
           things,
         },
@@ -303,10 +286,10 @@ const RemoteDisplayComponent = () => {
    * With all necessary components and some table data, trigger drawing
    */
   useEffect(() => {
-    if (!worker || !apiUrl || !tableData || !token) return;
+    if (!worker || !tableData || !token) return;
     console.log(tableData);
-    processTableData(tableData, apiUrl, token);
-  }, [apiUrl, tableData, token, processTableData, worker]);
+    processTableData(tableData);
+  }, [tableData, token, processTableData, worker]);
 
   return (
     <div className={styles.map}>

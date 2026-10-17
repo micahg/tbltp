@@ -33,6 +33,14 @@ import { Rect, TableState } from "@micahg/tbltp-common";
 let backgroundImage: ImageBitmap;
 let backgroundImageRev: number;
 let backgroundImageSrc: string;
+/**
+ * The overlay is rewritten at the same location on every annotation, so
+ * (location, revision) is its cache identity. Keeping the loaded bitmap
+ * lets an update that only carries a re-signed url skip the download.
+ */
+let overlayImage: ImageBitmap | undefined;
+let overlayImageRev: number | undefined;
+let overlayImageSrc: string | undefined;
 let visibleCtx: OffscreenCanvasRenderingContext2D;
 let fullCtx: OffscreenCanvasRenderingContext2D;
 let thingCtx: OffscreenCanvasRenderingContext2D;
@@ -82,8 +90,6 @@ let blue = "0";
 let brush = MIN_BRUSH;
 
 export type TableUpdate = TableState & {
-  apiUrl: string;
-  bearer: string;
   things?: unknown[];
 };
 
@@ -179,24 +185,44 @@ function sizeVisibleCanvas(width: number, height: number) {
 }
 
 function loadAllImages(update: TableUpdate) {
-  const { bearer, background, backgroundRev, overlay } = update;
+  const {
+    background,
+    backgroundRev,
+    backgroundUrl,
+    overlay,
+    overlayRev,
+    overlayUrl,
+  } = update;
   const progress = (p: LoadProgress) =>
     postMessage({ cmd: "progress", evt: p });
 
   // gross - if we have a background image, only load it if the revision changed...
   // so here if we see no change we don't bother pulling the new image
   const bgsame =
-    background === backgroundImageSrc && backgroundRev === backgroundImageRev;
+    !!backgroundImage &&
+    background === backgroundImageSrc &&
+    backgroundRev === backgroundImageRev;
   const bgP = background
     ? bgsame
       ? Promise.resolve(backgroundImage)
-      : loadImage(background, bearer, progress)
+      : loadImage(backgroundUrl || background, progress)
     : Promise.resolve(null);
   backgroundImageSrc = background || backgroundImageSrc;
   backgroundImageRev = backgroundRev || backgroundImageRev;
+
+  // same idea for the overlay: only download it when the server announced a
+  // new revision. A fresh presigned url alone must never force a refetch
+  // (the browser cache key is the full url, which changes every broadcast).
+  const ovsame =
+    !!overlayImage &&
+    overlay === overlayImageSrc &&
+    overlayRev === overlayImageRev;
   const ovP = overlay
-    ? loadImage(overlay, bearer, progress)
+    ? ovsame
+      ? Promise.resolve(overlayImage)
+      : loadImage(overlayUrl || overlay, progress)
     : Promise.resolve(null);
+
   // TODO signal an error if either promise fails
   return Promise.all([bgP, ovP]).then(([bgImg, ovImg]) => {
     // keep a copy of these to prevent having to recreate them from the image buffer
@@ -208,6 +234,22 @@ function loadAllImages(update: TableUpdate) {
         bgImg.height,
       );
     }
+
+    if (!overlay) {
+      // no overlay at all -- drop the cached bitmap
+      overlayImage?.close();
+      overlayImage = undefined;
+      overlayImageSrc = undefined;
+      overlayImageRev = undefined;
+    } else if (ovImg && ovImg !== overlayImage) {
+      // a fresh overlay was loaded -- the previous bitmap is no longer
+      // referenced by any canvas and can be released
+      overlayImage?.close();
+      overlayImage = ovImg;
+      overlayImageSrc = overlay;
+      overlayImageRev = overlayRev;
+    }
+
     return [bgImg, ovImg];
   });
 }
@@ -496,12 +538,7 @@ function adjustZoom(zoom: number, x: number, y: number) {
   renderAllCanvasses();
 }
 
-async function updateThings(
-  apiUrl: string,
-  bearer: string,
-  things?: unknown[],
-  render = false,
-) {
+async function updateThings(things?: unknown[], render = false) {
   // clear the existing thing list
   _things.length = 0;
 
@@ -510,7 +547,7 @@ async function updateThings(
 
   const promises: Promise<Drawable>[] = [];
   for (const thing of things.filter((thing) => thing)) {
-    promises.push(createDrawable(thing, bearer));
+    promises.push(createDrawable(thing));
   }
   let drawables: Drawable[];
   try {
@@ -531,14 +568,14 @@ async function updateThings(
 }
 
 async function update(values: TableUpdate) {
-  const { apiUrl, bearer, angle, background, viewport, things } = values;
+  const { angle, background, viewport, things } = values;
   if (!background) {
-    if (things) return updateThings(apiUrl, bearer, things, true);
+    if (things) return updateThings(things, true);
     console.error(`Ignoring update without background`);
     return;
   }
   _angle = angle;
-  updateThings(apiUrl, bearer, things);
+  updateThings(things);
 
   if (viewport) {
     copyRect(viewport, _img_orig);
@@ -563,9 +600,10 @@ async function update(values: TableUpdate) {
       ? [fullCtx.canvas, thingCtx.canvas]
       : [thingCtx.canvas, fullCtx.canvas];
 
+    // NOTE: the overlay bitmap is cached for future (no-change) updates, so
+    // it must not be closed here
     if (ovImg) {
       fullCtx.drawImage(ovImg, 0, 0);
-      ovImg.close();
     } else {
       clearCanvas();
     }
@@ -717,11 +755,8 @@ self.onmessage = async (evt) => {
       break;
     }
     case "set_token": {
-      if (!("token" in evt.data) || !("bearer" in evt.data)) break;
-      _token = (await createDrawable(
-        evt.data.token,
-        evt.data.bearer,
-      )) as DrawableToken;
+      if (!("token" in evt.data)) break;
+      _token = (await createDrawable(evt.data.token)) as DrawableToken;
       break;
     }
     case "move_token": {
@@ -866,7 +901,7 @@ self.onmessage = async (evt) => {
       _token.normalize();
 
       // copy {... }is important otherwise, future mouse move impacts the drawable
-      const t = await createDrawable({ ..._token.token }, "");
+      const t = await createDrawable({ ..._token.token });
 
       recording = false;
       panning = false;

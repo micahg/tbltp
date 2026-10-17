@@ -15,7 +15,11 @@ import { userZero, userOne } from "./assets/auth";
 import { fail } from "node:assert";
 import { ScenelessTokenInstance } from "@micahg/tbltp-common";
 import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
-import { uploadAssetData, uploadSceneOverlayData } from "./uploads";
+import {
+  fetchDownload,
+  uploadAssetData,
+  uploadSceneOverlayData,
+} from "./uploads";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let app: any;
@@ -325,6 +329,22 @@ describe("scene", () => {
       });
       expect(asset).toBeTruthy();
       expect(asset.tags).toEqual(["scene"]);
+    });
+
+    it("Should serve overlay downloads with no-store Cache-Control", async () => {
+      const scenes = await request(app).get("/scene");
+      expect(scenes.statusCode).toBe(200);
+      const sceneId = scenes.body[0]._id;
+
+      const uploaded = await uploadSceneOverlayData(app, sceneId);
+      expect(uploaded.statusCode).toBe(200);
+
+      // the overlay is replaced at the same key on every annotation, so a
+      // stale copy must never be served from a cache
+      const fetched = await fetchDownload(app, uploaded.body.location);
+      expect(fetched.status).toBe(200);
+      expect(fetched.headers.get("content-type")).toBe("image/png");
+      expect(fetched.headers.get("cache-control")).toBe("private, no-store");
     });
 
     it("Should allow repeated updates of the overlay asset", async () => {

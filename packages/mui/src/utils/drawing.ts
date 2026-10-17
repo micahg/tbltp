@@ -88,11 +88,10 @@ export type Marker = {
 
 export async function createDrawable<T = Rect | HydratedTokenInstance>(
   d: T,
-  bearer: string,
 ): Promise<Drawable> {
   if (isRect(d)) return new DrawableSelectedRegion(d);
   if (isHydratedTokenInstnace(d)) {
-    const img = await cacheTokenImage(d.asset, bearer);
+    const img = await cacheTokenImage(d.asset, d.assetUrl || "");
     return new DrawableToken(d, img);
   }
   throw new TypeError("Invalid Drawable");
@@ -142,13 +141,19 @@ export class DrawableSelectedRegion implements Drawable {
 }
 
 // TODO try with bad link and see what happens before merging - ideally fallack to X
-async function cacheTokenImage(location: string, bearer: string) {
-  const url = location || "/x.webp";
-  if (url in cache) return cache[url];
-  console.warn(`Cache miss for token ${url}`);
+/**
+ * Load and cache a token image. The cache key is the asset *location*, not
+ * the presigned url -- urls are re-signed on every server serialization, so
+ * keying by url would refetch an immutable token image on every message.
+ */
+async function cacheTokenImage(location: string, url: string) {
+  const target = location || url;
+  if (!target) throw new Error("Token without asset location");
+  if (location in cache) return cache[location];
+  console.warn(`Cache miss for token ${location}`);
 
-  const img = await loadImage(url, bearer);
-  cache[url] = img;
+  const img = await loadImage(url || location);
+  cache[location] = img;
   return img;
 }
 

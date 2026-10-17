@@ -78,3 +78,32 @@ export async function uploadSceneOverlayData(
     contentType,
   );
 }
+
+/**
+ * Mint a fresh presigned download url for a location through the API (the
+ * same refresh path the clients use when a previously issued url expires).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function createDownloadUrl(app: any, location: string) {
+  const resp = await request(app)
+    .post("/asset/urls")
+    .send({ locations: [location] });
+  if (resp.statusCode !== 200) {
+    throw new Error(
+      `Unable to create download url (${resp.statusCode}): ${JSON.stringify(resp.body)}`,
+    );
+  }
+  const url = resp.body.urls?.[location];
+  if (!url) throw new Error(`No download url returned for ${location}`);
+  return url as string;
+}
+
+/**
+ * Fetch a stored object through a presigned url exactly as a browser would:
+ * no Authorization header and no extra query parameters (either would
+ * break the signature).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function fetchDownload(app: any, location: string) {
+  return createDownloadUrl(app, location).then((url) => fetch(url));
+}

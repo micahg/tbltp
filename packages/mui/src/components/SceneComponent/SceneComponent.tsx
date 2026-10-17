@@ -9,13 +9,10 @@ import {
 } from "@mui/material";
 import { createRef, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { AppReducerState } from "../../reducers/AppReducer";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import { LoadProgress, loadImage } from "../../utils/content";
 import ErrorAlertComponent from "../ErrorAlertComponent/ErrorAlertComponent.lazy";
 import { Scene } from "@micahg/tbltp-common";
-import { environmentApi } from "../../api/environment";
-import { useAuth0 } from "@auth0/auth0-react";
 import { saveSceneFlow } from "../../thunks/createSceneFlow";
 import {
   useAssignSceneLayerAssetMutation,
@@ -35,6 +32,7 @@ import {
   setError,
   setEditingSceneId,
 } from "../../slices/editorUiSlice";
+import { usePresignedUrlRefresher } from "../../utils/presignedUrl";
 import { skipToken } from "@reduxjs/toolkit/query";
 
 // TODO move to a shared file
@@ -77,12 +75,8 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   const [nameError, setNameError] = useState<string>();
   const [playerProgress, setPlayerProgress] = useState<number>(0);
   const [detailProgress, setDetailProgress] = useState<number>(0);
-  const apiUrl = useSelector(
-    (state: AppReducerState) =>
-      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
-  );
   const error = useSelector(selectEditorUiError);
-  const { getAccessTokenSilently } = useAuth0();
+  const refreshDownloadUrl = usePresignedUrlRefresher();
   const [createScene] = useCreateSceneMutation();
   const [updateAsset] = useUpdateAssetMutation();
   const [updateAssetData] = useUpdateAssetDataMutation();
@@ -96,7 +90,6 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   const { data: detailAsset, isError: detailAssetError } = useGetAssetByIdQuery(
     scene?.detailId ?? skipToken,
   );
-  const [bearer, setBearer] = useState<string | null>(null);
   const hasUpdates = playerUpdated || detailUpdated;
   // image selection stays locked until every stored image the scene has has
   // been downloaded, so picks are always compared against known dimensions
@@ -219,12 +212,6 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    getAccessTokenSilently()
-      .then((token) => setBearer(token))
-      .catch(() => setBearer(null));
-  }, [getAccessTokenSilently]);
-
-  useEffect(() => {
     if (!error || !dispatch) return;
 
     // error feedback means creation (success or failure) is done
@@ -253,7 +240,7 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
    */
   useEffect(() => {
     const canvas = playerCanvasRef?.current;
-    if (!scene?.playerId || !bearer || !apiUrl || !canvas) return;
+    if (!scene?.playerId || !canvas) return;
     // a locally picked image supersedes the stored one
     if (playerFile) {
       setPlayerImageSettled(true);
@@ -265,12 +252,14 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     if (!playerAsset && !playerAssetError) return;
     setLoadingPlayer(true);
     const playerLocation = playerAsset?.location;
-    if (!playerLocation) {
+    const playerUrl = playerAsset?.url;
+    if (!playerLocation || !playerUrl) {
       setPlayerImageSettled(true);
       return;
     }
-    const url = `${apiUrl}/${playerLocation}`;
-    loadImage(url, bearer, playerProgressHandler)
+    loadImage(playerUrl, playerProgressHandler, () =>
+      refreshDownloadUrl(playerLocation),
+    )
       .then((img) => {
         renderImage(img, canvas);
         // seed dimensions for the aspect ratio check
@@ -279,18 +268,17 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
       .catch((err) => console.error(`Unable to load player image: ${err}`))
       .finally(() => setPlayerImageSettled(true));
   }, [
-    apiUrl,
-    bearer,
     loadingPlayer,
     playerCanvasRef,
     scene,
     playerAsset,
     playerAssetError,
     playerFile,
+    refreshDownloadUrl,
   ]);
   useEffect(() => {
     const canvas = detailCanvasRef?.current;
-    if (!scene?.detailId || !bearer || !apiUrl || !canvas) return;
+    if (!scene?.detailId || !canvas) return;
     // a locally picked image supersedes the stored one
     if (detailFile) {
       setDetailImageSettled(true);
@@ -302,12 +290,14 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
     if (!detailAsset && !detailAssetError) return;
     setLoadingDetail(true);
     const detailLocation = detailAsset?.location;
-    if (!detailLocation) {
+    const detailUrl = detailAsset?.url;
+    if (!detailLocation || !detailUrl) {
       setDetailImageSettled(true);
       return;
     }
-    const url = `${apiUrl}/${detailLocation}`;
-    loadImage(url, bearer, detailProgressHandler)
+    loadImage(detailUrl, detailProgressHandler, () =>
+      refreshDownloadUrl(detailLocation),
+    )
       .then((img) => {
         renderImage(img, canvas);
         // seed dimensions for the aspect ratio check
@@ -316,14 +306,13 @@ const SceneComponent = ({ populateToolbar, scene }: SceneComponentProps) => {
       .catch((err) => console.error(`Unable to load detail image: ${err}`))
       .finally(() => setDetailImageSettled(true));
   }, [
-    apiUrl,
-    bearer,
     detailCanvasRef,
     scene,
     loadingDetail,
     detailAsset,
     detailAssetError,
     detailFile,
+    refreshDownloadUrl,
   ]);
 
   /**
