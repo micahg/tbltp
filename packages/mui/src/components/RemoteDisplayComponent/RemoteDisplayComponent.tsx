@@ -39,7 +39,10 @@ const RemoteDisplayComponent = () => {
     useGetEnvironmentConfigQuery();
   const apiUrl = environmentConfig?.api;
   const wsUrl: string | undefined = environmentConfig?.ws;
-  const { data: noAuthConfig } = useGetNoAuthConfigQuery();
+  const { data: noAuthConfig, refetch: refetchNoAuthConfig } =
+    useGetNoAuthConfigQuery(undefined, {
+      skip: !environmentConfig?.api,
+    });
   const noauth: boolean = noAuthConfig?.noauth ?? false;
   const { data: authConfig } = useGetAuthConfigQuery();
   const { data: authState } = useGetDeviceAuthStateQuery();
@@ -206,9 +209,10 @@ const RemoteDisplayComponent = () => {
     // if we are in an undetermined authorized state it means we couldn't
     // connect to the API to get ANY auth config so start an interval to
     // retry
-    if (authConfig === undefined) {
+    if (authConfig === undefined || noAuthConfig === undefined) {
       const timer = window.setInterval(() => {
         void refetchEnvironmentConfig();
+        void refetchNoAuthConfig();
       }, 5000);
       setAuthTimer(timer);
       return () => window.clearInterval(timer); // this is how you avoid the two-timer fuckery with strict mode
@@ -233,12 +237,14 @@ const RemoteDisplayComponent = () => {
     setConnected(false);
   }, [
     authConfig,
+    noAuthConfig,
     noauth,
     navigate,
     authTimer,
     token,
     pollDeviceCode,
     refetchEnvironmentConfig,
+    refetchNoAuthConfig,
   ]);
 
   /**

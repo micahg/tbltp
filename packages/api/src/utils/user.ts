@@ -49,7 +49,16 @@ export async function getOrCreateUser(
     const user = await getUser(auth);
     if (user) return user;
 
-    return await createUser(auth);
+    try {
+      return await createUser(auth);
+    } catch (err) {
+      // if we failed to create the user, just get and return it
+      if ((err as { code?: number }).code === 11000) {
+        const existing = await getUser(auth);
+        if (existing) return existing;
+      }
+      throw err;
+    }
   } catch (err) {
     if (err instanceof Error && err.cause) {
       throw err;

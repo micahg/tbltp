@@ -188,6 +188,7 @@ const AssetPanelComponent = ({
         />
       ) : (
         <ImageSearchIcon
+          titleAccess="Upload asset image"
           sx={{ width: "25vw", height: "25vw" }}
           onClick={selectFile}
         />
