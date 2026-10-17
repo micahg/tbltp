@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { Readable } from "node:stream";
 
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
@@ -19,7 +20,7 @@ import { log } from "./logger";
 const PUBLIC_PREFIX = `${DEST_FOLDER}/`;
 
 /** Lifetime (seconds) of presigned upload URLs handed to clients. */
-const UPLOAD_URL_EXPIRY_SECONDS = 900;
+const UPLOAD_URL_EXPIRY_SECONDS = 60;
 
 function normalizeEndpoint(rawEndpoint?: string) {
   const endpoint = rawEndpoint?.trim();
@@ -164,8 +165,7 @@ export async function objectExists(key: string) {
   }
 }
 
-export async function deletePublicAsset(location: string) {
-  const key = locationToKey(location);
+export async function deleteObject(key: string) {
   try {
     await client.send(
       new DeleteObjectCommand({
@@ -178,6 +178,35 @@ export async function deletePublicAsset(location: string) {
     log.error(msg, err);
     throw new Error(msg, { cause: 500 });
   }
+}
+
+/**
+ * Copy an object server-side. The source key segments are URL-encoded per
+ * S3 copy-source requirements (the keys this app builds are hex/uuid based
+ * so this is a no-op, but it keeps the copy-source well formed regardless).
+ */
+export async function copyObject(sourceKey: string, destinationKey: string) {
+  const copySource = `${bucket}/${sourceKey
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/")}`;
+  try {
+    await client.send(
+      new CopyObjectCommand({
+        Bucket: bucket,
+        CopySource: copySource,
+        Key: destinationKey,
+      }),
+    );
+  } catch (err) {
+    const msg = `Error copying ${sourceKey} to ${destinationKey} in S3 bucket ${bucket}`;
+    log.error(msg, err);
+    throw new Error(msg, { cause: 500 });
+  }
+}
+
+export async function deletePublicAsset(location: string) {
+  return deleteObject(locationToKey(location));
 }
 
 export async function publicAssetHandler(

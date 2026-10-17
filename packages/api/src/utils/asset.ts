@@ -1,3 +1,4 @@
+import { ASSET_FIELDS, ASSET_SUMMARY_FIELDS } from "@micahg/tbltp-common";
 import { Asset, AssetModel, IAsset } from "../models/asset";
 import { IScene } from "../models/scene";
 import { IToken } from "../models/token";
@@ -87,9 +88,13 @@ export function assetDeleteValiator() {
   });
 }
 
+/**
+ * List the user's assets with only the summary wire fields (see
+ * ASSET_SUMMARY_FIELDS in the common package).
+ */
 export function listUserAssets(user: IUser) {
   return AssetModel.find({ user: { $eq: user._id } }).select(
-    "name location revision",
+    ASSET_SUMMARY_FIELDS,
   );
 }
 
@@ -103,8 +108,42 @@ export async function createUserAsset(user: IUser, asset: Asset) {
   }
 }
 
+/**
+ * Fetch one of the user's assets with the wire projection (see
+ * ASSET_FIELDS in the common package) -- database-only fields never
+ * reach the wire, so this is the safe default. Callers that need the
+ * upload staging bookkeeping must use getUserAssetWithStaging instead.
+ */
 export function getUserAsset(user: IUser, id: string) {
-  return AssetModel.findOne({ _id: { $eq: id }, user: { $eq: user._id } });
+  return AssetModel.findOne({
+    _id: { $eq: id },
+    user: { $eq: user._id },
+  }).select(ASSET_FIELDS);
+}
+
+/**
+ * Fetch one of the user's assets including the database-only upload
+ * staging fields. The upload machinery (presign supersession, commit,
+ * staged-object cleanup) reads the staging bookkeeping.
+ */
+export function getUserAssetWithStaging(user: IUser, id: string) {
+  return AssetModel.findOne({
+    _id: { $eq: id },
+    user: { $eq: user._id },
+  });
+}
+
+/**
+ * Rename an asset. The update is atomic and projected to the wire fields,
+ * so it can neither clobber concurrent updates nor leak database-only
+ * fields.
+ */
+export function renameUserAsset(user: IUser, id: string, name: string) {
+  return AssetModel.findOneAndUpdate(
+    { _id: { $eq: id }, user: { $eq: user._id } },
+    { $set: { name: name } },
+    { new: true },
+  ).select(ASSET_FIELDS);
 }
 
 export async function assetInUse(user: IUser, asset: IAsset): Promise<boolean> {

@@ -22,6 +22,9 @@ export const VALID_LAYERS = ["overlay", "detail", "player"];
 export const VALID_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"];
 export const CONTENT_TYPE_EXTS = ["png", "jpg", "webp"];
 export const DEST_FOLDER = "public";
+// presigned uploads target single-use staging keys under this folder --
+// never the final asset keys (which live under DEST_FOLDER)
+export const STAGING_FOLDER = "uploads";
 
 export const OBJECT_ID_LEN = 24;
 

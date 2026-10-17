@@ -20,6 +20,7 @@ import {
   createUserAsset,
   deleteUserSceneAssetInstances,
   getUserAsset,
+  getUserAssetWithStaging,
 } from "../utils/asset";
 import { commitAssetData, presignAssetUpload } from "../utils/assetstore";
 
@@ -171,7 +172,7 @@ export function updateSceneViewport(
  */
 async function resolveSceneOverlayAsset(user: IUser, scene: IScene) {
   const asset = scene.overlayId
-    ? await getUserAsset(user, scene.overlayId.toString())
+    ? await getUserAssetWithStaging(user, scene.overlayId.toString())
     : null;
   if (asset) return asset;
 
@@ -236,7 +237,11 @@ export async function commitSceneOverlayData(
     if (!scene.overlayId) {
       throw new Error("No overlay asset", { cause: 404 });
     }
-    const asset = await getUserAsset(user, scene.overlayId.toString());
+    // the commit reads the upload staging bookkeeping
+    const asset = await getUserAssetWithStaging(
+      user,
+      scene.overlayId.toString(),
+    );
     if (!asset) {
       throw new Error("No overlay asset", { cause: 404 });
     }

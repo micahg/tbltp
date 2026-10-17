@@ -6,13 +6,16 @@ import {
   assetUsage,
   createUserAsset,
   getUserAsset,
+  getUserAssetWithStaging,
   listUserAssets,
+  renameUserAsset,
 } from "../utils/asset";
 import {
   commitAssetData,
   deleteAssetFile,
   presignAssetUpload,
 } from "../utils/assetstore";
+import { deleteObject } from "../utils/s3store";
 import { knownMongoError } from "../utils/errors";
 
 export async function listAssets(
@@ -58,16 +61,20 @@ export async function createOrUpdateAsset(
     if (!req.body._id) {
       return res.status(201).json(await createUserAsset(user, req.body));
     }
-    let updated = false;
     const asset = await getUserAsset(user, req.body._id);
-    if (asset.name != req.body.name) {
-      asset.name = req.body.name;
-      updated = true;
+    if (!asset) {
+      throw new Error("No asset", { cause: 404 });
     }
-    if (updated) {
-      return res.json(await asset.save());
+    if (asset.name === req.body.name) {
+      return res.status(204).send();
     }
-    return res.status(204).send();
+    // atomic + projected: cannot clobber concurrent updates and cannot
+    // leak database-only fields
+    const renamed = await renameUserAsset(user, req.body._id, req.body.name);
+    if (!renamed) {
+      throw new Error("No asset", { cause: 404 });
+    }
+    return res.json(renamed);
   } catch (err) {
     if (knownMongoError(err, next)) return;
     log.error(`Unable to create asset: ${err.message}`);
@@ -98,9 +105,10 @@ export async function deleteAsset(
   next: NextFunction,
 ) {
   let path;
+  let staging;
   try {
     const user = await getOrCreateUser(req.auth);
-    const asset = await getUserAsset(user, req.params.id);
+    const asset = await getUserAssetWithStaging(user, req.params.id);
     if (!asset) {
       return res.status(404).send();
     }
@@ -109,6 +117,7 @@ export async function deleteAsset(
     }
     await asset.deleteOne();
     path = asset.location;
+    staging = asset.staging;
     // don't return yet, we will delete after sending the response
     res.status(204).send();
   } catch (err) {
@@ -119,6 +128,12 @@ export async function deleteAsset(
     if (path) await deleteAssetFile(path);
   } catch (err) {
     log.error(`Unable to delete asset file ${err.message}`);
+  }
+  // an incomplete asset may still have a staged (uncommitted) upload
+  try {
+    if (staging) await deleteObject(staging);
+  } catch (err) {
+    log.error(`Unable to delete staged upload ${err.message}`);
   }
 }
 
@@ -133,7 +148,7 @@ export async function createAssetUploadUrl(
 ) {
   try {
     const user = await getOrCreateUser(req.auth);
-    const asset = await getUserAsset(user, req.params.id);
+    const asset = await getUserAssetWithStaging(user, req.params.id);
     if (!asset) {
       throw new Error("No asset", { cause: 404 });
     }
@@ -165,8 +180,8 @@ export async function setAssetData(
   try {
     const user = await getOrCreateUser(req.auth);
 
-    // retrieve the asset
-    const asset = await getUserAsset(user, req.params.id);
+    // retrieve the asset (with staging location)
+    const asset = await getUserAssetWithStaging(user, req.params.id);
     if (!asset) {
       throw new Error("No asset", { cause: 404 });
     }
