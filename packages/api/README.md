@@ -109,7 +109,19 @@ source settings), and a Cloud Access Policy token with `metrics:write` and
 ## Local setup
 
 Local configuration lives in `packages/api/.env` (gitignored; loaded by the VS
-Code launch configuration). Logs are driven directly by:
+Code launch configuration). Copy the committed example:
+
+```
+cp packages/api/.env.example packages/api/.env
+```
+
+The example targets the localstack service from `compose.dev.yaml`
+(`STORAGE_S3_ENDPOINT=http://127.0.0.1:4566`, `test` credentials,
+`STORAGE_S3_FORCE_PATH_STYLE=true`, bucket `tbltp-local`) and disables auth.
+To use a real S3/R2 bucket instead, set the `STORAGE_S3_*` variables from the
+[Storage](#storage) section.
+
+Logs are driven directly by:
 
 ```
 LOKI_URL=https://logs-prod-018.grafana.net

@@ -2,6 +2,7 @@ import { Auth0Provider } from "@auth0/auth0-react";
 import GameMasterComponent from "../GameMasterComponent/GameMasterComponent.lazy";
 import AuthenticationGuardComponent from "../AuthenticationGuardComponent/AuthenticationGuardComponent.lazy";
 import EnvLoadingComponent from "../EnvLoadingComponent/EnvLoadingComponent.lazy";
+import NoAuthProviderComponent from "../NoAuthProviderComponent/NoAuthProviderComponent";
 import {
   useGetAuthConfigQuery,
   useGetNoAuthConfigQuery,
@@ -28,7 +29,11 @@ const EnvConfigGuardComponent = () => {
   }
 
   if (noAuthConfig.noauth) {
-    return <GameMasterComponent />;
+    return (
+      <NoAuthProviderComponent>
+        <GameMasterComponent />
+      </NoAuthProviderComponent>
+    );
   }
 
   if (!authConfig) {

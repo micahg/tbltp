@@ -2,7 +2,7 @@ services:
   mongo:
     image: mongo:latest
     ports:
-      - "27017:27017"
+      - "${MONGO_PORT:-27017}:27017"
     volumes:
       - mongo-data:/data/db
       - mongo-config:/data/configdb
@@ -10,11 +10,15 @@ services:
   localstack:
     image: localstack/localstack:latest
     ports:
-      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:${LOCALSTACK_PORT:-4566}:4566"
     env_file:
       - .env
     environment:
       - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
+      - SERVICES=s3
+      # Snapshot persistence is a paid LocalStack feature; state is in-memory
+      # and lost whenever this container is recreated.
+      # - PERSISTENCE=1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - localstack-data:/var/lib/localstack
