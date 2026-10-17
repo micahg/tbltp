@@ -5,6 +5,61 @@ TBD, but here are some things we should read:
 
 * [Data Model](packages/api/README.md#data-model)
 
+# Local Development
+
+Prerequisites: Docker, Node.js, and VS Code (the launch configurations in
+`.vscode/launch.json` drive the dev servers).
+
+1. Create the root env file used by `compose.dev.yaml` and paste in your
+   [LocalStack auth token](https://app.localstack.cloud) (account -> Auth Token):
+
+   ```
+   cp .env.example .env
+   ```
+
+1. Start mongo and localstack:
+
+   ```
+   docker compose -f compose.dev.yaml up -d
+   ```
+
+1. Create the assets bucket. `awslocal` is bundled with the localstack image;
+   the bucket name must match `STORAGE_S3_BUCKET` in `packages/api/.env`:
+
+   ```
+   docker compose -f compose.dev.yaml exec localstack awslocal s3 mb s3://tbltp-local
+   ```
+
+1. Create the API env file (already configured for localstack):
+
+   ```
+   cp packages/api/.env.example packages/api/.env
+   ```
+
+1. Run the VS Code **Backend All** launch compound. The UI is served on
+   http://localhost:4200 and talks to the API on http://localhost:3000
+   (see `packages/mui/public/env.json`).
+
+## Migrating assets into localstack (optional)
+
+LocalStack's state is in-memory on the free plan, so the bucket and its
+objects are lost whenever the container is recreated (e.g. after changing
+`compose.dev.yaml`). To copy objects from an S3-compatible bucket (e.g. R2),
+run the sync through the localstack container, which ships the AWS CLI:
+
+```
+docker compose -f compose.dev.yaml exec \
+  -e AWS_ACCESS_KEY_ID=<source-access-key> \
+  -e AWS_SECRET_ACCESS_KEY=<source-secret-key> \
+  localstack aws s3 sync s3://<source-bucket>/ /tmp/migrate \
+  --endpoint-url https://<source-endpoint> --region <source-region>
+
+docker compose -f compose.dev.yaml exec localstack \
+  awslocal s3 sync /tmp/migrate/ s3://tbltp-local/
+
+docker compose -f compose.dev.yaml exec localstack rm -rf /tmp/migrate
+```
+
 # Unit Testing
 
 * [API](packages/api/README.md#testing)
