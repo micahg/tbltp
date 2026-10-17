@@ -71,7 +71,6 @@ function newS3Context() {
 // fast at startup (the test environment sets the variables before import)
 const { bucket, client } = newS3Context();
 
-// NOW THAT WE ARE EXCLUSIVELY S3, THIS SHOULDN'T BE NECESSARY!!!!!!!!!!
 export function ensurePublicLocation(path: string): string {
   const clean = (path || "").replace(/^\/+/, "");
   if (clean.startsWith(PUBLIC_PREFIX)) return clean;
