@@ -5,6 +5,9 @@ TBD, but here are some things we should read:
 
 * [Data Model](packages/api/README.md#data-model)
 
+Automated agents (and anyone wanting a second, isolated dev stack) should
+see [AGENTS.md](AGENTS.md).
+
 # Local Development
 
 Prerequisites: Docker, Node.js, and VS Code (the launch configurations in
