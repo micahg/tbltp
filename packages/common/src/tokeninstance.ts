@@ -23,4 +23,10 @@ export interface TokenInstance extends ScenelessTokenInstance{
 // TODO remove "scene" from this interface since once hydrated we know which scene its from
 export interface HydratedTokenInstance extends TokenInstance {
   asset: string;
+  /**
+   * Presigned download url for the token's asset. Freshly signed for every
+   * serialization; clients should cache by (asset, token revision) rather
+   * than by url.
+   */
+  assetUrl?: string;
 }

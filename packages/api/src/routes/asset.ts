@@ -9,13 +9,19 @@ import {
   getUserAssetWithStaging,
   listUserAssets,
   renameUserAsset,
+  serializeAsset,
+  serializeAssets,
 } from "../utils/asset";
 import {
   commitAssetData,
   deleteAssetFile,
   presignAssetUpload,
 } from "../utils/assetstore";
-import { deleteObject } from "../utils/s3store";
+import {
+  createDownloadUrl,
+  deleteObject,
+  locationToKey,
+} from "../utils/s3store";
 import { knownMongoError } from "../utils/errors";
 
 export async function listAssets(
@@ -26,7 +32,7 @@ export async function listAssets(
   try {
     const user = await getOrCreateUser(req.auth);
     const assets = await listUserAssets(user);
-    res.json(assets);
+    res.json(await serializeAssets(assets));
   } catch (err) {
     log.error("Unable to list user assets", err);
     return next({ status: err.cause || 500 });
@@ -44,7 +50,7 @@ export async function getAssetById(
     if (!asset) {
       return res.sendStatus(404);
     }
-    return res.json(asset);
+    return res.json(await serializeAsset(asset));
   } catch (err) {
     log.error("Unable to fetch user asset", err);
     return next({ status: err.cause || 500 });
@@ -59,7 +65,11 @@ export async function createOrUpdateAsset(
   try {
     const user = await getOrCreateUser(req.auth);
     if (!req.body._id) {
-      return res.status(201).json(await createUserAsset(user, req.body));
+      const created = await createUserAsset(user, req.body);
+      if (!created) {
+        throw new Error("Unable to create asset", { cause: 500 });
+      }
+      return res.status(201).json(await serializeAsset(created));
     }
     const asset = await getUserAsset(user, req.body._id);
     if (!asset) {
@@ -74,7 +84,7 @@ export async function createOrUpdateAsset(
     if (!renamed) {
       throw new Error("No asset", { cause: 404 });
     }
-    return res.json(renamed);
+    return res.json(await serializeAsset(renamed));
   } catch (err) {
     if (knownMongoError(err, next)) return;
     log.error(`Unable to create asset: ${err.message}`);
@@ -193,9 +203,47 @@ export async function setAssetData(
       throw new Error("Asset data cannot be replaced", { cause: 409 });
     }
 
-    return res.json(await commitAssetData(user, asset, req.body.contentType));
+    const committed = await commitAssetData(user, asset, req.body.contentType);
+    return res.json(await serializeAsset(committed));
   } catch (err) {
     log.error("Unable to create asset", err);
+    return next({ status: err.cause || 500 });
+  }
+}
+
+/**
+ * Mint fresh presigned download urls for a batch of the caller's asset
+ * locations. Presigned urls are short-lived, so a client whose fetch failed
+ * with 403 (expired signature) can use this to refresh the urls it needs
+ * without refetching the asset metadata.
+ *
+ * Every requested location must belong to the calling user; locations are
+ * validated with the same rules the storage layer uses everywhere else
+ * (this also rejects path traversal).
+ */
+export async function createAssetDownloadUrls(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const user = await getOrCreateUser(req.auth);
+    const locations = req.body.locations as string[];
+
+    const urls: Record<string, string> = {};
+    await Promise.all(
+      [...new Set(locations)].map(async (location) => {
+        const key = locationToKey(location);
+        if (!key.startsWith(`${user._id.toString()}/`)) {
+          throw new Error("Forbidden location", { cause: 403 });
+        }
+        urls[location] = await createDownloadUrl(key);
+      }),
+    );
+
+    return res.json({ urls });
+  } catch (err) {
+    log.error("Unable to create asset download urls", err);
     return next({ status: err.cause || 500 });
   }
 }

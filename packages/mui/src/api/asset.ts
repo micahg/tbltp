@@ -19,6 +19,10 @@ export interface UpdateAssetDataRequest {
   progress?: (evt: LoadProgress) => void;
 }
 
+export interface AssetUrlsResponse {
+  urls: Record<string, string>;
+}
+
 function assetTagsForList(assets: Asset[] | undefined): AssetTag[] {
   if (!assets) {
     return [{ type: "Asset", id: "LIST" }];
@@ -128,6 +132,18 @@ export const assetApi = createApi({
       query: (id) => ({ url: `/asset/${id}/usage` }),
       providesTags: (_result, _error, id) => [{ type: "Asset", id }],
     }),
+    /**
+     * Mint fresh presigned download urls for a set of asset locations.
+     * Presigned urls expire; this is the recovery path when a fetch fails
+     * with 403. Minting changes no data, so no tags are invalidated.
+     */
+    presignAssetUrls: build.mutation<AssetUrlsResponse, string[]>({
+      query: (locations) => ({
+        url: "/asset/urls",
+        method: "POST",
+        body: { locations },
+      }),
+    }),
     updateAsset: build.mutation<Asset, Asset>({
       query: (asset) => ({
         url: "/asset",
@@ -220,6 +236,7 @@ export const {
   useGetAssetByIdQuery,
   useGetAssetUsageQuery,
   useLazyGetAssetUsageQuery,
+  usePresignAssetUrlsMutation,
   useUpdateAssetMutation,
   useUpdateAssetDataMutation,
   useDeleteAssetMutation,

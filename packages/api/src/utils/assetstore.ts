@@ -4,6 +4,7 @@ import { IUser } from "../models/user";
 import { AssetModel, IAsset } from "../models/asset";
 import {
   CONTENT_TYPE_EXTS,
+  IMMUTABLE_CACHE_CONTROL,
   STAGING_FOLDER,
   VALID_CONTENT_TYPES,
 } from "./constants";
@@ -103,12 +104,16 @@ export async function presignAssetUpload(
  * @param user The user who owns the asset.
  * @param asset The asset (mongoose document) being uploaded to.
  * @param contentType The content type of the upload (validated).
+ * @param cacheControl The Cache-Control stored with the committed object.
+ * Immutable assets use a long-lived policy; the scene overlay (replaced at
+ * the same key on every annotation) must not be cached.
  * @returns A promise resolving to the updated asset.
  */
 export async function commitAssetData(
   user: IUser,
   asset: HydratedDocument<IAsset>,
   contentType: string,
+  cacheControl: string = IMMUTABLE_CACHE_CONTROL,
 ): Promise<IAsset> {
   // this throws an exception with a cause if the extension is not supported
   const ext = getValidExtension(contentType);
@@ -131,7 +136,12 @@ export async function commitAssetData(
   // the final location is derived from the asset id and the extension of
   // the upload being committed
   const location = buildAssetLocation(user, asset._id!.toString(), ext);
-  await copyObject(asset.staging, locationToKey(location));
+  await copyObject(
+    asset.staging,
+    locationToKey(location),
+    contentType,
+    cacheControl,
+  );
 
   // the staged object is garbage once copied -- best effort delete; the
   // bucket lifecycle rule sweeps what is left behind

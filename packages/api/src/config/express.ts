@@ -15,6 +15,7 @@ import {
   ALL_ASSETS_PATH,
   ASSET_DATA_PATH,
   ASSET_PATH,
+  ASSET_URLS_PATH,
   ASSET_USAGE_PATH,
   ALL_TOKEN_PATH,
   TOKEN_PATH,
@@ -39,6 +40,7 @@ import { metrics } from "@opentelemetry/api";
 import { hrtime } from "process";
 import {
   setAssetData,
+  createAssetDownloadUrls,
   createAssetUploadUrl,
   listAssets,
   getAssetById,
@@ -49,6 +51,7 @@ import {
 import {
   assetDataValidator,
   assetDataUploadValidator,
+  assetUrlsValidator,
   assetValidator,
 } from "../utils/asset";
 import { validationResult } from "express-validator";
@@ -72,22 +75,6 @@ import {
   sceneTokenInstanceValidator,
   tokenInstanceValidator,
 } from "../utils/tokeninstance";
-import { publicAssetHandler } from "../utils/s3store";
-
-/**
- * Since we can't authorize img HTML tags, allow the token to be passed as a
- * query parameter.
- */
-function copyAuthParam(
-  req: express.Request,
-  _rs: express.Response,
-  next: NextFunction,
-) {
-  if (req.query.token) {
-    req.headers.authorization = `Bearer ${req.query.token}`;
-  }
-  next();
-}
 
 function getJWTCheck(noauth: boolean) {
   const aud: string = process.env.AUDIENCE_URL || "http://localhost:3000/";
@@ -212,18 +199,6 @@ export function create(): Express {
 
   app.use(limiter);
 
-  // authenticate everything BUT the OPTIONS call
-  app.use(
-    "/public",
-    (req, res, next) => {
-      if (req.method === "OPTIONS") res.sendStatus(200);
-      else next();
-    },
-    copyAuthParam,
-    jwtCheck,
-    publicAssetHandler,
-  );
-
   app.get(NO_AUTH_ASSET, (_req, res) =>
     res.status(200).send({ noauth: noauth }),
   );
@@ -295,6 +270,14 @@ export function create(): Express {
     assetDataUploadValidator(),
     schemaErrorCheck,
     createAssetUploadUrl,
+  );
+  // mint fresh presigned download urls (used to recover from url expiry)
+  app.post(
+    ASSET_URLS_PATH,
+    jwtCheck,
+    assetUrlsValidator(),
+    schemaErrorCheck,
+    createAssetDownloadUrls,
   );
   // commit an uploaded asset (the object must already exist in storage)
   app.put(

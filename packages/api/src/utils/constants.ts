@@ -7,6 +7,7 @@ export const ALL_ASSETS_PATH = "/asset";
 export const ASSET_PATH = `${ALL_ASSETS_PATH}/:id`;
 export const ASSET_DATA_PATH = `${ASSET_PATH}/data`;
 export const ASSET_USAGE_PATH = `${ASSET_PATH}/usage`;
+export const ASSET_URLS_PATH = `${ALL_ASSETS_PATH}/urls`;
 export const ALL_TOKEN_PATH = "/token";
 export const TOKEN_PATH = `${ALL_TOKEN_PATH}/:id`;
 export const STATE_ASSET = "/state";
@@ -25,6 +26,26 @@ export const DEST_FOLDER = "public";
 // presigned uploads target single-use staging keys under this folder --
 // never the final asset keys (which live under DEST_FOLDER)
 export const STAGING_FOLDER = "uploads";
+
+/**
+ * Cache-Control for objects that are never rewritten (assets, backgrounds,
+ * tokens). The bytes are immutable, so browsers may cache them for a long
+ * time; requests still go through presigned urls, so this only helps the
+ * browser that fetched them.
+ */
+export const IMMUTABLE_CACHE_CONTROL = "private, max-age=2592000, immutable";
+/**
+ * Cache-Control for the scene overlay, which is replaced at the same key on
+ * every annotation. Each broadcast carries a freshly signed url anyway, but
+ * no-store makes sure a stale copy can never be served.
+ */
+export const NO_STORE_CACHE_CONTROL = "private, no-store";
+
+/**
+ * Upper bound on how many locations a single POST /asset/urls may request,
+ * keeping presign work per request bounded.
+ */
+export const MAX_DOWNLOAD_URL_LOCATIONS = 100;
 
 export const OBJECT_ID_LEN = 24;
 

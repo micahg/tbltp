@@ -10,7 +10,7 @@ import {
   setSceneLayerAsset,
   setSceneViewport,
 } from "../utils/scene";
-import { OBJECT_ID_LEN } from "../utils/constants";
+import { NO_STORE_CACHE_CONTROL, OBJECT_ID_LEN } from "../utils/constants";
 import { IScene } from "../models/scene";
 import { IUser } from "../models/user";
 import { validateAngle, validateViewPort } from "../utils/viewport";
@@ -246,7 +246,16 @@ export async function commitSceneOverlayData(
       throw new Error("No overlay asset", { cause: 404 });
     }
 
-    return res.json(await commitAssetData(user, asset, req.body.contentType));
+    // the overlay is replaced at the same key on every annotation, so its
+    // stored Cache-Control must never allow a stale copy to be served
+    return res.json(
+      await commitAssetData(
+        user,
+        asset,
+        req.body.contentType,
+        NO_STORE_CACHE_CONTROL,
+      ),
+    );
   } catch (err) {
     log.error("Unable to commit scene overlay data", err);
     return next({ status: err.cause || 500 });

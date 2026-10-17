@@ -13,6 +13,7 @@ import {
   getSceneTokenInstances,
 } from "../utils/tokeninstance";
 import { HydratedTokenInstance } from "@micahg/tbltp-common";
+import { createDownloadUrl } from "../utils/s3store";
 import { IUser } from "../models/user";
 import { ITokenInstance } from "../models/tokeninstance";
 import { IScene } from "../models/scene";
@@ -57,7 +58,11 @@ export async function hydrateStateToken(
     const t = token.toObject({
       flattenObjectIds: true,
     }) as unknown as HydratedTokenInstance;
-    t.asset = stuff[i].assets.location;
+    const location = stuff[i].assets.location;
+    t.asset = location;
+    if (location) {
+      t.assetUrl = await createDownloadUrl(location);
+    }
     hydrated.push(t);
   }
   return hydrated;

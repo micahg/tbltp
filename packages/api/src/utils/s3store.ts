@@ -1,6 +1,3 @@
-import { NextFunction, Request, Response } from "express";
-import { Readable } from "node:stream";
-
 import {
   CopyObjectCommand,
   DeleteObjectCommand,
@@ -21,6 +18,15 @@ const PUBLIC_PREFIX = `${DEST_FOLDER}/`;
 
 /** Lifetime (seconds) of presigned upload URLs handed to clients. */
 const UPLOAD_URL_EXPIRY_SECONDS = 60;
+
+/**
+ * Lifetime (seconds) of presigned download URLs handed to clients. Also
+ * doubles as the browser-side "refresh me" hint: clients may not cache
+ * anything they fetch through a presigned url beyond the session it was
+ * issued in, and refetch a fresh url when one expires mid-session.
+ */
+const DOWNLOAD_URL_EXPIRY_SECONDS =
+  Number.parseInt(process.env.DOWNLOAD_URL_EXPIRY_SECONDS || "", 10) || 21600;
 
 function normalizeEndpoint(rawEndpoint?: string) {
   const endpoint = rawEndpoint?.trim();
@@ -90,22 +96,6 @@ export function locationToKey(location: string): string {
   return key;
 }
 
-function reqPathToKey(req: Request): string {
-  const key = decodeURIComponent(req.path || "").replace(/^\/+/, "");
-  if (!key || key.includes("..")) {
-    throw new Error("Invalid asset path", { cause: 400 });
-  }
-  return key;
-}
-
-function inferContentTypeFromKey(key: string): string | undefined {
-  const lower = key.toLowerCase();
-  if (lower.endsWith(".png")) return "image/png";
-  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
-  if (lower.endsWith(".webp")) return "image/webp";
-  return undefined;
-}
-
 export async function initializeStorage() {
   try {
     await client.send(
@@ -139,6 +129,38 @@ export async function createUploadUrl(key: string, contentType: string) {
     );
   } catch (err) {
     const msg = `Error presigning upload of ${key} to S3 bucket ${bucket}`;
+    log.error(msg, err);
+    throw new Error(msg, { cause: 500 });
+  }
+}
+
+/**
+ * Create a short-lived presigned URL the client can use to GET a stored
+ * object directly from the bucket. A fresh signature is minted for every
+ * call -- there is no memoization, so replays and stale tabs can at most
+ * fetch bytes they were already allowed to fetch, for the lifetime of the
+ * url.
+ *
+ * The url is signed for the exact bucket and key only. Clients must not
+ * append query parameters (that breaks the signature) and must not send an
+ * Authorization header alongside it.
+ *
+ * @param location A public location (`public/...`) or the key relative to
+ * the public prefix (`<user>/assets/<assetId>.<ext>`).
+ */
+export async function createDownloadUrl(location: string) {
+  const key = locationToKey(location);
+  try {
+    return await getSignedUrl(
+      client,
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      }),
+      { expiresIn: DOWNLOAD_URL_EXPIRY_SECONDS },
+    );
+  } catch (err) {
+    const msg = `Error presigning download of ${key} from S3 bucket ${bucket}`;
     log.error(msg, err);
     throw new Error(msg, { cause: 500 });
   }
@@ -181,11 +203,27 @@ export async function deleteObject(key: string) {
 }
 
 /**
- * Copy an object server-side. The source key segments are URL-encoded per
- * S3 copy-source requirements (the keys this app builds are hex/uuid based
- * so this is a no-op, but it keeps the copy-source well formed regardless).
+ * Copy an object server-side and replace its metadata. The source key
+ * segments are URL-encoded per S3 copy-source requirements (the keys this
+ * app builds are hex/uuid based so this is a no-op, but it keeps the
+ * copy-source well formed regardless).
+ *
+ * MetadataDirective is REPLACE so the destination's Content-Type and
+ * Cache-Control are exactly what the caller specifies -- downloads serve
+ * those headers directly from the stored object (response overrides on
+ * presigned urls are unreliable on some providers, e.g. Cloudflare R2).
+ *
+ * @param sourceKey The key being copied from.
+ * @param destinationKey The key being copied to.
+ * @param contentType The content type stored (and served) for the object.
+ * @param cacheControl The cache control stored (and served) for the object.
  */
-export async function copyObject(sourceKey: string, destinationKey: string) {
+export async function copyObject(
+  sourceKey: string,
+  destinationKey: string,
+  contentType: string,
+  cacheControl: string,
+) {
   const copySource = `${bucket}/${sourceKey
     .split("/")
     .map(encodeURIComponent)
@@ -196,6 +234,9 @@ export async function copyObject(sourceKey: string, destinationKey: string) {
         Bucket: bucket,
         CopySource: copySource,
         Key: destinationKey,
+        ContentType: contentType,
+        CacheControl: cacheControl,
+        MetadataDirective: "REPLACE",
       }),
     );
   } catch (err) {
@@ -207,55 +248,4 @@ export async function copyObject(sourceKey: string, destinationKey: string) {
 
 export async function deletePublicAsset(location: string) {
   return deleteObject(locationToKey(location));
-}
-
-export async function publicAssetHandler(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) {
-  try {
-    const key = reqPathToKey(req);
-    const result = await client.send(
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: key,
-      }),
-    );
-
-    res.setHeader(
-      "Content-Type",
-      result.ContentType ||
-        inferContentTypeFromKey(key) ||
-        "application/octet-stream",
-    );
-
-    const { Body } = result;
-    const body = !Body
-      ? null
-      : Body instanceof Readable
-        ? Body
-        : Readable.fromWeb(
-            Body as unknown as import("stream/web").ReadableStream,
-          );
-    if (!body) {
-      res.sendStatus(404);
-      return;
-    }
-
-    body.on("error", (err) => {
-      next(err);
-    });
-    body.pipe(res);
-  } catch (err) {
-    if (
-      err instanceof NoSuchKey ||
-      (err instanceof S3ServiceException &&
-        err.$metadata.httpStatusCode === 404)
-    ) {
-      res.sendStatus(404);
-      return;
-    }
-    next(err);
-  }
 }

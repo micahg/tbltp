@@ -11,16 +11,13 @@ import {
   Tooltip,
 } from "@mui/material";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import { AppReducerState } from "../../reducers/AppReducer";
 import { useSelector } from "react-redux";
-import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, useCallback, useState } from "react";
 import { HydratedTokenInstance, Token } from "@micahg/tbltp-common";
-import { useAuth0 } from "@auth0/auth0-react";
 import { useGetScenesQuery } from "../../api/scene";
 import { selectEditingSceneId } from "../../slices/editorUiSlice";
 import { useGetTokensQuery } from "../../api/token";
 import { useGetAssetsQuery } from "../../api/asset";
-import { environmentApi } from "../../api/environment";
 // import styles from "./FindTokenComponent.module.css";
 
 interface FindTokenComponentProps {
@@ -34,24 +31,15 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
   const { data: scenes = [] } = useGetScenesQuery();
   const editingSceneId = useSelector(selectEditingSceneId);
   const scene = scenes.find((s) => s._id === editingSceneId);
-  const api = useSelector(
-    (state: AppReducerState) =>
-      environmentApi.endpoints.getEnvironmentConfig.select()(state).data?.api,
-  );
-  const { getAccessTokenSilently } = useAuth0();
-  const [bearer, setBearer] = useState<string | null>(null);
   const [searchValue, setSearchValue] = useState("");
 
-  useEffect(() => {
-    getAccessTokenSilently()
-      .then((token) => setBearer(token))
-      .catch(() => setBearer(null));
-  }, [getAccessTokenSilently]);
-
   const sendHydratedToken = useCallback(
-    (token: Token, asset: string, visible: boolean) => {
-      if (assets === undefined) return;
-      if (api === undefined) return;
+    (
+      token: Token,
+      assetLocation: string,
+      assetUrl: string,
+      visible: boolean,
+    ) => {
       if (scene === undefined) return;
 
       const instance: HydratedTokenInstance = {
@@ -59,7 +47,8 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
         scene: scene._id!,
         visible,
         token: token._id!,
-        asset: asset,
+        asset: assetLocation,
+        assetUrl: assetUrl,
         x: 0,
         y: 0,
         scale: 1,
@@ -68,7 +57,7 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
 
       onToken(instance);
     },
-    [api, assets, onToken, scene],
+    [onToken, scene],
   );
 
   return (
@@ -92,10 +81,11 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
               token.name.toLowerCase().includes(searchValue.toLowerCase()),
           )
           .map((token) => {
-            const asset = assets?.find((a) => a._id === token.asset)?.location;
-            const url = asset
-              ? `${api}/${asset}${bearer ? `?token=${bearer}` : ""}`
-              : "/x.webp";
+            const asset = assets?.find((a) => a._id === token.asset);
+            // assetless tokens get the standing placeholder; token images
+            // are fetched through presigned urls like every other asset
+            const assetLocation = asset?.location || "/x.webp";
+            const url = asset?.url || "/x.webp";
             return (
               <ListItem
                 key={token._id}
@@ -104,7 +94,9 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
                     <IconButton
                       edge="end"
                       aria-label="comments"
-                      onClick={() => sendHydratedToken(token, url, false)}
+                      onClick={() =>
+                        sendHydratedToken(token, assetLocation, url, false)
+                      }
                     >
                       <VisibilityOffIcon />
                     </IconButton>
@@ -113,7 +105,9 @@ const FindTokenComponent = ({ onToken }: FindTokenComponentProps) => {
               >
                 <Tooltip title="Visible token" placement="left">
                   <ListItemButton
-                    onClick={() => sendHydratedToken(token, url, true)}
+                    onClick={() =>
+                      sendHydratedToken(token, assetLocation, url, true)
+                    }
                   >
                     <ListItemAvatar>
                       <Avatar alt={`Avatar ${token.name}`} src={url} />
