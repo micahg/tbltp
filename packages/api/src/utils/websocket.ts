@@ -11,6 +11,7 @@ import {
 } from "./constants";
 
 import { log } from "./logger";
+import { errorCause, errorMessage } from "./errors";
 import { getFakeUser } from "./auth";
 import { IScene } from "../models/scene";
 import { getUserByID } from "./user";
@@ -97,7 +98,11 @@ const AUTH_REQURIED: boolean =
 const SOCKET_SESSIONS: Map<string, WebSocket> = new Map();
 let PEM: string;
 
-function closeSocketWithError(sock: WebSocket, msg: string, err: string) {
+function closeSocketWithError(
+  sock: WebSocket,
+  msg: string,
+  err?: string | null,
+) {
   log.error(`Closing websocket due to error: ${msg}`);
   if (err) sock.send(JSON.stringify({ method: "error", info: err }));
   sock.close();
@@ -121,12 +126,7 @@ async function verifyConnection(sock: WebSocket, req: IncomingMessage) {
     const token = parsed.searchParams.get("bearer");
     jwt = getVerifiedToken(token);
   } catch (err) {
-    let msg: string;
-    if (Object.prototype.hasOwnProperty.call(err, "message")) {
-      msg = `WS token fail: ${err.message} (${JSON.stringify(err)})`;
-    } else {
-      msg = `WS token fail: ${err}`;
-    }
+    const msg = `WS token fail: ${errorMessage(err)} (${JSON.stringify(err)})`;
     closeSocketWithError(sock, msg, WS_INVALID_TOKEN);
     return;
   }
@@ -172,13 +172,9 @@ async function verifyConnection(sock: WebSocket, req: IncomingMessage) {
     sock.on("pong", () => (sock["live"] = true));
     sock.send(JSON.stringify(msg));
   } catch (err) {
-    const msg = Object.prototype.hasOwnProperty.call(err, "message")
-      ? err.message
-      : JSON.stringify(err);
-    const reason = Object.prototype.hasOwnProperty.call(err, "cause")
-      ? err.cause
-      : null;
-    closeSocketWithError(sock, msg, reason);
+    const cause = errorCause(err);
+    const reason = typeof cause === "string" ? cause : null;
+    closeSocketWithError(sock, errorMessage(err), reason);
   }
 
   sock.on("message", (buf) => {

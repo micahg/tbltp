@@ -5,6 +5,8 @@
     "target": "ES2022",
     "resolveJsonModule": true,
     "sourceMap": true,
+    "skipLibCheck": true,
+    "useUnknownInCatchVariables": true,
   },
   "exclude": [
     "./test/",
