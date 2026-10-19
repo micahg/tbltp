@@ -1,6 +1,7 @@
 import { IncomingMessage, Server } from "http";
 import { Express } from "express";
-import { EventEmitter, WebSocket, WebSocketServer } from "ws";
+import { EventEmitter } from "events";
+import { WebSocket, WebSocketServer } from "ws";
 import { verify } from "jsonwebtoken";
 
 import {

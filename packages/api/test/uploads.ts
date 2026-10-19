@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import * as request from "supertest";
+import request from "supertest";
 
 /**
  * Run the full presigned upload flow against the app:

@@ -5,7 +5,7 @@
   "main": "src/index.ts",
   "devDependencies": {
     "ts-loader": "^9.5.1",
-    "typescript": "^5.5.4",
+    "typescript": "^6.0.3",
     "webpack": "^5.93.0",
     "webpack-cli": "^5.1.4"
   },

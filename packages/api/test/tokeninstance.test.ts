@@ -4,7 +4,7 @@ import { Collection } from "mongodb";
 import { getFakeUser, getOAuthPublicKey } from "../src/utils/auth";
 import { setupTestEnv, teardownTestEnv, TestEnv } from "./testenv";
 
-import * as request from "supertest";
+import request from "supertest";
 import { userOne, userZero } from "./assets/auth";
 import { ScenelessTokenInstance, TokenInstance } from "@micahg/tbltp-common";
 
