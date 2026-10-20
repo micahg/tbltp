@@ -1,5 +1,5 @@
 process.env["DISABLE_AUTH"] = "true";
-import * as request from "supertest";
+import request from "supertest";
 import {
   afterAll,
   beforeEach,

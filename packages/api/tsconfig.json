@@ -3,8 +3,12 @@
     "lib": ["es2022"],
     "module": "commonjs",
     "target": "ES2022",
+    "types": ["node", "jest"],
     "resolveJsonModule": true,
     "sourceMap": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "useUnknownInCatchVariables": true,
   },
   "exclude": [
     "./test/",

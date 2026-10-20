@@ -22,7 +22,7 @@ import {
   deleteObject,
   locationToKey,
 } from "../utils/s3store";
-import { knownMongoError } from "../utils/errors";
+import { errorMessage, errorStatus, knownMongoError } from "../utils/errors";
 
 export async function listAssets(
   req: Request,
@@ -35,7 +35,7 @@ export async function listAssets(
     res.json(await serializeAssets(assets));
   } catch (err) {
     log.error("Unable to list user assets", err);
-    return next({ status: err.cause || 500 });
+    return next({ status: errorStatus(err) });
   }
 }
 
@@ -53,7 +53,7 @@ export async function getAssetById(
     return res.json(await serializeAsset(asset));
   } catch (err) {
     log.error("Unable to fetch user asset", err);
-    return next({ status: err.cause || 500 });
+    return next({ status: errorStatus(err) });
   }
 }
 
@@ -87,8 +87,8 @@ export async function createOrUpdateAsset(
     return res.json(await serializeAsset(renamed));
   } catch (err) {
     if (knownMongoError(err, next)) return;
-    log.error(`Unable to create asset: ${err.message}`);
-    return next({ status: err.cause || 500 });
+    log.error(`Unable to create asset: ${errorMessage(err)}`);
+    return next({ status: errorStatus(err) });
   }
 }
 export async function getAssetUsage(
@@ -105,7 +105,7 @@ export async function getAssetUsage(
     return res.json(await assetUsage(user, asset));
   } catch (err) {
     log.error("Unable to get asset usage", err);
-    return next({ status: err.cause || 500 });
+    return next({ status: errorStatus(err) });
   }
 }
 
@@ -131,19 +131,19 @@ export async function deleteAsset(
     // don't return yet, we will delete after sending the response
     res.status(204).send();
   } catch (err) {
-    log.error(`Error deleting asset ${err.message}`);
-    return next({ status: err.cause || 500 });
+    log.error(`Error deleting asset ${errorMessage(err)}`);
+    return next({ status: errorStatus(err) });
   }
   try {
     if (path) await deleteAssetFile(path);
   } catch (err) {
-    log.error(`Unable to delete asset file ${err.message}`);
+    log.error(`Unable to delete asset file ${errorMessage(err)}`);
   }
   // an incomplete asset may still have a staged (uncommitted) upload
   try {
     if (staging) await deleteObject(staging);
   } catch (err) {
-    log.error(`Unable to delete staged upload ${err.message}`);
+    log.error(`Unable to delete staged upload ${errorMessage(err)}`);
   }
 }
 
@@ -175,7 +175,7 @@ export async function createAssetUploadUrl(
     );
   } catch (err) {
     log.error("Unable to create asset upload url", err);
-    return next({ status: err.cause || 500 });
+    return next({ status: errorStatus(err) });
   }
 }
 /**
@@ -207,7 +207,7 @@ export async function setAssetData(
     return res.json(await serializeAsset(committed));
   } catch (err) {
     log.error("Unable to create asset", err);
-    return next({ status: err.cause || 500 });
+    return next({ status: errorStatus(err) });
   }
 }
 
@@ -244,6 +244,6 @@ export async function createAssetDownloadUrls(
     return res.json({ urls });
   } catch (err) {
     log.error("Unable to create asset download urls", err);
-    return next({ status: err.cause || 500 });
+    return next({ status: errorStatus(err) });
   }
 }

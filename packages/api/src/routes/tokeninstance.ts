@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { knownMongoError } from "../utils/errors";
+import { errorMessage, errorStatus, knownMongoError } from "../utils/errors";
 import { getOrCreateUser } from "../utils/user";
 import { log } from "../utils/logger";
 import { getUserToken } from "../utils/token";
@@ -48,8 +48,8 @@ export async function createOrUpdateTokenInstance(
     }
   } catch (err) {
     if (knownMongoError(err, next)) return;
-    log.error(`Unable to create asset: ${err.message}`);
-    return next({ status: err.cause || 500 });
+    log.error(`Unable to create asset: ${errorMessage(err)}`);
+    return next({ status: errorStatus(err) });
   }
 }
 
@@ -64,8 +64,8 @@ export async function getSceneTokenInstance(
     return res.json(tokenInstances);
   } catch (err) {
     if (knownMongoError(err, next)) return;
-    log.error(`Unable to get asset: ${err.message}`);
-    next({ status: err.cause || 500 });
+    log.error(`Unable to get asset: ${errorMessage(err)}`);
+    next({ status: errorStatus(err) });
   }
 }
 
@@ -83,7 +83,7 @@ export async function deleteTokenInstance(
     return res.status(204).send();
   } catch (err) {
     if (knownMongoError(err, next)) return;
-    log.error(`Unable to delete asset: ${err.message}`);
-    next({ status: err.cause || 500 });
+    log.error(`Unable to delete asset: ${errorMessage(err)}`);
+    next({ status: errorStatus(err) });
   }
 }

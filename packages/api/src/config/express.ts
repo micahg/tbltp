@@ -1,5 +1,5 @@
 import { log } from "../utils/logger";
-import * as express from "express";
+import express from "express";
 import { Express, NextFunction } from "express";
 import * as bodyParser from "body-parser";
 import { rateLimit } from "express-rate-limit";

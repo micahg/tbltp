@@ -3,7 +3,7 @@ import { getOrCreateUser } from "../utils/user";
 import { log } from "../utils/logger";
 import { createUserToken, getUserToken, listUserTokens } from "../utils/token";
 import { getUserAsset } from "../utils/asset";
-import { knownMongoError } from "../utils/errors";
+import { errorMessage, errorStatus, knownMongoError } from "../utils/errors";
 import { deleteUserTokenInstances } from "../utils/tokeninstance";
 
 export async function listTokens(
@@ -17,7 +17,7 @@ export async function listTokens(
     res.json(tokens);
   } catch (err) {
     log.error("Unable to list user assets", err);
-    return next({ status: err.cause || 500 });
+    return next({ status: errorStatus(err) });
   }
 }
 
@@ -70,8 +70,8 @@ export async function createOrUpdateToken(
     return res.status(201).json(retval);
   } catch (err) {
     if (knownMongoError(err, next)) return;
-    log.error(`Unable to create asset: ${err.message}`);
-    return next({ status: err.cause || 500 });
+    log.error(`Unable to create asset: ${errorMessage(err)}`);
+    return next({ status: errorStatus(err) });
   }
 }
 
@@ -91,7 +91,7 @@ export async function deleteToken(
     // don't return yet, we will delete after sending the response
     return res.status(204).send();
   } catch (err) {
-    log.error(`Unable to delete token ${err.message}`);
-    return next({ status: err.cause || 500 });
+    log.error(`Unable to delete token ${errorMessage(err)}`);
+    return next({ status: errorStatus(err) });
   }
 }

@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { getUser, getOrCreateUser, userExistsOr401 } from "../utils/user";
 import { log } from "../utils/logger";
+import { errorStatus } from "../utils/errors";
 import {
   getUserScene,
   createUserScene,
@@ -65,7 +66,7 @@ export async function getScenes(
     return res.status(200).json(scenes);
   } catch (err) {
     log.error("Unable to list user scenes", err);
-    return next({ status: err.cause || 500 });
+    return next({ status: errorStatus(err) });
   }
 }
 
@@ -214,7 +215,7 @@ export async function createSceneOverlayUploadUrl(
     );
   } catch (err) {
     log.error("Unable to create scene overlay upload url", err);
-    return next({ status: err.cause || 500 });
+    return next({ status: errorStatus(err) });
   }
 }
 
@@ -258,6 +259,6 @@ export async function commitSceneOverlayData(
     );
   } catch (err) {
     log.error("Unable to commit scene overlay data", err);
-    return next({ status: err.cause || 500 });
+    return next({ status: errorStatus(err) });
   }
 }

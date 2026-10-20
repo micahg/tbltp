@@ -23,7 +23,7 @@ describe("knownMongoError", () => {
       knownMongoError(new FakeMongoError(11000));
       fail("Should have thrown an exception");
     } catch (err) {
-      expect(err.cause).toBe(409);
+      expect(err).toHaveProperty("cause", 409);
     }
   });
 
