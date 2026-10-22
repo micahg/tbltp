@@ -29,9 +29,8 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "test": "react-scripts test",
-    "test:utils": "jest --runInBand -- geometry.test.ts",
-    "eject": "react-scripts eject",
+    "test": "jest",
+    "test:utils": "jest --runInBand test/",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix"
   },

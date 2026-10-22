@@ -22,8 +22,8 @@ jobs:
         run: npm ci
       - name: Lint Code
         run: npm -w packages/mui run lint
-      - name: Utils Unit Test
-        run: npm run test:utils -w packages/mui
+      - name: Unit Test
+        run: npm test -w packages/mui
       - name: Test Build
         env:
           DISABLE_ESLINT_PLUGIN: true

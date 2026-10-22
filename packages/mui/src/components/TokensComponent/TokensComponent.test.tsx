@@ -1,14 +1,38 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import TokensComponent from "./TokensComponent";
 
+jest.mock("react-redux", () => ({
+  useDispatch: () => jest.fn(),
+  useSelector: () => undefined,
+  useStore: () => ({}),
+}));
+
+jest.mock("../../api/token", () => {
+  const updateToken = jest.fn();
+  return {
+    useGetTokensQuery: () => ({ data: [] }),
+    useUpdateTokenMutation: () => [updateToken],
+  };
+});
+
+jest.mock("../ErrorAlertComponent/ErrorAlertComponent.lazy", () => {
+  const MockErrorAlertComponent = () => null;
+  MockErrorAlertComponent.displayName = "MockErrorAlertComponent";
+  return MockErrorAlertComponent;
+});
+
 describe("<TokensComponent />", () => {
-  test("it should mount", () => {
-    render(<TokensComponent />);
+  test("renders the token list and publishes toolbar actions", () => {
+    const populateToolbar = jest.fn();
 
-    const tokensComponent = screen.getByTestId("TokensComponent");
+    render(<TokensComponent populateToolbar={populateToolbar} />);
 
-    expect(tokensComponent).toBeInTheDocument();
+    expect(screen.getByText(/Need tokens/)).toBeInTheDocument();
+    expect(populateToolbar).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ tooltip: "Create Token" }),
+      ]),
+    );
   });
 });

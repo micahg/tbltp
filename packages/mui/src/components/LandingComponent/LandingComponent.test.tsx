@@ -1,14 +1,20 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom/extend-expect";
+import { MemoryRouter } from "react-router";
+import "@testing-library/jest-dom";
 import LandingComponent from "./LandingComponent";
 
 describe("<LandingComponent />", () => {
-  test("it should mount", () => {
-    render(<LandingComponent />);
+  test("renders the landing page content", () => {
+    render(
+      <MemoryRouter>
+        <LandingComponent />
+      </MemoryRouter>,
+    );
 
-    const landingComponent = screen.getByTestId("LandingComponent");
-
-    expect(landingComponent).toBeInTheDocument();
+    expect(screen.getByText("tbltp.dev")).toBeInTheDocument();
+    expect(screen.getByText("Disclaimer")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Redirecting to Table-Top Display 5/),
+    ).toBeInTheDocument();
   });
 });
