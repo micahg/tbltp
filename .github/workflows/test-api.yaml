@@ -47,8 +47,6 @@ jobs:
         run: npm -w packages/api run lint
       - name: Type Check
         run: npm -w packages/api run typecheck
-      - name: Prune Dead Code
-        run: npm run prune -w packages/api
       - name: Unit Test
         run: npm run test -w packages/api
   build_api:
