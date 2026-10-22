@@ -11,10 +11,7 @@ describe("<UnavailableComponent />", () => {
   });
 
   test("it should display an error message", () => {
-    Object.defineProperty(window, "location", {
-      writable: true,
-      value: { search: "?error=dGhpcwppcwphbgplcnJvcg==" },
-    });
+    window.history.replaceState({}, "", "?error=dGhpcwppcwphbgplcnJvcg==");
     render(<UnavailableComponent />);
     expect(
       screen.getByText(
