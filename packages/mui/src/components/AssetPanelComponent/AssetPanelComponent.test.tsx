@@ -1,4 +1,3 @@
-import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AssetPanelComponent from "./AssetPanelComponent";
@@ -7,6 +6,7 @@ import { useSelector } from "react-redux";
 import {
   useDeleteAssetMutation,
   useLazyGetAssetUsageQuery,
+  usePresignAssetUrlsMutation,
   useUpdateAssetDataMutation,
   useUpdateAssetMutation,
 } from "../../api/asset";
@@ -16,6 +16,7 @@ jest.mock("../../api/asset", () => ({
   useUpdateAssetDataMutation: jest.fn(),
   useDeleteAssetMutation: jest.fn(),
   useLazyGetAssetUsageQuery: jest.fn(),
+  usePresignAssetUrlsMutation: jest.fn(),
 }));
 
 jest.mock("@auth0/auth0-react", () => ({
@@ -46,6 +47,8 @@ const mockedUseUpdateAssetMutation = useUpdateAssetMutation as jest.Mock;
 const mockedUseUpdateAssetDataMutation =
   useUpdateAssetDataMutation as jest.Mock;
 const mockedUseDeleteAssetMutation = useDeleteAssetMutation as jest.Mock;
+const mockedUsePresignAssetUrlsMutation =
+  usePresignAssetUrlsMutation as jest.Mock;
 
 const unusedUsage: AssetUsage = { tokens: [], scenes: [] };
 
@@ -66,6 +69,7 @@ describe("<AssetPanelComponent />", () => {
     mockedUseUpdateAssetMutation.mockReturnValue([jest.fn()]);
     mockedUseUpdateAssetDataMutation.mockReturnValue([jest.fn()]);
     mockedUseDeleteAssetMutation.mockReturnValue([jest.fn()]);
+    mockedUsePresignAssetUrlsMutation.mockReturnValue([jest.fn()]);
     mockedUseLazyGetAssetUsageQuery.mockReturnValue([
       jest.fn(),
       mockUsageResult(),
@@ -181,7 +185,11 @@ describe("<AssetPanelComponent />", () => {
 
     render(
       <AssetPanelComponent
-        asset={{ ...asset, location: "public/u1/assets/a1.png" }}
+        asset={{
+          ...asset,
+          location: "public/u1/assets/a1.png",
+          url: "https://example.test/a1.png",
+        }}
         readonly={false}
       />,
     );

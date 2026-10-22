@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import AuthenticationGuardComponent from "./AuthenticationGuardComponent";
 import {
   clearAccessTokenGetter,
@@ -6,12 +6,23 @@ import {
 } from "../../utils/authBridge";
 
 const mockGetAccessTokenSilently = jest.fn();
+const mockLoginWithRedirect = jest.fn();
 
 jest.mock("@auth0/auth0-react", () => ({
   useAuth0: () => ({
     getAccessTokenSilently: mockGetAccessTokenSilently,
+    loginWithRedirect: mockLoginWithRedirect,
+    isAuthenticated: true,
+    isLoading: false,
   }),
 }));
+
+jest.mock("../../api/environment", () => {
+  const noAuthConfig = { noauth: false };
+  return {
+    useGetNoAuthConfigQuery: () => ({ data: noAuthConfig }),
+  };
+});
 
 jest.mock("../../utils/authBridge", () => ({
   registerAccessTokenGetter: jest.fn(),
@@ -24,9 +35,13 @@ describe("<AuthenticationGuardComponent />", () => {
   });
 
   test("registers access token getter on mount", async () => {
-    render(<AuthenticationGuardComponent />);
+    render(
+      <AuthenticationGuardComponent>content</AuthenticationGuardComponent>,
+    );
 
-    expect(registerAccessTokenGetter).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(registerAccessTokenGetter).toHaveBeenCalledTimes(1),
+    );
     const registeredGetter = (registerAccessTokenGetter as jest.Mock).mock
       .calls[0][0] as () => Promise<unknown>;
 
@@ -35,9 +50,14 @@ describe("<AuthenticationGuardComponent />", () => {
     expect(mockGetAccessTokenSilently).toHaveBeenCalledTimes(1);
   });
 
-  test("clears the same getter on unmount", () => {
-    const { unmount } = render(<AuthenticationGuardComponent />);
+  test("clears the same getter on unmount", async () => {
+    const { unmount } = render(
+      <AuthenticationGuardComponent>content</AuthenticationGuardComponent>,
+    );
 
+    await waitFor(() =>
+      expect(registerAccessTokenGetter).toHaveBeenCalledTimes(1),
+    );
     const registeredGetter = (registerAccessTokenGetter as jest.Mock).mock
       .calls[0][0];
 

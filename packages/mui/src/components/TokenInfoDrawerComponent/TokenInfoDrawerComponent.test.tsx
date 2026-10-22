@@ -3,7 +3,7 @@ import "@testing-library/jest-dom";
 import TokenInfoDrawerComponent from "./TokenInfoDrawerComponent";
 
 describe("<TokenInfoDrawerComponent />", () => {
-  test("it should mount", () => {
+  test("it should render the token actions", () => {
     render(
       <TokenInfoDrawerComponent
         onToken={() => {}}
@@ -12,10 +12,9 @@ describe("<TokenInfoDrawerComponent />", () => {
       />,
     );
 
-    const tokenInfoDrawerComponent = screen.getByTestId(
-      "TokenInfoDrawerComponent",
-    );
-
-    expect(tokenInfoDrawerComponent).toBeInTheDocument();
+    expect(screen.getByText("Add Token")).toBeInTheDocument();
+    expect(screen.getByText("Move Token")).toBeInTheDocument();
+    expect(screen.getByText("Create Token")).toBeInTheDocument();
+    expect(screen.getByText("Delete Token")).toBeInTheDocument();
   });
 });
