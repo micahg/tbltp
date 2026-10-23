@@ -161,6 +161,34 @@ describe("Geometry", () => {
       expect(img.height).toBe(734);
       return;
     });
+
+    it.each([90, 270])(
+      "Should keep an exactly fitting requested image in place at %i degrees",
+      (angle) => {
+        const zoom = 1;
+        const [cw, ch] = [800, 600];
+        const [bw, bh] = [2000, 1600];
+        const vp = { x: 0, y: 0, width: 0, height: 0 };
+        const img = { x: 600, y: 400, width: 600, height: 800 };
+        adjustImageToViewport(angle, zoom, cw, ch, bw, bh, vp, img);
+        expect(vp).toEqual({ x: 0, y: 0, width: 600, height: 800 });
+        expect(img).toEqual({ x: 600, y: 400, width: 600, height: 800 });
+      },
+    );
+
+    it.each([90, 270])(
+      "Should center an aspect-mismatched requested image at %i degrees",
+      (angle) => {
+        const zoom = 4 / 3;
+        const [cw, ch] = [800, 600];
+        const [bw, bh] = [2000, 1600];
+        const vp = { x: 0, y: 0, width: 0, height: 0 };
+        const img = { x: 400, y: 300, width: 800, height: 600 };
+        adjustImageToViewport(angle, zoom, cw, ch, bw, bh, vp, img);
+        expect(vp).toEqual({ x: 0, y: 0, width: 600, height: 800 });
+        expect(img).toEqual({ x: 400, y: 67, width: 800, height: 1067 });
+      },
+    );
   });
 
   describe("Normalize rectangles", () => {
