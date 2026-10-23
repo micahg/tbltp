@@ -26,6 +26,7 @@ truth:
 | What | Where | Command |
 | --- | --- | --- |
 | Lint | `packages/api`, `packages/mui` | `npm run lint` |
+| Typecheck | `packages/api` | `npm run typecheck` |
 | API build | `packages/api` | `npm run build` (writes `server.js`) |
 | API run | `packages/api` | `node --env-file=.env server.js` |
 | API tests | `packages/api` | `npm test` (needs localstack S3 on `127.0.0.1:4566`; creates and drops its own `tbltp-test-*` buckets) |
@@ -43,11 +44,12 @@ Set `DISABLE_AUTH=true` in `packages/api/.env` to run without Auth0:
   sentinel `/display` uses);
 - the remote display skips the device flow and connects directly.
 
-### Browser uploads need bucket CORS
+### Browser uploads and downloads need bucket CORS
 
-Uploads send a presigned `PUT` from the browser straight to localstack.
-Without a CORS policy localstack rejects the preflight and the editor shows
-"Unknown error happened". Configure it once per bucket (match the origin to
+Uploads send a presigned `PUT` and downloads a presigned `GET` from the
+browser straight to localstack. Without a CORS policy localstack rejects the
+preflight and the editor shows "Unknown error happened" (uploads) or images
+fail to load (downloads). Configure it once per bucket (match the origin to
 the UI port you serve):
 
 ```
@@ -55,6 +57,9 @@ docker compose -f compose.dev.yaml exec -T localstack awslocal s3api \
   put-bucket-cors --bucket tbltp-local --cors-configuration \
   '{"CORSRules":[{"AllowedOrigins":["http://localhost:4200"],"AllowedMethods":["GET","PUT","HEAD"],"AllowedHeaders":["*"],"ExposeHeaders":["ETag"],"MaxAgeSeconds":3000}]}'
 ```
+
+Note that presigned requests must not carry an `Authorization` header and no
+query parameters may be appended to the URL - either breaks the signature.
 
 ## Isolated agent stack
 
@@ -86,6 +91,9 @@ docker volumes. Run a parallel stack from a git worktree:
    ```
    docker compose -f compose.dev.yaml -p tbltp-agent up -d
    docker compose -f compose.dev.yaml -p tbltp-agent exec -T localstack awslocal s3 mb s3://tbltp-local
+   docker compose -f compose.dev.yaml -p tbltp-agent exec -T localstack awslocal s3api \
+     put-bucket-lifecycle-configuration --bucket tbltp-local --lifecycle-configuration \
+     '{"Rules":[{"ID":"expire-staged-uploads","Filter":{"Prefix":"uploads/"},"Status":"Enabled","Expiration":{"Days":1}}]}'
    ```
 
 4. Worktree `packages/api/.env` (no telemetry secrets):
@@ -139,8 +147,10 @@ harmless.
 3. The image placeholder is exposed as "Upload asset image"; upload a file
    (e.g. `packages/api/test/assets/1x1.png`), then click the `save` button.
    Expect presign `POST /asset/:id/data` 200, `PUT` to `127.0.0.1:4567` 200,
-   commit `PUT` 200, and the rendered image served from
-   `http://localhost:3100/public/...?token=NOAUTH`.
+   commit `PUT` 200, and the rendered image served from a
+   `http://127.0.0.1:4567/tbltp-local/public/...` presigned URL
+   (`X-Amz-Signature` query parameter; the browser requests the bucket
+   directly and sends no `Authorization` header).
 4. `http://localhost:4300/display` connects (console: "Websocket connection
    established") without redirecting to `/device`. With no scene selected
    the server closes the socket and the page shows "No scene information...";
