@@ -253,29 +253,27 @@ export function adjustImageToViewport(
 ) {
   // screen w/h
   const [cw, ch] = [containerWidth, containerHeight];
-  const [rw, rh] = rotatedWidthAndHeight(
-    angle,
-    backgroundWidth,
-    backgroundHeight,
-  );
-
-  // center the image - this can put the image x and y into the negatives or
-  // increase them so x + width or y + height are greater than the source image
-  // the following if block down below corrects those over/under adjustments
-  if (image.height / containerHeight > image.width / containerWidth) {
-    const adj = Math.round(cw * zoom);
-    if (adj < rw) {
-      image.x -= (adj - image.width) / 2;
-    }
-  } else {
-    const adj = Math.round(ch * zoom);
-    if (adj < rh) {
-      image.y -= (adj - image.height) / 2;
-    }
-  }
 
   // vp = rotated screen w/h
   [viewport.width, viewport.height] = rotatedWidthAndHeight(-angle, cw, ch);
+
+  // center the image - this can put the image x and y into the negatives or
+  // increase them so x + width or y + height are greater than the source image
+  // the following if block down below corrects those over/under adjustments.
+  // NOTE: the image is in background orientation, so at 90/270 degrees its
+  // axes are swapped relative to the screen - compare against the rotated
+  // viewport dimensions rather than the unrotated container dimensions
+  if (image.height / viewport.height > image.width / viewport.width) {
+    const adj = Math.round(viewport.width * zoom);
+    if (adj < backgroundWidth) {
+      image.x -= (adj - image.width) / 2;
+    }
+  } else {
+    const adj = Math.round(viewport.height * zoom);
+    if (adj < backgroundHeight) {
+      image.y -= (adj - image.height) / 2;
+    }
+  }
 
   // multiply viewport by zoom factor WHICH CAN LEAD TO IMAGE SIZES GREATER THAN ACTUAL IMAGE SIZE
   [image.width, image.height] = [zoom * viewport.width, zoom * viewport.height];
