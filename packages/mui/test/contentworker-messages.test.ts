@@ -15,6 +15,7 @@ jest.mock("../src/utils/contentworker/render", () => ({
   renderBox: jest.fn(),
   renderBrush: jest.fn(),
   renderDisplay: jest.fn(),
+  renderStreamFrame: jest.fn(),
   renderToken: jest.fn(),
   storeOverlay: jest.fn(() => Promise.resolve()),
 }));
@@ -90,6 +91,20 @@ function event(data: Record<string, unknown>): MessageEvent {
 const raf = jest.fn((_callback: FrameRequestCallback) => 1);
 const originalRaf = (globalThis as { requestAnimationFrame?: unknown })
   .requestAnimationFrame;
+const originalOffscreenCanvas = (globalThis as { OffscreenCanvas?: unknown })
+  .OffscreenCanvas;
+
+class FakeStreamCanvas {
+  width: number;
+  height: number;
+  ctx: { canvas: FakeStreamCanvas };
+  constructor(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+    this.ctx = { canvas: this };
+  }
+  getContext = jest.fn(() => this.ctx);
+}
 
 function lastRafCallback(): FrameRequestCallback {
   return raf.mock.calls[raf.mock.calls.length - 1][0] as FrameRequestCallback;
@@ -98,11 +113,15 @@ function lastRafCallback(): FrameRequestCallback {
 beforeAll(() => {
   (globalThis as { requestAnimationFrame?: unknown }).requestAnimationFrame =
     raf;
+  (globalThis as { OffscreenCanvas?: unknown }).OffscreenCanvas =
+    FakeStreamCanvas;
 });
 
 afterAll(() => {
   (globalThis as { requestAnimationFrame?: unknown }).requestAnimationFrame =
     originalRaf;
+  (globalThis as { OffscreenCanvas?: unknown }).OffscreenCanvas =
+    originalOffscreenCanvas;
 });
 
 beforeEach(() => {
@@ -203,6 +222,75 @@ describe("content worker messages", () => {
     await dispatch(state, event({ cmd: "things", values }), post);
 
     expect(scene.applyUpdate).toHaveBeenCalledWith(state, values, post);
+  });
+
+  it("captures post and starts the stream", async () => {
+    const state = createWorkerState();
+    const post = jest.fn();
+
+    await dispatch(
+      state,
+      event({ cmd: "stream_start", width: 1920, height: 1080, fps: 30 }),
+      post,
+    );
+
+    expect(state.post).toBe(post);
+    expect(state.stream.on).toBe(true);
+    expect(state.stream.fps).toBe(30);
+    expect(state.stream.lastFrame).toBe(0);
+    expect(state.stream.view.canvas).toEqual({
+      x: 0,
+      y: 0,
+      width: 1920,
+      height: 1080,
+    });
+    expect(state.stream.ctx).toBeDefined();
+    expect(render.renderStreamFrame).toHaveBeenCalledWith(state);
+  });
+
+  it("defaults the stream frame rate when fps is missing", async () => {
+    const state = createWorkerState();
+
+    await dispatch(
+      state,
+      event({ cmd: "stream_start", width: 1280, height: 720 }),
+      jest.fn(),
+    );
+
+    expect(state.stream.on).toBe(true);
+    expect(state.stream.fps).toBe(30);
+    expect(state.stream.view.canvas).toEqual({
+      x: 0,
+      y: 0,
+      width: 1280,
+      height: 720,
+    });
+  });
+
+  it("rejects invalid stream dimensions", async () => {
+    const error = jest.spyOn(console, "error").mockImplementation(() => {});
+    const state = createWorkerState();
+
+    await dispatch(
+      state,
+      event({ cmd: "stream_start", width: 0, height: 1080 }),
+      jest.fn(),
+    );
+
+    expect(error).toHaveBeenCalledWith("Invalid stream dimensions in stream_start");
+    expect(state.stream.on).toBe(false);
+    expect(render.renderStreamFrame).not.toHaveBeenCalled();
+  });
+
+  it("stops the stream and releases the stream canvas", async () => {
+    const state = createWorkerState();
+    state.stream.on = true;
+    state.stream.ctx = makeContext();
+
+    await dispatch(state, event({ cmd: "stream_stop" }), jest.fn());
+
+    expect(state.stream.on).toBe(false);
+    expect(state.stream.ctx).toBeUndefined();
   });
 
   it("starts and finishes a paint stroke", async () => {

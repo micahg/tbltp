@@ -28,6 +28,8 @@ import Visibility from "@mui/icons-material/Visibility";
 import Edit from "@mui/icons-material/Edit";
 import EditOff from "@mui/icons-material/EditOff";
 import Face from "@mui/icons-material/Face";
+import Videocam from "@mui/icons-material/Videocam";
+import StopCircle from "@mui/icons-material/StopCircle";
 import { GameMasterAction } from "../GameMasterActionComponent/GameMasterActionComponent";
 import {
   Box,
@@ -38,6 +40,13 @@ import {
   LinearProgress,
 } from "@mui/material";
 import { setupOffscreenCanvas } from "../../utils/offscreencanvas";
+import {
+  STREAM_FPS,
+  STREAM_HEIGHT,
+  STREAM_WIDTH,
+  StreamRecorder,
+  streamRecordingSupported,
+} from "../../utils/streaming";
 import { debounce } from "lodash";
 import { LoadProgress } from "../../utils/content";
 import {
@@ -93,6 +102,9 @@ interface InternalState {
   act: RecordingAction;
   rec: boolean;
   transferred: boolean;
+  // whether the player view is currently being recorded to a file
+  streaming: boolean;
+  recorder?: StreamRecorder;
 }
 
 const ContentEditor = ({
@@ -112,6 +124,7 @@ const ContentEditor = ({
     act: "move",
     rec: false,
     transferred: false,
+    streaming: false,
   });
   const [showBackgroundMenu, setShowBackgroundMenu] = useState<boolean>(false);
   const [showOpacityMenu, setShowOpacityMenu] = useState<boolean>(false);
@@ -124,6 +137,7 @@ const ContentEditor = ({
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [bgRev, setBgRev] = useState<number>(0);
   const [ovRev, setOvRev] = useState<number>(0);
+  const [playerBgRev, setPlayerBgRev] = useState<number>(0);
   const [sceneId, setSceneId] = useState<string>(); // used to track flipping between scenes
   const [worker, setWorker] = useState<Worker>();
   const [sceneUpdated, setSceneUpdated] = useState<boolean>(false); // I'm not convinced we need this anymore
@@ -265,6 +279,37 @@ const ContentEditor = ({
     [worker],
   );
 
+  /**
+   * Start recording the player view (the remote display's viewport) to a
+   * file. The worker renders the stream canvas; we just collect the frames
+   * and feed them to MediaRecorder.
+   */
+  const startStreaming = useCallback(() => {
+    if (!worker) return;
+    if (internalState.streaming) return;
+    const recorder = new StreamRecorder();
+    if (!recorder.start()) return;
+    internalState.recorder = recorder;
+    internalState.streaming = true;
+    worker.postMessage({
+      cmd: "stream_start",
+      width: STREAM_WIDTH,
+      height: STREAM_HEIGHT,
+      fps: STREAM_FPS,
+    });
+    if (redrawToolbar) redrawToolbar();
+  }, [worker, internalState, redrawToolbar]);
+
+  const stopStreaming = useCallback(() => {
+    const recorder = internalState.recorder;
+    if (!recorder || !internalState.streaming) return;
+    internalState.streaming = false;
+    internalState.recorder = undefined;
+    worker?.postMessage({ cmd: "stream_stop" });
+    if (redrawToolbar) redrawToolbar();
+    void recorder.stop();
+  }, [worker, internalState, redrawToolbar]);
+
   const gmSelectColor = useCallback(() => {
     if (!internalState.color.current) return;
     const ref = internalState.color.current;
@@ -346,6 +391,19 @@ const ContentEditor = ({
    */
   const handleWorkerMessage = useCallback(
     (evt: MessageEvent<unknown>) => {
+      // handle stream frames before anything else: they arrive at the stream
+      // frame rate (no point logging them) and must not depend on a scene
+      if (
+        evt.data &&
+        typeof evt.data === "object" &&
+        "cmd" in evt.data &&
+        evt.data.cmd === "stream_frame"
+      ) {
+        if ("bitmap" in evt.data) {
+          internalState.recorder?.drawFrame(evt.data.bitmap as ImageBitmap);
+        } else console.error("No bitmap in stream frame message");
+        return;
+      }
       console.log(evt);
       if (!scene?._id) return;
       if (!evt.data || typeof evt.data !== "object") return;
@@ -437,6 +495,7 @@ const ContentEditor = ({
     [
       deleteSceneTokenInstance,
       downloads,
+      internalState,
       scene,
       updateOverlay,
       updateViewport,
@@ -463,7 +522,12 @@ const ContentEditor = ({
 
     // need to delay this until we know we're in a good state.
     // (token images are fetched through presigned urls carried by the tokens)
-    worker.postMessage({ cmd: "things", values: { things } });
+    // the viewport rides along so the worker can render the stream (player)
+    // view even when the GM is looking at something else entirely
+    worker.postMessage({
+      cmd: "things",
+      values: { things, viewport: scene.viewport },
+    });
   }, [worker, scene, hydratedSceneTokens]);
 
   useEffect(() => {
@@ -492,6 +556,21 @@ const ContentEditor = ({
         hidden: () => false,
         disabled: () => internalState.rec || internalState.act !== "move",
         callback: sceneManager,
+      },
+      {
+        icon: Videocam,
+        tooltip: "Record Player View",
+        hidden: () => internalState.streaming || !streamRecordingSupported(),
+        disabled: () => false,
+        callback: startStreaming,
+      },
+      {
+        icon: StopCircle,
+        tooltip: "Stop Recording",
+        emphasis: true,
+        hidden: () => !internalState.streaming,
+        disabled: () => false,
+        callback: stopStreaming,
       },
       {
         icon: Palette,
@@ -632,11 +711,14 @@ const ContentEditor = ({
     internalState.act,
     internalState.rec,
     internalState.selected,
+    internalState.streaming,
     internalState.zoom,
     populateToolbar,
     prepareRecording,
     sceneManager,
     setToken,
+    startStreaming,
+    stopStreaming,
     worker,
   ]);
 
@@ -899,12 +981,17 @@ const ContentEditor = ({
     const oRev = overlayLayer.rev;
     const oContent = overlayLayer.content;
     const oUrl = overlayLayer.url;
+    const pRev = playerLayer.rev;
 
     // update the revisions and trigger rendering if a revision has changed
     let drawBG = bRev > bgRev;
     let drawOV = oRev > ovRev;
+    // the player background can change independently of the GM (detail)
+    // background -- the stream view must follow it
+    let drawPlayer = pRev > playerBgRev;
     if (drawBG) setBgRev(bRev); // takes effect next render cycle
     if (drawOV) setOvRev(oRev); // takes effect next render cycle
+    if (drawPlayer) setPlayerBgRev(pRev);
 
     // this is a scene change, so we can safely assume we must redraw everything that is there.
     // Note that earlier logic (bRev>bgRev or oRev > ovRev) might have prevented us from updating
@@ -913,16 +1000,21 @@ const ContentEditor = ({
       setSceneId(scene._id);
       setBgRev(bRev);
       setOvRev(oRev);
+      setPlayerBgRev(pRev);
       drawBG = true;
+      drawPlayer = true;
       drawOV = oContent !== undefined;
     }
 
     // if we have nothing new to draw then cheese it
-    if (!drawBG && !drawOV) return;
+    if (!drawBG && !drawOV && !drawPlayer) return;
 
-    if (drawBG) {
-      const overlay = drawOV && oContent ? oContent : undefined;
-      const background = drawBG && bContent ? bContent : undefined;
+    if (drawBG || drawPlayer) {
+      // send the current overlay/background as-is: the worker keys its
+      // caches by (location, revision) so unchanged layers are not refetched
+      // (this also preserves the overlay when only the background changed)
+      const overlay = oContent;
+      const background = bContent;
 
       const angle = scene.angle || 0;
 
@@ -932,6 +1024,11 @@ const ContentEditor = ({
           background,
           backgroundUrl: background ? bUrl : undefined,
           backgroundRev: bRev,
+          playerBackground: playerLayer.content,
+          playerBackgroundUrl: playerLayer.content
+            ? playerLayer.url
+            : undefined,
+          playerBackgroundRev: pRev,
           overlay,
           overlayUrl: overlay ? oUrl : undefined,
           overlayRev: oRev,
@@ -942,6 +1039,7 @@ const ContentEditor = ({
   }, [
     bgRev,
     ovRev,
+    playerBgRev,
     scene,
     sceneId,
     worker,
@@ -1054,6 +1152,19 @@ const ContentEditor = ({
 
   // make sure we end the push state when we get a successful push time update
   useEffect(() => sm.transition("done"), [pushTime]);
+
+  // finish and download any in-progress recording when the editor goes away
+  // (the worker outlives the component, so nothing else would stop it)
+  useEffect(() => {
+    return () => {
+      const recorder = internalState.recorder;
+      if (!internalState.streaming || !recorder) return;
+      internalState.streaming = false;
+      internalState.recorder = undefined;
+      worker?.postMessage({ cmd: "stream_stop" });
+      void recorder.stop();
+    };
+  }, [internalState, worker]);
 
   // force render of current state as soon as we have an API to talk to
   // but not before we have loaded the toolbar (otherwise we just get

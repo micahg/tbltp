@@ -1,6 +1,7 @@
 import {
   createDrawable,
   Drawable,
+  DrawableToken,
   Drawables,
   isDrawableType,
 } from "../drawing";
@@ -48,6 +49,14 @@ export function renderThings(
       console.error(err);
     }
   }
+}
+
+/**
+ * The things a player-facing render should draw: placed tokens only. GM-only
+ * affordances (eg the viewport guide) are excluded.
+ */
+export function playerThings(things: Drawable[]): Drawable[] {
+  return things.filter((thing) => isDrawableType(thing, DrawableToken));
 }
 
 /**

@@ -7,9 +7,17 @@ export const ZOOM_STEP = 0.5;
 
 export type TableUpdate = TableState & {
   things?: unknown[];
+  /**
+   * The player background (location/revision/url) when the editor loads a
+   * separate detail image for the GM view. Absent means the player image is
+   * the same asset as the background.
+   */
+  playerBackground?: string;
+  playerBackgroundUrl?: string;
+  playerBackgroundRev?: number;
 };
 
-export type WorkerPost = (message: unknown) => void;
+export type WorkerPost = (message: unknown, transfer?: Transferable[]) => void;
 
 export interface ViewState {
   // canvas width and height (sent from main thread)
@@ -47,7 +55,34 @@ export interface LayerState {
   backgroundKey: { src?: string; rev?: number };
   overlayKey: { src?: string; rev?: number };
 
+  /**
+   * The player background bitmap. The editor may load a detail image for the
+   * GM view, but player-facing renders (the stream) must use the player
+   * image. Usually the very same object as `background`.
+   */
+  playerBackground?: ImageBitmap;
+  playerBackgroundKey: { src?: string; rev?: number };
+
   composition: CanvasImageSource[];
+}
+
+/**
+ * State for the outbound stream: the worker renders the player view (the
+ * requested viewport, as shown by the remote display) onto a fixed-resolution
+ * offscreen canvas and ships each frame to the main thread as an ImageBitmap
+ * for MediaRecorder -- the recorder itself cannot run in a worker.
+ */
+export interface StreamState {
+  // whether stream frames should be rendered and shipped
+  on: boolean;
+  // stream frame rate, used to throttle frames (set when the stream starts)
+  fps: number;
+  // the stream surface: an offscreen canvas at the stream resolution
+  ctx?: OffscreenCanvasRenderingContext2D;
+  // the player view rendered onto the stream canvas
+  view: ViewState;
+  // performance.now() of the last shipped frame
+  lastFrame: number;
 }
 
 export interface PointerState {
@@ -85,25 +120,38 @@ export interface WorkerState {
   tools: ToolState;
   things: Drawable[];
   settings: WorkerSettings;
+  // the outbound stream surface (see StreamState)
+  stream: StreamState;
+  /**
+   * The worker's postMessage, captured by the dispatcher so rendering helpers
+   * can ship messages (with transferables) without threading post through
+   * every call.
+   */
+  post?: WorkerPost;
+}
+
+function emptyViewState(): ViewState {
+  return {
+    canvas: { x: 0, y: 0, width: 0, height: 0 },
+    image: { x: 0, y: 0, width: 0, height: 0 },
+    requested: { x: -1, y: -1, width: -1, height: -1 },
+    viewport: { x: 0, y: 0, width: 0, height: 0 },
+    angle: 0,
+    zoom: undefined,
+    maxZoom: 0,
+    firstZoomStep: 0,
+    fullRotW: 0,
+    fullRotH: 0,
+  };
 }
 
 export function createWorkerState(): WorkerState {
   return {
-    view: {
-      canvas: { x: 0, y: 0, width: 0, height: 0 },
-      image: { x: 0, y: 0, width: 0, height: 0 },
-      requested: { x: -1, y: -1, width: -1, height: -1 },
-      viewport: { x: 0, y: 0, width: 0, height: 0 },
-      angle: 0,
-      zoom: undefined,
-      maxZoom: 0,
-      firstZoomStep: 0,
-      fullRotW: 0,
-      fullRotH: 0,
-    },
+    view: emptyViewState(),
     layers: {
       backgroundKey: {},
       overlayKey: {},
+      playerBackgroundKey: {},
       composition: [],
     },
     tools: {
@@ -126,6 +174,12 @@ export function createWorkerState(): WorkerState {
     settings: {
       thingsOnTop: false,
       displayOpacity: 1,
+    },
+    stream: {
+      on: false,
+      fps: 30,
+      view: emptyViewState(),
+      lastFrame: 0,
     },
   };
 }

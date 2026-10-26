@@ -28,6 +28,18 @@ describe("content worker state", () => {
     expect(state.things).toEqual([]);
     expect(state.settings.thingsOnTop).toBe(false);
     expect(state.settings.displayOpacity).toBe(1);
+    expect(state.layers.playerBackgroundKey).toEqual({});
+    expect(state.stream.on).toBe(false);
+    expect(state.stream.fps).toBe(30);
+    expect(state.stream.ctx).toBeUndefined();
+    expect(state.stream.lastFrame).toBe(0);
+    expect(state.stream.view.requested).toEqual({
+      x: -1,
+      y: -1,
+      width: -1,
+      height: -1,
+    });
+    expect(state.post).toBeUndefined();
   });
 
   it("uses the shared drawing constants", () => {
@@ -42,15 +54,21 @@ describe("content worker state", () => {
     first.view.angle = 90;
     first.view.canvas.width = 800;
     first.layers.backgroundKey.src = "first";
+    first.layers.playerBackgroundKey.src = "first";
     first.layers.composition.push({} as CanvasImageSource);
     first.tools.brush = 40;
     first.things.push({} as never);
+    first.stream.on = true;
+    first.stream.fps = 60;
 
     expect(second.view.angle).toBe(0);
     expect(second.view.canvas.width).toBe(0);
     expect(second.layers.backgroundKey.src).toBeUndefined();
+    expect(second.layers.playerBackgroundKey.src).toBeUndefined();
     expect(second.layers.composition).toEqual([]);
     expect(second.tools.brush).toBe(MIN_BRUSH);
     expect(second.things).toEqual([]);
+    expect(second.stream.on).toBe(false);
+    expect(second.stream.fps).toBe(30);
   });
 });

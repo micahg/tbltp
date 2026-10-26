@@ -8,6 +8,7 @@ import {
   renderBox,
   renderBrush,
   renderDisplay,
+  renderStreamFrame,
   renderToken,
   storeOverlay,
 } from "../src/utils/contentworker/render";
@@ -28,6 +29,7 @@ function makeContext(width = 800, height = 600) {
     restore: jest.fn(),
     translate: jest.fn(),
     rotate: jest.fn(),
+    scale: jest.fn(),
     drawImage: jest.fn(),
     beginPath: jest.fn(),
     arc: jest.fn(),
@@ -125,6 +127,189 @@ describe("content worker render", () => {
       expect(visible.clearRect).toHaveBeenCalledWith(0, 0, 800, 600);
       expect(visible.save).not.toHaveBeenCalled();
       expect(visible.drawImage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("renderStreamFrame", () => {
+    function makeStreamState(width: number, height: number) {
+      const state = createWorkerState();
+      state.layers.full = asContext(makeContext(1200, 800));
+      state.post = jest.fn();
+      state.stream.on = true;
+      state.stream.ctx = asContext(makeContext(width, height));
+      state.stream.view.canvas = {
+        x: 0,
+        y: 0,
+        width,
+        height,
+      };
+      return state;
+    }
+
+    function streamCtx(state: ReturnType<typeof makeStreamState>) {
+      return state.stream.ctx as unknown as ReturnType<typeof makeContext>;
+    }
+
+    it("is a no-op until the stream is started", () => {
+      const state = makeStreamState(1920, 1080);
+      state.stream.on = false;
+      state.layers.playerBackground = { width: 1200, height: 800 } as ImageBitmap;
+
+      renderStreamFrame(state);
+
+      const ctx = streamCtx(state);
+      expect(ctx.clearRect).not.toHaveBeenCalled();
+      expect(state.post).not.toHaveBeenCalled();
+    });
+
+    it("does nothing without a background", () => {
+      const state = makeStreamState(1920, 1080);
+
+      renderStreamFrame(state);
+
+      expect(state.post).not.toHaveBeenCalled();
+    });
+
+    it("renders the full player background when no viewport is requested", () => {
+      const state = makeStreamState(1920, 1080);
+      // the GM background must never be preferred for the stream
+      state.layers.background = { width: 600, height: 400 } as ImageBitmap;
+      state.layers.playerBackground = {
+        width: 1200,
+        height: 800,
+      } as ImageBitmap;
+      const bitmap = { close: jest.fn() };
+      const ctx = streamCtx(state);
+      ctx.canvas.transferToImageBitmap.mockReturnValue(bitmap);
+
+      renderStreamFrame(state);
+
+      expect(ctx.clearRect).toHaveBeenCalledWith(0, 0, 1920, 1080);
+      expect(ctx.translate).toHaveBeenCalledWith(960, 540);
+      expect(ctx.rotate).toHaveBeenCalledWith(0);
+      // the 1200x800 image fills the 1080-high stream, letterboxed to 1620 wide
+      expect(ctx.drawImage).toHaveBeenNthCalledWith(
+        1,
+        state.layers.playerBackground,
+        0,
+        0,
+        1200,
+        800,
+        -810,
+        -540,
+        1620,
+        1080,
+      );
+      const overlay = (state.layers.full as unknown as ReturnType<
+        typeof makeContext
+      >).canvas;
+      expect(ctx.drawImage).toHaveBeenNthCalledWith(
+        2,
+        overlay,
+        0,
+        0,
+        1200,
+        800,
+        -810,
+        -540,
+        1620,
+        1080,
+      );
+      expect(ctx.canvas.transferToImageBitmap).toHaveBeenCalled();
+      expect(state.post).toHaveBeenCalledWith(
+        { cmd: "stream_frame", bitmap },
+        [bitmap],
+      );
+    });
+
+    it("fits the requested viewport and draws placed tokens only", () => {
+      const state = makeStreamState(800, 600);
+      state.layers.playerBackground = {
+        width: 1200,
+        height: 800,
+      } as ImageBitmap;
+      state.stream.view.requested = {
+        x: 300,
+        y: 200,
+        width: 600,
+        height: 400,
+      };
+      const token = {
+        token: { x: 0, y: 0, angle: 0, scale: 1 },
+        opacity: 1,
+        draw: jest.fn(),
+      };
+      const guide = {
+        rect: { x: 0, y: 0, width: 10, height: 10 },
+        opacity: 1,
+        draw: jest.fn(),
+      };
+      state.things = [token, guide] as never;
+      const ctx = streamCtx(state);
+
+      renderStreamFrame(state);
+
+      expect(ctx.clearRect).toHaveBeenCalledWith(0, 0, 800, 600);
+      expect(ctx.translate).toHaveBeenCalledWith(400, 300);
+      // the 600x400 request is centered and extended to 600x450
+      expect(ctx.drawImage).toHaveBeenNthCalledWith(
+        1,
+        state.layers.playerBackground,
+        300,
+        175,
+        600,
+        450,
+        -400,
+        -300,
+        800,
+        600,
+      );
+      // tokens draw in background coordinates via the viewport mapping
+      expect(ctx.translate).toHaveBeenCalledWith(-400, -300);
+      expect(ctx.scale).toHaveBeenCalledWith(800 / 600, 600 / 450);
+      expect(ctx.translate).toHaveBeenCalledWith(-300, -175);
+      expect(token.draw).toHaveBeenCalledWith(ctx);
+      // the GM viewport guide never appears in the stream
+      expect(guide.draw).not.toHaveBeenCalled();
+      const overlay = (state.layers.full as unknown as ReturnType<
+        typeof makeContext
+      >).canvas;
+      expect(ctx.drawImage).toHaveBeenNthCalledWith(
+        2,
+        overlay,
+        300,
+        175,
+        600,
+        450,
+        -400,
+        -300,
+        800,
+        600,
+      );
+      expect(state.post).toHaveBeenCalled();
+    });
+
+    it("throttles frames to the stream rate", () => {
+      const state = makeStreamState(800, 600);
+      state.layers.playerBackground = {
+        width: 1200,
+        height: 800,
+      } as ImageBitmap;
+      const ctx = streamCtx(state);
+
+      renderStreamFrame(state);
+      // an immediate second call is within the frame interval and is skipped
+      renderStreamFrame(state);
+
+      expect(ctx.canvas.transferToImageBitmap).toHaveBeenCalledTimes(1);
+      expect(state.post).toHaveBeenCalledTimes(1);
+
+      // once the interval has elapsed the next frame ships
+      state.stream.lastFrame = 0;
+      renderStreamFrame(state);
+
+      expect(ctx.canvas.transferToImageBitmap).toHaveBeenCalledTimes(2);
+      expect(state.post).toHaveBeenCalledTimes(2);
     });
   });
 

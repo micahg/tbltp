@@ -16,6 +16,7 @@ import {
   renderBox,
   renderBrush,
   renderDisplay,
+  renderStreamFrame,
   renderToken,
   storeOverlay,
 } from "./render";
@@ -119,6 +120,9 @@ export async function dispatch(
   evt: MessageEvent,
   post: WorkerPost,
 ): Promise<void> {
+  // capture post so rendering helpers (eg the stream) can ship messages
+  // with transferables without threading it through every call
+  state.post = post;
   console.log(evt.data.cmd);
   switch (evt.data.cmd) {
     case "init": {
@@ -191,6 +195,40 @@ export async function dispatch(
           fullHeight: background.height,
         });
       }
+      break;
+    }
+    case "stream_start": {
+      const { width, height } = evt.data;
+      if (
+        typeof width !== "number" ||
+        !(width > 0) ||
+        typeof height !== "number" ||
+        !(height > 0)
+      ) {
+        console.error(`Invalid stream dimensions in stream_start`);
+        break;
+      }
+      const fps =
+        typeof evt.data.fps === "number" && evt.data.fps > 0
+          ? evt.data.fps
+          : 30;
+      const canvas = new OffscreenCanvas(width, height);
+      state.stream.ctx = canvas.getContext("2d", {
+        alpha: false,
+      }) as OffscreenCanvasRenderingContext2D;
+      state.stream.view.canvas = { x: 0, y: 0, width, height };
+      state.stream.fps = fps;
+      state.stream.lastFrame = 0;
+      state.stream.on = true;
+      // ship the first frame immediately (the recorder starts on the main
+      // thread as soon as it can)
+      renderStreamFrame(state);
+      break;
+    }
+    case "stream_stop": {
+      state.stream.on = false;
+      // release the stream surface
+      state.stream.ctx = undefined;
       break;
     }
     case "rotate": {

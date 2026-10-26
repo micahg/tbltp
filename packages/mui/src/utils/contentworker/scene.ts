@@ -16,6 +16,9 @@ export async function loadSceneLayers(
     overlay,
     overlayRev,
     overlayUrl,
+    playerBackground,
+    playerBackgroundRev,
+    playerBackgroundUrl,
   } = update;
   const progress = (p: LoadProgress) => post({ cmd: "progress", evt: p });
 
@@ -69,6 +72,41 @@ export async function loadSceneLayers(
     layers.overlayKey.rev = overlayRev;
   }
 
+  /**
+   * Resolve the player background: the editor may render a detail image for
+   * the GM view, but the stream (player-facing) must use the player image.
+   * Reuse the GM background when they are the same asset, the cached bitmap
+   * when only the url was re-signed, and only download otherwise.
+   */
+  const playerSrc = playerBackground || background;
+  const playerRev = playerBackgroundRev || backgroundRev;
+  const playerUrl = playerBackgroundUrl || backgroundUrl;
+  if (playerSrc) {
+    const cached = layers.playerBackground;
+    const playerSame =
+      playerSrc === layers.playerBackgroundKey.src &&
+      playerRev === layers.playerBackgroundKey.rev;
+    const playerIsBackground =
+      playerSrc === background && playerRev === backgroundRev;
+    let playerImg: ImageBitmap | undefined;
+    if (playerSame && cached) {
+      playerImg = cached;
+    } else if (playerIsBackground && bgImg) {
+      playerImg = bgImg;
+    } else {
+      playerImg = await loadImage(playerUrl || playerSrc, progress);
+    }
+    layers.playerBackground = playerImg;
+    layers.playerBackgroundKey.src = playerSrc;
+    layers.playerBackgroundKey.rev = playerRev;
+  } else {
+    // no player image at all -- drop the reference (never close: it may
+    // alias the GM background bitmap)
+    layers.playerBackground = undefined;
+    layers.playerBackgroundKey.src = undefined;
+    layers.playerBackgroundKey.rev = undefined;
+  }
+
   return {
     background: bgImg ?? undefined,
     overlay: ovImg ?? undefined,
@@ -84,6 +122,8 @@ export async function applyUpdate(
   if (!background) {
     if (things) {
       await updateThings(state.things, things);
+      // the things message carries the player viewport for the stream view
+      if (viewport) copyRect(viewport, state.stream.view.requested);
       renderThings(state.layers.things, state.things);
       renderDisplay(state);
       return;
@@ -96,6 +136,18 @@ export async function applyUpdate(
 
   if (viewport) {
     copyRect(viewport, state.view.requested);
+    // keep the stream view in sync with the requested viewport
+    copyRect(viewport, state.stream.view.requested);
+  } else {
+    // a fresh background means any previously requested viewport is stale;
+    // fall back to the full background until the next things message brings
+    // the current viewport (renderStreamFrame treats x < 0 as "no request")
+    state.stream.view.requested = {
+      x: -1,
+      y: -1,
+      width: -1,
+      height: -1,
+    };
   }
 
   try {

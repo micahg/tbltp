@@ -2,7 +2,7 @@ import type { DrawContext, DrawableToken } from "../drawing";
 import { createPoints, firstZoomStep } from "../geometry";
 import type { WorkerPost, WorkerState } from "./state";
 import { ZOOM_STEP } from "./state";
-import { renderThings } from "./things";
+import { playerThings, renderThings } from "./things";
 import {
   adjustZoomFromViewport,
   calculateViewport,
@@ -41,6 +41,104 @@ export function renderDisplay(state: WorkerState): void {
   ctx.globalAlpha = state.settings.displayOpacity;
   state.layers.composition.forEach(draw);
   ctx.restore();
+  renderStreamFrame(state);
+}
+
+/**
+ * Render the player view (the requested viewport, as shown by the remote
+ * display) onto the fixed-resolution stream canvas and ship it to the main
+ * thread as an ImageBitmap for recording.
+ *
+ * The stream surface is independent of the GM canvas: it uses the player
+ * background, placed tokens and the overlay at full opacity. GM-only
+ * affordances (the viewport guide, brush and selection previews) live on the
+ * GM's canvases only and never appear here.
+ */
+export function renderStreamFrame(state: WorkerState): void {
+  const stream = state.stream;
+  if (!stream.on || !stream.ctx) return;
+  const post = state.post;
+  if (!post) return;
+
+  // the player image is what the stream must show; fall back to the GM
+  // background when no separate player image was loaded
+  const background = state.layers.playerBackground ?? state.layers.background;
+  if (!background) return;
+
+  // renderDisplay (and thus this) runs at animation-frame rates during
+  // drags -- throttle the frames we ship to the stream rate
+  const now = performance.now();
+  const interval = 1000 / (stream.fps > 0 ? stream.fps : 30);
+  if (stream.lastFrame > 0 && now - stream.lastFrame < interval) return;
+  stream.lastFrame = now;
+
+  // recompute the stream view every frame -- same fit as the remote display:
+  // the requested viewport centered with its short side extended to fill
+  const view = stream.view;
+  view.angle = state.view.angle;
+  if (view.requested.x < 0) {
+    // no viewport requested: show the full background
+    view.requested = {
+      x: 0,
+      y: 0,
+      width: background.width,
+      height: background.height,
+    };
+  }
+  adjustZoomFromViewport(view);
+  calculateViewport(view, background.width, background.height);
+
+  const ctx = stream.ctx;
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.save();
+  ctx.translate(ctx.canvas.width / 2, ctx.canvas.height / 2);
+  ctx.rotate((view.angle * Math.PI) / 180);
+  const draw = (src: CanvasImageSource) =>
+    ctx.drawImage(
+      src,
+      view.image.x,
+      view.image.y,
+      view.image.width,
+      view.image.height,
+      -view.viewport.width / 2,
+      -view.viewport.height / 2,
+      view.viewport.width,
+      view.viewport.height,
+    );
+  draw(background);
+
+  // placed tokens, drawn directly at stream scale (they draw in background
+  // coordinates, so the viewport mapping handles positioning and size)
+  const tokens = playerThings(state.things);
+  if (tokens.length > 0) {
+    ctx.save();
+    ctx.translate(-view.viewport.width / 2, -view.viewport.height / 2);
+    ctx.scale(
+      view.viewport.width / view.image.width,
+      view.viewport.height / view.image.height,
+    );
+    ctx.translate(-view.image.x, -view.image.y);
+    for (const thing of tokens) {
+      ctx.save();
+      try {
+        thing.draw(ctx);
+      } catch (err) {
+        console.error(err);
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // the player view composites the overlay on top of the tokens (the remote
+  // display renders things below the overlay) at full opacity
+  const overlay = state.layers.full?.canvas;
+  if (overlay) draw(overlay);
+  ctx.restore();
+
+  // ship the frame -- transferring the bitmap avoids a copy
+  const bitmap = ctx.canvas.transferToImageBitmap();
+  post({ cmd: "stream_frame", bitmap }, [bitmap]);
 }
 
 /**
