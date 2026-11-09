@@ -75,14 +75,14 @@ export interface LayerState {
 export interface StreamState {
   // whether stream frames should be rendered and shipped
   on: boolean;
-  // stream frame rate, used to throttle frames (set when the stream starts)
+  // stream frame rate, which paces the frame timer (set when the stream starts)
   fps: number;
   // the stream surface: an offscreen canvas at the stream resolution
   ctx?: OffscreenCanvasRenderingContext2D;
   // the player view rendered onto the stream canvas
   view: ViewState;
-  // performance.now() of the last shipped frame
-  lastFrame: number;
+  // pending timer for the next frame (see streamTick)
+  timer?: ReturnType<typeof setTimeout>;
 }
 
 export interface PointerState {
@@ -179,7 +179,6 @@ export function createWorkerState(): WorkerState {
       on: false,
       fps: 30,
       view: emptyViewState(),
-      lastFrame: 0,
     },
   };
 }

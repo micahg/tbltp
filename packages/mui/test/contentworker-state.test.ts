@@ -32,7 +32,7 @@ describe("content worker state", () => {
     expect(state.stream.on).toBe(false);
     expect(state.stream.fps).toBe(30);
     expect(state.stream.ctx).toBeUndefined();
-    expect(state.stream.lastFrame).toBe(0);
+    expect(state.stream.timer).toBeUndefined();
     expect(state.stream.view.requested).toEqual({
       x: -1,
       y: -1,

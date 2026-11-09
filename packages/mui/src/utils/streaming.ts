@@ -47,12 +47,17 @@ function extension(mimeType?: string): string {
   return "bin";
 }
 
+function filename(mimeType?: string): string {
+  return `tbltp-stream-${timestamp()}.${extension(mimeType)}`;
+}
+
 export class StreamRecorder {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D | null;
   private recorder?: MediaRecorder;
   private chunks: Blob[] = [];
   private mimeType?: string;
+  private filename?: string;
 
   /**
    * @param canvas an optional canvas to record onto -- normally the recorder
@@ -91,7 +96,16 @@ export class StreamRecorder {
       return false;
     }
     this.mimeType = this.recorder.mimeType || mimeType;
+    // The recorder never writes to disk itself: it buffers chunks that are
+    // handed to the browser as a download on stop(). The browser saves it
+    // under the user's Downloads directory using this name.
+    this.filename = filename(this.mimeType);
     this.chunks = [];
+    console.log(
+      `Streaming canvas to ${this.filename} (${this.mimeType}, ` +
+        `${STREAM_WIDTH}x${STREAM_HEIGHT} @ ${STREAM_FPS}fps, ` +
+        `${STREAM_BITRATE / 1_000_000}Mbps)`,
+    );
     this.recorder.ondataavailable = (evt: BlobEvent) => {
       if (evt.data && evt.data.size > 0) this.chunks.push(evt.data);
     };
@@ -143,7 +157,8 @@ export class StreamRecorder {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `tbltp-stream-${timestamp()}.${extension(this.mimeType)}`;
+    link.download = this.filename ?? filename(this.mimeType);
+    console.log(`Streamed recording saved to ${link.download}`);
     document.body.appendChild(link);
     link.click();
     link.remove();

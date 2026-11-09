@@ -41,7 +41,6 @@ export function renderDisplay(state: WorkerState): void {
   ctx.globalAlpha = state.settings.displayOpacity;
   state.layers.composition.forEach(draw);
   ctx.restore();
-  renderStreamFrame(state);
 }
 
 /**
@@ -53,6 +52,10 @@ export function renderDisplay(state: WorkerState): void {
  * background, placed tokens and the overlay at full opacity. GM-only
  * affordances (the viewport guide, brush and selection previews) live on the
  * GM's canvases only and never appear here.
+ *
+ * Frames are paced by the stream timer (see streamTick in messages.ts), not by
+ * GM-canvas redraws: the recorder needs a steady frame cadence even when the
+ * GM is idle.
  */
 export function renderStreamFrame(state: WorkerState): void {
   const stream = state.stream;
@@ -64,13 +67,6 @@ export function renderStreamFrame(state: WorkerState): void {
   // background when no separate player image was loaded
   const background = state.layers.playerBackground ?? state.layers.background;
   if (!background) return;
-
-  // renderDisplay (and thus this) runs at animation-frame rates during
-  // drags -- throttle the frames we ship to the stream rate
-  const now = performance.now();
-  const interval = 1000 / (stream.fps > 0 ? stream.fps : 30);
-  if (stream.lastFrame > 0 && now - stream.lastFrame < interval) return;
-  stream.lastFrame = now;
 
   // recompute the stream view every frame -- same fit as the remote display:
   // the requested viewport centered with its short side extended to fill

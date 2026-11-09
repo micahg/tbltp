@@ -289,7 +289,7 @@ describe("content worker render", () => {
       expect(state.post).toHaveBeenCalled();
     });
 
-    it("throttles frames to the stream rate", () => {
+    it("ships a frame on every call (pacing belongs to the stream timer)", () => {
       const state = makeStreamState(800, 600);
       state.layers.playerBackground = {
         width: 1200,
@@ -298,18 +298,27 @@ describe("content worker render", () => {
       const ctx = streamCtx(state);
 
       renderStreamFrame(state);
-      // an immediate second call is within the frame interval and is skipped
-      renderStreamFrame(state);
-
-      expect(ctx.canvas.transferToImageBitmap).toHaveBeenCalledTimes(1);
-      expect(state.post).toHaveBeenCalledTimes(1);
-
-      // once the interval has elapsed the next frame ships
-      state.stream.lastFrame = 0;
       renderStreamFrame(state);
 
       expect(ctx.canvas.transferToImageBitmap).toHaveBeenCalledTimes(2);
       expect(state.post).toHaveBeenCalledTimes(2);
+    });
+
+    it("is not driven by display renders", () => {
+      const state = makeStreamState(800, 600);
+      state.layers.playerBackground = {
+        width: 1200,
+        height: 800,
+      } as ImageBitmap;
+      state.layers.visible = asContext(makeContext());
+      state.layers.background = {
+        width: 1200,
+        height: 800,
+      } as ImageBitmap;
+
+      renderDisplay(state);
+
+      expect(state.post).not.toHaveBeenCalled();
     });
   });
 

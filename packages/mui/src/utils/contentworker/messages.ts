@@ -115,6 +115,22 @@ function animateSelection(state: WorkerState): void {
   requestAnimationFrame(() => animateSelection(state));
 }
 
+/**
+ * Render and ship one stream frame, then schedule the next. The stream is
+ * paced by its own timer rather than by GM-canvas redraws so the recording
+ * keeps a steady frame rate even while the GM is idle. The delay is corrected
+ * for the time spent rendering to limit drift.
+ */
+function streamTick(state: WorkerState): void {
+  const stream = state.stream;
+  if (!stream.on) return;
+  const started = performance.now();
+  renderStreamFrame(state);
+  const interval = 1000 / (stream.fps > 0 ? stream.fps : 30);
+  const delay = Math.max(0, interval - (performance.now() - started));
+  stream.timer = setTimeout(() => streamTick(state), delay);
+}
+
 export async function dispatch(
   state: WorkerState,
   evt: MessageEvent,
@@ -218,15 +234,18 @@ export async function dispatch(
       }) as OffscreenCanvasRenderingContext2D;
       state.stream.view.canvas = { x: 0, y: 0, width, height };
       state.stream.fps = fps;
-      state.stream.lastFrame = 0;
+      // a repeated start must not leave two timers running
+      clearTimeout(state.stream.timer);
       state.stream.on = true;
       // ship the first frame immediately (the recorder starts on the main
-      // thread as soon as it can)
-      renderStreamFrame(state);
+      // thread as soon as it can); the tick keeps them coming after that
+      streamTick(state);
       break;
     }
     case "stream_stop": {
       state.stream.on = false;
+      clearTimeout(state.stream.timer);
+      state.stream.timer = undefined;
       // release the stream surface
       state.stream.ctx = undefined;
       break;

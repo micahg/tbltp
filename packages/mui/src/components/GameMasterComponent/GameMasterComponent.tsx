@@ -215,7 +215,12 @@ const GameMasterComponent = () => {
     }
   };
 
-  const handleRedrawToolbar = () => setDoot(doot + 1);
+  // Use a functional update: the toolbar actions (and the callbacks they close
+  // over) are only replaced when their source text changes, so this function
+  // is routinely called from a stale render where `doot` is out of date. With
+  // `setDoot(doot + 1)` that sets the same value again and the toolbar never
+  // redraws (eg the stop button does not appear after starting a recording).
+  const handleRedrawToolbar = () => setDoot((value) => value + 1);
 
   const scenesClick = () => setScenesOpen(!scenesOpen);
 

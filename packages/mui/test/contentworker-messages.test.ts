@@ -224,46 +224,115 @@ describe("content worker messages", () => {
     expect(scene.applyUpdate).toHaveBeenCalledWith(state, values, post);
   });
 
-  it("captures post and starts the stream", async () => {
-    const state = createWorkerState();
-    const post = jest.fn();
+  describe("stream timer", () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
 
-    await dispatch(
-      state,
-      event({ cmd: "stream_start", width: 1920, height: 1080, fps: 30 }),
-      post,
-    );
+    it("keeps rendering frames at the stream rate without other activity", async () => {
+      const state = createWorkerState();
+      await dispatch(
+        state,
+        event({ cmd: "stream_start", width: 1920, height: 1080, fps: 10 }),
+        jest.fn(),
+      );
+      // first frame is immediate
+      expect(render.renderStreamFrame).toHaveBeenCalledTimes(1);
 
-    expect(state.post).toBe(post);
-    expect(state.stream.on).toBe(true);
-    expect(state.stream.fps).toBe(30);
-    expect(state.stream.lastFrame).toBe(0);
-    expect(state.stream.view.canvas).toEqual({
-      x: 0,
-      y: 0,
-      width: 1920,
-      height: 1080,
+      jest.advanceTimersByTime(1000);
+      // 10 fps => ~10 more frames in a second
+      expect(
+        (render.renderStreamFrame as jest.Mock).mock.calls.length,
+      ).toBeGreaterThanOrEqual(10);
+
+      await dispatch(state, event({ cmd: "stream_stop" }), jest.fn());
     });
-    expect(state.stream.ctx).toBeDefined();
-    expect(render.renderStreamFrame).toHaveBeenCalledWith(state);
+
+    it("does not stack timers on a repeated start", async () => {
+      const state = createWorkerState();
+      const start = event({
+        cmd: "stream_start",
+        width: 1920,
+        height: 1080,
+        fps: 10,
+      });
+      await dispatch(state, start, jest.fn());
+      await dispatch(state, start, jest.fn());
+      (render.renderStreamFrame as jest.Mock).mockClear();
+
+      jest.advanceTimersByTime(1000);
+      // a single timer chain => about 10 frames, not 20
+      expect(
+        (render.renderStreamFrame as jest.Mock).mock.calls.length,
+      ).toBeLessThanOrEqual(11);
+
+      await dispatch(state, event({ cmd: "stream_stop" }), jest.fn());
+    });
+
+    it("stops rendering frames after stream_stop", async () => {
+      const state = createWorkerState();
+      await dispatch(
+        state,
+        event({ cmd: "stream_start", width: 1920, height: 1080, fps: 10 }),
+        jest.fn(),
+      );
+      await dispatch(state, event({ cmd: "stream_stop" }), jest.fn());
+      (render.renderStreamFrame as jest.Mock).mockClear();
+
+      jest.advanceTimersByTime(1000);
+
+      expect(render.renderStreamFrame).not.toHaveBeenCalled();
+      expect(state.stream.timer).toBeUndefined();
+    });
   });
 
-  it("defaults the stream frame rate when fps is missing", async () => {
-    const state = createWorkerState();
+  describe("stream start", () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
 
-    await dispatch(
-      state,
-      event({ cmd: "stream_start", width: 1280, height: 720 }),
-      jest.fn(),
-    );
+    it("captures post and starts the stream", async () => {
+      const state = createWorkerState();
+      const post = jest.fn();
 
-    expect(state.stream.on).toBe(true);
-    expect(state.stream.fps).toBe(30);
-    expect(state.stream.view.canvas).toEqual({
-      x: 0,
-      y: 0,
-      width: 1280,
-      height: 720,
+      await dispatch(
+        state,
+        event({ cmd: "stream_start", width: 1920, height: 1080, fps: 30 }),
+        post,
+      );
+
+      expect(state.post).toBe(post);
+      expect(state.stream.on).toBe(true);
+      expect(state.stream.fps).toBe(30);
+      expect(state.stream.view.canvas).toEqual({
+        x: 0,
+        y: 0,
+        width: 1920,
+        height: 1080,
+      });
+      expect(state.stream.ctx).toBeDefined();
+      expect(render.renderStreamFrame).toHaveBeenCalledWith(state);
+
+      await dispatch(state, event({ cmd: "stream_stop" }), jest.fn());
+    });
+
+    it("defaults the stream frame rate when fps is missing", async () => {
+      const state = createWorkerState();
+
+      await dispatch(
+        state,
+        event({ cmd: "stream_start", width: 1280, height: 720 }),
+        jest.fn(),
+      );
+
+      expect(state.stream.on).toBe(true);
+      expect(state.stream.fps).toBe(30);
+      expect(state.stream.view.canvas).toEqual({
+        x: 0,
+        y: 0,
+        width: 1280,
+        height: 720,
+      });
+
+      await dispatch(state, event({ cmd: "stream_stop" }), jest.fn());
     });
   });
 
