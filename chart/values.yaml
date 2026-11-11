@@ -34,3 +34,8 @@ storageS3Endpoint: ""
 storageS3Bucket: ""
 storageS3AccessKeyId: ""
 storageS3SecretAccessKey: ""
+# Feature switches (defaults keep the original behaviour)
+ingressEnabled: true     # false when traffic arrives through Cloudflare Tunnel
+createNamespace: true    # false when another Argo CD app creates the namespace
+createSecrets: true      # false when Secrets are supplied out of band (Sealed Secrets)
+mongoExternal: false     # true when MONGO_URL comes from a pre-created Secret (e.g. Atlas)

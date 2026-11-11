@@ -1,0 +1,21 @@
+# Dev on the Talos cluster, deployed by Argo CD (no CI --set flags).
+# Image tags and releaseVersion are bumped by PR (see talos/argocd/README.md).
+deployEnv: dev
+releaseVersion: "0.61.0"
+apiImageVers: "0.43.0"
+uiImageVers: "0.32.0"
+
+uiDomain: "dev.tbltp.dev"
+apiDomain: "dev-api.tbltp.dev"
+issuerDomain: "nttdev.us.auth0.com"
+clientId: blFghGfwUHOlKwDZzOELBFmxOTkxCeQr
+
+# Traffic arrives via cloudflared, not nginx. The Cilium policies admit it by namespace.
+ingressEnabled: false
+ingressNamespace: cloudflared
+
+# Secrets (mongo-connection-string, ntt-api-s3-storage) come from SealedSecrets,
+# applied by the ntt-secrets Argo CD app. MONGO_URL points at Atlas.
+createNamespace: false
+createSecrets: false
+mongoExternal: true
