@@ -1,0 +1,6 @@
+# Argo CD (chart argo/argo-cd 10.18.0) for a single small node.
+# No ingress: reach the UI with `kubectl -n argocd port-forward svc/argocd-server 8080:443`.
+dex:
+  enabled: false
+notifications:
+  enabled: false
