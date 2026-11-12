@@ -19,3 +19,7 @@ ingressNamespace: cloudflared
 createNamespace: false
 createSecrets: false
 mongoExternal: true
+
+# Cloudflare R2 (bucket host is two labels deep, hence **). Keeps the account id out of Git.
+storageS3EgressPatterns:
+  - "**.r2.cloudflarestorage.com"

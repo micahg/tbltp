@@ -146,11 +146,16 @@ spec:
         protocol: TCP
 {{- $storageS3EndpointHost := .Values.storageS3Endpoint | trim | trimPrefix "https://" | trimPrefix "http://" | trimSuffix "/" }}
 {{- $storageS3Bucket := .Values.storageS3Bucket | trim }}
-{{- if $storageS3EndpointHost }}
+{{- if or $storageS3EndpointHost .Values.storageS3EgressPatterns }}
   - toFQDNs:
+{{- if $storageS3EndpointHost }}
     - matchName: {{ $storageS3EndpointHost | quote }}
 {{- if $storageS3Bucket }}
     - matchName: {{ printf "%s.%s" $storageS3Bucket $storageS3EndpointHost | quote }}
+{{- end }}
+{{- end }}
+{{- range .Values.storageS3EgressPatterns }}
+    - matchPattern: {{ . | quote }}
 {{- end }}
     toPorts:
     - ports:
@@ -184,19 +189,22 @@ spec:
       - port: "443"
         protocol: TCP
   {{- end }}
-  # add mongo egress
-{{- if .Values.mongoConnectionString }}
+  # mongo egress: Atlas always; plus the in-cluster pod when we run our own
   - toFQDNs:
     - matchPattern: "*.{{ .Values.mongoSuffix }}"
-{{- else }}
-  - toEndpoints:
-    - matchLabels:
-      "app": {{ .Values.mongoName }}
-{{- end }}
     toPorts:
     - ports:
       - port: "{{ .Values.mongoPort }}"
         protocol: TCP
+{{- if not (or .Values.mongoConnectionString .Values.mongoExternal) }}
+  - toEndpoints:
+    - matchLabels:
+      "app": {{ .Values.mongoName }}
+    toPorts:
+    - ports:
+      - port: "{{ .Values.mongoPort }}"
+        protocol: TCP
+{{- end }}
   ingress:
   - fromEndpoints:
     - matchLabels:
