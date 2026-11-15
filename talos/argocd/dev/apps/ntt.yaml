@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ntt
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/micahg/tbltp.git
+    targetRevision: feat/talos   # switch to main once merged
+    path: chart
+    helm:
+      releaseName: ntt-infra
+      valueFiles:
+        - values.yaml
+        - values-talos-dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ntt
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

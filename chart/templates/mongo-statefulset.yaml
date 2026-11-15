@@ -1,4 +1,4 @@
-{{- if not .Values.mongoConnectionString }}
+{{- if and (not .Values.mongoConnectionString) (not .Values.mongoExternal) }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:

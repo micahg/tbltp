@@ -1,0 +1,9 @@
+# Applied to every cluster (dev and prod), verbatim. Talos 1.14 multi-document format.
+# Cilium replaces both flannel and kube-proxy.
+apiVersion: v1alpha1
+kind: KubeFlannelCNIConfig
+$patch: delete
+---
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+enabled: false
