@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/micahg/tbltp.git
-    targetRevision: feat/talos   # switch to main once merged
+    targetRevision: main
     path: chart
     helm:
       releaseName: ntt-infra
