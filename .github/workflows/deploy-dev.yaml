@@ -1,0 +1,111 @@
+name: Deploy Dev
+run-name: Deploy dev (api ${{ inputs.api-version || 'unchanged' }}, ui ${{ inputs.mui-version || 'unchanged' }})
+# Dev runs on the Talos cluster and is deployed by Argo CD from main. CI never touches the
+# cluster: it only bumps the image versions in chart/values-talos-dev.yaml through a PR that
+# merges itself, and Argo CD picks the change up (about 3 minutes).
+on:
+  workflow_call:
+    inputs:
+      api-version:
+        required: false
+        type: string
+        default: ""
+      mui-version:
+        required: false
+        type: string
+        default: ""
+      release-version:
+        required: false
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      api-version:
+        description: API image version, e.g. 0.43.0 (blank leaves it unchanged)
+        required: false
+        type: string
+      mui-version:
+        description: UI image version, e.g. 0.32.0 (blank leaves it unchanged)
+        required: false
+        type: string
+      release-version:
+        description: Release version shown by the app, e.g. 0.61.0 (blank leaves it unchanged)
+        required: false
+        type: string
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      API_VERSION: ${{ inputs.api-version }}
+      UI_VERSION: ${{ inputs.mui-version }}
+      RELEASE_VERSION: ${{ inputs.release-version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Update Dev Versions
+        run: |
+          set -euo pipefail
+          f=chart/values-talos-dev.yaml
+          semver='^[0-9]+\.[0-9]+\.[0-9]+$'
+          set_value() {
+            local key=$1 val=$2
+            [ -z "$val" ] && return 0
+            if ! [[ "$val" =~ $semver ]]; then
+              echo "::error::$key '$val' is not x.y.z"
+              exit 1
+            fi
+            sed -i -E "s/^${key}: .*/${key}: \"${val}\"/" "$f"
+            grep -q "^${key}: \"${val}\"$" "$f" || { echo "::error::could not set $key"; exit 1; }
+          }
+          RELEASE_VERSION=${RELEASE_VERSION#v}
+          if [ -n "$RELEASE_VERSION" ] && ! [[ "$RELEASE_VERSION" =~ $semver ]]; then
+            echo "::warning::release version '$RELEASE_VERSION' is not x.y.z, leaving it unchanged"
+            RELEASE_VERSION=
+          fi
+          set_value apiImageVers "$API_VERSION"
+          set_value uiImageVers "$UI_VERSION"
+          set_value releaseVersion "$RELEASE_VERSION"
+          git diff -- "$f"
+      - name: Validate Chart
+        run: helm template ntt-infra chart -f chart/values.yaml -f chart/values-talos-dev.yaml > /dev/null
+      - name: Open PR And Merge
+        run: |
+          set -euo pipefail
+          f=chart/values-talos-dev.yaml
+          if git diff --quiet -- "$f"; then
+            echo "Dev is already at these versions, nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # anything still open from an earlier run is superseded by this one
+          for n in $(gh pr list --state open --json number,headRefName \
+              --jq '.[] | select(.headRefName | startswith("deploy/dev-")) | .number'); do
+            gh pr close "$n" --delete-branch --comment "Superseded by run $GITHUB_RUN_ID."
+          done
+          BRANCH="deploy/dev-${GITHUB_RUN_ID}"
+          TITLE="chore: deploy to dev (api ${API_VERSION:-unchanged}, ui ${UI_VERSION:-unchanged})"
+          git checkout -b "$BRANCH"
+          git add "$f"
+          git commit -m "$TITLE"
+          git push origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" --title "$TITLE" \
+            --body "Automated bump of \`$f\` from run $GITHUB_RUN_ID. Argo CD deploys it to dev after the merge."
+          for i in 1 2 3; do
+            if gh pr merge "$BRANCH" --squash; then
+              echo "Merged $BRANCH. Argo CD will deploy it to dev shortly." | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            gh pr update-branch "$BRANCH" || true
+            sleep 15
+          done
+          echo "::error::could not merge $BRANCH"
+          exit 1
