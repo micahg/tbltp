@@ -324,3 +324,6 @@ To import after `db.dropDatabase()`, call:
 ```
 mongorestore mongodb://localhost:27017/ntt --gzip --archive ntt.gz
 ```
+To restore into a database with a different name, add `--nsFrom 'ntt.*' --nsTo '<name>.*'` and leave
+the database name out of the URI (a database in the URI sets `--db`, which makes `mongorestore`
+ignore the renamed namespaces and restore nothing).
