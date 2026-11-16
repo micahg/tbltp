@@ -92,6 +92,8 @@ jobs:
           fi
   trigger-deployment:
     needs: [tag-packages]
+    # a skipped package job (nothing changed for it) would otherwise skip this too
+    if: always() && needs.tag-packages.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
