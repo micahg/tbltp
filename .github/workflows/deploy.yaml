@@ -61,22 +61,26 @@ jobs:
           echo "api-version=$API_VERSION" >> "$GITHUB_OUTPUT"
           echo "mui-version=$MUI_VERSION" >> "$GITHUB_OUTPUT"
           echo "ref=$REF" >> "$GITHUB_OUTPUT"
+  dev:
+    needs: [resolve]
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/deploy-dev.yaml
+    with:
+      api-version: ${{ needs.resolve.outputs.api-version }}
+      mui-version: ${{ needs.resolve.outputs.mui-version }}
+      release-version: ${{ needs.resolve.outputs.ref }}
+  # Prod still deploys with helm to DOKS. Protect the Prod environment (Settings -> Environments
+  # -> Prod -> Required reviewers) so this job waits for your approval after you validate dev.
   deployment:
     needs: [resolve]
     permissions:
       contents: read
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - environment: "Dev"
-            helm-args: "-f chart/values-dev.yaml"
-          - environment: "Prod"
     uses: ./.github/workflows/helm.yaml
     secrets: inherit
     with:
-      environment: ${{ matrix.environment }}
-      extra-helm-args: ${{ matrix.helm-args }}
+      environment: Prod
       ref: ${{ needs.resolve.outputs.ref }}
       api-version: ${{ needs.resolve.outputs.api-version }}
       mui-version: ${{ needs.resolve.outputs.mui-version }}
