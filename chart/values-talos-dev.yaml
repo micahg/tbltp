@@ -1,9 +1,9 @@
 # Dev on the Talos cluster, deployed by Argo CD (no CI --set flags).
 # Image tags and releaseVersion are bumped by the "Deploy Dev" workflow (a self-merging PR).
 deployEnv: dev
-releaseVersion: "0.61.0"
-apiImageVers: "0.43.0"
-uiImageVers: "0.32.0"
+releaseVersion: "0.63.0"
+apiImageVers: "0.44.0"
+uiImageVers: "0.33.0"
 
 uiDomain: "dev.tbltp.dev"
 apiDomain: "dev-api.tbltp.dev"
