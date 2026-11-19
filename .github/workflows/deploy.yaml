@@ -71,6 +71,18 @@ jobs:
       api-version: ${{ needs.resolve.outputs.api-version }}
       mui-version: ${{ needs.resolve.outputs.mui-version }}
       release-version: ${{ needs.resolve.outputs.ref }}
+  # Prod on Talos: after the Prod environment is approved, bump values-talos-prod.yaml and move
+  # the "prod" tag. Nothing reads the tag until the prod cluster exists.
+  prod-talos:
+    needs: [resolve, dev]
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/deploy-prod.yaml
+    with:
+      api-version: ${{ needs.resolve.outputs.api-version }}
+      mui-version: ${{ needs.resolve.outputs.mui-version }}
+      release-version: ${{ needs.resolve.outputs.ref }}
   # Prod still deploys with helm to DOKS. Protect the Prod environment (Settings -> Environments
   # -> Prod -> Required reviewers) so this job waits for your approval after you validate dev.
   deployment:

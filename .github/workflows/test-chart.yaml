@@ -20,3 +20,5 @@ jobs:
           --set apiImageVers=CI_VALUE --set uiImageVers=CI_VALUE --set releaseVersion=CI_VALUE > /dev/null
       - name: Helm Template (Talos dev)
         run: helm template ntt-infra chart -f chart/values.yaml -f chart/values-talos-dev.yaml > /dev/null
+      - name: Helm Template (Talos prod)
+        run: helm template ntt-infra chart -f chart/values.yaml -f chart/values-talos-prod.yaml > /dev/null
