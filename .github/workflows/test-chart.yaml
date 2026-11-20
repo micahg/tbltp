@@ -18,5 +18,8 @@ jobs:
           helm template ntt-infra chart -f chart/values.yaml \
           --set mongoConnectionString=CON_STR_VALUE \
           --set apiImageVers=CI_VALUE --set uiImageVers=CI_VALUE --set releaseVersion=CI_VALUE > /dev/null
-      - name: Helm Template (Talos dev)
-        run: helm template ntt-infra chart -f chart/values.yaml -f chart/values-talos-dev.yaml > /dev/null
+      - name: Helm Template (dev)
+        # the pins live in micahg/talos-cluster envs/dev/ntt.yaml; --set stands in for them here
+        run: |
+          helm template ntt-infra chart -f chart/values.yaml -f chart/values-dev.yaml \
+          --set apiImageVers=CI_VALUE --set uiImageVers=CI_VALUE --set releaseVersion=CI_VALUE > /dev/null
