@@ -64,9 +64,9 @@ jobs:
   dev:
     needs: [resolve]
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     uses: ./.github/workflows/deploy-dev.yaml
+    secrets: inherit
     with:
       api-version: ${{ needs.resolve.outputs.api-version }}
       mui-version: ${{ needs.resolve.outputs.mui-version }}
