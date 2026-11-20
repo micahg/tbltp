@@ -1,9 +1,24 @@
-apiDomain: "nttapi.steakholdermeating.com"
-uiDomain: "ntt.steakholdermeating.com"
+# Dev on the Talos cluster, deployed by Argo CD.
+# releaseVersion, apiImageVers and uiImageVers are NOT here: they live in
+# micahg/talos-cluster envs/dev/ntt.yaml, bumped by the "Deploy Dev" workflow (a self-merging PR
+# there). For a local render pass them with --set.
+deployEnv: dev
+
+uiDomain: "dev.tbltp.dev"
+apiDomain: "dev-api.tbltp.dev"
 issuerDomain: "nttdev.us.auth0.com"
 clientId: blFghGfwUHOlKwDZzOELBFmxOTkxCeQr
-installLoadBalancer: true
-mongoStorageClass: microk8s-hostpath
-mongoStorageClassSize: 1Gi
-certIssuer: letsencrypt-prod
-ingressNamespace: "ingress"
+
+# Traffic arrives via cloudflared, not nginx. The Cilium policies admit it by namespace.
+ingressEnabled: false
+ingressNamespace: cloudflared
+
+# Secrets (mongo-connection-string, ntt-api-s3-storage) come from SealedSecrets,
+# applied by the ntt-secrets Argo CD app. MONGO_URL points at Atlas.
+createNamespace: false
+createSecrets: false
+mongoExternal: true
+
+# Cloudflare R2 (bucket host is two labels deep, hence **). Keeps the account id out of Git.
+storageS3EgressPatterns:
+  - "**.r2.cloudflarestorage.com"
