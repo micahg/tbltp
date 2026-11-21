@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: '24.x'
       - name: Cache Mongo Binary
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.MONGO_CACHE_PATH }}/${{ env.MONGO_BINARY }}
           key: ${{ env.MONGO_BINARY }}
