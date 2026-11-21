@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Helm Template (default values, which are prod)
         # the pins live in micahg/talos-cluster envs/prod/ntt.yaml; --set stands in for them here
         run: |

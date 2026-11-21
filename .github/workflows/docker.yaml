@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     # permissions come from the caller: packages write to push (build.yaml), read to only build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: '24.x'

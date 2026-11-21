@@ -47,13 +47,13 @@ jobs:
       UI_VERSION: ${{ inputs.mui-version }}
       RELEASE_VERSION: ${{ inputs.release-version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
       - name: Check Token
         run: |
           [ -n "$GH_TOKEN" ] || { echo "::error::secret TALOS_CLUSTER_TOKEN is not set"; exit 1; }
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: micahg/talos-cluster
           ref: main

@@ -24,7 +24,7 @@ jobs:
       mui-version: ${{ steps.resolve.outputs.mui-version }}
       ref: ${{ steps.resolve.outputs.ref }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: resolve
