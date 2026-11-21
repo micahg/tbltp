@@ -1,4 +1,9 @@
 name: Release
+# A release never builds. Every merge to main already built the changed images as sha-<commit>
+# (build.yaml). Here each changed package's image for its last commit is re-tagged with the next
+# semver (same digest, so prod runs exactly what dev ran), both packages also get a
+# release-<version> tag that ties them to this release, and Deploy promotes the result to dev and
+# (after approval) prod.
 on:
   release:
     types: [published]
@@ -12,6 +17,10 @@ jobs:
       package_api: ${{ steps.version-mono.outputs.package_api }}
       new_api_version: ${{ steps.version-mono.outputs.new_api_version }}
       new_mui_version: ${{ steps.version-mono.outputs.new_mui_version }}
+      sha_api: ${{ steps.version-mono.outputs.sha_api }}
+      sha_mui: ${{ steps.version-mono.outputs.sha_mui }}
+      current_api: ${{ steps.version-mono.outputs.current_api }}
+      current_mui: ${{ steps.version-mono.outputs.current_mui }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,20 +32,26 @@ jobs:
           for p in api mui; do
             CHANGED=true
             NEW=
+            CURRENT=
             LATEST=$(git tag -l "$p/v*" --sort=-v:refname | head -n 1)
             if [ -z "$LATEST" ]; then
               echo "::error::no $p/v* tag found, seed a baseline tag first"
               exit 1
             fi
+            CURRENT=${LATEST##*/}
+            CURRENT=${CURRENT#v}
             BASE=$(git rev-list -n 1 "$LATEST")
             if [ "$BASE" = "$(git rev-parse HEAD)" ]; then
               CHANGED=false
             elif [ -z "$(git diff --name-only "$BASE" HEAD -- "packages/$p" packages/common)" ]; then
               CHANGED=false
             else
-              CURRENT=${LATEST##*/}
-              NEW=$(printf '%s' "${CURRENT#v}" | awk -F. '{printf "%d.%d.0", $1, $2+1}')
+              NEW=$(printf '%s' "$CURRENT" | awk -F. '{printf "%d.%d.0", $1, $2+1}')
             fi
+            # the image build.yaml made for the last commit that touched this package
+            SRC=$(git log -1 --format=%H HEAD -- "packages/$p" packages/common)
+            echo "sha_$p=sha-${SRC:0:7}" >> "$GITHUB_OUTPUT"
+            echo "current_$p=$CURRENT" >> "$GITHUB_OUTPUT"
             if [ "$CHANGED" = true ]; then
               echo "package_$p=true" >> "$GITHUB_OUTPUT"
               echo "new_${p}_version=$NEW" >> "$GITHUB_OUTPUT"
@@ -44,30 +59,59 @@ jobs:
               echo "package_$p=false" >> "$GITHUB_OUTPUT"
             fi
           done
-  package-mui:
+  promote:
     needs: [start-release]
-    if: needs.start-release.outputs.package_mui == 'true'
-    uses: ./.github/workflows/docker.yaml
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    with:
-      package: mui
-      registry: ghcr.io
-      version: ${{ needs.start-release.outputs.new_mui_version }}
-  package-api:
-    needs: [start-release]
-    if: needs.start-release.outputs.package_api == 'true'
-    uses: ./.github/workflows/docker.yaml
-    permissions:
-      contents: read
-      packages: write
-    with:
-      package: api
-      registry: ghcr.io
-      version: ${{ needs.start-release.outputs.new_api_version }}
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Re-tag Images
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REPO: ${{ github.repository }}
+          PACKAGE_API: ${{ needs.start-release.outputs.package_api }}
+          PACKAGE_MUI: ${{ needs.start-release.outputs.package_mui }}
+          NEW_API: ${{ needs.start-release.outputs.new_api_version }}
+          NEW_MUI: ${{ needs.start-release.outputs.new_mui_version }}
+          SHA_API: ${{ needs.start-release.outputs.sha_api }}
+          SHA_MUI: ${{ needs.start-release.outputs.sha_mui }}
+          CURRENT_API: ${{ needs.start-release.outputs.current_api }}
+          CURRENT_MUI: ${{ needs.start-release.outputs.current_mui }}
+        run: |
+          set -euo pipefail
+          REL="release-${RELEASE_TAG#v}"
+          for p in api mui; do
+            up=${p^^}
+            changed=PACKAGE_$up; new=NEW_$up; sha=SHA_$up; current=CURRENT_$up
+            IMG="ghcr.io/${REPO}-$p"
+            if [ "${!changed}" = true ]; then
+              SRC="$IMG:${!sha}"
+              # the merge's build may still be running: wait up to 10 minutes for it
+              for i in $(seq 1 30); do
+                docker buildx imagetools inspect "$SRC" > /dev/null 2>&1 && break
+                echo "waiting for $SRC ($i/30)"; sleep 20
+              done
+              docker buildx imagetools inspect "$SRC" > /dev/null 2>&1 || {
+                echo "::error::$SRC does not exist. Its merge build failed or never ran; run Build (workflow_dispatch) for $p on the release commit, then re-run this job."
+                exit 1
+              }
+              docker buildx imagetools create -t "$IMG:${!new}" -t "$IMG:$REL" "$SRC"
+              echo "$p: ${!sha} -> ${!new} ($REL)" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              # unchanged since its last release: it ships the image it already had
+              docker buildx imagetools create -t "$IMG:$REL" "$IMG:${!current}"
+              echo "$p: unchanged, ${!current} ($REL)" | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+          done
   tag-packages:
-    needs: [start-release, package-api, package-mui]
+    needs: [start-release, promote]
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&

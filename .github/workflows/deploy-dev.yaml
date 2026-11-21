@@ -22,11 +22,11 @@ on:
   workflow_dispatch:
     inputs:
       api-version:
-        description: API image version, e.g. 0.43.0 (blank leaves it unchanged)
+        description: API image tag, e.g. 0.45.0 or sha-1a2b3c4 (blank leaves it unchanged)
         required: false
         type: string
       mui-version:
-        description: UI image version, e.g. 0.32.0 (blank leaves it unchanged)
+        description: UI image tag, e.g. 0.34.0 or sha-1a2b3c4 (blank leaves it unchanged)
         required: false
         type: string
       release-version:
@@ -65,11 +65,13 @@ jobs:
           set -euo pipefail
           f=envs/dev/ntt.yaml
           semver='^[0-9]+\.[0-9]+\.[0-9]+$'
+          # dev also runs the sha-<commit> images that build.yaml makes on every merge to main
+          imagetag='^([0-9]+\.[0-9]+\.[0-9]+|sha-[0-9a-f]{7,40})$'
           set_value() {
-            local key=$1 val=$2
+            local key=$1 val=$2 pattern=${3:-$semver}
             [ -z "$val" ] && return 0
-            if ! [[ "$val" =~ $semver ]]; then
-              echo "::error::$key '$val' is not x.y.z"
+            if ! [[ "$val" =~ $pattern ]]; then
+              echo "::error::$key '$val' does not match $pattern"
               exit 1
             fi
             sed -i -E "s/^${key}: .*/${key}: \"${val}\"/" "$f"
@@ -80,8 +82,8 @@ jobs:
             echo "::warning::release version '$RELEASE_VERSION' is not x.y.z, leaving it unchanged"
             RELEASE_VERSION=
           fi
-          set_value apiImageVers "$API_VERSION"
-          set_value uiImageVers "$UI_VERSION"
+          set_value apiImageVers "$API_VERSION" "$imagetag"
+          set_value uiImageVers "$UI_VERSION" "$imagetag"
           set_value releaseVersion "$RELEASE_VERSION"
           git diff -- "$f"
       - name: Validate Chart
