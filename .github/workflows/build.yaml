@@ -29,7 +29,7 @@ jobs:
       mui: ${{ steps.diff.outputs.mui }}
       tag: ${{ steps.diff.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 2
       - id: diff

@@ -22,7 +22,7 @@ jobs:
       current_api: ${{ steps.version-mono.outputs.current_api }}
       current_mui: ${{ steps.version-mono.outputs.current_mui }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name }}
           fetch-depth: 0
@@ -120,7 +120,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name }}
       - name: Tag Released Packages

@@ -32,7 +32,7 @@ jobs:
           - 4566:4566
     steps:
     # cache download ./node_modules/.cache
-      - uses: actions/checkout@v4 
+      - uses: actions/checkout@v7 
       - uses: actions/setup-node@v4
         with:
           node-version: '24.x'
@@ -57,7 +57,7 @@ jobs:
       contents: read
     steps:
     # cache download ./node_modules/.cache
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: '24.14.1'

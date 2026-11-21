@@ -64,10 +64,10 @@ jobs:
         run: |
           [ -n "$GH_TOKEN" ] || { echo "::error::secret TALOS_CLUSTER_TOKEN is not set"; exit 1; }
       # the chart that gets validated (and that Argo will render) is the one at the requested revision
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref || 'main' }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: micahg/talos-cluster
           ref: main
