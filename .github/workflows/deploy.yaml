@@ -71,16 +71,16 @@ jobs:
       api-version: ${{ needs.resolve.outputs.api-version }}
       mui-version: ${{ needs.resolve.outputs.mui-version }}
       release-version: ${{ needs.resolve.outputs.ref }}
-  # Prod still deploys with helm to DOKS. Protect the Prod environment (Settings -> Environments
-  # -> Prod -> Required reviewers) so this job waits for your approval after you validate dev.
-  deployment:
-    needs: [resolve]
+  # Prod runs on the Talos cluster. The job waits for approval on the Prod environment (Settings ->
+  # Environments -> Prod -> Required reviewers), then bumps talos-cluster; Argo CD does the deploy.
+  prod:
+    needs: [resolve, dev]
     permissions:
       contents: read
-    uses: ./.github/workflows/helm.yaml
+    uses: ./.github/workflows/deploy-prod.yaml
     secrets: inherit
     with:
-      environment: Prod
-      ref: ${{ needs.resolve.outputs.ref }}
       api-version: ${{ needs.resolve.outputs.api-version }}
       mui-version: ${{ needs.resolve.outputs.mui-version }}
+      release-version: ${{ needs.resolve.outputs.ref }}
+      ref: ${{ needs.resolve.outputs.ref }}
