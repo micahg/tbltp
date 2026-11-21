@@ -1,5 +1,9 @@
-name: Build and Upload Docker Images
-run-name: Build and Upload ${{ inputs.package }} Docker Image
+name: Build Docker Image
+run-name: Build ${{ inputs.package }} image (${{ inputs.tag }}, push ${{ inputs.push }})
+# Reusable. Builds packages/<package> and, when push is true, pushes ghcr.io/<repo>-<package>:<tag>.
+# Images are built once, on merge to main (build.yaml), and tagged sha-<commit>. A release never
+# rebuilds: it re-tags that image (release.yaml). Pull requests that touch a Dockerfile only build
+# (push false) so a broken Dockerfile is caught before the merge.
 on:
   workflow_call:
     inputs:
@@ -7,17 +11,21 @@ on:
         required: true
         type: string
       registry:
+        required: false
+        type: string
+        default: ghcr.io
+      tag:
+        description: Image tag, e.g. sha-1a2b3c4
         required: true
         type: string
-      version:
-        required: true
-        type: string
+      push:
+        required: false
+        type: boolean
+        default: true
 jobs:
   docker-image:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    # permissions come from the caller: packages write to push (build.yaml), read to only build
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,28 +36,24 @@ jobs:
         env:
           DISABLE_ESLINT_PLUGIN: true
         run: npm run build -w packages/${{ inputs.package }}
+      - uses: docker/setup-buildx-action@v3
       - name: Docker registry login
+        if: inputs.push
         uses: docker/login-action@v3
         with:
           registry: ${{ inputs.registry }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract metadata (tags, labels) for Docker
-        id: metadata
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ inputs.registry }}/${{ github.repository }}-${{ inputs.package }}
-          flavor: latest=true
-          labels: |
-            org.opencontainers.image.version=${{ inputs.version }}
-            org.opencontainers.image.title=${{ github.repository }}-${{ inputs.package }}
-          tags: |
-            type=semver,pattern={{version}},value=${{ inputs.version }}
-      - name: Docker Build and Push
+      - name: Docker Build
         uses: docker/build-push-action@v5
         with:
           context: ./packages/${{ inputs.package }}/
           file: ./packages/${{ inputs.package }}/Dockerfile
-          push: true
-          tags: ${{ steps.metadata.outputs.tags }}
-          labels: ${{ steps.metadata.outputs.labels }}
+          push: ${{ inputs.push }}
+          tags: ${{ inputs.registry }}/${{ github.repository }}-${{ inputs.package }}:${{ inputs.tag }}
+          labels: |
+            org.opencontainers.image.title=${{ github.repository }}-${{ inputs.package }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=${{ inputs.package }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.package }}

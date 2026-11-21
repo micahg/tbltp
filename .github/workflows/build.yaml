@@ -1,0 +1,91 @@
+name: Build
+run-name: Build ${{ github.sha }}
+# Every merge to main builds the packages it changed, once, and bumps dev to the new images through
+# a self-merging pull request in micahg/talos-cluster (deploy-dev.yaml). Images are tagged
+# sha-<first 7 of the commit>. A release later re-tags these images with semver and promotes them to
+# prod; nothing is rebuilt then. Chart-only merges build nothing (Argo CD already follows main).
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to build from the selected ref (api, mui or both)
+        required: true
+        type: choice
+        options: [both, api, mui]
+        default: both
+concurrency:
+  group: build-main
+  cancel-in-progress: false
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      api: ${{ steps.diff.outputs.api }}
+      mui: ${{ steps.diff.outputs.mui }}
+      tag: ${{ steps.diff.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          WANT: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          api=false mui=false
+          if [ "$EVENT" = workflow_dispatch ]; then
+            [ "$WANT" != mui ] && api=true
+            [ "$WANT" != api ] && mui=true
+          else
+            # a squash or rebase merge has one parent: diff against it
+            files=$(git diff --name-only HEAD^ HEAD)
+            echo "$files"
+            # packages/common feeds both; the lockfiles are shared
+            echo "$files" | grep -qE '^(packages/api/|packages/common/|package(-lock)?\.json$)' && api=true
+            echo "$files" | grep -qE '^(packages/mui/|packages/common/|package(-lock)?\.json$)' && mui=true
+          fi
+          echo "api=$api" >> "$GITHUB_OUTPUT"
+          echo "mui=$mui" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          echo "Build: api=$api mui=$mui tag=sha-${GITHUB_SHA:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
+  package-api:
+    needs: [changes]
+    if: needs.changes.outputs.api == 'true'
+    uses: ./.github/workflows/docker.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      package: api
+      tag: ${{ needs.changes.outputs.tag }}
+  package-mui:
+    needs: [changes]
+    if: needs.changes.outputs.mui == 'true'
+    uses: ./.github/workflows/docker.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      package: mui
+      tag: ${{ needs.changes.outputs.tag }}
+  dev:
+    needs: [changes, package-api, package-mui]
+    # a skipped package job must not skip dev, a failed one must
+    if: |
+      always() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      (needs.changes.outputs.api == 'true' || needs.changes.outputs.mui == 'true')
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy-dev.yaml
+    secrets: inherit
+    with:
+      api-version: ${{ needs.changes.outputs.api == 'true' && needs.changes.outputs.tag || '' }}
+      mui-version: ${{ needs.changes.outputs.mui == 'true' && needs.changes.outputs.tag || '' }}
