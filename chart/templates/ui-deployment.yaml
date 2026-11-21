@@ -14,6 +14,9 @@ spec:
     metadata:
       labels:
         app: {{ .Values.uiAppName }}
+      annotations:
+        # restart the pods when the ConfigMap changes (they only read it at startup)
+        checksum/env-config: {{ include (print $.Template.BasePath "/env-config-map.yaml") . | sha256sum }}
     spec:
       containers:
       - name: {{ .Values.uiAppName }}
