@@ -1,6 +1,10 @@
-# image tags, releaseVersion and deployEnv are set at install time (CI deploys pass --set)
+# These defaults ARE production (Talos cluster, Argo CD, Cloudflare Tunnel, Atlas, R2). Other
+# environments override them in values-<env>.yaml (see values-dev.yaml).
+# releaseVersion, apiImageVers and uiImageVers are NOT here: they live in micahg/talos-cluster
+# envs/<env>/ntt.yaml, bumped by a pull request there after a release is approved. For a local
+# render pass them with --set.
 namespace: ntt
-deployEnv: local
+deployEnv: prod
 uiAppName: ntt-ui
 uiAppReplicas: 1
 uiImagePath: ghcr.io/micahg/tbltp-mui
@@ -19,7 +23,8 @@ certIssuer: letsencrypt-staging
 maxBodySize: 32m
 wsReadTimeout: 60
 wsSendTimeout: 60
-ingressNamespace: "ingress-nginx"
+# Traffic arrives via cloudflared, not nginx. The Cilium policies admit it by namespace.
+ingressNamespace: "cloudflared"
 issuerDomain: "tbltp.us.auth0.com"
 clientId: I9UCeStWDPIHZsXhXk9XeIDpFyIjBwC8
 otelDomain: "otlp-gateway-prod-ca-east-0.grafana.net"
@@ -34,11 +39,16 @@ storageS3Endpoint: ""
 storageS3Bucket: ""
 storageS3AccessKeyId: ""
 storageS3SecretAccessKey: ""
-# Feature switches (defaults keep the original behaviour)
-ingressEnabled: true     # false when traffic arrives through Cloudflare Tunnel
-createNamespace: true    # false when another Argo CD app creates the namespace
-createSecrets: true      # false when Secrets are supplied out of band (Sealed Secrets)
-mongoExternal: false     # true when MONGO_URL comes from a pre-created Secret (e.g. Atlas)
+# Feature switches
+ingressEnabled: false    # true to create an nginx Ingress (traffic normally arrives through Cloudflare Tunnel)
+createNamespace: false   # true when no other Argo CD app creates the namespace
+createSecrets: false     # true to create Secrets from values; in GitOps they are SealedSecrets
+                         # (mongo-connection-string, ntt-api-s3-storage) applied by the ntt-secrets app
+mongoExternal: true      # false to run MongoDB in the cluster; true when MONGO_URL comes from a
+                         # pre-created Secret (Atlas). It must name the database (mongoDB: tbltp),
+                         # otherwise the API would use "test".
 # Extra FQDN patterns the API may reach for S3 (non-secret). Used when the endpoint is
-# not injected as a value, e.g. GitOps with sealed secrets.
-storageS3EgressPatterns: []
+# not injected as a value, e.g. GitOps with sealed secrets. Cloudflare R2's bucket host is two
+# labels deep, hence **; this keeps the account id out of Git.
+storageS3EgressPatterns:
+  - "**.r2.cloudflarestorage.com"
