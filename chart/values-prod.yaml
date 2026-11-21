@@ -4,10 +4,9 @@
 # release. For a local render pass them with --set.
 deployEnv: prod
 
-# Test hostnames while DOKS still serves prod. At cutover these become tbltp.dev and api.tbltp.dev
-# (the Auth0 callback, logout and audience URLs and the tunnel routes change with them).
-uiDomain: "prod.tbltp.dev"
-apiDomain: "prod-api.tbltp.dev"
+# The production hostnames, served through the prod Cloudflare tunnel.
+uiDomain: "tbltp.dev"
+apiDomain: "api.tbltp.dev"
 issuerDomain: "tbltp.us.auth0.com"
 clientId: I9UCeStWDPIHZsXhXk9XeIDpFyIjBwC8
 
