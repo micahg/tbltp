@@ -17,8 +17,6 @@ jobs:
       package_api: ${{ steps.version-mono.outputs.package_api }}
       new_api_version: ${{ steps.version-mono.outputs.new_api_version }}
       new_mui_version: ${{ steps.version-mono.outputs.new_mui_version }}
-      sha_api: ${{ steps.version-mono.outputs.sha_api }}
-      sha_mui: ${{ steps.version-mono.outputs.sha_mui }}
       current_api: ${{ steps.version-mono.outputs.current_api }}
       current_mui: ${{ steps.version-mono.outputs.current_mui }}
     steps:
@@ -48,9 +46,6 @@ jobs:
             else
               NEW=$(printf '%s' "$CURRENT" | awk -F. '{printf "%d.%d.0", $1, $2+1}')
             fi
-            # the image build.yaml made for the last commit that touched this package
-            SRC=$(git log -1 --format=%H HEAD -- "packages/$p" packages/common)
-            echo "sha_$p=sha-${SRC:0:7}" >> "$GITHUB_OUTPUT"
             echo "current_$p=$CURRENT" >> "$GITHUB_OUTPUT"
             if [ "$CHANGED" = true ]; then
               echo "package_$p=true" >> "$GITHUB_OUTPUT"
@@ -66,6 +61,10 @@ jobs:
       contents: read
       packages: write
     steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v4
         with:
@@ -80,8 +79,6 @@ jobs:
           PACKAGE_MUI: ${{ needs.start-release.outputs.package_mui }}
           NEW_API: ${{ needs.start-release.outputs.new_api_version }}
           NEW_MUI: ${{ needs.start-release.outputs.new_mui_version }}
-          SHA_API: ${{ needs.start-release.outputs.sha_api }}
-          SHA_MUI: ${{ needs.start-release.outputs.sha_mui }}
           CURRENT_API: ${{ needs.start-release.outputs.current_api }}
           CURRENT_MUI: ${{ needs.start-release.outputs.current_mui }}
         run: |
@@ -89,21 +86,27 @@ jobs:
           REL="release-${RELEASE_TAG#v}"
           for p in api mui; do
             up=${p^^}
-            changed=PACKAGE_$up; new=NEW_$up; sha=SHA_$up; current=CURRENT_$up
+            changed=PACKAGE_$up; new=NEW_$up; current=CURRENT_$up
             IMG="ghcr.io/${REPO}-$p"
             if [ "${!changed}" = true ]; then
-              SRC="$IMG:${!sha}"
-              # the merge's build may still be running: wait up to 10 minutes for it
+              # Merges can be skipped by the build, so the image for the last commit that touched
+              # this package may not exist. Use the newest commit whose image exists and whose
+              # package content equals the release's (build.yaml builds everything since its last run).
+              SRC=
               for i in $(seq 1 30); do
-                docker buildx imagetools inspect "$SRC" > /dev/null 2>&1 && break
-                echo "waiting for $SRC ($i/30)"; sleep 20
+                for c in $(git rev-list --first-parent -n 200 HEAD); do
+                  git diff --quiet "$c" HEAD -- "packages/$p" packages/common || break
+                  if docker buildx imagetools inspect "$IMG:sha-${c:0:7}" > /dev/null 2>&1; then SRC="$IMG:sha-${c:0:7}"; break; fi
+                done
+                [ -n "$SRC" ] && break
+                echo "no $p image for this release's content yet, waiting ($i/30)"; sleep 20
               done
-              docker buildx imagetools inspect "$SRC" > /dev/null 2>&1 || {
-                echo "::error::$SRC does not exist. Its merge build failed or never ran; run Build (workflow_dispatch) for $p on the release commit, then re-run this job."
+              [ -n "$SRC" ] || {
+                echo "::error::no sha-<commit> image of $p matches this release. Its build failed or never ran; run Build (workflow_dispatch) for $p on the release commit, then re-run this job."
                 exit 1
               }
               docker buildx imagetools create -t "$IMG:${!new}" -t "$IMG:$REL" "$SRC"
-              echo "$p: ${!sha} -> ${!new} ($REL)" | tee -a "$GITHUB_STEP_SUMMARY"
+              echo "$p: ${SRC##*:} -> ${!new} ($REL)" | tee -a "$GITHUB_STEP_SUMMARY"
             else
               # unchanged since its last release: it ships the image it already had
               docker buildx imagetools create -t "$IMG:$REL" "$IMG:${!current}"

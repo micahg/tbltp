@@ -4,6 +4,8 @@ run-name: Build ${{ github.sha }}
 # a self-merging pull request in micahg/talos-cluster (deploy-dev.yaml). Images are tagged
 # sha-<first 7 of the commit>. A release later re-tags these images with semver and promotes them to
 # prod; nothing is rebuilt then. Chart-only merges build nothing (Argo CD already follows main).
+# If merges arrive faster than builds finish, GitHub skips the ones in the middle and the last run
+# builds everything that changed since the last finished build, so no change is lost.
 on:
   push:
     branches:
@@ -31,11 +33,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - id: diff
         env:
           EVENT: ${{ github.event_name }}
           WANT: ${{ inputs.package }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           api=false mui=false
@@ -43,16 +46,27 @@ jobs:
             [ "$WANT" != mui ] && api=true
             [ "$WANT" != api ] && mui=true
           else
-            # a squash or rebase merge has one parent: diff against it
-            files=$(git diff --name-only HEAD^ HEAD)
-            echo "$files"
-            # packages/common feeds both; the lockfiles are shared
-            echo "$files" | grep -qE '^(packages/api/|packages/common/|package(-lock)?\.json$)' && api=true
-            echo "$files" | grep -qE '^(packages/mui/|packages/common/|package(-lock)?\.json$)' && mui=true
+            # Merges that arrive while another build is running can be skipped (GitHub keeps one
+            # pending run per group). So compare against the last commit a push run of this workflow
+            # finished for, not against HEAD^, otherwise a skipped merge's changes would never build.
+            BASE=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yaml/runs?branch=main&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty')
+            if [ -z "$BASE" ] || ! git merge-base --is-ancestor "$BASE" HEAD 2>/dev/null; then
+              echo "No usable earlier build to compare with, building both."
+              api=true mui=true
+            else
+              echo "Comparing with the last finished build, ${BASE:0:7}"
+              files=$(git diff --name-only "$BASE" HEAD)
+              echo "$files"
+              # packages/common feeds both; the lockfiles are shared
+              echo "$files" | grep -qE '^(packages/api/|packages/common/|package(-lock)?\.json$)' && api=true
+              echo "$files" | grep -qE '^(packages/mui/|packages/common/|package(-lock)?\.json$)' && mui=true
+            fi
           fi
-          echo "api=$api" >> "$GITHUB_OUTPUT"
-          echo "mui=$mui" >> "$GITHUB_OUTPUT"
-          echo "tag=sha-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          {
+            echo "api=$api"
+            echo "mui=$mui"
+            echo "tag=sha-${GITHUB_SHA:0:7}"
+          } >> "$GITHUB_OUTPUT"
           echo "Build: api=$api mui=$mui tag=sha-${GITHUB_SHA:0:7}" | tee -a "$GITHUB_STEP_SUMMARY"
   package-api:
     needs: [changes]
