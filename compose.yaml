@@ -1,6 +1,6 @@
 services:
   mongo:
-    image: mongo:8.0.38
+    image: mongo:9.0.8
     ports:
       - 27017:27017
   localstack:
