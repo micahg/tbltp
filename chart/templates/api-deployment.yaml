@@ -192,22 +192,13 @@ spec:
       - port: "443"
         protocol: TCP
   {{- end }}
-  # mongo egress: Atlas always; plus the in-cluster pod when we run our own
+  # mongo egress: Atlas
   - toFQDNs:
     - matchPattern: "*.{{ .Values.mongoSuffix }}"
     toPorts:
     - ports:
       - port: "{{ .Values.mongoPort }}"
         protocol: TCP
-{{- if not (or .Values.mongoConnectionString .Values.mongoExternal) }}
-  - toEndpoints:
-    - matchLabels:
-      "app": {{ .Values.mongoName }}
-    toPorts:
-    - ports:
-      - port: "{{ .Values.mongoPort }}"
-        protocol: TCP
-{{- end }}
   ingress:
   - fromEndpoints:
     - matchLabels:

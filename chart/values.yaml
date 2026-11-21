@@ -15,10 +15,7 @@ apiImagePath: ghcr.io/micahg/tbltp-api
 apiDomain: "api.tbltp.dev"
 mongoName: "mongo"
 mongoSuffix: "lrmrxki.mongodb.net"
-mongoImagePath: mongo
-mongoImageVers: 8.0.4
 mongoPort: 27017
-mongoDB: tbltp
 certIssuer: letsencrypt-staging
 maxBodySize: 32m
 wsReadTimeout: 60
@@ -44,9 +41,8 @@ ingressEnabled: false    # true to create an nginx Ingress (traffic normally arr
 createNamespace: false   # true when no other Argo CD app creates the namespace
 createSecrets: false     # true to create Secrets from values; in GitOps they are SealedSecrets
                          # (mongo-connection-string, ntt-api-s3-storage) applied by the ntt-secrets app
-mongoExternal: true      # false to run MongoDB in the cluster; true when MONGO_URL comes from a
-                         # pre-created Secret (Atlas). It must name the database (mongoDB: tbltp),
-                         # otherwise the API would use "test".
+# MONGO_URL comes from the mongo-connection-string Secret (Atlas). It must name the
+# database (tbltp), otherwise the API would use "test".
 # Extra FQDN patterns the API may reach for S3 (non-secret). Used when the endpoint is
 # not injected as a value, e.g. GitOps with sealed secrets. Cloudflare R2's bucket host is two
 # labels deep, hence **; this keeps the account id out of Git.
