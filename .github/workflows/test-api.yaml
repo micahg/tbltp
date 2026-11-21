@@ -33,7 +33,7 @@ jobs:
     steps:
     # cache download ./node_modules/.cache
       - uses: actions/checkout@v7 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24.x'
       - name: Cache Mongo Binary
@@ -58,7 +58,7 @@ jobs:
     steps:
     # cache download ./node_modules/.cache
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24.14.1'
       - run: npm ci
