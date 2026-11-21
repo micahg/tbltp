@@ -12,19 +12,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Helm Template (default values)
-        # note that --set mongoConnectionString is a hack just to validate output
+      - name: Helm Template (default values, which are prod)
+        # the pins live in micahg/talos-cluster envs/prod/ntt.yaml; --set stands in for them here
         run: |
           helm template ntt-infra chart -f chart/values.yaml \
-          --set mongoConnectionString=CON_STR_VALUE \
           --set apiImageVers=CI_VALUE --set uiImageVers=CI_VALUE --set releaseVersion=CI_VALUE > /dev/null
       - name: Helm Template (dev)
         # the pins live in micahg/talos-cluster envs/dev/ntt.yaml; --set stands in for them here
         run: |
           helm template ntt-infra chart -f chart/values.yaml -f chart/values-dev.yaml \
-          --set apiImageVers=CI_VALUE --set uiImageVers=CI_VALUE --set releaseVersion=CI_VALUE > /dev/null
-      - name: Helm Template (prod)
-        # the pins live in micahg/talos-cluster envs/prod/ntt.yaml; --set stands in for them here
-        run: |
-          helm template ntt-infra chart -f chart/values.yaml -f chart/values-prod.yaml \
           --set apiImageVers=CI_VALUE --set uiImageVers=CI_VALUE --set releaseVersion=CI_VALUE > /dev/null

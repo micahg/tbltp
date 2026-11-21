@@ -40,7 +40,7 @@ on:
         required: false
         type: string
       ref:
-        description: Chart revision (a v* tag, or main). Blank leaves the current one. The revision must contain chart/values-prod.yaml.
+        description: Chart revision (a v* tag, or main). Blank leaves the current one. The revision must have prod as the chart default (values.yaml), which older tags do not.
         required: false
         type: string
 concurrency:
@@ -103,7 +103,7 @@ jobs:
           fi
           git diff -- "$f" argocd/prod/apps/ntt.yaml
       - name: Validate Chart
-        run: helm template ntt-infra chart -f chart/values.yaml -f chart/values-prod.yaml -f cluster/envs/prod/ntt.yaml > /dev/null
+        run: helm template ntt-infra chart -f chart/values.yaml -f cluster/envs/prod/ntt.yaml > /dev/null
       - name: Open PR And Merge
         working-directory: cluster
         run: |
