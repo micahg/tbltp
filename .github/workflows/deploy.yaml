@@ -84,3 +84,14 @@ jobs:
       mui-version: ${{ needs.resolve.outputs.mui-version }}
       release-version: ${{ needs.resolve.outputs.ref }}
       ref: ${{ needs.resolve.outputs.ref }}
+  # Cloudflare Worker (migration in progress): rebuilds the released mui commit (its mui/v* tag)
+  # and deploys the prod Worker after the same Prod approval. Independent of the k8s deploy above.
+  worker-prod:
+    needs: [resolve, dev]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy-worker.yaml
+    secrets: inherit
+    with:
+      environment: prod
+      ref: mui/v${{ needs.resolve.outputs.mui-version }}
