@@ -1,0 +1,61 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tbltp-mui",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-01-01",
+  "assets": {
+    "directory": "./build",
+    "binding": "ASSETS",
+    // deep links (/edit, /display, /device) fall back to index.html
+    "not_found_handling": "single-page-application",
+    // generated from vars by the Worker, not the static copies in public/
+    "run_worker_first": ["/env.json", "/auth.json"]
+  },
+  // top level = `wrangler dev` (matches public/env.json and public/auth.json)
+  "vars": {
+    "API_URL": "http://localhost:3000",
+    "WS_URL": "ws://localhost:3000/",
+    "AUTH_DOMAIN": "nttdev.us.auth0.com",
+    "CLIENT_ID": "blFghGfwUHOlKwDZzOELBFmxOTkxCeQr",
+    "AUDIENCE_URL": "http://localhost:3000/",
+    "REDIRECT_URL": "http://localhost:8787/edit"
+  },
+  "env": {
+    "dev": {
+      "name": "tbltp-mui-dev",
+      "vars": {
+        "API_URL": "https://dev-api.tbltp.dev",
+        "WS_URL": "wss://dev-api.tbltp.dev",
+        "AUTH_DOMAIN": "nttdev.us.auth0.com",
+        "CLIENT_ID": "blFghGfwUHOlKwDZzOELBFmxOTkxCeQr",
+        "AUDIENCE_URL": "https://dev-api.tbltp.dev",
+        "REDIRECT_URL": "https://dev.tbltp.dev/edit"
+      }
+    },
+    // Temporary: prod config on a throwaway hostname to validate the Worker before cutover.
+    // Delete once prod is served from tbltp.dev.
+    "preview": {
+      "name": "tbltp-mui-preview",
+      "routes": [{ "pattern": "prod.tbltp.dev", "custom_domain": true }],
+      "vars": {
+        "API_URL": "https://api.tbltp.dev",
+        "WS_URL": "wss://api.tbltp.dev",
+        "AUTH_DOMAIN": "tbltp.us.auth0.com",
+        "CLIENT_ID": "I9UCeStWDPIHZsXhXk9XeIDpFyIjBwC8",
+        "AUDIENCE_URL": "https://api.tbltp.dev",
+        "REDIRECT_URL": "https://prod.tbltp.dev/edit"
+      }
+    },
+    "prod": {
+      "name": "tbltp-mui-prod",
+      "vars": {
+        "API_URL": "https://api.tbltp.dev",
+        "WS_URL": "wss://api.tbltp.dev",
+        "AUTH_DOMAIN": "tbltp.us.auth0.com",
+        "CLIENT_ID": "I9UCeStWDPIHZsXhXk9XeIDpFyIjBwC8",
+        "AUDIENCE_URL": "https://api.tbltp.dev",
+        "REDIRECT_URL": "https://tbltp.dev/edit"
+      }
+    }
+  }
+}

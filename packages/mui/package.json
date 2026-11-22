@@ -32,7 +32,9 @@
     "test": "jest",
     "test:utils": "jest --runInBand test/",
     "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint:fix": "eslint src --fix",
+    "worker:dev": "wrangler dev",
+    "worker:check": "wrangler deploy --dry-run --env dev"
   },
   "browserslist": {
     "production": [
@@ -79,6 +81,7 @@
     "prettier": "^3.3.3",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.56.1",
-    "vite": "^6.2.2"
+    "vite": "^6.2.2",
+    "wrangler": "^4.166.0"
   }
 }

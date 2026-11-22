@@ -103,3 +103,14 @@ jobs:
     with:
       api-version: ${{ needs.changes.outputs.api == 'true' && needs.changes.outputs.tag || '' }}
       mui-version: ${{ needs.changes.outputs.mui == 'true' && needs.changes.outputs.tag || '' }}
+  # Cloudflare Worker (migration in progress): runs beside the image build and deploy, and nothing
+  # waits on it, so a failure here cannot block the k8s dev deploy.
+  worker-dev:
+    needs: [changes]
+    if: needs.changes.outputs.mui == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy-worker.yaml
+    secrets: inherit
+    with:
+      environment: dev

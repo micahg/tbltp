@@ -28,5 +28,7 @@ jobs:
         env:
           DISABLE_ESLINT_PLUGIN: true
         run: npm run build -w packages/mui
-
-      
+      - name: Check Worker Bundle
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npm run worker:check -w packages/mui
