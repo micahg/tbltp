@@ -1,11 +1,20 @@
 {
   "name": "@micahg/tbltp-mui",
   "version": "0.30.0",
+  "description": "Tabletop display UI (editor and remote display): static build plus a Cloudflare Worker",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/micahg/tbltp.git",
+    "directory": "packages/mui"
+  },
   "files": [
-    "build"
+    "build",
+    "worker",
+    "wrangler.jsonc"
   ],
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com/@micahg"
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.15.0",

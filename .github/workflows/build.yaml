@@ -78,8 +78,16 @@ jobs:
     with:
       package: api
       tag: ${{ needs.changes.outputs.tag }}
-  package-mui:
+  # the UI is built once here; the image and the Worker below are assembled from this package
+  publish-mui:
     needs: [changes]
+    if: needs.changes.outputs.mui == 'true'
+    uses: ./.github/workflows/publish-ui.yaml
+    permissions:
+      contents: read
+      packages: write
+  package-mui:
+    needs: [changes, publish-mui]
     if: needs.changes.outputs.mui == 'true'
     uses: ./.github/workflows/docker.yaml
     permissions:
@@ -88,8 +96,9 @@ jobs:
     with:
       package: mui
       tag: ${{ needs.changes.outputs.tag }}
+      ui-version: ${{ needs.publish-mui.outputs.version }}
   dev:
-    needs: [changes, package-api, package-mui]
+    needs: [changes, package-api, publish-mui, package-mui]
     # a skipped package job must not skip dev, a failed one must
     if: |
       always() &&
@@ -106,11 +115,13 @@ jobs:
   # Cloudflare Worker (migration in progress): runs beside the image build and deploy, and nothing
   # waits on it, so a failure here cannot block the k8s dev deploy.
   worker-dev:
-    needs: [changes]
+    needs: [changes, publish-mui]
     if: needs.changes.outputs.mui == 'true'
     permissions:
       contents: read
+      packages: read
     uses: ./.github/workflows/deploy-worker.yaml
     secrets: inherit
     with:
       environment: dev
+      version: ${{ needs.publish-mui.outputs.version }}

@@ -1,0 +1,33 @@
+name: Fetch UI package
+description: >-
+  Download a published @micahg/tbltp-mui tarball from GitHub Packages and extract it (build/, worker/
+  and wrangler.jsonc) into dest. Uses `npm pack`, which only downloads the tarball and never resolves
+  the package's dependencies.
+inputs:
+  version:
+    description: Package version, e.g. 0.31.0 or 0.30.0-sha.1a2b3c4
+    required: true
+  token:
+    description: Token with packages:read
+    required: true
+  dest:
+    description: Directory to extract into
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        TOKEN: ${{ inputs.token }}
+        DEST: ${{ inputs.dest }}
+      run: |
+        set -euo pipefail
+        rc="$RUNNER_TEMP/fetch-ui.npmrc"
+        printf '@micahg:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$TOKEN" > "$rc"
+        tmp=$(mktemp -d)
+        npm pack "@micahg/tbltp-mui@$VERSION" --userconfig "$rc" --pack-destination "$tmp" > /dev/null
+        mkdir -p "$DEST"
+        tar -xzf "$tmp"/*.tgz -C "$DEST" --strip-components=1
+        rm -f "$rc"
+        ls "$DEST"

@@ -1,5 +1,5 @@
 name: Release
-# A release never builds. Every merge to main already built the changed images as sha-<commit>
+# A release never builds (the UI package is republished, not rebuilt). Every merge to main already built the changed images as sha-<commit>
 # (build.yaml). Here each changed package's image for its last commit is re-tagged with the next
 # semver (same digest, so prod runs exactly what dev ran), both packages also get a
 # release-<version> tag that ties them to this release, and Deploy promotes the result to dev and
@@ -57,8 +57,10 @@ jobs:
   promote:
     needs: [start-release]
     runs-on: ubuntu-latest
+    outputs:
+      mui_sha: ${{ steps.retag.outputs.mui_sha }}
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - uses: actions/checkout@v7
@@ -72,6 +74,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Re-tag Images
+        id: retag
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           REPO: ${{ github.repository }}
@@ -106,6 +109,8 @@ jobs:
                 exit 1
               }
               docker buildx imagetools create -t "$IMG:${!new}" -t "$IMG:$REL" "$SRC"
+              # the UI package for this commit was published with the same sha suffix
+              [ "$p" = mui ] && echo "mui_sha=${SRC##*:sha-}" >> "$GITHUB_OUTPUT"
               echo "$p: ${SRC##*:} -> ${!new} ($REL)" | tee -a "$GITHUB_STEP_SUMMARY"
             else
               # unchanged since its last release: it ships the image it already had
@@ -113,8 +118,52 @@ jobs:
               echo "$p: unchanged, ${!current} ($REL)" | tee -a "$GITHUB_STEP_SUMMARY"
             fi
           done
-  tag-packages:
+  # The mui image was assembled from @micahg/tbltp-mui@<base>-sha.<commit> (publish-ui.yaml). Publish
+  # those same files under the release version, so prod, the Worker, and anyone installing the
+  # package get the exact build dev ran, and attach the tarball to the release for anonymous download.
+  publish-ui:
     needs: [start-release, promote]
+    if: needs.start-release.outputs.package_mui == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          registry-url: https://npm.pkg.github.com
+          scope: '@micahg'
+      - name: Republish UI Package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          NEW: ${{ needs.start-release.outputs.new_mui_version }}
+          SHA: ${{ needs.promote.outputs.mui_sha }}
+        run: |
+          set -euo pipefail
+          PKG=@micahg/tbltp-mui
+          SRC=$(npm view "$PKG" versions --json | jq -r --arg s "-sha.$SHA" 'if type == "array" then .[] else . end | select(endswith($s))' | head -n 1)
+          [ -n "$SRC" ] || { echo "::error::no $PKG version ending -sha.$SHA, the Build run for that commit did not publish it"; exit 1; }
+          d=$(mktemp -d)
+          npm pack "$PKG@$SRC" --pack-destination "$d" > /dev/null
+          mkdir "$d/pkg" "$d/out"
+          tar -xzf "$d"/*.tgz -C "$d/pkg" --strip-components=1
+          cd "$d/pkg"
+          npm pkg set version="$NEW"
+          if [ -z "$(npm view "$PKG@$NEW" version 2> /dev/null || true)" ]; then
+            npm publish
+          else
+            echo "$PKG@$NEW is already published"
+          fi
+          npm pack --pack-destination "$d/out" > /dev/null
+          gh release upload "$RELEASE_TAG" "$d"/out/*.tgz --clobber
+          echo "ui: $SRC -> $NEW (same files)" | tee -a "$GITHUB_STEP_SUMMARY"
+  tag-packages:
+    needs: [start-release, promote, publish-ui]
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
