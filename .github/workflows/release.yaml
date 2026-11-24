@@ -118,7 +118,7 @@ jobs:
               echo "$p: unchanged, ${!current} ($REL)" | tee -a "$GITHUB_STEP_SUMMARY"
             fi
           done
-  # The mui image was assembled from @micahg/tbltp-mui@<base>-sha.<commit> (publish-ui.yaml). Publish
+  # The mui image was assembled from @micahg/tbltp-mui@<base>-sha-<commit> (publish-ui.yaml). Publish
   # those same files under the release version, so prod, the Worker, and anyone installing the
   # package get the exact build dev ran, and attach the tarball to the release for anonymous download.
   publish-ui:
@@ -146,8 +146,8 @@ jobs:
         run: |
           set -euo pipefail
           PKG=@micahg/tbltp-mui
-          SRC=$(npm view "$PKG" versions --json | jq -r --arg s "-sha.$SHA" 'if type == "array" then .[] else . end | select(endswith($s))' | head -n 1)
-          [ -n "$SRC" ] || { echo "::error::no $PKG version ending -sha.$SHA, the Build run for that commit did not publish it"; exit 1; }
+          SRC=$(npm view "$PKG" versions --json | jq -r --arg s "-sha-$SHA" 'if type == "array" then .[] else . end | select(endswith($s))' | head -n 1)
+          [ -n "$SRC" ] || { echo "::error::no $PKG version ending -sha-$SHA, the Build run for that commit did not publish it"; exit 1; }
           d=$(mktemp -d)
           npm pack "$PKG@$SRC" --pack-destination "$d" > /dev/null
           mkdir "$d/pkg" "$d/out"

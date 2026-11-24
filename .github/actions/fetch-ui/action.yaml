@@ -5,7 +5,7 @@ description: >-
   the package's dependencies.
 inputs:
   version:
-    description: Package version, e.g. 0.31.0 or 0.30.0-sha.1a2b3c4
+    description: Package version, e.g. 0.31.0 or 0.30.0-sha-1a2b3c4
     required: true
   token:
     description: Token with packages:read
