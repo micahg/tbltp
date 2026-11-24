@@ -23,6 +23,9 @@
   "env": {
     "dev": {
       "name": "tbltp-mui-dev",
+      // Zone route, not a custom domain: the existing proxied DNS record (the tunnel to the k8s UI)
+      // stays, and the Worker answers first. Roll back by removing this route and redeploying.
+      "routes": [{ "pattern": "dev.tbltp.dev/*", "zone_name": "tbltp.dev" }],
       "vars": {
         "API_URL": "https://dev-api.tbltp.dev",
         "WS_URL": "wss://dev-api.tbltp.dev",
