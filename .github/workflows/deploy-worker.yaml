@@ -41,6 +41,7 @@ jobs:
       contents: read
       packages: read
     env:
+      WRANGLER_VERSION: 4.166.0 # wrangler is not a project dependency; bump here (and in test-mui.yaml)
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       WRANGLER_SEND_METRICS: "false"
@@ -51,7 +52,7 @@ jobs:
             echo "::error::secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID must both be set"
             exit 1
           }
-      # the checkout only supplies the local fetch-ui action and the wrangler pin in packages/mui/package.json
+      # the checkout only supplies the local fetch-ui action
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
@@ -62,9 +63,8 @@ jobs:
           version: ${{ inputs.version }}
           token: ${{ github.token }}
           dest: ${{ runner.temp }}/ui
-      # the package is already built, so no install: just run the pinned wrangler (config.wrangler)
+      # the package is already built, so no install: just run the pinned wrangler
       - name: Deploy
         run: |
           set -euo pipefail
-          WRANGLER=$(node -p "require('./packages/mui/package.json').config.wrangler")
-          npx --yes "wrangler@$WRANGLER" deploy --config "$RUNNER_TEMP/ui/wrangler.jsonc" --env "${{ inputs.environment }}"
+          npx --yes "wrangler@$WRANGLER_VERSION" deploy --config "$RUNNER_TEMP/ui/wrangler.jsonc" --env "${{ inputs.environment }}"
