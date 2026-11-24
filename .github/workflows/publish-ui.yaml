@@ -63,5 +63,6 @@ jobs:
           set -euo pipefail
           npm pkg set version="$VERSION"
           npm pkg delete dependencies devDependencies scripts browserslist
-          npm publish
+          # npm refuses to publish a prerelease as `latest`; that tag is reserved for releases
+          npm publish --tag dev
           echo "Published @micahg/tbltp-mui@$VERSION" | tee -a "$GITHUB_STEP_SUMMARY"
