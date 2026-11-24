@@ -22,6 +22,11 @@ on:
         required: false
         type: boolean
         default: true
+      ui-version:
+        description: Published @micahg/tbltp-mui version to assemble the mui image from (blank builds from source)
+        required: false
+        type: string
+        default: ""
 jobs:
   docker-image:
     runs-on: ubuntu-latest
@@ -31,11 +36,25 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '24.x'
-      - run: npm ci -w packages/${{ inputs.package }}
+      # the mui image is assembled from the published package, so it holds exactly the files the
+      # Worker deploys. Without a version (a pull request touching the Dockerfile) it builds from source.
+      - if: inputs.package != 'mui' || inputs.ui-version == ''
+        run: npm ci -w packages/${{ inputs.package }}
       - name: Package build
+        if: inputs.package != 'mui' || inputs.ui-version == ''
         env:
           DISABLE_ESLINT_PLUGIN: true
         run: npm run build -w packages/${{ inputs.package }}
+      - name: Fetch UI package
+        if: inputs.package == 'mui' && inputs.ui-version != ''
+        uses: ./.github/actions/fetch-ui
+        with:
+          version: ${{ inputs.ui-version }}
+          token: ${{ github.token }}
+          dest: ${{ runner.temp }}/ui
+      - name: Use UI package build
+        if: inputs.package == 'mui' && inputs.ui-version != ''
+        run: cp -r "$RUNNER_TEMP/ui/build" packages/mui/build
       - uses: docker/setup-buildx-action@v4
       - name: Docker registry login
         if: inputs.push

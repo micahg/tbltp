@@ -1,0 +1,67 @@
+name: Publish UI Package
+run-name: Publish UI package (${{ github.sha }})
+# Builds packages/mui once and publishes it to GitHub Packages as @micahg/tbltp-mui at
+# <next release version>-sha-<first 7 of the commit>. Everything downstream (the nginx image, the
+# Cloudflare Worker, the release) is assembled from this package and never rebuilds the UI, so dev
+# and prod run byte-identical files. A release republishes the same files under the release semver
+# (release.yaml). The published manifest has no dependencies: the build is already bundled, and
+# the workspace's file:../common dependency would not resolve for outside consumers.
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: Published package version
+        value: ${{ jobs.publish.outputs.version }}
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          registry-url: https://npm.pkg.github.com
+          scope: '@micahg'
+      - id: ver
+        run: |
+          set -euo pipefail
+          # Same rule as release.yaml: the next release is the latest mui/v* tag with the minor bumped,
+          # so this is a prerelease of it (sorts above the last release, below the next). package.json's
+          # version is never read or written back; the tag is created after the release publishes.
+          latest=$(git ls-remote --tags --refs origin 'refs/tags/mui/v*' | sed 's|.*refs/tags/mui/v||' | sort -V | tail -n 1)
+          [ -n "$latest" ] || { echo "::error::no mui/v* tag found, seed a baseline tag first"; exit 1; }
+          next=$(printf '%s' "$latest" | awk -F. '{printf "%d.%d.0", $1, $2+1}')
+          version="${next}-sha-${GITHUB_SHA:0:7}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # a re-run of the same commit must not fail on the immutable version
+          if [ -n "$(npm view "@micahg/tbltp-mui@$version" version 2> /dev/null || true)" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "@micahg/tbltp-mui@$version is already published" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.ver.outputs.exists == 'false'
+        run: npm ci -w packages/mui
+      - name: Build
+        if: steps.ver.outputs.exists == 'false'
+        env:
+          DISABLE_ESLINT_PLUGIN: true
+        run: npm run build -w packages/mui
+      - name: Publish
+        if: steps.ver.outputs.exists == 'false'
+        working-directory: packages/mui
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          npm pkg set version="$VERSION"
+          npm pkg delete dependencies devDependencies scripts browserslist
+          npm publish
+          echo "Published @micahg/tbltp-mui@$VERSION" | tee -a "$GITHUB_STEP_SUMMARY"

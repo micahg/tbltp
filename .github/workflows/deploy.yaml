@@ -84,3 +84,16 @@ jobs:
       mui-version: ${{ needs.resolve.outputs.mui-version }}
       release-version: ${{ needs.resolve.outputs.ref }}
       ref: ${{ needs.resolve.outputs.ref }}
+  # Cloudflare Worker (migration in progress): deploys the released @micahg/tbltp-mui package (the
+  # same files dev ran, republished under the release version by release.yaml) to the prod Worker
+  # after the same Prod approval. Independent of the k8s deploy above.
+  worker-prod:
+    needs: [resolve, dev]
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy-worker.yaml
+    secrets: inherit
+    with:
+      environment: prod
+      version: ${{ needs.resolve.outputs.mui-version }}

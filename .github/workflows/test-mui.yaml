@@ -28,5 +28,9 @@ jobs:
         env:
           DISABLE_ESLINT_PLUGIN: true
         run: npm run build -w packages/mui
-
-      
+      - name: Check Worker Bundle
+        working-directory: packages/mui
+        env:
+          WRANGLER_VERSION: 4.166.0 # wrangler is not a project dependency; bump here (and in deploy-worker.yaml)
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --yes "wrangler@$WRANGLER_VERSION" deploy --dry-run --env dev
