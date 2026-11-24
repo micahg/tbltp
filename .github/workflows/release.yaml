@@ -60,7 +60,7 @@ jobs:
     outputs:
       mui_sha: ${{ steps.retag.outputs.mui_sha }}
     permissions:
-      contents: write
+      contents: read
       packages: write
     steps:
       - uses: actions/checkout@v7
