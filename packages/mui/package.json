@@ -13,8 +13,7 @@
     "wrangler.jsonc"
   ],
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "public"
+    "registry": "https://npm.pkg.github.com/@micahg"
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.15.0",
