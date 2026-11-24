@@ -16,6 +16,9 @@
     "registry": "https://npm.pkg.github.com",
     "access": "public"
   },
+  "config": {
+    "wrangler": "4.166.0"
+  },
   "dependencies": {
     "@auth0/auth0-react": "^2.15.0",
     "@auth0/auth0-spa-js": "^2.1.1",
@@ -42,8 +45,8 @@
     "test:utils": "jest --runInBand test/",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "worker:dev": "wrangler dev",
-    "worker:check": "wrangler deploy --dry-run --env dev"
+    "worker:dev": "npx --yes wrangler@$npm_package_config_wrangler dev",
+    "worker:check": "npx --yes wrangler@$npm_package_config_wrangler deploy --dry-run --env dev"
   },
   "browserslist": {
     "production": [
@@ -90,7 +93,6 @@
     "prettier": "^3.3.3",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.56.1",
-    "vite": "^6.2.2",
-    "wrangler": "^4.166.0"
+    "vite": "^6.2.2"
   }
 }

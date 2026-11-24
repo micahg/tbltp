@@ -51,7 +51,7 @@ jobs:
             echo "::error::secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID must both be set"
             exit 1
           }
-      # the checkout only supplies the local fetch-ui action and package-lock.json (for the wrangler pin)
+      # the checkout only supplies the local fetch-ui action and the wrangler pin in packages/mui/package.json
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
@@ -62,9 +62,9 @@ jobs:
           version: ${{ inputs.version }}
           token: ${{ github.token }}
           dest: ${{ runner.temp }}/ui
-      # the package is already built, so no install: just run the wrangler version the repo locks
+      # the package is already built, so no install: just run the pinned wrangler (config.wrangler)
       - name: Deploy
         run: |
           set -euo pipefail
-          WRANGLER=$(node -p "require('./package-lock.json').packages['node_modules/wrangler'].version")
+          WRANGLER=$(node -p "require('./packages/mui/package.json').config.wrangler")
           npx --yes "wrangler@$WRANGLER" deploy --config "$RUNNER_TEMP/ui/wrangler.jsonc" --env "${{ inputs.environment }}"
