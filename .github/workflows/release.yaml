@@ -146,8 +146,10 @@ jobs:
         run: |
           set -euo pipefail
           PKG=@micahg/tbltp-mui
-          SRC=$(npm view "$PKG" versions --json | jq -r --arg s "-sha-$SHA" 'if type == "array" then .[] else . end | select(endswith($s))' | head -n 1)
-          [ -n "$SRC" ] || { echo "::error::no $PKG version ending -sha-$SHA, the Build run for that commit did not publish it"; exit 1; }
+          # Ask for the exact version: until a release exists the package has no `latest` dist-tag, and
+          # `npm view <pkg> versions` then prints nothing.
+          SRC="$NEW-sha-$SHA"
+          [ -n "$(npm view "$PKG@$SRC" version 2> /dev/null || true)" ] || { echo "::error::$PKG@$SRC is not published, the Build run for commit $SHA did not publish it"; exit 1; }
           d=$(mktemp -d)
           npm pack "$PKG@$SRC" --pack-destination "$d" > /dev/null
           mkdir "$d/pkg" "$d/out"
