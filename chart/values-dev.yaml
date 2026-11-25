@@ -1,5 +1,5 @@
 # Dev on the Talos cluster, deployed by Argo CD.
-# releaseVersion, apiImageVers and uiImageVers are NOT here: they live in
+# releaseVersion and apiImageVers are NOT here: they live in
 # micahg/talos-cluster envs/dev/ntt.yaml, bumped by the "Deploy Dev" workflow (a self-merging PR
 # there). For a local render pass them with --set.
 deployEnv: dev
@@ -7,7 +7,6 @@ deployEnv: dev
 uiDomain: "dev.tbltp.dev"
 apiDomain: "dev-api.tbltp.dev"
 issuerDomain: "nttdev.us.auth0.com"
-clientId: blFghGfwUHOlKwDZzOELBFmxOTkxCeQr
 
 # Traffic arrives via cloudflared, not nginx. The Cilium policies admit it by namespace.
 ingressEnabled: false

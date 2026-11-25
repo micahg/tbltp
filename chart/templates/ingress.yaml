@@ -2,7 +2,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Values.uiAppName }}-ingress
+  name: {{ .Values.apiAppName }}-ingress
   namespace: {{ .Values.namespace }}
   annotations:
     cert-manager.io/cluster-issuer: {{ .Values.certIssuer }}
@@ -17,22 +17,9 @@ spec:
   {{- end }}
   tls:
   - hosts:
-    - {{ .Values.uiDomain }}
-    secretName: {{ .Values.uiAppName }}-tls
-  - hosts:
     - {{ .Values.apiDomain }}
     secretName: {{ .Values.apiAppName }}-tls
   rules:
-  - host: {{ .Values.uiDomain }}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ .Values.uiAppName }}-service
-            port:
-              number: 80
   - host: {{ .Values.apiDomain }}
     http:
       paths:

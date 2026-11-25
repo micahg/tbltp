@@ -1,5 +1,5 @@
 name: Deploy Prod
-run-name: Deploy prod (api ${{ inputs.api-version || 'unchanged' }}, ui ${{ inputs.mui-version || 'unchanged' }}, chart ${{ inputs.ref || 'unchanged' }})
+run-name: Deploy prod (api ${{ inputs.api-version || 'unchanged' }}, chart ${{ inputs.ref || 'unchanged' }})
 # Prod runs on the Talos cluster and is deployed by Argo CD. CI never touches the cluster: after
 # the Prod environment's reviewers approve, it bumps the image versions in envs/prod/ntt.yaml of
 # the micahg/talos-cluster repo (and, for a release tag, the chart revision in
@@ -10,10 +10,6 @@ on:
   workflow_call:
     inputs:
       api-version:
-        required: false
-        type: string
-        default: ""
-      mui-version:
         required: false
         type: string
         default: ""
@@ -29,10 +25,6 @@ on:
     inputs:
       api-version:
         description: API image version, e.g. 0.44.0 (blank leaves it unchanged)
-        required: false
-        type: string
-      mui-version:
-        description: UI image version, e.g. 0.33.0 (blank leaves it unchanged)
         required: false
         type: string
       release-version:
@@ -56,7 +48,6 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.TALOS_CLUSTER_TOKEN }}
       API_VERSION: ${{ inputs.api-version }}
-      UI_VERSION: ${{ inputs.mui-version }}
       RELEASE_VERSION: ${{ inputs.release-version }}
       CHART_REF: ${{ inputs.ref }}
     steps:
@@ -95,7 +86,6 @@ jobs:
             RELEASE_VERSION=
           fi
           set_value apiImageVers "$API_VERSION"
-          set_value uiImageVers "$UI_VERSION"
           set_value releaseVersion "$RELEASE_VERSION"
           # the first source of the Argo app is the tbltp chart (the second is talos-cluster itself)
           if [ -n "$CHART_REF" ]; then
@@ -120,7 +110,7 @@ jobs:
             gh pr close "$n" -R micahg/talos-cluster --delete-branch --comment "Superseded by run $GITHUB_RUN_ID."
           done
           BRANCH="deploy/ntt-prod-${GITHUB_RUN_ID}"
-          TITLE="chore: deploy ntt to prod (api ${API_VERSION:-unchanged}, ui ${UI_VERSION:-unchanged}, chart ${CHART_REF:-unchanged})"
+          TITLE="chore: deploy ntt to prod (api ${API_VERSION:-unchanged}, chart ${CHART_REF:-unchanged})"
           git checkout -b "$BRANCH"
           git add envs/prod/ntt.yaml argocd/prod/apps/ntt.yaml
           git commit -m "$TITLE"

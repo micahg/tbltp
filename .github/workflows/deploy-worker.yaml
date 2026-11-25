@@ -2,12 +2,9 @@ name: Deploy Worker
 run-name: Deploy UI worker (${{ inputs.environment }}, ${{ inputs.version }})
 # Cloudflare Worker deploy of a published @micahg/tbltp-mui package (publish-ui.yaml, release.yaml):
 # the package carries the build, the Worker script and wrangler.jsonc, so nothing is rebuilt here and
-# dev and prod serve byte-identical files. Runs next to the nginx
-# image pipeline, which stays the way production is served until cutover; the two are independent,
-# so a failure here never blocks the k8s deploy. The `dev` and `prod` environments have no routes
-# yet, so they only publish to workers.dev; `preview` is routed to prod.tbltp.dev. Needs the
-# repository secrets CLOUDFLARE_API_TOKEN (Workers Scripts: Edit, plus Zone: Workers Routes: Edit
-# and DNS: Edit on the tbltp.dev zone for custom-domain routes) and CLOUDFLARE_ACCOUNT_ID.
+# dev and prod serve byte-identical files. This is how the UI is served (dev.tbltp.dev, tbltp.dev).
+# Needs the repository secrets CLOUDFLARE_API_TOKEN (Workers Scripts: Edit, plus Workers Routes: Edit
+# on the tbltp.dev zone) and CLOUDFLARE_ACCOUNT_ID.
 on:
   workflow_call:
     inputs:
@@ -23,8 +20,8 @@ on:
         description: wrangler environment to deploy
         required: true
         type: choice
-        options: [preview, dev, prod]
-        default: preview
+        options: [dev, prod]
+        default: dev
       version:
         description: Published package version, e.g. 0.31.0 or 0.30.0-sha-1a2b3c4
         required: true

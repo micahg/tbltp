@@ -98,22 +98,20 @@ jobs:
       tag: ${{ needs.changes.outputs.tag }}
       ui-version: ${{ needs.publish-mui.outputs.version }}
   dev:
-    needs: [changes, package-api, publish-mui, package-mui]
+    needs: [changes, package-api]
     # a skipped package job must not skip dev, a failed one must
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
-      (needs.changes.outputs.api == 'true' || needs.changes.outputs.mui == 'true')
+      needs.changes.outputs.api == 'true'
     permissions:
       contents: read
     uses: ./.github/workflows/deploy-dev.yaml
     secrets: inherit
     with:
       api-version: ${{ needs.changes.outputs.api == 'true' && needs.changes.outputs.tag || '' }}
-      mui-version: ${{ needs.changes.outputs.mui == 'true' && needs.changes.outputs.tag || '' }}
-  # Cloudflare Worker (migration in progress): runs beside the image build and deploy, and nothing
-  # waits on it, so a failure here cannot block the k8s dev deploy.
+  # the UI is a Cloudflare Worker; the cluster only runs the API (the mui image is for docker compose)
   worker-dev:
     needs: [changes, publish-mui]
     if: needs.changes.outputs.mui == 'true'

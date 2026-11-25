@@ -1,5 +1,10 @@
 # tbltp Helm Chart
 
+This chart deploys the API only. The UI (`packages/mui`) is served by a Cloudflare
+Worker (see `packages/mui/wrangler.jsonc`). To serve it some other way, use the
+`ghcr.io/micahg/tbltp-mui` image, which still gets built. `uiDomain` is still
+needed here: the API allows that origin (CORS).
+
 ## Physical Infra
 
 Expecting to coexist with other infra. *For example* - you wont find the
@@ -10,7 +15,7 @@ certificate issuers here because they live in the another chart.
 
 Testing:
 
-```helm upgrade --dry-run --debug --install -f chart/values.yaml -f chart/values-dev.yaml --set releaseVersion=0.20.0 --set apiImageVers=0.1.0 --set uiImageVers=0.1.0 ntt-infra chart```
+```helm upgrade --dry-run --debug --install -f chart/values.yaml -f chart/values-dev.yaml --set releaseVersion=0.20.0 --set apiImageVers=0.1.0 ntt-infra chart```
 
 S3 values can be injected from CI with `--set-string` flags:
 

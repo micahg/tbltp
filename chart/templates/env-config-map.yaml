@@ -6,15 +6,10 @@ metadata:
 data:
   release.version: {{ .Values.releaseVersion }}
   deploy.environment: {{ .Values.deployEnv }}
-  auth.domain: {{ .Values.issuerDomain }}
-  auth.client: {{ .Values.clientId }}
   auth.audience: https://{{ .Values.apiDomain }}
-  api.url: https://{{ .Values.apiDomain }}
   ui.url: https://{{ .Values.uiDomain }}
-  ws.url: wss://{{ .Values.apiDomain }}
   ws.readTimeout: "{{ .Values.wsReadTimeout }}"
   ws.sendTimeout: "{{ .Values.wsSendTimeout }}"
   issuer.url: https://{{ .Values.issuerDomain }}
-  auth.redirect: https://{{ .Values.uiDomain }}/edit
   otel.url: https://{{ .Values.otelDomain }}:{{ .Values.otelPort }}/otlp
   loki.url: https://{{ .Values.lokiHost }}
