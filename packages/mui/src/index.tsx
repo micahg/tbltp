@@ -10,6 +10,8 @@ import EnvConfigGuardComponent from "./components/EnvConfigGuardComponent/EnvCon
 import { RouterProvider, createBrowserRouter } from "react-router";
 import UnavailableComponent from "./components/UnavailableComponent/UnavailableComponent";
 import { store } from "./store";
+import { ThemeProvider } from "@mui/material/styles";
+import { theme } from "./theme";
 
 const routes = [];
 routes.push({ path: "/", element: <LandingComponent />, errorElement: null });
@@ -42,7 +44,9 @@ const root = ReactDOM.createRoot(
 root.render(
   <React.StrictMode>
     <Provider store={store}>
-      <RouterProvider router={router} />
+      <ThemeProvider theme={theme}>
+        <RouterProvider router={router} />
+      </ThemeProvider>
     </Provider>
   </React.StrictMode>,
 );
