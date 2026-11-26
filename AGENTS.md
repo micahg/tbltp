@@ -124,7 +124,7 @@ docker volumes. Run a parallel stack from a git worktree:
 
 6. Point the worktree UI at the agent API - edit the worktree copy of
    `packages/mui/public/env.json` (never the committed one) - and serve it.
-   `vite.config.ts` hardcodes 4200; the CLI flag overrides it:
+   `vite.config.mts` hardcodes 4200; the CLI flag overrides it:
 
    ```
    {"API_URL": "http://localhost:3100", "WS_URL": "ws://localhost:3100/"}
