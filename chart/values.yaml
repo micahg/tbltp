@@ -1,13 +1,10 @@
 # These defaults ARE production (Talos cluster, Argo CD, Cloudflare Tunnel, Atlas, R2). Other
 # environments override them in values-<env>.yaml (see values-dev.yaml).
-# releaseVersion, apiImageVers and uiImageVers are NOT here: they live in micahg/talos-cluster
+# releaseVersion and apiImageVers are NOT here: they live in micahg/talos-cluster
 # envs/<env>/ntt.yaml, bumped by a pull request there after a release is approved. For a local
 # render pass them with --set.
 namespace: ntt
 deployEnv: prod
-uiAppName: ntt-ui
-uiAppReplicas: 1
-uiImagePath: ghcr.io/micahg/tbltp-mui
 uiDomain: "tbltp.dev"
 apiAppName: ntt-api
 apiAppReplicas: 1
@@ -23,7 +20,6 @@ wsSendTimeout: 60
 # Traffic arrives via cloudflared, not nginx. The Cilium policies admit it by namespace.
 ingressNamespace: "cloudflared"
 issuerDomain: "tbltp.us.auth0.com"
-clientId: I9UCeStWDPIHZsXhXk9XeIDpFyIjBwC8
 otelDomain: "otlp-gateway-prod-ca-east-0.grafana.net"
 otelPort: 443
 lokiHost: "logs-prod-018.grafana.net"

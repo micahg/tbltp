@@ -35,20 +35,6 @@
         "REDIRECT_URL": "https://dev.tbltp.dev/edit"
       }
     },
-    // Temporary: prod config on a throwaway hostname to validate the Worker before cutover.
-    // Delete once prod is served from tbltp.dev.
-    "preview": {
-      "name": "tbltp-mui-preview",
-      "routes": [{ "pattern": "prod.tbltp.dev", "custom_domain": true }],
-      "vars": {
-        "API_URL": "https://api.tbltp.dev",
-        "WS_URL": "wss://api.tbltp.dev",
-        "AUTH_DOMAIN": "tbltp.us.auth0.com",
-        "CLIENT_ID": "I9UCeStWDPIHZsXhXk9XeIDpFyIjBwC8",
-        "AUDIENCE_URL": "https://api.tbltp.dev",
-        "REDIRECT_URL": "https://prod.tbltp.dev/edit"
-      }
-    },
     "prod": {
       "name": "tbltp-mui-prod",
       // Zone route, not a custom domain: the existing proxied DNS record (the tunnel to the k8s UI)

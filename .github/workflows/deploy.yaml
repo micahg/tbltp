@@ -69,7 +69,6 @@ jobs:
     secrets: inherit
     with:
       api-version: ${{ needs.resolve.outputs.api-version }}
-      mui-version: ${{ needs.resolve.outputs.mui-version }}
       release-version: ${{ needs.resolve.outputs.ref }}
   # Prod runs on the Talos cluster. The job waits for approval on the Prod environment (Settings ->
   # Environments -> Prod -> Required reviewers), then bumps talos-cluster; Argo CD does the deploy.
@@ -81,12 +80,11 @@ jobs:
     secrets: inherit
     with:
       api-version: ${{ needs.resolve.outputs.api-version }}
-      mui-version: ${{ needs.resolve.outputs.mui-version }}
       release-version: ${{ needs.resolve.outputs.ref }}
       ref: ${{ needs.resolve.outputs.ref }}
-  # Cloudflare Worker (migration in progress): deploys the released @micahg/tbltp-mui package (the
+  # The UI: deploys the released @micahg/tbltp-mui package (the
   # same files dev ran, republished under the release version by release.yaml) to the prod Worker
-  # after the same Prod approval. Independent of the k8s deploy above.
+  # after the same Prod approval. Independent of the API deploy above.
   worker-prod:
     needs: [resolve, dev]
     permissions:

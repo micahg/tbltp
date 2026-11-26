@@ -15,9 +15,6 @@ on:
       api-version:
         required: true
         type: string
-      mui-version:
-        required: true
-        type: string
     secrets:
       KUBE_CONFIG:
         required: true
@@ -76,7 +73,6 @@ jobs:
           DEPLOY_ENV: ${{ vars.DEPLOYMENT_ENVIRONMENT }}
           EXTRA_ARGS: ${{ inputs.extra-helm-args }}
           API_VERSION: ${{ inputs.api-version }}
-          UI_VERSION: ${{ inputs.mui-version }}
           RELEASE_VERSION: ${{ inputs.ref }}
           MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
           OTEL_INSTANCE_ID: ${{ secrets.OTEL_INSTANCE_ID }}
@@ -98,6 +94,5 @@ jobs:
           [[ ! -z "$STORAGE_S3_SECRET_ACCESS_KEY" ]] && VALUE=`echo "$STORAGE_S3_SECRET_ACCESS_KEY"` yq e -i ".storageS3SecretAccessKey=env(VALUE)" chart/values.yaml
           helm upgrade --install -f chart/values.yaml $EXTRA_ARGS \
             --set apiImageVers="$API_VERSION" \
-            --set uiImageVers="$UI_VERSION" \
             --set releaseVersion="${RELEASE_VERSION#v}" \
             --set deployEnv="$DEPLOY_ENV" ntt-infra chart
