@@ -37,7 +37,7 @@ const AuthenticationGuardComponent = ({
     if (noAuthConfig?.noauth === true) {
       getter = () => Promise.resolve(null);
     } else if (isAuthenticated) {
-      getter = () => getAccessTokenSilently();
+      getter = async () => (await getAccessTokenSilently()) ?? null;
     } else {
       setGetterReady(false);
       return;
