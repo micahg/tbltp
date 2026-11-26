@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { AppReducerState } from "../../reducers/AppReducer";
+import type { AppReducerState } from "../../reducers/AppReducer";
 import { createRect, equalRects } from "../../utils/geometry";
 import { MouseStateMachine } from "../../utils/mousestatemachine";
 import { setCallback } from "../../utils/statemachine";
