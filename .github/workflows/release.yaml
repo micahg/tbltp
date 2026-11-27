@@ -2,8 +2,8 @@ name: Release
 # A release never builds (the UI package is republished, not rebuilt). Every merge to main already built the changed images as sha-<commit>
 # (build.yaml). Here each changed package's image for its last commit is re-tagged with the next
 # semver (same digest, so prod runs exactly what dev ran), both packages also get a
-# release-<version> tag that ties them to this release, and Deploy promotes the result to dev and
-# (after approval) prod.
+# release-<version> tag that ties them to this release, and Deploy promotes the result to prod (after
+# approval). Dev already runs these builds from the merges, so a release does not touch it.
 on:
   release:
     types: [published]
@@ -189,7 +189,7 @@ jobs:
             git tag "mui/v$MUI_VERSION" && git push origin "mui/v$MUI_VERSION"
           fi
   trigger-deployment:
-    needs: [tag-packages]
+    needs: [start-release, tag-packages]
     # a skipped package job (nothing changed for it) would otherwise skip this too
     if: always() && needs.tag-packages.result == 'success'
     runs-on: ubuntu-latest
@@ -197,8 +197,20 @@ jobs:
       contents: read
       actions: write
     steps:
+      # Dispatched rather than called: this run is on a tag, which the Prod environment rejects, and
+      # the dispatched run is on main. Both versions are always passed (the current one for an
+      # unchanged package), so prod catches up if an earlier deploy failed or was never approved.
       - name: Trigger Deployment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-        run: gh workflow run deploy.yaml
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          API_VERSION: ${{ needs.start-release.outputs.new_api_version || needs.start-release.outputs.current_api }}
+          UI_VERSION: ${{ needs.start-release.outputs.new_mui_version || needs.start-release.outputs.current_mui }}
+        run: |
+          gh workflow run deploy.yaml \
+            -f environment=prod \
+            -f api-version="$API_VERSION" \
+            -f ui-version="$UI_VERSION" \
+            -f release-version="$RELEASE_TAG" \
+            -f chart-ref="$RELEASE_TAG"

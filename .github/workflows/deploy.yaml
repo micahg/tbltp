@@ -1,97 +1,278 @@
 name: Deploy
+run-name: Deploy ${{ inputs.environment }}${{ inputs.dry-run && ' (dry run)' || '' }} (api ${{ inputs.api-version || 'unchanged' }}, ui ${{ inputs.ui-version || 'unchanged' }})
+# The one place that says what deploying to an environment means. build.yaml calls it for dev on
+# every merge to main, release.yaml dispatches it for prod, and it can be dispatched by hand (also
+# the way to roll back). A blank version leaves that part unchanged.
+#
+# cluster: dev and prod run on the Talos cluster and are deployed by Argo CD. CI never touches the
+# cluster: it bumps the image versions in envs/<environment>/ntt.yaml of the micahg/talos-cluster
+# repo (and, for prod, the chart revision in argocd/prod/apps/ntt.yaml) through a PR that merges
+# itself. Argo CD then deploys it (about 3 minutes). Needs the repository secret
+# TALOS_CLUSTER_TOKEN (write access to contents and pull requests on talos-cluster only).
+#
+# worker: deploys a published @micahg/tbltp-mui package (publish-ui.yaml, release.yaml) to
+# Cloudflare. The package carries the build, the Worker script and wrangler.jsonc, so nothing is
+# rebuilt here and dev and prod serve byte-identical files. This is how the UI is served
+# (dev.tbltp.dev, tbltp.dev). Needs the repository secrets CLOUDFLARE_API_TOKEN (Workers Scripts:
+# Edit, plus Workers Routes: Edit on the tbltp.dev zone) and CLOUDFLARE_ACCOUNT_ID.
+#
+# For prod, both wait for approval on the Prod environment (Settings -> Environments -> Prod ->
+# Required reviewers), which is the only gate. Prod only accepts runs from a protected branch.
+#
+# notify: opens an issue if either fails. A release's deploy is started by github-actions[bot], so
+# GitHub's own failure notifications reach nobody. Argo CD rollout failures are not seen here.
 on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      api-version:
+        required: false
+        type: string
+        default: ""
+      ui-version:
+        required: false
+        type: string
+        default: ""
+      release-version:
+        required: false
+        type: string
+        default: ""
+      chart-ref:
+        required: false
+        type: string
+        default: ""
+      dry-run:
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
+      environment:
+        description: Environment to deploy
+        required: true
+        type: choice
+        options: [dev, prod]
       api-version:
-        description: API image version (defaults to newest api/v* tag)
+        description: API image version, e.g. 0.44.0, or sha-1a2b3c4 for dev (blank leaves it unchanged)
         required: false
         type: string
-      mui-version:
-        description: UI image version (defaults to newest mui/v* tag)
+      ui-version:
+        description: UI package version, e.g. 0.31.0 or 0.30.0-sha-1a2b3c4 (blank leaves it unchanged)
         required: false
         type: string
-      ref:
-        description: Repo revision to deploy the chart from (defaults to newest v* tag)
+      release-version:
+        description: Release version reported by the API, e.g. 0.63.0 (blank leaves it unchanged)
         required: false
         type: string
+      chart-ref:
+        description: Prod only. Chart revision, a v* tag or main (blank leaves it unchanged). It must have prod as the chart default (values.yaml), which older tags do not.
+        required: false
+        type: string
+      dry-run:
+        description: Show what would change without deploying
+        required: false
+        type: boolean
+        default: false
 jobs:
-  resolve:
+  cluster:
+    if: inputs.api-version != '' || inputs.release-version != '' || inputs.chart-ref != ''
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment == 'prod' && 'Prod' || '' }}
+    concurrency:
+      # dry runs get their own group so they never displace a pending deploy
+      group: deploy-cluster-${{ inputs.environment }}${{ inputs.dry-run && '-dry-run' || '' }}
+      cancel-in-progress: false
     permissions:
       contents: read
-    outputs:
-      api-version: ${{ steps.resolve.outputs.api-version }}
-      mui-version: ${{ steps.resolve.outputs.mui-version }}
-      ref: ${{ steps.resolve.outputs.ref }}
+    env:
+      GH_TOKEN: ${{ secrets.TALOS_CLUSTER_TOKEN }}
+      ENVIRONMENT: ${{ inputs.environment }}
+      API_VERSION: ${{ inputs.api-version }}
+      RELEASE_VERSION: ${{ inputs.release-version }}
+      CHART_REF: ${{ inputs.chart-ref }}
     steps:
+      - name: Check Inputs
+        run: |
+          case "$ENVIRONMENT" in
+            dev) [ -z "$CHART_REF" ] || { echo "::error::chart-ref is prod only, Argo CD follows main in dev"; exit 1; } ;;
+            prod) ;;
+            *) echo "::error::unknown environment '$ENVIRONMENT'"; exit 1 ;;
+          esac
+          [ -n "$GH_TOKEN" ] || { echo "::error::secret TALOS_CLUSTER_TOKEN is not set"; exit 1; }
+      # the chart that gets validated (and that Argo will render) is the one at the requested revision
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-      - id: resolve
-        name: Resolve Versions
-        env:
-          API_VERSION: ${{ inputs.api-version }}
-          MUI_VERSION: ${{ inputs.mui-version }}
-          REF: ${{ inputs.ref }}
+          ref: ${{ inputs.chart-ref || 'main' }}
+      - uses: actions/checkout@v7
+        with:
+          repository: micahg/talos-cluster
+          ref: main
+          path: cluster
+          token: ${{ secrets.TALOS_CLUSTER_TOKEN }}
+      - name: Update Versions
+        working-directory: cluster
         run: |
-          if [ -z "$API_VERSION" ]; then
-            API_VERSION=$(git tag -l "api/v*" --sort=-v:refname | head -n 1)
-            API_VERSION=${API_VERSION##*/}
-            API_VERSION=${API_VERSION#v}
+          set -euo pipefail
+          f="envs/$ENVIRONMENT/ntt.yaml"
+          semver='^[0-9]+\.[0-9]+\.[0-9]+$'
+          # dev also runs the sha-<commit> images that build.yaml makes on every merge to main
+          imagetag=$semver
+          [ "$ENVIRONMENT" = dev ] && imagetag='^([0-9]+\.[0-9]+\.[0-9]+|sha-[0-9a-f]{7,40})$'
+          set_value() {
+            local key=$1 val=$2 pattern=$3
+            [ -z "$val" ] && return 0
+            if ! [[ "$val" =~ $pattern ]]; then
+              echo "::error::$key '$val' does not match $pattern"
+              exit 1
+            fi
+            sed -i -E "s/^${key}: .*/${key}: \"${val}\"/" "$f"
+            grep -q "^${key}: \"${val}\"$" "$f" || { echo "::error::could not set $key"; exit 1; }
+          }
+          RELEASE_VERSION=${RELEASE_VERSION#v}
+          if [ -n "$RELEASE_VERSION" ] && ! [[ "$RELEASE_VERSION" =~ $semver ]]; then
+            echo "::warning::release version '$RELEASE_VERSION' is not x.y.z, leaving it unchanged"
+            RELEASE_VERSION=
           fi
-          if [ -z "$API_VERSION" ]; then
-            echo "::error::no api/v* tag found, pass api-version explicitly"
-            exit 1
+          set_value apiImageVers "$API_VERSION" "$imagetag"
+          set_value releaseVersion "$RELEASE_VERSION" "$semver"
+          # the first source of the Argo app is the tbltp chart (the second is talos-cluster itself)
+          if [ -n "$CHART_REF" ]; then
+            yq -i '.spec.sources[0].targetRevision = strenv(CHART_REF)' argocd/prod/apps/ntt.yaml
           fi
-          if [ -z "$MUI_VERSION" ]; then
-            MUI_VERSION=$(git tag -l "mui/v*" --sort=-v:refname | head -n 1)
-            MUI_VERSION=${MUI_VERSION##*/}
-            MUI_VERSION=${MUI_VERSION#v}
+          git diff
+      - name: Validate Chart
+        run: |
+          set -euo pipefail
+          values=(-f chart/values.yaml)
+          [ "$ENVIRONMENT" = dev ] && values+=(-f chart/values-dev.yaml)
+          helm template ntt-infra chart "${values[@]}" -f "cluster/envs/$ENVIRONMENT/ntt.yaml" > /dev/null
+      - name: Show Dry Run
+        if: inputs.dry-run
+        working-directory: cluster
+        run: |
+          {
+            echo "Dry run, talos-cluster is not changed. It would apply:"
+            echo '```diff'
+            git diff
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Open PR And Merge
+        if: ${{ !inputs.dry-run }}
+        working-directory: cluster
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "$ENVIRONMENT is already at these versions, nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
-          if [ -z "$MUI_VERSION" ]; then
-            echo "::error::no mui/v* tag found, pass mui-version explicitly"
-            exit 1
-          fi
-          if [ -z "$REF" ]; then
-            REF=$(git tag -l "v*" --sort=-v:refname | head -n 1)
-          fi
-          if [ -z "$REF" ]; then
-            REF=main
-          fi
-          echo "api-version=$API_VERSION" >> "$GITHUB_OUTPUT"
-          echo "mui-version=$MUI_VERSION" >> "$GITHUB_OUTPUT"
-          echo "ref=$REF" >> "$GITHUB_OUTPUT"
-  dev:
-    needs: [resolve]
-    permissions:
-      contents: read
-    uses: ./.github/workflows/deploy-dev.yaml
-    secrets: inherit
-    with:
-      api-version: ${{ needs.resolve.outputs.api-version }}
-      release-version: ${{ needs.resolve.outputs.ref }}
-  # Prod runs on the Talos cluster. The job waits for approval on the Prod environment (Settings ->
-  # Environments -> Prod -> Required reviewers), then bumps talos-cluster; Argo CD does the deploy.
-  prod:
-    needs: [resolve, dev]
-    permissions:
-      contents: read
-    uses: ./.github/workflows/deploy-prod.yaml
-    secrets: inherit
-    with:
-      api-version: ${{ needs.resolve.outputs.api-version }}
-      release-version: ${{ needs.resolve.outputs.ref }}
-      ref: ${{ needs.resolve.outputs.ref }}
-  # The UI: deploys the released @micahg/tbltp-mui package (the
-  # same files dev ran, republished under the release version by release.yaml) to the prod Worker
-  # after the same Prod approval. Independent of the API deploy above.
-  worker-prod:
-    needs: [resolve, dev]
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # anything still open from an earlier run is superseded by this one
+          for n in $(gh pr list -R micahg/talos-cluster --state open --json number,headRefName \
+              --jq ".[] | select(.headRefName | startswith(\"deploy/ntt-$ENVIRONMENT-\")) | .number"); do
+            gh pr close "$n" -R micahg/talos-cluster --delete-branch --comment "Superseded by run $GITHUB_RUN_ID."
+          done
+          BRANCH="deploy/ntt-$ENVIRONMENT-${GITHUB_RUN_ID}"
+          TITLE="chore: deploy ntt to $ENVIRONMENT (api ${API_VERSION:-unchanged}, chart ${CHART_REF:-unchanged})"
+          git checkout -b "$BRANCH"
+          git add -u
+          git commit -m "$TITLE"
+          git push origin "$BRANCH"
+          gh pr create -R micahg/talos-cluster --base main --head "$BRANCH" --title "$TITLE" \
+            --body "Automated bump from run $GITHUB_RUN_ID. Argo CD deploys it to $ENVIRONMENT after the merge."
+          for i in 1 2 3; do
+            if gh pr merge "$BRANCH" -R micahg/talos-cluster --squash; then
+              echo "Merged $BRANCH. Argo CD will deploy it to $ENVIRONMENT shortly." | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            gh pr update-branch "$BRANCH" -R micahg/talos-cluster || true
+            sleep 15
+          done
+          echo "::error::could not merge $BRANCH"
+          exit 1
+  worker:
+    if: inputs.ui-version != ''
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment == 'prod' && 'Prod' || '' }}
+    concurrency:
+      group: deploy-worker-${{ inputs.environment }}${{ inputs.dry-run && '-dry-run' || '' }}
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: read
-    uses: ./.github/workflows/deploy-worker.yaml
-    secrets: inherit
-    with:
-      environment: prod
-      version: ${{ needs.resolve.outputs.mui-version }}
+    env:
+      WRANGLER_VERSION: 4.166.0 # wrangler is not a project dependency; bump here (and in test-mui.yaml)
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: "false"
+      ENVIRONMENT: ${{ inputs.environment }}
+      DRY_RUN: ${{ inputs.dry-run }}
+    steps:
+      - name: Check Inputs
+        run: |
+          case "$ENVIRONMENT" in
+            dev | prod) ;;
+            *) echo "::error::unknown environment '$ENVIRONMENT'"; exit 1 ;;
+          esac
+          [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || {
+            echo "::error::secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID must both be set"
+            exit 1
+          }
+      # the checkout only supplies the local fetch-ui action
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.x'
+      - name: Fetch UI package
+        uses: ./.github/actions/fetch-ui
+        with:
+          version: ${{ inputs.ui-version }}
+          token: ${{ github.token }}
+          dest: ${{ runner.temp }}/ui
+      # the package is already built, so no install: just run the pinned wrangler
+      - name: Deploy
+        run: |
+          set -euo pipefail
+          args=(deploy --config "$RUNNER_TEMP/ui/wrangler.jsonc" --env "$ENVIRONMENT")
+          [ "$DRY_RUN" = true ] && args+=(--dry-run)
+          npx --yes "wrangler@$WRANGLER_VERSION" "${args[@]}"
+  notify:
+    needs: [cluster, worker]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ASSIGNEE: ${{ github.repository_owner }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          API_VERSION: ${{ inputs.api-version }}
+          UI_VERSION: ${{ inputs.ui-version }}
+          RELEASE_VERSION: ${{ inputs.release-version }}
+          CHART_REF: ${{ inputs.chart-ref }}
+          DRY_RUN: ${{ inputs.dry-run }}
+          CLUSTER_RESULT: ${{ needs.cluster.result }}
+          WORKER_RESULT: ${{ needs.worker.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          body=$(cat <<BODY
+          A deploy failed: $RUN_URL
+
+          | | |
+          |---|---|
+          | cluster | $CLUSTER_RESULT |
+          | worker | $WORKER_RESULT |
+          | api-version | ${API_VERSION:-unchanged} |
+          | ui-version | ${UI_VERSION:-unchanged} |
+          | release-version | ${RELEASE_VERSION:-unchanged} |
+          | chart-ref | ${CHART_REF:-unchanged} |
+          | dry-run | $DRY_RUN |
+          BODY
+          )
+          gh issue create --title "Deploy to $ENVIRONMENT failed (run $GITHUB_RUN_ID)" --body "$body" --assignee "$ASSIGNEE"
