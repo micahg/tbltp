@@ -1,7 +1,7 @@
 name: Build
 run-name: Build ${{ github.sha }}
 # Every merge to main builds the packages it changed, once, and bumps dev to the new images through
-# a self-merging pull request in micahg/talos-cluster (deploy-dev.yaml). Images are tagged
+# a self-merging pull request in micahg/talos-cluster (deploy.yaml). Images are tagged
 # sha-<first 7 of the commit>. A release later re-tags these images with semver and promotes them to
 # prod; nothing is rebuilt then. Chart-only merges build nothing (Argo CD already follows main).
 # If merges arrive faster than builds finish, GitHub skips the ones in the middle and the last run
@@ -97,29 +97,22 @@ jobs:
       package: mui
       tag: ${{ needs.changes.outputs.tag }}
       ui-version: ${{ needs.publish-mui.outputs.version }}
+  # the API runs on the cluster; the UI is a Cloudflare Worker (the mui image is for docker compose)
   dev:
-    needs: [changes, package-api]
+    needs: [changes, package-api, publish-mui]
     # a skipped package job must not skip dev, a failed one must
     if: |
       always() &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
-      needs.changes.outputs.api == 'true'
-    permissions:
-      contents: read
-    uses: ./.github/workflows/deploy-dev.yaml
-    secrets: inherit
-    with:
-      api-version: ${{ needs.changes.outputs.api == 'true' && needs.changes.outputs.tag || '' }}
-  # the UI is a Cloudflare Worker; the cluster only runs the API (the mui image is for docker compose)
-  worker-dev:
-    needs: [changes, publish-mui]
-    if: needs.changes.outputs.mui == 'true'
+      (needs.changes.outputs.api == 'true' || needs.changes.outputs.mui == 'true')
     permissions:
       contents: read
       packages: read
-    uses: ./.github/workflows/deploy-worker.yaml
+      issues: write
+    uses: ./.github/workflows/deploy.yaml
     secrets: inherit
     with:
       environment: dev
-      version: ${{ needs.publish-mui.outputs.version }}
+      api-version: ${{ needs.changes.outputs.api == 'true' && needs.changes.outputs.tag || '' }}
+      ui-version: ${{ needs.publish-mui.outputs.version }}
