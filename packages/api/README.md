@@ -181,8 +181,8 @@ printf 'Authorization=Basic %s' "$(printf '%s:%s' "$OTEL_INSTANCE_ID" "$OTEL_TOK
 as resource attributes — they show up as the `deployment_environment` and
 `service_version` labels in Grafana Cloud.
 
-In the cluster these values are injected through the chart and CI (GitHub
-environment secrets); see `chart/README.md`.
+In the cluster the credentials come from Kubernetes Secrets and the rest from
+the chart; see `chart/README.md`.
 
 # Future Work
 
