@@ -13,8 +13,6 @@ apiDomain: "api.tbltp.dev"
 mongoName: "mongo"
 mongoSuffix: "lrmrxki.mongodb.net"
 mongoPort: 27017
-certIssuer: letsencrypt-staging
-maxBodySize: 32m
 wsReadTimeout: 60
 wsSendTimeout: 60
 # Traffic arrives via cloudflared, not nginx. The Cilium policies admit it by namespace.
@@ -23,25 +21,11 @@ issuerDomain: "tbltp.us.auth0.com"
 otelDomain: "otlp-gateway-prod-ca-east-0.grafana.net"
 otelPort: 443
 lokiHost: "logs-prod-018.grafana.net"
-# Telemetry credentials, only used when createSecrets is true
-otelHeaders: ""
-lokiUserId: ""
-lokiToken: ""
-# S3 storage configuration (set via CI/CD values)
-storageS3Endpoint: ""
-storageS3Bucket: ""
-storageS3AccessKeyId: ""
-storageS3SecretAccessKey: ""
-# Feature switches
-ingressEnabled: false    # true to create an nginx Ingress (traffic normally arrives through Cloudflare Tunnel)
-createNamespace: false   # true when no other Argo CD app creates the namespace
-createSecrets: false     # true to create Secrets from values; in GitOps they are SealedSecrets
-                         # (mongo-connection-string, ntt-api-s3-storage,
-                         # ntt-api-otel, ntt-api-loki) applied by the ntt-secrets app
-# MONGO_URL comes from the mongo-connection-string Secret (Atlas). It must name the
-# database (tbltp), otherwise the API would use "test".
-# Extra FQDN patterns the API may reach for S3 (non-secret). Used when the endpoint is
-# not injected as a value, e.g. GitOps with sealed secrets. Cloudflare R2's bucket host is two
-# labels deep, hence **; this keeps the account id out of Git.
+# Secrets are not created by this chart. These must exist in the namespace before the API can start
+# (on Talos they are SealedSecrets, applied by the ntt-secrets Argo CD app):
+#   mongo-connection-string, ntt-api-s3-storage, ntt-api-otel, ntt-api-loki
+# The mongo URL must name the database (tbltp), otherwise the API would use "test".
+# FQDN patterns the API may reach for S3. Cloudflare R2's bucket host is two labels deep, hence **;
+# this keeps the account id out of Git.
 storageS3EgressPatterns:
   - "**.r2.cloudflarestorage.com"

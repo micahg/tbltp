@@ -7,16 +7,3 @@ deployEnv: dev
 uiDomain: "dev.tbltp.dev"
 apiDomain: "dev-api.tbltp.dev"
 issuerDomain: "nttdev.us.auth0.com"
-
-# Traffic arrives via cloudflared, not nginx. The Cilium policies admit it by namespace.
-ingressEnabled: false
-ingressNamespace: cloudflared
-
-# Secrets (mongo-connection-string, ntt-api-s3-storage, ntt-api-otel, ntt-api-loki) come from
-# SealedSecrets, applied by the ntt-secrets Argo CD app. MONGO_URL points at Atlas.
-createNamespace: false
-createSecrets: false
-
-# Cloudflare R2 (bucket host is two labels deep, hence **). Keeps the account id out of Git.
-storageS3EgressPatterns:
-  - "**.r2.cloudflarestorage.com"
