@@ -23,7 +23,7 @@ issuerDomain: "tbltp.us.auth0.com"
 otelDomain: "otlp-gateway-prod-ca-east-0.grafana.net"
 otelPort: 443
 lokiHost: "logs-prod-018.grafana.net"
-# Telemetry credentials (set via CI/CD values; absent values disable telemetry)
+# Telemetry credentials, only used when createSecrets is true
 otelHeaders: ""
 lokiUserId: ""
 lokiToken: ""
@@ -36,7 +36,8 @@ storageS3SecretAccessKey: ""
 ingressEnabled: false    # true to create an nginx Ingress (traffic normally arrives through Cloudflare Tunnel)
 createNamespace: false   # true when no other Argo CD app creates the namespace
 createSecrets: false     # true to create Secrets from values; in GitOps they are SealedSecrets
-                         # (mongo-connection-string, ntt-api-s3-storage) applied by the ntt-secrets app
+                         # (mongo-connection-string, ntt-api-s3-storage,
+                         # ntt-api-otel, ntt-api-loki) applied by the ntt-secrets app
 # MONGO_URL comes from the mongo-connection-string Secret (Atlas). It must name the
 # database (tbltp), otherwise the API would use "test".
 # Extra FQDN patterns the API may reach for S3 (non-secret). Used when the endpoint is
