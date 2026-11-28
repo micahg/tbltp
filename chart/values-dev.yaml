@@ -12,8 +12,8 @@ issuerDomain: "nttdev.us.auth0.com"
 ingressEnabled: false
 ingressNamespace: cloudflared
 
-# Secrets (mongo-connection-string, ntt-api-s3-storage) come from SealedSecrets,
-# applied by the ntt-secrets Argo CD app. MONGO_URL points at Atlas.
+# Secrets (mongo-connection-string, ntt-api-s3-storage, ntt-api-otel, ntt-api-loki) come from
+# SealedSecrets, applied by the ntt-secrets Argo CD app. MONGO_URL points at Atlas.
 createNamespace: false
 createSecrets: false
 

@@ -86,7 +86,6 @@ spec:
             secretKeyRef:
               name: {{ .Values.apiAppName }}-s3-storage
               key: storage.s3.secretAccessKey
-        {{- if .Values.otelHeaders }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           valueFrom:
             configMapKeyRef:
@@ -99,8 +98,6 @@ spec:
             secretKeyRef:
               name: {{ .Values.apiAppName }}-otel
               key: otel.headers
-        {{- end }}
-        {{- if .Values.lokiToken }}
         - name: LOKI_URL
           valueFrom:
             configMapKeyRef:
@@ -116,7 +113,6 @@ spec:
             secretKeyRef:
               name: {{ .Values.apiAppName }}-loki
               key: loki.token
-        {{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -176,22 +172,18 @@ spec:
       rules:
         dns:
         - matchPattern: "*"
-  {{- if .Values.otelHeaders }}
   - toFQDNs:
     - matchName: {{ .Values.otelDomain }}
     toPorts:
     - ports:
       - port: "443"
         protocol: TCP
-  {{- end }}
-  {{- if .Values.lokiToken }}
   - toFQDNs:
     - matchName: {{ .Values.lokiHost }}
     toPorts:
     - ports:
       - port: "443"
         protocol: TCP
-  {{- end }}
   # mongo egress: Atlas
   - toFQDNs:
     - matchPattern: "*.{{ .Values.mongoSuffix }}"

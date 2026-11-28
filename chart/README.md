@@ -29,11 +29,17 @@ S3 values can be injected from CI with `--set-string` flags:
 ## Telemetry
 
 Metrics export directly to Grafana Cloud's OTLP gateway and logs to its Loki
-push API (no collector). Credentials are injected per environment from GitHub
-environment secrets: `OTEL_INSTANCE_ID`, `OTEL_TOKEN`, `LOKI_USER_ID`,
-`LOKI_TOKEN`. The deploy workflow combines the OTLP instance ID and token into
-the `otelHeaders` value. An environment without these secrets deploys with
-telemetry disabled (the chart guards everything on their presence).
+push API (no collector). The API always reads these Secrets, which must exist
+before the pods can start:
+
+| Secret | Keys |
+| --- | --- |
+| `ntt-api-otel` | `otel.headers` (`Authorization=Basic <base64 of instanceId:token>`) |
+| `ntt-api-loki` | `loki.userId`, `loki.token` |
+
+On the Talos cluster they are SealedSecrets in `micahg/talos-cluster`
+(`apps/ntt/secrets/<env>/`). With `createSecrets: true` the chart creates them
+from `otelHeaders`, `lokiUserId` and `lokiToken` instead.
 
 Rollback:
 
